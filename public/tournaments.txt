@@ -1,0 +1,5 @@
+# BAT Thailand Tournament IDs
+# One GUID per line — get it from the tournament URL:
+# https://bat.tournamentsoftware.com/tournament/{GUID}
+
+1BEC8194-C338-4CB0-AA1D-7444C90F5DE6

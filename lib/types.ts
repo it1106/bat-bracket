@@ -11,6 +11,18 @@ export interface TournamentEvent {
   drawUrl: string
 }
 
+export interface DrawInfo {
+  drawNum: string
+  name: string
+  size: string
+  type: string
+}
+
+export interface TournamentInfo {
+  id: string
+  name: string
+}
+
 export interface BracketData {
   html: string
   format: 'single-elimination' | 'groups-knockout' | 'double-elimination' | 'unknown'

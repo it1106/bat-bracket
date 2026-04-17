@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import type { Tournament, TournamentEvent, BracketData } from './types'
+import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo } from './types'
 
 function extractId(url: string): string {
   const match = url.match(/\/tournament\/([^/]+)/)
@@ -40,6 +40,42 @@ export function parseEvents(html: string): TournamentEvent[] {
     const id = idMatch ? idMatch[1] : drawUrl
     if (name && drawUrl) {
       results.push({ id, name, drawUrl })
+    }
+  })
+
+  return results
+}
+
+// Parses /sport/draws.aspx?id=GUID — the static HTML contains a table with all draws
+export function parseTournamentMeta(html: string): TournamentInfo | null {
+  const $ = cheerio.load(html)
+  const rawTitle = $('title').text().trim()
+  // Format: "Federation - Tournament Name - Draws"
+  const parts = rawTitle.split(' - ')
+  if (parts.length >= 3) {
+    const name = parts.slice(1, -1).join(' - ')
+    return { id: '', name }
+  }
+  if (parts.length === 2) return { id: '', name: parts[0] }
+  return rawTitle ? { id: '', name: rawTitle } : null
+}
+
+export function parseTournamentDraws(html: string): DrawInfo[] {
+  const $ = cheerio.load(html)
+  const results: DrawInfo[] = []
+
+  $('td.drawname a').each((_, el) => {
+    const href = $(el).attr('href') ?? ''
+    const drawMatch = href.match(/[?&]draw=(\d+)/)
+    if (!drawMatch) return
+    const drawNum = drawMatch[1]
+    const name = $(el).text().trim()
+    const row = $(el).closest('tr')
+    const cells = row.find('td')
+    const size = cells.eq(1).text().trim()
+    const type = cells.eq(2).text().trim()
+    if (name && drawNum) {
+      results.push({ drawNum, name, size, type })
     }
   })
 
