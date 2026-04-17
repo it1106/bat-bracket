@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/bracket/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
