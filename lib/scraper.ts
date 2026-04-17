@@ -10,7 +10,9 @@ export function parseTournaments(html: string): Tournament[] {
   const $ = cheerio.load(html)
   const results: Tournament[] = []
 
-  // Adjust selector after verifying against live site
+  // ⚠️ SELECTORS NEED VERIFICATION against live site.
+  // Open https://bat.tournamentsoftware.com/find in browser DevTools,
+  // find the tournament list items and update the selectors below.
   $('.tournament-item').each((_, el) => {
     const link = $(el).find('a.tournament-name')
     const url = link.attr('href') ?? ''
@@ -28,7 +30,9 @@ export function parseEvents(html: string): TournamentEvent[] {
   const $ = cheerio.load(html)
   const results: TournamentEvent[] = []
 
-  // Adjust selector after verifying against live site
+  // ⚠️ SELECTORS NEED VERIFICATION against live site.
+  // Open a tournament's schedule page in browser DevTools,
+  // find the draw/event links and update the selectors below.
   $('a.draw-link').each((_, el) => {
     const drawUrl = $(el).attr('href') ?? ''
     const name = $(el).text().trim()
