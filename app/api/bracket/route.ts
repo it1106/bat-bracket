@@ -2,33 +2,55 @@ import { NextResponse } from 'next/server'
 import { parseBracket } from '@/lib/scraper'
 
 export const revalidate = 900
+export const maxDuration = 30
 
-// Accepts either:
-//   ?url=https://bat.tournamentsoftware.com/tournament/ID/draw/ID
-// or:
-//   ?tournament=ID&event=ID
+function extractIds(url: string): { guid: string; drawNum: string } | null {
+  // Matches: /tournament/{GUID}/draw/{N}
+  const m = url.match(/\/tournament\/([0-9a-f-]{36})\/draw\/(\d+)/i)
+  return m ? { guid: m[1].toLowerCase(), drawNum: m[2] } : null
+}
+
+// Accepts: ?url=https://bat.tournamentsoftware.com/tournament/GUID/draw/N
+// or:      ?tournament=GUID&event=N
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const rawUrl = searchParams.get('url')
   const tournamentId = searchParams.get('tournament')
   const eventId = searchParams.get('event')
 
-  let targetUrl: string
+  let guid: string
+  let drawNum: string
 
   if (rawUrl) {
     if (!rawUrl.startsWith('https://bat.tournamentsoftware.com/')) {
       return NextResponse.json({ error: 'URL must be from bat.tournamentsoftware.com' }, { status: 400 })
     }
-    targetUrl = rawUrl
+    const ids = extractIds(rawUrl)
+    if (!ids) {
+      return NextResponse.json(
+        { error: 'URL must contain /tournament/{GUID}/draw/{number}' },
+        { status: 400 }
+      )
+    }
+    guid = ids.guid
+    drawNum = ids.drawNum
   } else if (tournamentId && eventId) {
-    targetUrl = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/draw/${eventId}`
+    guid = tournamentId.toLowerCase()
+    drawNum = eventId
   } else {
     return NextResponse.json({ error: 'Provide either ?url= or ?tournament=&event=' }, { status: 400 })
   }
 
+  const apiUrl = `https://bat.tournamentsoftware.com/tournament/${guid}/Draw/${drawNum}/GetDrawContent?tabindex=1&X-Requested-With=XMLHttpRequest`
+
   try {
-    const res = await fetch(targetUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BATBrackets/1.0)' },
+    const res = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'text/html, */*; q=0.01',
+        'Referer': `https://bat.tournamentsoftware.com/tournament/${guid}/draw/${drawNum}`,
+      },
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const html = await res.text()
@@ -36,15 +58,16 @@ export async function GET(request: Request) {
 
     if (!bracket.html) {
       return NextResponse.json(
-        { error: 'Bracket data could not be parsed — the source site may have changed' },
+        { error: 'Bracket data could not be parsed — the draw may not be published yet' },
         { status: 502 }
       )
     }
 
     return NextResponse.json(bracket)
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Could not load bracket — the source site may be unavailable' },
+      { error: `Could not load bracket: ${message}` },
       { status: 500 }
     )
   }

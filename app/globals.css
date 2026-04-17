@@ -129,3 +129,209 @@
   stroke-linecap: round;
   fill: none;
 }
+
+/* ── New bracket format (.bracket.js-bracket from GetDrawContent API) ── */
+
+.bracket {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  width: max-content;
+  min-width: 100%;
+}
+
+/* Round name header strip */
+.swiper-bracket-header {
+  background: #1e3a5f;
+  border-radius: 7px 7px 0 0;
+  padding: 0;
+}
+
+.swiper-subheadings-container {
+  display: flex;
+  flex-direction: row;
+}
+
+.subheading {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.subheading:last-child {
+  border-right: none;
+}
+
+/* Rounds container — swiper replaced with plain div */
+.swiper-container-replaced {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  padding: 12px;
+  gap: 4px;
+}
+
+/* Individual round column */
+.swiper-slide-replaced.bracket-round__item {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+}
+
+.bracket-round__match-group-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.bracket-round__match-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-left: 2px solid #e9ecef;
+  padding-left: 4px;
+}
+
+/* Individual match box */
+.match {
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  margin-bottom: 4px;
+}
+
+.match__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.match__row-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Player row */
+.match__row {
+  display: flex;
+  align-items: center;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: #333;
+  min-height: 28px;
+  border-bottom: 1px solid #f0f0f0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.match__row:last-child {
+  border-bottom: none;
+}
+
+/* Winner row */
+.match__row.has-won {
+  background: #e8f5e9;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* Tracked/highlighted player */
+.match__row.highlighted {
+  background: #fff3cd !important;
+  color: #856404 !important;
+  font-weight: 700 !important;
+}
+
+.match__row-title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.match__row-entrant-info {
+  display: none; /* hide club info icon to save space */
+}
+
+.match__row-title-value {
+  flex: 1;
+  min-width: 0;
+}
+
+.match__row-title-value-content {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
+.match__row-title-value-content a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.match__row-title-value-content a:hover {
+  text-decoration: underline;
+  color: #2563eb;
+}
+
+/* Match status tag (W, etc.) */
+.match__status {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+.tag--success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* Match footer (score/time) */
+.match__footer {
+  background: #f8f9fa;
+  border-top: 1px solid #f0f0f0;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: #888;
+}
+
+.match__footer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 6px;
+}
+
+/* Hide chevron/info SVG icons */
+.icon-chevron_right {
+  display: none;
+}
+
+/* Hide club names to save horizontal space */
+.match__row-entrant-info-club {
+  display: none;
+}
+
+/* Hide the entrant-info toggle checkbox */
+#entrant-info-toggle {
+  display: none;
+}

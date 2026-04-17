@@ -17,9 +17,28 @@ export default function BracketCanvas({
 
   useEffect(() => {
     if (!containerRef.current) return
-    const rows = containerRef.current.querySelectorAll<HTMLElement>('.bk-row span')
     const query = playerQuery.trim().toLowerCase()
 
+    // New format: .match__row with player links
+    const playerLinks = containerRef.current.querySelectorAll<HTMLAnchorElement>(
+      '.match__row-title-value-content a'
+    )
+    if (playerLinks.length > 0) {
+      playerLinks.forEach((link) => {
+        const row = link.closest('.match__row') as HTMLElement | null
+        if (!row) return
+        const name = link.textContent?.toLowerCase() ?? ''
+        if (query && name.includes(query)) {
+          row.classList.add('highlighted')
+        } else {
+          row.classList.remove('highlighted')
+        }
+      })
+      return
+    }
+
+    // Legacy format: .bk-row span
+    const rows = containerRef.current.querySelectorAll<HTMLElement>('.bk-row span')
     rows.forEach((span) => {
       const row = span.closest('.bk-row') as HTMLElement | null
       if (!row) return

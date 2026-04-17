@@ -47,22 +47,33 @@ export function parseEvents(html: string): TournamentEvent[] {
 }
 
 export function parseBracket(html: string): BracketData {
-  const $ = cheerio.load(html)
+  const $ = cheerio.load(html, { xmlMode: false })
+
+  // New format: .bracket.js-bracket returned by GetDrawContent API
+  const bracketEl = $('.bracket.js-bracket')
+  if (bracketEl.length) {
+    // Strip inline <script> tags — client handles interaction
+    bracketEl.find('script').remove()
+    // Replace swiper web-components with plain divs for cross-browser rendering
+    bracketEl.find('swiper-container').each((_, el) => {
+      $(el).replaceWith(`<div class="swiper-container-replaced">${$(el).html()}</div>`)
+    })
+    bracketEl.find('swiper-slide').each((_, el) => {
+      $(el).replaceWith(`<div class="swiper-slide-replaced ${$(el).attr('class') ?? ''}">${$(el).html()}</div>`)
+    })
+    return { html: $.html(bracketEl), format: 'single-elimination' }
+  }
+
+  // Legacy format: .bk-wrap
   const bkWrap = $('.bk-wrap')
-
-  if (!bkWrap.length) {
-    return { html: '', format: 'unknown' }
+  if (bkWrap.length) {
+    const hasGroups = bkWrap.find('table.group-table').length > 0
+    const hasDualBracket = bkWrap.find('.bk-loser-bracket').length > 0
+    let format: BracketData['format'] = 'single-elimination'
+    if (hasDualBracket) format = 'double-elimination'
+    else if (hasGroups) format = 'groups-knockout'
+    return { html: $.html(bkWrap), format }
   }
 
-  const hasGroups = bkWrap.find('table.group-table').length > 0
-  const hasDualBracket = bkWrap.find('.bk-loser-bracket').length > 0
-
-  let format: BracketData['format'] = 'single-elimination'
-  if (hasDualBracket) format = 'double-elimination'
-  else if (hasGroups) format = 'groups-knockout'
-
-  return {
-    html: $.html(bkWrap),
-    format,
-  }
+  return { html: '', format: 'unknown' }
 }
