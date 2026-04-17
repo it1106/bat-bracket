@@ -42,7 +42,6 @@ export function parseEvents(html: string): TournamentEvent[] {
       results.push({ id, name, drawUrl })
     }
   })
-
   return results
 }
 
@@ -82,34 +81,150 @@ export function parseTournamentDraws(html: string): DrawInfo[] {
   return results
 }
 
+interface RoundInfo {
+  name: string
+  count: number
+  topBase: number
+  slotSpacing: number
+}
+
+const ROUND_CONFIGS: RoundInfo[] = [
+  { name: 'Round of 128', count: 64, topBase: 46, slotSpacing: 104 },
+  { name: 'Round of 64',  count: 32, topBase: 98, slotSpacing: 208 },
+  { name: 'Round of 32',  count: 16, topBase: 202, slotSpacing: 416 },
+  { name: 'Round of 16',  count: 8,  topBase: 410, slotSpacing: 832 },
+  { name: 'Quarter final', count: 4, topBase: 826, slotSpacing: 1664 },
+  { name: 'Semi final',   count: 2, topBase: 1658, slotSpacing: 3328 },
+  { name: 'Final',        count: 1, topBase: 3322, slotSpacing: 6656 },
+]
+
+function getRoundConfig(name: string): RoundInfo | null {
+  return ROUND_CONFIGS.find(r => name.toLowerCase().includes(r.name.toLowerCase())) ?? null
+}
+
+// Build the SVG connector path for a single round
+function buildSvgPath(round: RoundInfo): string {
+  if (round.count === 1) return ''
+  const inputPoints: number[] = []
+  for (let i = 0; i < round.count * 2; i++) {
+    inputPoints.push(round.topBase + i * round.slotSpacing + round.slotSpacing / 2)
+  }
+
+  const pathParts: string[] = []
+  for (let i = 0; i < round.count; i++) {
+    const p1 = inputPoints[i * 2]
+    const p2 = inputPoints[i * 2 + 1]
+    // Horizontal from left bracket to vertical start
+    pathParts.push(`M 0 ${p1} H 12`)
+    // Vertical connecting the two inputs
+    pathParts.push(`M 0 ${p2} H 12`)
+    pathParts.push(`M 12 ${p1} V ${p2}`)
+    // Horizontal from vertical end to right
+    pathParts.push(`M 12 ${(p1 + p2) / 2} H 24`)
+  }
+
+  return `<svg width="24" height="6688" style="position:absolute;top:0;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#c8d0da" stroke-width="1.5" stroke-linecap="round"></path></svg>`
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function playerText(el: cheerio.Cheerio<any>): string {
+  return el.find('span.nav-link__value').first().text().trim() ||
+         el.clone().children().remove().end().text().trim()
+}
+
 export function parseBracket(html: string): BracketData {
   const $ = cheerio.load(html, { xmlMode: false })
 
-  // New format: .bracket.js-bracket returned by GetDrawContent API
-  const bracketEl = $('.bracket.js-bracket')
-  if (bracketEl.length) {
-    // Strip inline <script> tags — client handles interaction
-    bracketEl.find('script').remove()
-    // Replace swiper web-components with plain divs for cross-browser rendering
-    bracketEl.find('swiper-container').each((_, el) => {
-      $(el).replaceWith(`<div class="swiper-container-replaced">${$(el).html()}</div>`)
+  const bracket = $('.bracket.js-bracket')
+  if (!bracket.length) return { html: '', format: 'unknown' }
+
+  // Collect round headers (subheadings)
+  const roundNames = bracket.find('.subheading').map((_, el) => $(el).text().trim()).get()
+
+  // Build bk-wrap HTML
+  let bkWrapHtml = ''
+
+  for (let slideIdx = 0; slideIdx < roundNames.length; slideIdx++) {
+    const roundName = roundNames[slideIdx]
+    const config = getRoundConfig(roundName)
+    if (!config) continue
+
+    const slide = bracket.find('swiper-container > swiper-slide').eq(slideIdx)
+    if (!slide.length) continue
+
+    const matchGroups = slide.find('.bracket-round__match-group-wrapper')
+
+    // Build all match slots for this round
+    const slotParts: string[] = []
+    const H = 6688
+
+    matchGroups.each((gi, group) => {
+      const matches = $(group).find('.match')
+
+      // For a pair of matches in a group, position them at gi*2 and gi*2+1
+      const slot1Top = config.topBase + gi * 2 * config.slotSpacing
+      const slot2Top = config.topBase + (gi * 2 + 1) * config.slotSpacing
+
+      matches.each((mi, matchEl) => {
+        const isFirst = mi === 0
+        const top = isFirst ? slot1Top : slot2Top
+
+        const rows = $(matchEl).find('.match__row')
+        const rowParts: string[] = []
+
+        rows.each((ri, row) => {
+          const cls = $(row).attr('class') ?? ''
+          const rowContent = $(row).find('.match__row-title-value-content').first()
+          const playerLink = rowContent.find('a').first()
+          const hasWon = cls.includes('has-won')
+
+          if (playerLink.length) {
+            const playerName = playerText(playerLink)
+            rowParts.push(`<div class="bk-row${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}"><span>${playerName}</span></div>`)
+          } else {
+            // bye / empty
+            rowParts.push(`<div class="bk-row${ri > 0 ? ' bk-row--team-sep' : ''}"><span></span></div>`)
+          }
+        })
+
+        // Footer (time / score)
+        const footerEl = $(matchEl).find('.match__footer').first()
+        const footerRaw = footerText(footerEl)
+        const statusTag = $(matchEl).find('.tag--success').first().text().trim()
+
+        // Build the slot HTML
+        const matchBoxHtml = rowParts.join('')
+        const scoreHtml = footerRaw ? `<div class="bk-score">${footerRaw}</div>` : ''
+        const timeHtml = statusTag ? `<div class="bk-time">${statusTag}</div>` : (footerRaw ? `<div class="bk-time">${footerRaw}</div>` : '')
+
+        slotParts.push(
+          `<div class="bk-match-slot" style="position:absolute;top:${top}px;left:8px;right:8px">` +
+          `<div class="bk-match-box">${matchBoxHtml}</div>${scoreHtml}${timeHtml}</div>`
+        )
+      })
     })
-    bracketEl.find('swiper-slide').each((_, el) => {
-      $(el).replaceWith(`<div class="swiper-slide-replaced ${$(el).attr('class') ?? ''}">${$(el).html()}</div>`)
-    })
-    return { html: $.html(bracketEl), format: 'single-elimination' }
+
+    // Build round column
+    const roundHtml =
+      `<div class="bk-round" style="height:${H}px">` +
+      `<div class="bk-round-label" style="height:32px;line-height:32px">${roundName}</div>` +
+      slotParts.join('') +
+      `</div>`
+
+    // Build connector SVG
+    const connSvg = buildSvgPath(config)
+    const connHtml = `<div class="bk-conn" style="height:${H}px">${connSvg}</div>`
+
+    bkWrapHtml += roundHtml + connHtml
   }
 
-  // Legacy format: .bk-wrap
-  const bkWrap = $('.bk-wrap')
-  if (bkWrap.length) {
-    const hasGroups = bkWrap.find('table.group-table').length > 0
-    const hasDualBracket = bkWrap.find('.bk-loser-bracket').length > 0
-    let format: BracketData['format'] = 'single-elimination'
-    if (hasDualBracket) format = 'double-elimination'
-    else if (hasGroups) format = 'groups-knockout'
-    return { html: $.html(bkWrap), format }
+  return {
+    html: `<div class="bk-wrap">${bkWrapHtml}</div>`,
+    format: 'single-elimination',
   }
+}
 
-  return { html: '', format: 'unknown' }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function footerText(el: cheerio.Cheerio<any>): string {
+  return el.find('.match__footer-list').text().replace(/\s+/g, ' ').trim()
 }
