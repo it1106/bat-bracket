@@ -1,101 +1,144 @@
-import Image from "next/image";
+'use client'
+
+import { useState, useEffect, useRef, useCallback } from 'react'
+import TopBar from '@/components/TopBar'
+import BracketCanvas from '@/components/BracketCanvas'
+import { exportBracketAsJpg } from '@/components/ExportButton'
+import type { Tournament, TournamentEvent, BracketData, ApiError } from '@/lib/types'
+
+function isApiError(data: unknown): data is ApiError {
+  return typeof data === 'object' && data !== null && 'error' in data
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [tournaments, setTournaments] = useState<Tournament[]>([])
+  const [events, setEvents] = useState<TournamentEvent[]>([])
+  const [bracketHtml, setBracketHtml] = useState('')
+  const [selectedTournament, setSelectedTournament] = useState('')
+  const [selectedEvent, setSelectedEvent] = useState('')
+  const [playerQuery, setPlayerQuery] = useState('')
+  const [loadingTournaments, setLoadingTournaments] = useState(true)
+  const [loadingEvents, setLoadingEvents] = useState(false)
+  const [loadingBracket, setLoadingBracket] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const bracketRef = useRef<HTMLDivElement>(null)
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    fetch('/api/tournaments')
+      .then((r) => r.json())
+      .then((data) => {
+        if (isApiError(data)) throw new Error(data.error)
+        setTournaments(data)
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoadingTournaments(false))
+  }, [])
+
+  const handleTournamentChange = useCallback((id: string) => {
+    setSelectedTournament(id)
+    setSelectedEvent('')
+    setBracketHtml('')
+    setEvents([])
+    setError(null)
+    if (!id) return
+
+    setLoadingEvents(true)
+    fetch(`/api/events?tournament=${id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (isApiError(data)) throw new Error(data.error)
+        setEvents(data)
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoadingEvents(false))
+  }, [])
+
+  const handleEventChange = useCallback(
+    (eventId: string) => {
+      setSelectedEvent(eventId)
+      setBracketHtml('')
+      setError(null)
+      if (!eventId) return
+
+      setLoadingBracket(true)
+      fetch(`/api/bracket?tournament=${selectedTournament}&event=${eventId}`)
+        .then((r) => r.json())
+        .then((data: BracketData | ApiError) => {
+          if (isApiError(data)) throw new Error(data.error)
+          setBracketHtml(data.html)
+        })
+        .catch((e) => setError(e.message))
+        .finally(() => setLoadingBracket(false))
+    },
+    [selectedTournament]
+  )
+
+  const handleExport = useCallback(() => {
+    if (!bracketRef.current) return
+    const tournament = tournaments.find((t) => t.id === selectedTournament)
+    const event = events.find((e) => e.id === selectedEvent)
+    exportBracketAsJpg({
+      bracketEl: bracketRef.current,
+      tournamentName: tournament?.name ?? 'Tournament',
+      eventName: event?.name ?? 'Event',
+    })
+  }, [tournaments, events, selectedTournament, selectedEvent])
+
+  return (
+    <>
+      <TopBar
+        tournaments={tournaments}
+        events={events}
+        selectedTournament={selectedTournament}
+        selectedEvent={selectedEvent}
+        playerQuery={playerQuery}
+        loadingEvents={loadingEvents}
+        loadingBracket={loadingBracket}
+        onTournamentChange={handleTournamentChange}
+        onEventChange={handleEventChange}
+        onPlayerQueryChange={setPlayerQuery}
+        onExport={handleExport}
+      />
+
+      <div className="flex gap-4 px-5 py-2 bg-white border-b border-gray-100 text-xs text-gray-500">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm bg-green-100 border border-green-300" />
+          Winner
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm bg-gray-50 border border-gray-300" />
+          Bye / Not played
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm bg-yellow-100 border border-yellow-400" />
+          Tracked player
+        </div>
+      </div>
+
+      {loadingTournaments && (
+        <div className="p-10 text-center text-gray-400 text-sm">Loading tournaments…</div>
+      )}
+      {loadingBracket && (
+        <div className="p-10 text-center text-gray-400 text-sm">Loading bracket…</div>
+      )}
+      {error && (
+        <div className="m-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+      {!selectedTournament && !loadingTournaments && !error && (
+        <div className="p-10 text-center text-gray-400 text-sm">
+          Select a tournament and event to view the bracket.
+        </div>
+      )}
+
+      {bracketHtml && !loadingBracket && (
+        <BracketCanvas
+          bracketHtml={bracketHtml}
+          playerQuery={playerQuery}
+          bracketRef={bracketRef}
+        />
+      )}
+    </>
+  )
 }
