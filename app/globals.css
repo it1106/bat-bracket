@@ -9,6 +9,14 @@
   padding: 20px;
   background: #f0f2f5;
   min-height: calc(100vh - 97px);
+  /* Touch & responsive: allow pinch-zoom and smooth scrolling */
+  touch-action: pan-x pan-y pinch-zoom;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Allow bracket canvas container to be zoomed via transform */
+.bracket-canvas {
+  /* CSS-only pinch-zoom via viewport units on child, touch handled by browser */
 }
 
 /* ── bk-wrap: root bracket container ── */

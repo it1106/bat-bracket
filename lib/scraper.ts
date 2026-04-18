@@ -162,17 +162,25 @@ export function parseBracket(html: string): BracketData {
     if (!slide.length) continue
 
     const matchGroups = slide.find('.bracket-round__match-group-wrapper')
+    const actualGroupCount = matchGroups.length
+    if (actualGroupCount === 0) continue
+
+    // Compute relative slot positions based on actual match group count.
+    // Map 0..actualGroupCount-1 to the same relative vertical span as a full-size bracket.
+    // This preserves proportional alignment between rounds.
+    const topBase = config.topBase
+    const slotHeight = 58 // approximate rendered slot height (matches .bk-row min-height + padding)
+    const slotSpacingInner = 60 // px between consecutive slot tops — fixed for all bracket sizes
 
     // Build all match slots for this round
     const slotParts: string[] = []
-    const H = 6688
 
     matchGroups.each((gi, group) => {
       const matches = $(group).find('.match')
 
       // For a pair of matches in a group, position them at gi*2 and gi*2+1
-      const slot1Top = config.topBase + gi * 2 * config.slotSpacing
-      const slot2Top = config.topBase + (gi * 2 + 1) * config.slotSpacing
+      const slot1Top = topBase + gi * 2 * slotSpacingInner
+      const slot2Top = topBase + (gi * 2 + 1) * slotSpacingInner
 
       matches.each((mi, matchEl) => {
         const isFirst = mi === 0
@@ -216,6 +224,15 @@ export function parseBracket(html: string): BracketData {
       })
     })
 
+    // Compute actual bracket height based on the actual last slot position.
+    // Use a reasonable inner slot spacing (60px) so small brackets are visually compact
+    // while still maintaining proportional spacing for larger brackets.
+    const lastGroupIdx = actualGroupCount - 1
+    const lastMatchIdx = matchGroups.eq(lastGroupIdx).find('.match').length - 1
+    const lastSlotIdx = lastMatchIdx >= 0 ? lastGroupIdx * 2 + lastMatchIdx : lastGroupIdx * 2
+    const lastSlotTop = topBase + lastSlotIdx * slotSpacingInner
+    const H = Math.ceil(lastSlotTop + slotHeight + 50)
+
     // Build round column
     const roundHtml =
       `<div class="bk-round" style="height:${H}px">` +
@@ -223,8 +240,8 @@ export function parseBracket(html: string): BracketData {
       slotParts.join('') +
       `</div>`
 
-    // Build connector SVG
-    const connSvg = buildSvgPath(config)
+    // Build connector SVG — custom path for this round's actual group count
+    const connSvg = buildSvgPathForGroups(config, actualGroupCount, topBase, slotSpacingInner)
     const connHtml = `<div class="bk-conn" style="height:${H}px">${connSvg}</div>`
 
     bkWrapHtml += roundHtml + connHtml
@@ -234,6 +251,28 @@ export function parseBracket(html: string): BracketData {
     html: `<div class="bk-wrap">${bkWrapHtml}</div>`,
     format: 'single-elimination',
   }
+}
+
+// Build SVG connector path for a round with a specific number of match groups
+function buildSvgPathForGroups(round: RoundInfo, groupCount: number, topBase: number, slotSpacingInner: number): string {
+  if (groupCount === 0) return ''
+  if (round.count === 1) return ''
+  const slotCenterOffset = 39.5
+  const pathParts: string[] = []
+  for (let i = 0; i < groupCount; i++) {
+    const slot1Top = topBase + i * 2 * slotSpacingInner
+    const slot2Top = topBase + (i * 2 + 1) * slotSpacingInner
+    const slot1Center = slot1Top + slotCenterOffset
+    const slot2Center = slot2Top + slotCenterOffset
+    const midPoint = (slot1Center + slot2Center) / 2
+    pathParts.push(`M 0 ${slot1Center} H 12`)
+    pathParts.push(`M 0 ${slot2Center} H 12`)
+    pathParts.push(`M 12 ${slot1Center} V ${slot2Center}`)
+    pathParts.push(`M 12 ${midPoint} H 24`)
+  }
+  // Use the computed H from parseBracket — actual height is set via connHtml style
+  const computedH = Math.ceil(topBase + (groupCount * 2 - 1) * slotSpacingInner + 108)
+  return `<svg width="24" height="${computedH}" style="position:absolute;top:0;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#c8d0da" stroke-width="1.5" stroke-linecap="round"></path></svg>`
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
