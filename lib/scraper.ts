@@ -215,10 +215,11 @@ export function parseBracket(html: string): BracketData {
         const scoreStr = gameScores.length > 0 ? gameScores.join(', ') : ''
         const footerEl = $(matchEl).find('.match__footer').first()
         const footerRaw = footerText(footerEl)
+        const walkover = $(matchEl).find('.match__message').text().trim()
 
         const matchBoxHtml = rowParts.join('')
         const abbrev = abbrevRound(roundName)
-        const scoreContent = scoreStr || footerRaw
+        const scoreContent = walkover || scoreStr || footerRaw
         const scoreHtml = `<div class="bk-score"><span class="bk-round-abbrev">${abbrev}</span>${scoreContent}</div>`
 
         slotParts.push(
