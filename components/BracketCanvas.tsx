@@ -57,7 +57,7 @@ export default function BracketCanvas({
   }, [bracketHtml, playerQuery])
 
   // Pinch-zoom handling
-  const handleTouchStart = useCallback((e: TouchEvent) => {
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length === 2) {
       setIsPinching(true)
       const dx = e.touches[1].clientX - e.touches[0].clientX
@@ -66,7 +66,7 @@ export default function BracketCanvas({
     }
   }, [])
 
-  const handleTouchMove = useCallback((e: TouchEvent) => {
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     if (!isPinching || e.touches.length !== 2 || lastTouchDistance.current === null) return
     const dx = e.touches[1].clientX - e.touches[0].clientX
     const dy = e.touches[1].clientY - e.touches[0].clientY
@@ -82,7 +82,7 @@ export default function BracketCanvas({
   }, [])
 
   // Wheel zoom (ctrl+wheel or pinch on trackpad)
-  const handleWheel = useCallback((e: WheelEvent) => {
+  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault()
       const delta = e.deltaY > 0 ? 0.9 : 1.1
