@@ -9,6 +9,15 @@ function isApiError(data: unknown): data is ApiError {
   return typeof data === 'object' && data !== null && 'error' in data
 }
 
+async function safeJson(res: Response): Promise<unknown> {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error(res.ok ? 'Unexpected server response' : `Server error (${res.status}) — please try again`)
+  }
+}
+
 export default function Home() {
   const [tournaments, setTournaments] = useState<TournamentInfo[]>([])
   const [draws, setDraws] = useState<DrawInfo[]>([])
@@ -27,7 +36,7 @@ export default function Home() {
   // Load tournament list on mount
   useEffect(() => {
     fetch('/api/tournaments')
-      .then((r) => r.json())
+      .then((r) => safeJson(r))
       .then((data) => {
         if (!isApiError(data)) setTournaments(data as TournamentInfo[])
       })
@@ -46,7 +55,7 @@ export default function Home() {
     setLoadingDraws(true)
     try {
       const res = await fetch(`/api/draws?id=${encodeURIComponent(id)}`)
-      const data = await res.json()
+      const data = await safeJson(res)
       if (isApiError(data)) throw new Error(data.error)
       setDraws(data as DrawInfo[])
       const t = tournaments.find((t) => t.id === id)
@@ -68,7 +77,7 @@ export default function Home() {
     const url = `https://bat.tournamentsoftware.com/tournament/${selectedTournament}/draw/${drawNum}`
     try {
       const res = await fetch(`/api/bracket?url=${encodeURIComponent(url)}`)
-      const data: BracketData | ApiError = await res.json()
+      const data = await safeJson(res) as BracketData | ApiError
       if (isApiError(data)) throw new Error(data.error)
       setBracketHtml(data.html)
       const d = draws.find((d) => d.drawNum === drawNum)

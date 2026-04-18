@@ -5,13 +5,20 @@ export const revalidate = 900
 export const maxDuration = 30
 
 function extractIds(url: string): { guid: string; drawNum: string } | null {
-  // Matches: /tournament/{GUID}/draw/{N}
   const m = url.match(/\/tournament\/([0-9a-f-]{36})\/draw\/(\d+)/i)
   return m ? { guid: m[1].toLowerCase(), drawNum: m[2] } : null
 }
 
-// Accepts: ?url=https://bat.tournamentsoftware.com/tournament/GUID/draw/N
-// or:      ?tournament=GUID&event=N
+async function fetchWithRetry(url: string, options: RequestInit, retries = 2): Promise<Response> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const res = await fetch(url, options)
+    if (res.ok) return res
+    if (attempt < retries) await new Promise((r) => setTimeout(r, 800))
+    if (attempt === retries) throw new Error(`HTTP ${res.status}`)
+  }
+  throw new Error('fetch failed')
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const rawUrl = searchParams.get('url')
@@ -44,7 +51,7 @@ export async function GET(request: Request) {
   const apiUrl = `https://bat.tournamentsoftware.com/tournament/${guid}/Draw/${drawNum}/GetDrawContent?tabindex=1&X-Requested-With=XMLHttpRequest`
 
   try {
-    const res = await fetch(apiUrl, {
+    const res = await fetchWithRetry(apiUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'X-Requested-With': 'XMLHttpRequest',
@@ -52,7 +59,6 @@ export async function GET(request: Request) {
         'Referer': `https://bat.tournamentsoftware.com/tournament/${guid}/draw/${drawNum}`,
       },
     })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const html = await res.text()
     const bracket = parseBracket(html)
 
