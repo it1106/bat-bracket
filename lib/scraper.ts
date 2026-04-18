@@ -180,16 +180,21 @@ export function parseBracket(html: string): BracketData {
 
         rows.each((ri, row) => {
           const cls = $(row).attr('class') ?? ''
-          const playerLinks = $(row).find('.match__row-title-value-content a')
           const hasWon = cls.includes('has-won')
+          const titleValues = $(row).find('.match__row-title-value-content')
 
-          if (playerLinks.length) {
-            const names = playerLinks.map((_, a) => playerText($(a))).get().filter(Boolean)
-            const playerName = names.join(' / ')
-            rowParts.push(`<div class="bk-row${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}"><span>${playerName}</span></div>`)
+          let playerSpans: string
+          if (titleValues.length > 0) {
+            const names = titleValues.map((_, tv) => {
+              const a = $(tv).find('a')
+              return a.length ? playerText($(a).first()) : ''
+            }).get()
+            playerSpans = names.map((n) => `<span class="bk-player">${n}</span>`).join('')
           } else {
-            rowParts.push(`<div class="bk-row${ri > 0 ? ' bk-row--team-sep' : ''}"><span></span></div>`)
+            playerSpans = '<span class="bk-player"></span>'
           }
+
+          rowParts.push(`<div class="bk-row${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}">${playerSpans}</div>`)
         })
 
         const resultEl = $(matchEl).find('.match__result')
