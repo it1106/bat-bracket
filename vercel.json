@@ -4,6 +4,9 @@
     "app/api/bracket/route.ts": {
       "maxDuration": 60,
       "memory": 1024
+    },
+    "app/api/draws/route.ts": {
+      "maxDuration": 60
     }
   }
 }
