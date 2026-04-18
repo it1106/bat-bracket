@@ -95,8 +95,9 @@ const SLOT_HEIGHT_APPROX = 79
 //   slotPitch(r) = SLOT_PITCH_BASE * 2^r
 // These formulae guarantee seamless SVG connector alignment between adjacent rounds.
 
-function buildSvgConnector(groupCount: number, topBase: number, slotPitch: number, totalH: number): string {
+function buildSvgConnector(groupCount: number, topBase: number, slotPitch: number, totalH: number, isDoubles: boolean): string {
   if (groupCount === 0) return ''
+  const svgTop = isDoubles ? 3 : -10
   const pathParts: string[] = []
   for (let i = 0; i < groupCount; i++) {
     const slot1Center = topBase + i * 2 * slotPitch + SLOT_CENTER_OFFSET
@@ -107,7 +108,7 @@ function buildSvgConnector(groupCount: number, topBase: number, slotPitch: numbe
     pathParts.push(`M 12 ${slot1Center} V ${slot2Center}`)
     pathParts.push(`M 12 ${midPoint} H 24`)
   }
-  return `<svg width="24" height="${totalH}" style="position:absolute;top:-10px;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#c8d0da" stroke-width="1.5" stroke-linecap="round"></path></svg>`
+  return `<svg width="24" height="${totalH}" style="position:absolute;top:${svgTop}px;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#c8d0da" stroke-width="1.5" stroke-linecap="round"></path></svg>`
 }
 
 function abbrevRound(name: string): string {
@@ -150,6 +151,11 @@ export function parseBracket(html: string): BracketData {
   }
 
   if (rounds.length === 0) return { html: '', format: 'unknown' }
+
+  // Detect doubles: first match row has 2 .match__row-title-value divs
+  const firstSlide = bracket.find('swiper-container > swiper-slide').eq(rounds[0].slideIdx)
+  const isDoubles = firstSlide.find('.match').first().find('.match__row').first()
+    .find('.match__row-title-value').length >= 2
 
   // Bracket height is proportional to the first (largest) round's slot count
   const firstRoundGroups = rounds[0].groupCount
@@ -221,7 +227,7 @@ export function parseBracket(html: string): BracketData {
       `</div>`
 
     const isLastRound = r === rounds.length - 1
-    const connSvg = isLastRound ? '' : buildSvgConnector(groupCount, topBase, slotPitch, totalH)
+    const connSvg = isLastRound ? '' : buildSvgConnector(groupCount, topBase, slotPitch, totalH, isDoubles)
     const connHtml = isLastRound ? '' : `<div class="bk-conn" style="height:${totalH}px">${connSvg}</div>`
 
     bkWrapHtml += roundHtml + connHtml
