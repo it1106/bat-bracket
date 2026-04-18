@@ -55,6 +55,11 @@ export async function exportBracketAsJpg({
   bracketEl.style.transform = 'none'
   bracketEl.style.transition = 'none'
 
+  // Temporarily remove overflow clipping from parent so html-to-image captures full content
+  const parent = bracketEl.parentElement
+  const origOverflow = parent?.style.overflow ?? ''
+  if (parent) parent.style.overflow = 'visible'
+
   // Prepend header into the live element (already in DOM, styles fully computed)
   bracketEl.insertBefore(header, bracketEl.firstChild)
 
@@ -63,11 +68,17 @@ export async function exportBracketAsJpg({
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
   )
 
+  // Use scrollWidth/scrollHeight to capture full content, not just visible viewport
+  const fullWidth = bracketEl.scrollWidth
+  const fullHeight = bracketEl.scrollHeight
+
   try {
     const dataUrl = await toJpeg(bracketEl, {
       quality: 0.95,
       pixelRatio: 2,
       backgroundColor: '#ffffff',
+      width: fullWidth,
+      height: fullHeight,
     })
     const link = document.createElement('a')
     link.download = `${buildSlug(tournamentName)}-${buildSlug(eventName)}.jpg`
@@ -77,5 +88,6 @@ export async function exportBracketAsJpg({
     bracketEl.removeChild(header)
     bracketEl.style.transform = origTransform
     bracketEl.style.transition = origTransition
+    if (parent) parent.style.overflow = origOverflow
   }
 }
