@@ -107,20 +107,29 @@ function buildSvgPath(round: RoundInfo): string {
   if (round.count === 1) return ''
   const inputPoints: number[] = []
   for (let i = 0; i < round.count * 2; i++) {
+    // Slot positions: slot1 at topBase + gi*2*spacing, slot2 at topBase + (gi*2+1)*spacing
+    // gi=0: slot1=topBase, slot2=topBase+spacing; gi=1: slot1=topBase+2*spacing, slot2=topBase+3*spacing
+    // Input point to slot1 is at topBase + spacing/2 (between slot1 and slot2 of same gi)
     inputPoints.push(round.topBase + i * round.slotSpacing + round.slotSpacing / 2)
   }
 
   const pathParts: string[] = []
   for (let i = 0; i < round.count; i++) {
-    const p1 = inputPoints[i * 2]
-    const p2 = inputPoints[i * 2 + 1]
-    // Horizontal from left bracket to vertical start
-    pathParts.push(`M 0 ${p1} H 12`)
-    // Vertical connecting the two inputs
-    pathParts.push(`M 0 ${p2} H 12`)
-    pathParts.push(`M 12 ${p1} V ${p2}`)
-    // Horizontal from vertical end to right
-    pathParts.push(`M 12 ${(p1 + p2) / 2} H 24`)
+    const slot1Top = round.topBase + i * 2 * round.slotSpacing
+    const slot2Top = round.topBase + (i * 2 + 1) * round.slotSpacing
+    // Use 39.5 as half of actual slot height (~79px) — align to row center, not slot top
+    const slotCenterOffset = 39.5
+    const slot1Center = slot1Top + slotCenterOffset
+    const slot2Center = slot2Top + slotCenterOffset
+    const midPoint = (slot1Center + slot2Center) / 2
+    // Horizontal from left bracket at slot1 center
+    pathParts.push(`M 0 ${slot1Center} H 12`)
+    // Horizontal from left bracket at slot2 center
+    pathParts.push(`M 0 ${slot2Center} H 12`)
+    // Vertical connecting the two centers
+    pathParts.push(`M 12 ${slot1Center} V ${slot2Center}`)
+    // Horizontal from vertical end at midpoint to right bracket
+    pathParts.push(`M 12 ${midPoint} H 24`)
   }
 
   return `<svg width="24" height="6688" style="position:absolute;top:0;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#c8d0da" stroke-width="1.5" stroke-linecap="round"></path></svg>`
@@ -190,16 +199,13 @@ export function parseBracket(html: string): BracketData {
         // Footer (time / score)
         const footerEl = $(matchEl).find('.match__footer').first()
         const footerRaw = footerText(footerEl)
-        const statusTag = $(matchEl).find('.tag--success').first().text().trim()
 
-        // Build the slot HTML
         const matchBoxHtml = rowParts.join('')
         const scoreHtml = footerRaw ? `<div class="bk-score">${footerRaw}</div>` : ''
-        const timeHtml = statusTag ? `<div class="bk-time">${statusTag}</div>` : (footerRaw ? `<div class="bk-time">${footerRaw}</div>` : '')
 
         slotParts.push(
           `<div class="bk-match-slot" style="position:absolute;top:${top}px;left:8px;right:8px">` +
-          `<div class="bk-match-box">${matchBoxHtml}</div>${scoreHtml}${timeHtml}</div>`
+          `<div class="bk-match-box">${matchBoxHtml}</div>${scoreHtml}</div>`
         )
       })
     })
