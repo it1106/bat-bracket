@@ -145,7 +145,7 @@ export default function Home() {
               </option>
               {draws.map((d) => (
                 <option key={d.drawNum} value={d.drawNum}>
-                  {d.name} ({d.type}, {d.size})
+                  {d.name}
                 </option>
               ))}
             </select>
