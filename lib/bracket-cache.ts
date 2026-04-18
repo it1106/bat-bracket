@@ -2,7 +2,7 @@ import { parseBracket } from './scraper'
 import { cache as drawsCache } from './draws-cache'
 import type { BracketData } from './types'
 
-export const cache = new Map<string, { bracket: BracketData; ts: number }>()
+export const cache = new Map<string, { bracket: BracketData; ts: number; done?: boolean }>()
 export const TTL_MS = 15 * 60 * 1000 // 15 min
 
 const TIMEOUT_MS = 50000
@@ -40,21 +40,22 @@ export async function fetchBracket(guid: string, drawNum: string): Promise<Brack
   throw new Error('fetch failed')
 }
 
-export async function fetchAndCache(guid: string, drawNum: string): Promise<BracketData> {
+export async function fetchAndCache(guid: string, drawNum: string, done?: boolean): Promise<BracketData> {
   const bracket = await fetchBracket(guid, drawNum)
-  cache.set(makeBracketKey(guid, drawNum), { bracket, ts: Date.now() })
+  cache.set(makeBracketKey(guid, drawNum), { bracket, ts: Date.now(), ...(done && { done: true }) })
   return bracket
 }
 
 // Pre-warm all brackets for all cached tournaments (called after draws pre-warm)
 export async function prewarmBracketCache(): Promise<void> {
   for (const [tournamentId, entry] of Array.from(drawsCache.entries())) {
+    const done = entry.done
     for (const draw of entry.draws) {
       const key = makeBracketKey(tournamentId, draw.drawNum)
       if (cache.has(key)) continue
       try {
-        await fetchAndCache(tournamentId, draw.drawNum)
-        console.log(`[bracket-cache] pre-warmed: ${tournamentId} draw ${draw.drawNum}`)
+        await fetchAndCache(tournamentId, draw.drawNum, done)
+        console.log(`[bracket-cache] pre-warmed: ${tournamentId} draw ${draw.drawNum}${done ? ' (done)' : ''}`)
       } catch (err) {
         console.warn(`[bracket-cache] failed: ${tournamentId} draw ${draw.drawNum}:`, err)
       }

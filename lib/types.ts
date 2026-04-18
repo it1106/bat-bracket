@@ -21,6 +21,7 @@ export interface DrawInfo {
 export interface TournamentInfo {
   id: string
   name: string
+  done?: boolean
 }
 
 export interface BracketData {

@@ -3,7 +3,7 @@ import { join } from 'path'
 import { parseTournamentDraws } from './scraper'
 import type { DrawInfo } from './types'
 
-export const cache = new Map<string, { draws: DrawInfo[]; ts: number }>()
+export const cache = new Map<string, { draws: DrawInfo[]; ts: number; done?: boolean }>()
 export const TTL_MS = 30 * 60 * 1000
 
 const HEADERS = {
@@ -39,26 +39,32 @@ export async function fetchAndCache(id: string): Promise<DrawInfo[]> {
   return draws
 }
 
-function readTournamentIds(): string[] {
+function readTournamentIds(): { id: string; done: boolean }[] {
   try {
     const content = readFileSync(join(process.cwd(), 'public', 'tournaments.txt'), 'utf-8')
     return content
       .split('\n')
       .map((l) => l.trim())
       .filter((l) => l && !l.startsWith('#'))
-      .map((l) => l.split(' ')[0].toLowerCase())
+      .map((l) => ({ id: l.split(' ')[0].toLowerCase(), done: l.endsWith('[done]') }))
   } catch {
     return []
   }
 }
 
+export async function fetchAndCacheWithTtl(id: string, done: boolean): Promise<DrawInfo[]> {
+  const draws = await fetchDraws(id)
+  cache.set(id, { draws, ts: Date.now(), ...(done && { done: true }) })
+  return draws
+}
+
 // Pre-fetch all tournament draws sequentially to avoid hammering the server
 export async function prewarmDrawsCache(): Promise<void> {
-  const ids = readTournamentIds()
-  for (const id of ids) {
+  const tournaments = readTournamentIds()
+  for (const { id, done } of tournaments) {
     try {
-      await fetchAndCache(id)
-      console.log(`[draws-cache] pre-warmed: ${id}`)
+      await fetchAndCacheWithTtl(id, done)
+      console.log(`[draws-cache] pre-warmed: ${id}${done ? ' (done)' : ''}`)
     } catch (err) {
       console.warn(`[draws-cache] failed to pre-warm ${id}:`, err)
     }

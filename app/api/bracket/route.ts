@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   }
 
   const cached = cache.get(makeBracketKey(guid, drawNum))
-  if (cached && Date.now() - cached.ts < TTL_MS) {
+  if (cached && (cached.done || Date.now() - cached.ts < TTL_MS)) {
     return NextResponse.json(cached.bracket)
   }
 

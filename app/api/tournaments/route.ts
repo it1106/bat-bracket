@@ -17,8 +17,10 @@ function readTournaments(): TournamentInfo[] {
         const spaceIdx = l.indexOf(' ')
         if (spaceIdx === -1) return { id: l.toUpperCase(), name: l }
         const id = l.slice(0, spaceIdx).toUpperCase()
-        const name = l.slice(spaceIdx + 1).trim()
-        return { id, name }
+        const rest = l.slice(spaceIdx + 1).trim()
+        const done = rest.endsWith('[done]')
+        const name = done ? rest.slice(0, -6).trim() : rest
+        return { id, name, ...(done && { done: true }) }
       })
   } catch {
     return []
