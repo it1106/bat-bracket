@@ -191,7 +191,8 @@ export function parseBracket(html: string): BracketData {
           const playerCount = titleValueDivs.length || 1
           const names = titleValueDivs.map((_, tv) => {
             const a = $(tv).find('a')
-            return a.length ? playerText($(a).first()) : ''
+            if (a.length) return playerText($(a).first())
+            return $(tv).find('.nav-link__value').first().text().trim()
           }).get()
           while (names.length < playerCount) names.push('')
           const playerSpans = names.map((n) => `<span class="bk-player">${n}</span>`).join('')
