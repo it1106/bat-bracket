@@ -180,8 +180,7 @@ export function parseBracket(html: string): BracketData {
 
         rows.each((ri, row) => {
           const cls = $(row).attr('class') ?? ''
-          const rowContent = $(row).find('.match__row-title-value-content').first()
-          const playerLinks = rowContent.find('a')
+          const playerLinks = $(row).find('.match__row-title-value-content a')
           const hasWon = cls.includes('has-won')
 
           if (playerLinks.length) {
