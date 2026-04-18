@@ -43,16 +43,14 @@ export default function BracketCanvas({
       return
     }
 
-    // Legacy format: .bk-row span
-    const rows = containerRef.current.querySelectorAll<HTMLElement>('.bk-row span')
-    rows.forEach((span) => {
-      const row = span.closest('.bk-row') as HTMLElement | null
-      if (!row) return
-      if (query && span.textContent?.toLowerCase().includes(query)) {
-        row.classList.add('tracked')
-      } else {
-        row.classList.remove('tracked')
-      }
+    // Legacy format: .bk-row with .bk-player spans
+    const bkRows = containerRef.current.querySelectorAll<HTMLElement>('.bk-row')
+    bkRows.forEach((row) => {
+      const spans = row.querySelectorAll<HTMLElement>('.bk-player, span')
+      const matches = query && Array.from(spans).some(
+        (s) => s.textContent?.toLowerCase().includes(query)
+      )
+      row.classList.toggle('tracked', !!matches)
     })
   }, [bracketHtml, playerQuery])
 
