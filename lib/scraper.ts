@@ -110,6 +110,21 @@ function buildSvgConnector(groupCount: number, topBase: number, slotPitch: numbe
   return `<svg width="24" height="${totalH}" style="position:absolute;top:0;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#c8d0da" stroke-width="1.5" stroke-linecap="round"></path></svg>`
 }
 
+function abbrevRound(name: string): string {
+  const n = name.trim()
+  if (/^final$/i.test(n)) return 'F'
+  if (/semi.?final/i.test(n)) return 'SF'
+  if (/quarter.?final/i.test(n)) return 'QF'
+  const rofMatch = n.match(/round\s+of\s+(\d+)/i)
+  if (rofMatch) return `R${rofMatch[1]}`
+  const rMatch = n.match(/^(?:round|rd\.?)\s*(\d+)/i)
+  if (rMatch) return `R${rMatch[1]}`
+  const ordMatch = n.match(/^(\d+)(?:st|nd|rd|th)\s+round/i)
+  if (ordMatch) return `R${ordMatch[1]}`
+  // Fallback: initials of each word, max 4 chars
+  return n.split(/\s+/).map((w) => w[0].toUpperCase()).join('').slice(0, 4)
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function playerText(el: cheerio.Cheerio<any>): string {
   return el.find('span.nav-link__value').first().text().trim() ||
@@ -187,9 +202,10 @@ export function parseBracket(html: string): BracketData {
         const footerRaw = footerText(footerEl)
 
         const matchBoxHtml = rowParts.join('')
+        const abbrev = abbrevRound(roundName)
         const scoreHtml = scoreStr
-          ? `<div class="bk-score">${scoreStr}</div>`
-          : footerRaw ? `<div class="bk-score">${footerRaw}</div>` : ''
+          ? `<div class="bk-score"><span class="bk-round-abbrev">${abbrev}</span>${scoreStr}</div>`
+          : footerRaw ? `<div class="bk-score"><span class="bk-round-abbrev">${abbrev}</span>${footerRaw}</div>` : ''
 
         slotParts.push(
           `<div class="bk-match-slot" style="position:absolute;top:${top}px;left:8px;right:8px">` +
