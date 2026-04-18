@@ -196,7 +196,7 @@ export function parseBracket(html: string): BracketData {
           while (names.length < playerCount) names.push('')
           const playerSpans = names.map((n) => `<span class="bk-player">${n}</span>`).join('')
 
-          rowParts.push(`<div class="bk-row${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}">${playerSpans}</div>`)
+          rowParts.push(`<div class="bk-row${isDoubles ? ' bk-row--doubles' : ''}${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}">${playerSpans}</div>`)
         })
 
         const resultEl = $(matchEl).find('.match__result')
