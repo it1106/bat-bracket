@@ -81,58 +81,33 @@ export function parseTournamentDraws(html: string): DrawInfo[] {
   return results
 }
 
-interface RoundInfo {
-  name: string
-  count: number
-  topBase: number
-  slotSpacing: number
-}
+// Slot pitch in the first (largest) round — must match rendered .bk-match-box height + gap
+const SLOT_PITCH_BASE = 104
+// Top offset for first slot: label height (32px) + header padding (14px)
+const LABEL_OFFSET = 46
+// Vertical center within a slot box (half of ~79px rendered height)
+const SLOT_CENTER_OFFSET = 39.5
+// Approximate rendered height of a bk-match-box (2 rows)
+const SLOT_HEIGHT_APPROX = 79
 
-const ROUND_CONFIGS: RoundInfo[] = [
-  { name: 'Round of 128', count: 64, topBase: 46, slotSpacing: 104 },
-  { name: 'Round of 64',  count: 32, topBase: 98, slotSpacing: 208 },
-  { name: 'Round of 32',  count: 16, topBase: 202, slotSpacing: 416 },
-  { name: 'Round of 16',  count: 8,  topBase: 410, slotSpacing: 832 },
-  { name: 'Quarter final', count: 4, topBase: 826, slotSpacing: 1664 },
-  { name: 'Semi final',   count: 2, topBase: 1658, slotSpacing: 3328 },
-  { name: 'Final',        count: 1, topBase: 3322, slotSpacing: 6656 },
-]
+// For round r (0-indexed from first/largest round):
+//   topBase(r)  = LABEL_OFFSET + SLOT_PITCH_BASE * (2^r - 1) / 2
+//   slotPitch(r) = SLOT_PITCH_BASE * 2^r
+// These formulae guarantee seamless SVG connector alignment between adjacent rounds.
 
-function getRoundConfig(name: string): RoundInfo | null {
-  return ROUND_CONFIGS.find(r => name.toLowerCase().includes(r.name.toLowerCase())) ?? null
-}
-
-// Build the SVG connector path for a single round
-function buildSvgPath(round: RoundInfo): string {
-  if (round.count === 1) return ''
-  const inputPoints: number[] = []
-  for (let i = 0; i < round.count * 2; i++) {
-    // Slot positions: slot1 at topBase + gi*2*spacing, slot2 at topBase + (gi*2+1)*spacing
-    // gi=0: slot1=topBase, slot2=topBase+spacing; gi=1: slot1=topBase+2*spacing, slot2=topBase+3*spacing
-    // Input point to slot1 is at topBase + spacing/2 (between slot1 and slot2 of same gi)
-    inputPoints.push(round.topBase + i * round.slotSpacing + round.slotSpacing / 2)
-  }
-
+function buildSvgConnector(groupCount: number, topBase: number, slotPitch: number, totalH: number): string {
+  if (groupCount === 0) return ''
   const pathParts: string[] = []
-  for (let i = 0; i < round.count; i++) {
-    const slot1Top = round.topBase + i * 2 * round.slotSpacing
-    const slot2Top = round.topBase + (i * 2 + 1) * round.slotSpacing
-    // Use 39.5 as half of actual slot height (~79px) — align to row center, not slot top
-    const slotCenterOffset = 39.5
-    const slot1Center = slot1Top + slotCenterOffset
-    const slot2Center = slot2Top + slotCenterOffset
+  for (let i = 0; i < groupCount; i++) {
+    const slot1Center = topBase + i * 2 * slotPitch + SLOT_CENTER_OFFSET
+    const slot2Center = topBase + (i * 2 + 1) * slotPitch + SLOT_CENTER_OFFSET
     const midPoint = (slot1Center + slot2Center) / 2
-    // Horizontal from left bracket at slot1 center
     pathParts.push(`M 0 ${slot1Center} H 12`)
-    // Horizontal from left bracket at slot2 center
     pathParts.push(`M 0 ${slot2Center} H 12`)
-    // Vertical connecting the two centers
     pathParts.push(`M 12 ${slot1Center} V ${slot2Center}`)
-    // Horizontal from vertical end at midpoint to right bracket
     pathParts.push(`M 12 ${midPoint} H 24`)
   }
-
-  return `<svg width="24" height="6688" style="position:absolute;top:0;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#c8d0da" stroke-width="1.5" stroke-linecap="round"></path></svg>`
+  return `<svg width="24" height="${totalH}" style="position:absolute;top:0;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#c8d0da" stroke-width="1.5" stroke-linecap="round"></path></svg>`
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -147,45 +122,43 @@ export function parseBracket(html: string): BracketData {
   const bracket = $('.bracket.js-bracket')
   if (!bracket.length) return { html: '', format: 'unknown' }
 
-  // Collect round headers (subheadings)
   const roundNames = bracket.find('.subheading').map((_, el) => $(el).text().trim()).get()
 
-  // Build bk-wrap HTML
-  let bkWrapHtml = ''
-
+  // First pass: collect rounds with non-empty match groups
+  const rounds: Array<{ name: string; slideIdx: number; groupCount: number }> = []
   for (let slideIdx = 0; slideIdx < roundNames.length; slideIdx++) {
-    const roundName = roundNames[slideIdx]
-    const config = getRoundConfig(roundName)
-    if (!config) continue
-
     const slide = bracket.find('swiper-container > swiper-slide').eq(slideIdx)
     if (!slide.length) continue
+    const groupCount = slide.find('.bracket-round__match-group-wrapper').length
+    if (groupCount === 0) continue
+    rounds.push({ name: roundNames[slideIdx], slideIdx, groupCount })
+  }
 
+  if (rounds.length === 0) return { html: '', format: 'unknown' }
+
+  // Bracket height is proportional to the first (largest) round's slot count
+  const firstRoundGroups = rounds[0].groupCount
+  const totalH = Math.ceil(LABEL_OFFSET + (firstRoundGroups * 2 - 1) * SLOT_PITCH_BASE + SLOT_HEIGHT_APPROX + 50)
+
+  let bkWrapHtml = ''
+
+  for (let r = 0; r < rounds.length; r++) {
+    const { name: roundName, slideIdx, groupCount } = rounds[r]
+    // Dynamic positioning: slot pitch doubles and topBase shifts right each round
+    const slotPitch = SLOT_PITCH_BASE * Math.pow(2, r)
+    const topBase = Math.round(LABEL_OFFSET + SLOT_PITCH_BASE * (Math.pow(2, r) - 1) / 2)
+
+    const slide = bracket.find('swiper-container > swiper-slide').eq(slideIdx)
     const matchGroups = slide.find('.bracket-round__match-group-wrapper')
-    const actualGroupCount = matchGroups.length
-    if (actualGroupCount === 0) continue
-
-    // Compute relative slot positions based on actual match group count.
-    // Map 0..actualGroupCount-1 to the same relative vertical span as a full-size bracket.
-    // This preserves proportional alignment between rounds.
-    const topBase = config.topBase
-    const fullSpan = config.slotSpacing * config.count * 2
-    const slotSpacing = fullSpan / actualGroupCount
-    const slotHeight = 58 // approximate rendered slot height (matches .bk-row min-height + padding)
-
-    // Build all match slots for this round
     const slotParts: string[] = []
 
     matchGroups.each((gi, group) => {
       const matches = $(group).find('.match')
-
-      // For a pair of matches in a group, position them at gi*2 and gi*2+1
-      const slot1Top = topBase + gi * 2 * slotSpacing
-      const slot2Top = topBase + (gi * 2 + 1) * slotSpacing
+      const slot1Top = topBase + gi * 2 * slotPitch
+      const slot2Top = topBase + (gi * 2 + 1) * slotPitch
 
       matches.each((mi, matchEl) => {
-        const isFirst = mi === 0
-        const top = isFirst ? slot1Top : slot2Top
+        const top = mi === 0 ? slot1Top : slot2Top
 
         const rows = $(matchEl).find('.match__row')
         const rowParts: string[] = []
@@ -200,12 +173,10 @@ export function parseBracket(html: string): BracketData {
             const playerName = playerText(playerLink)
             rowParts.push(`<div class="bk-row${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}"><span>${playerName}</span></div>`)
           } else {
-            // bye / empty
             rowParts.push(`<div class="bk-row${ri > 0 ? ' bk-row--team-sep' : ''}"><span></span></div>`)
           }
         })
 
-        // Match result score (e.g., "21-3, 21-11")
         const resultEl = $(matchEl).find('.match__result')
         const gameScores = resultEl.find('ul.points').map((_, g) => {
           const pts = $(g).find('li').map((_, p) => $(p).text().trim()).get()
@@ -216,7 +187,9 @@ export function parseBracket(html: string): BracketData {
         const footerRaw = footerText(footerEl)
 
         const matchBoxHtml = rowParts.join('')
-        const scoreHtml = scoreStr ? `<div class="bk-score">${scoreStr}</div>` : (footerRaw ? `<div class="bk-score">${footerRaw}</div>` : '')
+        const scoreHtml = scoreStr
+          ? `<div class="bk-score">${scoreStr}</div>`
+          : footerRaw ? `<div class="bk-score">${footerRaw}</div>` : ''
 
         slotParts.push(
           `<div class="bk-match-slot" style="position:absolute;top:${top}px;left:8px;right:8px">` +
@@ -225,23 +198,15 @@ export function parseBracket(html: string): BracketData {
       })
     })
 
-    // Compute bracket height from actual last slot position using proportional scaling.
-    const lastGroupIdx = actualGroupCount - 1
-    const lastMatchIdx = matchGroups.eq(lastGroupIdx).find('.match').length - 1
-    const lastSlotIdx = lastMatchIdx >= 0 ? lastGroupIdx * 2 + lastMatchIdx : lastGroupIdx * 2
-    const lastSlotTop = topBase + lastSlotIdx * slotSpacing
-    const H = Math.ceil(lastSlotTop + slotHeight + 50)
-
-    // Build round column
     const roundHtml =
-      `<div class="bk-round" style="height:${H}px">` +
+      `<div class="bk-round" style="height:${totalH}px">` +
       `<div class="bk-round-label" style="height:32px;line-height:32px">${roundName}</div>` +
       slotParts.join('') +
       `</div>`
 
-    // Build connector SVG — custom path for this round's actual group count
-    const connSvg = buildSvgPathForGroups(config, actualGroupCount, topBase, slotSpacing)
-    const connHtml = `<div class="bk-conn" style="height:${H}px">${connSvg}</div>`
+    const isLastRound = r === rounds.length - 1
+    const connSvg = isLastRound ? '' : buildSvgConnector(groupCount, topBase, slotPitch, totalH)
+    const connHtml = isLastRound ? '' : `<div class="bk-conn" style="height:${totalH}px">${connSvg}</div>`
 
     bkWrapHtml += roundHtml + connHtml
   }
@@ -250,28 +215,6 @@ export function parseBracket(html: string): BracketData {
     html: `<div class="bk-wrap">${bkWrapHtml}</div>`,
     format: 'single-elimination',
   }
-}
-
-// Build SVG connector path for a round with a specific number of match groups
-function buildSvgPathForGroups(round: RoundInfo, groupCount: number, topBase: number, slotSpacing: number): string {
-  if (groupCount === 0) return ''
-  if (round.count === 1) return ''
-  const slotCenterOffset = 39.5
-  const pathParts: string[] = []
-  for (let i = 0; i < groupCount; i++) {
-    const slot1Top = topBase + i * 2 * slotSpacing
-    const slot2Top = topBase + (i * 2 + 1) * slotSpacing
-    const slot1Center = slot1Top + slotCenterOffset
-    const slot2Center = slot2Top + slotCenterOffset
-    const midPoint = (slot1Center + slot2Center) / 2
-    pathParts.push(`M 0 ${slot1Center} H 12`)
-    pathParts.push(`M 0 ${slot2Center} H 12`)
-    pathParts.push(`M 12 ${slot1Center} V ${slot2Center}`)
-    pathParts.push(`M 12 ${midPoint} H 24`)
-  }
-  // Use the computed H from parseBracket — actual height is set via connHtml style
-  const computedH = Math.ceil(topBase + (groupCount * 2 - 1) * slotSpacing + 108)
-  return `<svg width="24" height="${computedH}" style="position:absolute;top:0;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#c8d0da" stroke-width="1.5" stroke-linecap="round"></path></svg>`
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

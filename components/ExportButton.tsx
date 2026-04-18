@@ -31,21 +31,14 @@ export async function exportBracketAsJpg({
   tournamentName,
   eventName,
 }: ExportOptions): Promise<void> {
-  const wrapper = document.createElement('div')
-  wrapper.style.cssText = `
-    position: fixed;
-    top: -99999px;
-    left: -99999px;
-    background: white;
-    padding: 24px;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-  `
-
+  // Build header to temporarily inject before the bracket content
   const header = document.createElement('div')
   header.style.cssText = `
     margin-bottom: 20px;
     padding-bottom: 16px;
     border-bottom: 2px solid #dee2e6;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: white;
   `
   header.innerHTML = `
     <div style="font-size:20px;font-weight:700;color:#1a1a1a;margin-bottom:4px;">
@@ -56,19 +49,33 @@ export async function exportBracketAsJpg({
     <div style="font-size:11px;color:#999;">Exported: ${formatDate(new Date())}</div>
   `
 
-  const bracketClone = bracketEl.cloneNode(true) as HTMLElement
+  // Save current transform, reset to 1:1 for capture
+  const origTransform = bracketEl.style.transform
+  const origTransition = bracketEl.style.transition
+  bracketEl.style.transform = 'none'
+  bracketEl.style.transition = 'none'
 
-  wrapper.appendChild(header)
-  wrapper.appendChild(bracketClone)
-  document.body.appendChild(wrapper)
+  // Prepend header into the live element (already in DOM, styles fully computed)
+  bracketEl.insertBefore(header, bracketEl.firstChild)
+
+  // Wait two frames so the browser paints the reset state before capture
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  )
 
   try {
-    const dataUrl = await toJpeg(wrapper, { quality: 0.95, pixelRatio: 2 })
+    const dataUrl = await toJpeg(bracketEl, {
+      quality: 0.95,
+      pixelRatio: 2,
+      backgroundColor: '#ffffff',
+    })
     const link = document.createElement('a')
     link.download = `${buildSlug(tournamentName)}-${buildSlug(eventName)}.jpg`
     link.href = dataUrl
     link.click()
   } finally {
-    document.body.removeChild(wrapper)
+    bracketEl.removeChild(header)
+    bracketEl.style.transform = origTransform
+    bracketEl.style.transition = origTransition
   }
 }
