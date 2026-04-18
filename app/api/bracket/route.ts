@@ -1,7 +1,26 @@
 import { NextResponse } from 'next/server'
 import { parseBracket } from '@/lib/scraper'
 
-export const maxDuration = 30
+export const maxDuration = 60
+
+async function fetchWithTimeout(url: string, headers: Record<string, string>, timeoutMs = 20000): Promise<string> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const res = await fetch(url, { headers, signal: controller.signal })
+      if (res.ok) return res.text()
+      if (attempt === 2) throw new Error(`HTTP ${res.status}`)
+    } catch (err) {
+      if (attempt === 2) throw err
+      // brief pause before retry
+      await new Promise((r) => setTimeout(r, 1000))
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+  throw new Error('fetch failed')
+}
 
 function extractIds(url: string): { guid: string; drawNum: string } | null {
   const m = url.match(/\/tournament\/([0-9a-f-]{36})\/draw\/(\d+)/i)
@@ -46,15 +65,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Retry once on non-OK response
-    let res = await fetch(apiUrl, { headers })
-    if (!res.ok) {
-      await new Promise((r) => setTimeout(r, 800))
-      res = await fetch(apiUrl, { headers })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    }
-
-    const html = await res.text()
+    const html = await fetchWithTimeout(apiUrl, headers)
     const bracket = parseBracket(html)
 
     if (!bracket.html) {
@@ -65,7 +76,9 @@ export async function GET(request: Request) {
     }
     return NextResponse.json(bracket)
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
+    const message = err instanceof Error
+      ? err.name === 'AbortError' ? 'Request timed out — try again' : err.message
+      : 'Unknown error'
     return NextResponse.json({ error: `Could not load bracket: ${message}` }, { status: 500 })
   }
 }
