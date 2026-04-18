@@ -219,8 +219,10 @@ export function parseBracket(html: string): BracketData {
 
         const matchBoxHtml = rowParts.join('')
         const abbrev = abbrevRound(roundName)
+        const matchNum = gi * 2 + mi + 1
+        const abbrevLabel = abbrev === 'F' ? abbrev : `${abbrev} #${matchNum}`
         const scoreContent = walkover || scoreStr || footerRaw
-        const scoreHtml = `<div class="bk-score"><span class="bk-round-abbrev">${abbrev}</span>${scoreContent}</div>`
+        const scoreHtml = `<div class="bk-score"><span class="bk-round-abbrev">${abbrevLabel}</span>${scoreContent}</div>`
 
         slotParts.push(
           `<div class="bk-match-slot" style="position:absolute;top:${top}px;left:8px;right:8px">` +
