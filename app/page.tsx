@@ -106,7 +106,7 @@ export default function Home() {
       <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-end gap-3 px-5 py-2.5 flex-wrap">
           <span className="font-bold text-base text-gray-900 whitespace-nowrap mr-2">
-            BAT <span className="text-red-600">Unofficial</span> Brackets
+            <span style={{color:'#25316B'}}>BAT</span> <span style={{color:'#BE1D2E'}}>Unofficial</span> Brackets
           </span>
 
           {/* Tournament selector */}
