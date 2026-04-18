@@ -203,9 +203,8 @@ export function parseBracket(html: string): BracketData {
 
         const matchBoxHtml = rowParts.join('')
         const abbrev = abbrevRound(roundName)
-        const scoreHtml = scoreStr
-          ? `<div class="bk-score"><span class="bk-round-abbrev">${abbrev}</span>${scoreStr}</div>`
-          : footerRaw ? `<div class="bk-score"><span class="bk-round-abbrev">${abbrev}</span>${footerRaw}</div>` : ''
+        const scoreContent = scoreStr || footerRaw
+        const scoreHtml = `<div class="bk-score"><span class="bk-round-abbrev">${abbrev}</span>${scoreContent}</div>`
 
         slotParts.push(
           `<div class="bk-match-slot" style="position:absolute;top:${top}px;left:8px;right:8px">` +
