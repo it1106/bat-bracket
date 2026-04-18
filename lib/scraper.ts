@@ -181,11 +181,12 @@ export function parseBracket(html: string): BracketData {
         rows.each((ri, row) => {
           const cls = $(row).attr('class') ?? ''
           const rowContent = $(row).find('.match__row-title-value-content').first()
-          const playerLink = rowContent.find('a').first()
+          const playerLinks = rowContent.find('a')
           const hasWon = cls.includes('has-won')
 
-          if (playerLink.length) {
-            const playerName = playerText(playerLink)
+          if (playerLinks.length) {
+            const names = playerLinks.map((_, a) => playerText($(a))).get().filter(Boolean)
+            const playerName = names.join(' / ')
             rowParts.push(`<div class="bk-row${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}"><span>${playerName}</span></div>`)
           } else {
             rowParts.push(`<div class="bk-row${ri > 0 ? ' bk-row--team-sep' : ''}"><span></span></div>`)
