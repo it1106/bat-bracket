@@ -112,7 +112,7 @@ function buildSvgConnector(groupCount: number, topBase: number, slotPitch: numbe
     pathParts.push(`M 12 ${slot1Center} V ${slot2Center}`)
     pathParts.push(`M 12 ${midPoint} H 24`)
   }
-  return `<svg width="24" height="${totalH}" style="position:absolute;top:${svgTop}px;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#696969" stroke-width="1.5" stroke-linecap="round"></path></svg>`
+  return `<svg width="24" height="${totalH}" style="position:absolute;top:${svgTop}px;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path></svg>`
 }
 
 function abbrevRound(name: string): string {
