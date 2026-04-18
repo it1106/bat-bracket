@@ -196,12 +196,18 @@ export function parseBracket(html: string): BracketData {
           }
         })
 
-        // Footer (time / score)
+        // Match result score (e.g., "21-3, 21-11")
+        const resultEl = $(matchEl).find('.match__result')
+        const gameScores = resultEl.find('ul.points').map((_, g) => {
+          const pts = $(g).find('li').map((_, p) => $(p).text().trim()).get()
+          return pts.join('-')
+        }).get()
+        const scoreStr = gameScores.length > 0 ? gameScores.join(', ') : ''
         const footerEl = $(matchEl).find('.match__footer').first()
         const footerRaw = footerText(footerEl)
 
         const matchBoxHtml = rowParts.join('')
-        const scoreHtml = footerRaw ? `<div class="bk-score">${footerRaw}</div>` : ''
+        const scoreHtml = scoreStr ? `<div class="bk-score">${scoreStr}</div>` : (footerRaw ? `<div class="bk-score">${footerRaw}</div>` : '')
 
         slotParts.push(
           `<div class="bk-match-slot" style="position:absolute;top:${top}px;left:8px;right:8px">` +
