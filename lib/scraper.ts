@@ -82,11 +82,13 @@ export function parseTournamentDraws(html: string): DrawInfo[] {
 }
 
 // Slot pitch in the first (largest) round — must match rendered .bk-match-box height + gap
-const SLOT_PITCH_BASE = 104
+const SLOT_PITCH_BASE = 120
 // Top offset for first slot: label height (32px) + header padding (14px)
 const LABEL_OFFSET = 46
-// Vertical center within a slot box (half of ~79px rendered height)
-const SLOT_CENTER_OFFSET = 39.5
+// Vertical center within a singles slot box (half of ~79px rendered height)
+const SLOT_CENTER_OFFSET_SINGLES = 39.5
+// Vertical center within a doubles slot box (half of ~92px rendered height)
+const SLOT_CENTER_OFFSET_DOUBLES = 46
 // Approximate rendered height of a bk-match-box (2 rows)
 const SLOT_HEIGHT_APPROX = 79
 
@@ -98,10 +100,11 @@ const SLOT_HEIGHT_APPROX = 79
 function buildSvgConnector(groupCount: number, topBase: number, slotPitch: number, totalH: number, isDoubles: boolean): string {
   if (groupCount === 0) return ''
   const svgTop = isDoubles ? 3 : -10
+  const slotCenterOffset = isDoubles ? SLOT_CENTER_OFFSET_DOUBLES : SLOT_CENTER_OFFSET_SINGLES
   const pathParts: string[] = []
   for (let i = 0; i < groupCount; i++) {
-    const slot1Center = topBase + i * 2 * slotPitch + SLOT_CENTER_OFFSET
-    const slot2Center = topBase + (i * 2 + 1) * slotPitch + SLOT_CENTER_OFFSET
+    const slot1Center = topBase + i * 2 * slotPitch + slotCenterOffset
+    const slot2Center = topBase + (i * 2 + 1) * slotPitch + slotCenterOffset
     const midPoint = (slot1Center + slot2Center) / 2
     pathParts.push(`M 0 ${slot1Center} H 12`)
     pathParts.push(`M 0 ${slot2Center} H 12`)
