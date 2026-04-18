@@ -100,7 +100,7 @@ const SLOT_HEIGHT_APPROX_DOUBLES = 92
 
 function buildSvgConnector(groupCount: number, topBase: number, slotPitch: number, totalH: number, isDoubles: boolean): string {
   if (groupCount === 0) return ''
-  const svgTop = isDoubles ? 3 : -10
+  const svgTop = isDoubles ? -3 : -10
   const slotCenterOffset = isDoubles ? SLOT_CENTER_OFFSET_DOUBLES : SLOT_CENTER_OFFSET_SINGLES
   const pathParts: string[] = []
   for (let i = 0; i < groupCount; i++) {
