@@ -1,26 +1,7 @@
 import { NextResponse } from 'next/server'
-import { parseBracket } from '@/lib/scraper'
+import { cache, TTL_MS, makeBracketKey, fetchAndCache } from '@/lib/bracket-cache'
 
 export const maxDuration = 60
-
-async function fetchWithTimeout(url: string, headers: Record<string, string>, timeoutMs = 20000): Promise<string> {
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), timeoutMs)
-    try {
-      const res = await fetch(url, { headers, signal: controller.signal })
-      if (res.ok) return res.text()
-      if (attempt === 2) throw new Error(`HTTP ${res.status}`)
-    } catch (err) {
-      if (attempt === 2) throw err
-      // brief pause before retry
-      await new Promise((r) => setTimeout(r, 1000))
-    } finally {
-      clearTimeout(timer)
-    }
-  }
-  throw new Error('fetch failed')
-}
 
 function extractIds(url: string): { guid: string; drawNum: string } | null {
   const m = url.match(/\/tournament\/([0-9a-f-]{36})\/draw\/(\d+)/i)
@@ -56,18 +37,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Provide either ?url= or ?tournament=&event=' }, { status: 400 })
   }
 
-  const apiUrl = `https://bat.tournamentsoftware.com/tournament/${guid}/Draw/${drawNum}/GetDrawContent?tabindex=1&X-Requested-With=XMLHttpRequest`
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'X-Requested-With': 'XMLHttpRequest',
-    'Accept': 'text/html, */*; q=0.01',
-    'Referer': `https://bat.tournamentsoftware.com/tournament/${guid}/draw/${drawNum}`,
+  const cached = cache.get(makeBracketKey(guid, drawNum))
+  if (cached && Date.now() - cached.ts < TTL_MS) {
+    return NextResponse.json(cached.bracket)
   }
 
   try {
-    const html = await fetchWithTimeout(apiUrl, headers)
-    const bracket = parseBracket(html)
-
+    const bracket = await fetchAndCache(guid, drawNum)
     if (!bracket.html) {
       return NextResponse.json(
         { error: 'Bracket data could not be parsed — the draw may not be published yet' },

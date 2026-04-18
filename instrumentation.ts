@@ -1,8 +1,12 @@
 export async function register() {
-  // Only run in the Node.js runtime (not edge), and only on the server
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const { prewarmDrawsCache } = await import('./lib/draws-cache')
-    // Fire-and-forget: pre-fetch all draws in the background at startup
-    prewarmDrawsCache().catch((err) => console.warn('[instrumentation] prewarm error:', err))
+    const { prewarmBracketCache } = await import('./lib/bracket-cache')
+
+    // Fire-and-forget: pre-warm draws first, then all brackets
+    ;(async () => {
+      await prewarmDrawsCache()
+      await prewarmBracketCache()
+    })().catch((err) => console.warn('[instrumentation] prewarm error:', err))
   }
 }
