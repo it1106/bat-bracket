@@ -81,20 +81,21 @@ export function parseTournamentDraws(html: string): DrawInfo[] {
   return results
 }
 
-// Slot pitch in the first (largest) round — must match rendered .bk-match-box height + gap
-const SLOT_PITCH_BASE = 120
+// Slot pitch in the first (largest) round — singles vs doubles
+const SLOT_PITCH_BASE_SINGLES = 120
+const SLOT_PITCH_BASE_DOUBLES = 130
 // Top offset for first slot: label height (32px) + header padding (14px)
 const LABEL_OFFSET = 46
-// Vertical center within a singles slot box (half of ~79px rendered height)
+// Vertical center within a slot box (singles ~79px, doubles ~92px)
 const SLOT_CENTER_OFFSET_SINGLES = 39.5
-// Vertical center within a doubles slot box (half of ~92px rendered height)
 const SLOT_CENTER_OFFSET_DOUBLES = 46
-// Approximate rendered height of a bk-match-box (2 rows)
-const SLOT_HEIGHT_APPROX = 79
+// Approximate rendered height of a bk-match-box
+const SLOT_HEIGHT_APPROX_SINGLES = 79
+const SLOT_HEIGHT_APPROX_DOUBLES = 92
 
 // For round r (0-indexed from first/largest round):
-//   topBase(r)  = LABEL_OFFSET + SLOT_PITCH_BASE * (2^r - 1) / 2
-//   slotPitch(r) = SLOT_PITCH_BASE * 2^r
+//   topBase(r)  = LABEL_OFFSET + pitchBase * (2^r - 1) / 2
+//   slotPitch(r) = pitchBase * 2^r
 // These formulae guarantee seamless SVG connector alignment between adjacent rounds.
 
 function buildSvgConnector(groupCount: number, topBase: number, slotPitch: number, totalH: number, isDoubles: boolean): string {
@@ -160,17 +161,20 @@ export function parseBracket(html: string): BracketData {
   const isDoubles = firstSlide.find('.match').first().find('.match__row').first()
     .find('.match__row-title-value').length >= 2
 
+  const pitchBase = isDoubles ? SLOT_PITCH_BASE_DOUBLES : SLOT_PITCH_BASE_SINGLES
+  const slotHeightApprox = isDoubles ? SLOT_HEIGHT_APPROX_DOUBLES : SLOT_HEIGHT_APPROX_SINGLES
+
   // Bracket height is proportional to the first (largest) round's slot count
   const firstRoundGroups = rounds[0].groupCount
-  const totalH = Math.ceil(LABEL_OFFSET + (firstRoundGroups * 2 - 1) * SLOT_PITCH_BASE + SLOT_HEIGHT_APPROX + 50)
+  const totalH = Math.ceil(LABEL_OFFSET + (firstRoundGroups * 2 - 1) * pitchBase + slotHeightApprox + 50)
 
   let bkWrapHtml = ''
 
   for (let r = 0; r < rounds.length; r++) {
     const { name: roundName, slideIdx, groupCount } = rounds[r]
     // Dynamic positioning: slot pitch doubles and topBase shifts right each round
-    const slotPitch = SLOT_PITCH_BASE * Math.pow(2, r)
-    const topBase = Math.round(LABEL_OFFSET + SLOT_PITCH_BASE * (Math.pow(2, r) - 1) / 2)
+    const slotPitch = pitchBase * Math.pow(2, r)
+    const topBase = Math.round(LABEL_OFFSET + pitchBase * (Math.pow(2, r) - 1) / 2)
 
     const slide = bracket.find('swiper-container > swiper-slide').eq(slideIdx)
     const matchGroups = slide.find('.bracket-round__match-group-wrapper')
