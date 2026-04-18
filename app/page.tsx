@@ -109,7 +109,7 @@ export default function Home() {
             <span className="font-bold text-gray-900" style={{fontSize:'1.2rem',lineHeight:'2rem'}}>
               <span style={{color:'#25316B'}}>BAT</span> <span style={{color:'#BE1D2E'}}>Unofficial</span> Brackets
             </span>
-            <span className="text-[10px] text-gray-400">Check BAT official website for accuracy</span>
+            <span className="text-[12px] text-gray-400">Check BAT official website for accuracy</span>
           </div>
 
           {/* Tournament selector */}
