@@ -12,10 +12,6 @@ interface Props {
   playerQuery: string
 }
 
-function teamNames(team: MatchEntry['team1']): string[] {
-  return team.map((p) => p.name)
-}
-
 function scoreStr(entry: MatchEntry): string {
   if (entry.walkover) return 'Walkover'
   if (entry.scores.length === 0) return '—'
@@ -61,35 +57,26 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
       {!loading && timeGroups.map((group) => (
         <div key={group.time} className="match-schedule__time-group">
           <div className="match-schedule__time-header">{group.time}</div>
-          <table className="match-schedule__table">
-            <colgroup>
-              <col className="col-event" />
-              <col className="col-round" />
-              <col className="col-team" />
-              <col className="col-score" />
-              <col className="col-team" />
-            </colgroup>
-            <tbody>
-              {group.matches.map((m, mi) => {
-                const tracked = isTracked(m, playerQuery)
-                const t1 = teamNames(m.team1)
-                const t2 = teamNames(m.team2)
-                return (
-                  <tr key={mi} className={tracked ? 'match-schedule__row--tracked' : ''}>
-                    <td className="match-schedule__event">{m.draw}</td>
-                    <td className="match-schedule__round">{abbrevRound(m.round)}</td>
-                    <td className={`match-schedule__team${m.winner === 1 ? ' winner' : ''}`}>
-                      {t1.map((n, i) => <div key={i}>{n}</div>)}
-                    </td>
-                    <td className="match-schedule__score">{scoreStr(m)}</td>
-                    <td className={`match-schedule__team${m.winner === 2 ? ' winner' : ''}`}>
-                      {t2.map((n, i) => <div key={i}>{n}</div>)}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="ms-list">
+            {group.matches.map((m, mi) => {
+              const tracked = isTracked(m, playerQuery)
+              return (
+                <div key={mi} className={`ms-match${tracked ? ' ms-match--tracked' : ''}`}>
+                  <div className="ms-meta">
+                    <span className="ms-event">{m.draw}</span>
+                    <span className="ms-round">{abbrevRound(m.round)}</span>
+                  </div>
+                  <div className={`ms-team ms-team--1${m.winner === 1 ? ' winner' : ''}`}>
+                    {m.team1.map((p, i) => <div key={i}>{p.name}</div>)}
+                  </div>
+                  <div className="ms-score">{scoreStr(m)}</div>
+                  <div className={`ms-team ms-team--2${m.winner === 2 ? ' winner' : ''}`}>
+                    {m.team2.map((p, i) => <div key={i}>{p.name}</div>)}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       ))}
     </div>
