@@ -38,11 +38,9 @@ export default function Home() {
   useEffect(() => {
     const handleScroll = () => {
       const y = window.scrollY
-      if (y <= 0) {
+      if (y <= 10) {
         setHeaderVisible(true)
-      } else if (y < lastScrollY.current - 4) {
-        setHeaderVisible(true)
-      } else if (y > lastScrollY.current + 4) {
+      } else {
         setHeaderVisible(false)
       }
       lastScrollY.current = y
