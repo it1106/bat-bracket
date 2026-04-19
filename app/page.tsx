@@ -107,7 +107,7 @@ export default function Home() {
         <div className="flex items-end gap-3 px-5 py-2.5 flex-wrap">
           <div className="flex flex-col whitespace-nowrap mr-2">
             <span className="font-bold text-gray-900" style={{fontSize:'1.2rem',lineHeight:'2rem'}}>
-              <span style={{color:'#25316B'}}>BAT</span> <span style={{color:'#BE1D2E'}}>Unofficial</span> Brackets
+              <span style={{color:'#25316B'}}>BAT</span> <span style={{color:'#BE1D2E'}}>Unofficial</span> Match Up
             </span>
             <span className="text-[12px] text-gray-400">Check BAT official website for accuracy</span>
           </div>

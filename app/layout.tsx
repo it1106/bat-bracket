@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'BAT Unofficial Brackets',
+  title: 'BAT Unofficial Match Up',
   description: 'Tournament bracket viewer for bat.tournamentsoftware.com',
 }
 
