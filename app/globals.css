@@ -467,12 +467,12 @@
 
 .ms-event--link {
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
 .ms-event--link:hover {
   color: #1a237e;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .ms-team--1 { grid-area: team1; line-height: 1.6; }
