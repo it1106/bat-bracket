@@ -2,8 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import BracketCanvas from '@/components/BracketCanvas'
+import MatchSchedule from '@/components/MatchSchedule'
 import { exportBracketAsJpg } from '@/components/ExportButton'
-import type { BracketData, ApiError, TournamentInfo, DrawInfo } from '@/lib/types'
+import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchTimeGroup, MatchesData } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
   return typeof data === 'object' && data !== null && 'error' in data
@@ -18,6 +19,8 @@ async function safeJson(res: Response): Promise<unknown> {
   }
 }
 
+type ViewMode = 'bracket' | 'matches'
+
 export default function Home() {
   const [tournaments, setTournaments] = useState<TournamentInfo[]>([])
   const [draws, setDraws] = useState<DrawInfo[]>([])
@@ -28,11 +31,16 @@ export default function Home() {
   const [loadingTournaments, setLoadingTournaments] = useState(true)
   const [loadingDraws, setLoadingDraws] = useState(false)
   const [loadingBracket, setLoadingBracket] = useState(false)
+  const [loadingMatches, setLoadingMatches] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tournamentName, setTournamentName] = useState('')
   const [drawName, setDrawName] = useState('')
   const [fromRound, setFromRound] = useState(0)
   const [fromRoundName, setFromRoundName] = useState('')
+  const [viewMode, setViewMode] = useState<ViewMode>('bracket')
+  const [matchDays, setMatchDays] = useState<MatchDay[]>([])
+  const [selectedDay, setSelectedDay] = useState('')
+  const [matchTimeGroups, setMatchTimeGroups] = useState<MatchTimeGroup[]>([])
   const bracketRef = useRef<HTMLDivElement>(null)
   const lastScrollY = useRef(0)
   const [headerVisible, setHeaderVisible] = useState(true)
@@ -62,26 +70,44 @@ export default function Home() {
       .finally(() => setLoadingTournaments(false))
   }, [])
 
-  // Load draws when tournament changes
+  // Load draws + matches when tournament changes
   const handleTournamentChange = useCallback(async (id: string) => {
     setSelectedTournament(id)
     setSelectedDraw('')
     setDraws([])
     setBracketHtml('')
     setError(null)
+    setMatchDays([])
+    setMatchTimeGroups([])
+    setSelectedDay('')
     if (!id) return
+
     setLoadingDraws(true)
-    try {
-      const res = await fetch(`/api/draws?id=${encodeURIComponent(id)}`)
-      const data = await safeJson(res)
-      if (isApiError(data)) throw new Error(data.error)
-      setDraws(data as DrawInfo[])
-      const t = tournaments.find((t) => t.id === id)
-      setTournamentName(t?.name ?? id)
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Failed to load draws')
-    } finally {
-      setLoadingDraws(false)
+    setLoadingMatches(true)
+    const t = tournaments.find((t) => t.id === id)
+    setTournamentName(t?.name ?? id)
+
+    const [drawsResult, matchesResult] = await Promise.allSettled([
+      fetch(`/api/draws?id=${encodeURIComponent(id)}`).then(safeJson),
+      fetch(`/api/matches?tournament=${encodeURIComponent(id)}`).then(safeJson),
+    ])
+
+    setLoadingDraws(false)
+    setLoadingMatches(false)
+
+    if (drawsResult.status === 'fulfilled') {
+      const data = drawsResult.value
+      if (isApiError(data)) setError(data.error)
+      else setDraws(data as DrawInfo[])
+    } else {
+      setError('Failed to load draws')
+    }
+
+    if (matchesResult.status === 'fulfilled' && !isApiError(matchesResult.value)) {
+      const md = matchesResult.value as MatchesData
+      setMatchDays(md.days)
+      setMatchTimeGroups(md.timeGroups)
+      setSelectedDay(md.currentDate || md.days[0]?.date || '')
     }
   }, [tournaments])
 
@@ -118,13 +144,27 @@ export default function Home() {
   const handleRoundClick = useCallback(async (roundIndex: number) => {
     if (!selectedTournament || !selectedDraw) return
     const newFrom = roundIndex === fromRound && fromRound > 0 ? 0 : roundIndex
-    // Extract round name from the clicked label in the DOM
     const label = bracketRef.current?.querySelector(`[data-round-index="${roundIndex}"]`)
     const roundName = label?.textContent ?? ''
     setFromRound(newFrom)
     setFromRoundName(newFrom > 0 ? roundName : '')
     await fetchBracketFrom(selectedTournament, selectedDraw, newFrom)
   }, [selectedTournament, selectedDraw, fromRound, fetchBracketFrom])
+
+  const handleDayChange = useCallback(async (date: string) => {
+    if (!selectedTournament) return
+    setSelectedDay(date)
+    setLoadingMatches(true)
+    try {
+      const res = await fetch(`/api/matches?tournament=${encodeURIComponent(selectedTournament)}&date=${date}`)
+      const data = await safeJson(res)
+      if (!isApiError(data)) {
+        const md = data as Pick<MatchesData, 'timeGroups'>
+        setMatchTimeGroups(md.timeGroups)
+      }
+    } catch {}
+    finally { setLoadingMatches(false) }
+  }, [selectedTournament])
 
   const handleExport = useCallback(() => {
     if (!bracketRef.current) return
@@ -172,27 +212,29 @@ export default function Home() {
             </select>
           </div>
 
-          {/* Draw selector */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
-              Draw
-            </label>
-            <select
-              value={selectedDraw}
-              onChange={(e) => handleDrawChange(e.target.value)}
-              disabled={!selectedTournament || loadingDraws || draws.length === 0}
-              className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[160px] bg-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
-            >
-              <option value="">
-                {loadingDraws ? 'Loading…' : draws.length === 0 && selectedTournament ? 'No draws' : '— Select draw —'}
-              </option>
-              {draws.map((d) => (
-                <option key={d.drawNum} value={d.drawNum}>
-                  {d.name}
+          {/* Draw selector — only relevant in bracket view */}
+          {viewMode === 'bracket' && (
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                Draw
+              </label>
+              <select
+                value={selectedDraw}
+                onChange={(e) => handleDrawChange(e.target.value)}
+                disabled={!selectedTournament || loadingDraws || draws.length === 0}
+                className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[160px] bg-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
+              >
+                <option value="">
+                  {loadingDraws ? 'Loading…' : draws.length === 0 && selectedTournament ? 'No draws' : '— Select draw —'}
                 </option>
-              ))}
-            </select>
-          </div>
+                {draws.map((d) => (
+                  <option key={d.drawNum} value={d.drawNum}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Player search */}
           <div className="flex flex-col gap-1">
@@ -208,72 +250,120 @@ export default function Home() {
             />
           </div>
 
-          {/* Export */}
+          {/* Export — bracket view only */}
+          {viewMode === 'bracket' && (
+            <button
+              onClick={handleExport}
+              disabled={!bracketHtml || loading}
+              className="ml-auto bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white rounded-md px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors"
+            >
+              ↓ Export JPG
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* View mode tabs */}
+      {selectedTournament && (
+        <div className="flex items-center gap-0 px-5 py-0 bg-white border-b border-gray-200">
           <button
-            onClick={handleExport}
-            disabled={!bracketHtml || loading}
-            className="ml-auto bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white rounded-md px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors"
+            onClick={() => setViewMode('bracket')}
+            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+              viewMode === 'bracket'
+                ? 'border-[#25316B] text-[#25316B]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
           >
-            ↓ Export JPG
+            Bracket
+          </button>
+          <button
+            onClick={() => setViewMode('matches')}
+            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+              viewMode === 'matches'
+                ? 'border-[#25316B] text-[#25316B]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Match Schedule
+            {loadingMatches && <span className="ml-1 opacity-50">…</span>}
           </button>
         </div>
-      </div>
+      )}
 
-      {/* Legend */}
-      <div className="flex gap-4 px-5 py-2 bg-white border-b border-gray-100 text-xs text-gray-500">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-green-100 border border-green-300" />
-          Winner
+      {/* Legend (bracket view only) */}
+      {viewMode === 'bracket' && (
+        <div className="flex gap-4 px-5 py-2 bg-white border-b border-gray-100 text-xs text-gray-500">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-green-100 border border-green-300" />
+            Winner
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-gray-50 border border-gray-300" />
+            Not played
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm bg-yellow-100 border border-yellow-400" />
+            Tracked player
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-gray-50 border border-gray-300" />
-          Not played
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-yellow-100 border border-yellow-400" />
-          Tracked player
-        </div>
-      </div>
+      )}
 
-      {/* States */}
+      {/* Error */}
       {error && (
         <div className="m-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
         </div>
       )}
 
-      {!bracketHtml && !loading && !error && (
-        <div className="p-10 text-center text-gray-400 text-sm">
-          {!selectedTournament
-            ? 'Select a tournament above to get started.'
-            : !selectedDraw
-            ? 'Select a draw to view the bracket.'
-            : 'Loading…'}
-        </div>
+      {/* Bracket view */}
+      {viewMode === 'bracket' && (
+        <>
+          {!bracketHtml && !loading && !error && (
+            <div className="p-10 text-center text-gray-400 text-sm">
+              {!selectedTournament
+                ? 'Select a tournament above to get started.'
+                : !selectedDraw
+                ? 'Select a draw to view the bracket.'
+                : 'Loading…'}
+            </div>
+          )}
+
+          {loadingBracket && (
+            <div className="p-10 text-center text-gray-400 text-sm">Loading bracket…</div>
+          )}
+
+          {fromRound > 0 && bracketHtml && (
+            <div className="flex items-center gap-2 px-5 py-1.5 bg-blue-50 border-b border-blue-200 text-xs text-blue-700">
+              <span>Viewing from <strong>{fromRoundName}</strong></span>
+              <button
+                onClick={() => handleRoundClick(0)}
+                className="ml-1 underline hover:no-underline"
+              >
+                ↩ Show all rounds
+              </button>
+            </div>
+          )}
+
+          {bracketHtml && !loadingBracket && (
+            <BracketCanvas
+              bracketHtml={bracketHtml}
+              playerQuery={playerQuery}
+              bracketRef={bracketRef}
+              onRoundClick={handleRoundClick}
+            />
+          )}
+        </>
       )}
 
-      {loadingBracket && (
-        <div className="p-10 text-center text-gray-400 text-sm">Loading bracket…</div>
-      )}
-
-      {fromRound > 0 && bracketHtml && (
-        <div className="flex items-center gap-2 px-5 py-1.5 bg-blue-50 border-b border-blue-200 text-xs text-blue-700">
-          <span>Viewing from <strong>{fromRoundName}</strong></span>
-          <button
-            onClick={() => handleRoundClick(0)}
-            className="ml-1 underline hover:no-underline"
-          >
-            ↩ Show all rounds
-          </button>
-        </div>
-      )}
-
-      {bracketHtml && !loadingBracket && (
-        <BracketCanvas
-          bracketHtml={bracketHtml}
+      {/* Matches view */}
+      {viewMode === 'matches' && (
+        <MatchSchedule
+          timeGroups={matchTimeGroups}
+          days={matchDays}
+          selectedDay={selectedDay}
+          onDayChange={handleDayChange}
+          loading={loadingMatches}
           playerQuery={playerQuery}
-          bracketRef={bracketRef}
-          onRoundClick={handleRoundClick}
         />
       )}
     </>

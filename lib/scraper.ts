@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo } from './types'
+import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchTimeGroup, MatchDay, MatchesData } from './types'
 
 function extractId(url: string): string {
   const match = url.match(/\/tournament\/([^/]+)/)
@@ -260,4 +260,84 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function footerText(el: cheerio.Cheerio<any>): string {
   return el.find('.match__footer-list').text().replace(/\s+/g, ' ').trim()
+}
+
+function parseMatchGroups($: cheerio.CheerioAPI): MatchTimeGroup[] {
+  const timeGroups: MatchTimeGroup[] = []
+
+  $('.match-group__wrapper').each((_, wrapper) => {
+    const time = $(wrapper).find('.match-group__header').text().trim()
+    const matches: MatchEntry[] = []
+
+    $(wrapper).find('.match.match--list').each((_, matchEl) => {
+      const titleItems = $(matchEl).find('.match__header-title-item')
+      const drawLink = titleItems.eq(0).find('a')
+      const draw = drawLink.find('.nav-link__value').text().trim()
+      const drawHref = drawLink.attr('href') ?? ''
+      const drawNumMatch = drawHref.match(/draw=(\d+)/)
+      const drawNum = drawNumMatch ? drawNumMatch[1] : ''
+      const round = titleItems.eq(1).find('.nav-link__value').text().trim()
+
+      const tooltip = $(matchEl).find('.match__header-aside-block').attr('title') ?? ''
+      const courtMatch = tooltip.match(/\|\s*(.+)$/)
+      const court = courtMatch ? courtMatch[1].trim() : ''
+
+      const walkover = $(matchEl).find('.match__message').length > 0
+
+      const rows = $(matchEl).find('.match__row')
+      let team1: MatchEntry['team1'] = []
+      let team2: MatchEntry['team2'] = []
+      let winner: MatchEntry['winner'] = null
+
+      rows.each((ri, row) => {
+        const hasWon = $(row).hasClass('has-won')
+        const players: MatchEntry['team1'] = []
+        $(row).find('.match__row-title-value').each((_, tv) => {
+          const a = $(tv).find('a')
+          const name = a.find('.nav-link__value').text().trim()
+          const hrefMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
+          if (name) players.push({ name, playerId: hrefMatch ? hrefMatch[1] : '' })
+        })
+        if (ri === 0) { team1 = players; if (hasWon) winner = 1 }
+        else { team2 = players; if (hasWon) winner = 2 }
+      })
+
+      const scores: MatchEntry['scores'] = []
+      $(matchEl).find('.match__result ul.points').each((_, pts) => {
+        const cells = $(pts).find('.points__cell')
+        const t1 = parseInt(cells.eq(0).text().trim(), 10)
+        const t2 = parseInt(cells.eq(1).text().trim(), 10)
+        if (!isNaN(t1) && !isNaN(t2)) scores.push({ t1, t2 })
+      })
+
+      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court, walkover })
+    })
+
+    if (matches.length > 0) timeGroups.push({ time, matches })
+  })
+
+  return timeGroups
+}
+
+export function parseMatchesFull(html: string): MatchesData {
+  const $ = cheerio.load(html)
+
+  const days: MatchDay[] = []
+  $('.js-date-selection-tab').each((_, el) => {
+    const date = $(el).attr('data-value') ?? ''
+    const dateIso = $(el).find('time').attr('datetime')?.split('T')[0] ?? ''
+    const day = $(el).find('.date__day').text().trim()
+    const month = $(el).find('.date__month').text().trim()
+    const label = `${day} ${month}`
+    if (date) days.push({ date, label, dateIso })
+  })
+
+  const currentDate = $('.page-nav__item--active .js-date-selection-tab').attr('data-value') ?? days[0]?.date ?? ''
+
+  return { days, currentDate, timeGroups: parseMatchGroups($) }
+}
+
+export function parseMatchesPartial(html: string): Pick<MatchesData, 'timeGroups'> {
+  const $ = cheerio.load(html)
+  return { timeGroups: parseMatchGroups($) }
 }

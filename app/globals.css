@@ -364,3 +364,134 @@
 #entrant-info-toggle {
   display: none;
 }
+
+/* ── Match Schedule ── */
+.match-schedule {
+  background: #f0f2f5;
+  min-height: calc(100vh - 97px);
+  padding: 16px 20px;
+}
+
+.match-schedule__day-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.match-schedule__day-tab {
+  padding: 5px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  white-space: nowrap;
+}
+
+.match-schedule__day-tab:hover {
+  background: #f3f4f6;
+}
+
+.match-schedule__day-tab.active {
+  background: #25316B;
+  border-color: #25316B;
+  color: #fff;
+  font-weight: 700;
+}
+
+.match-schedule__time-group {
+  margin-bottom: 20px;
+}
+
+.match-schedule__time-header {
+  font-size: 13px;
+  font-weight: 700;
+  color: #25316B;
+  padding: 6px 10px;
+  background: #e8eaf0;
+  border-radius: 6px 6px 0 0;
+  border-bottom: 2px solid #25316B;
+  letter-spacing: 0.3px;
+}
+
+.match-schedule__table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 6px 6px;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+.match-schedule__table th {
+  background: #f8f9fa;
+  color: #888;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.match-schedule__table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: top;
+  color: #1a1a1a;
+}
+
+.match-schedule__table tr:last-child td {
+  border-bottom: none;
+}
+
+.match-schedule__table tr:hover td {
+  background: #fafafa;
+}
+
+.match-schedule__event {
+  font-weight: 600;
+  color: #25316B;
+  white-space: nowrap;
+}
+
+.match-schedule__round {
+  color: #666;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.match-schedule__team {
+  min-width: 140px;
+  line-height: 1.5;
+}
+
+.match-schedule__team.winner {
+  font-weight: 700;
+  color: #166534;
+}
+
+.match-schedule__score {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #444;
+  padding: 8px 14px;
+}
+
+.match-schedule__court {
+  color: #888;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.match-schedule__row--tracked td {
+  background: #fff3cd !important;
+}
