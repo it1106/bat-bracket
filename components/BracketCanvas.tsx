@@ -6,6 +6,7 @@ interface BracketCanvasProps {
   bracketHtml: string
   playerQuery: string
   bracketRef: React.RefObject<HTMLDivElement>
+  onRoundClick?: (roundIndex: number) => void
 }
 
 const MIN_ZOOM = 0.25
@@ -15,6 +16,7 @@ export default function BracketCanvas({
   bracketHtml,
   playerQuery,
   bracketRef,
+  onRoundClick,
 }: BracketCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -92,6 +94,13 @@ export default function BracketCanvas({
   const zoomOut = useCallback(() => setScale((s) => Math.max(MIN_ZOOM, s / 1.2)), [])
   const resetZoom = useCallback(() => setScale(1), [])
 
+  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const label = (e.target as Element).closest('.bk-round-label')
+    if (!label) return
+    const idx = parseInt(label.getAttribute('data-round-index') ?? '', 10)
+    if (!isNaN(idx)) onRoundClick?.(idx)
+  }, [onRoundClick])
+
   if (!bracketHtml) return null
 
   return (
@@ -122,6 +131,7 @@ export default function BracketCanvas({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onWheel={handleWheel}
+        onClick={handleClick}
         style={{ cursor: isPinching ? 'grabbing' : 'grab' }}
       >
         <div
