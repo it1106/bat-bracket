@@ -20,8 +20,11 @@ export default function BracketCanvas({
 }: BracketCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+  const scaleRef = useRef(1)
   const [isPinching, setIsPinching] = useState(false)
   const lastTouchDistance = useRef<number | null>(null)
+
+  useEffect(() => { scaleRef.current = scale }, [scale])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -32,20 +35,24 @@ export default function BracketCanvas({
       '.match__row-title-value-content a'
     )
     if (playerLinks.length > 0) {
+      let firstMatch: HTMLElement | null = null
       playerLinks.forEach((link) => {
         const row = link.closest('.match__row') as HTMLElement | null
         if (!row) return
         const name = link.textContent?.toLowerCase() ?? ''
         if (query && name.includes(query)) {
           row.classList.add('highlighted')
+          if (!firstMatch) firstMatch = row
         } else {
           row.classList.remove('highlighted')
         }
       })
+      scrollToMatch(firstMatch, query)
       return
     }
 
     // Legacy format: .bk-row with .bk-player spans
+    let firstMatch: HTMLElement | null = null
     const bkRows = containerRef.current.querySelectorAll<HTMLElement>('.bk-row')
     bkRows.forEach((row) => {
       const spans = row.querySelectorAll<HTMLElement>('.bk-player, span')
@@ -53,8 +60,26 @@ export default function BracketCanvas({
         (s) => s.textContent?.toLowerCase().includes(query)
       )
       row.classList.toggle('tracked', !!matches)
+      if (matches && !firstMatch) firstMatch = row
     })
+    scrollToMatch(firstMatch, query)
   }, [bracketHtml, playerQuery])
+
+  const scrollToMatch = useCallback((el: HTMLElement | null, query: string) => {
+    if (!el || !query || !containerRef.current) return
+    const scrollEl = containerRef.current.parentElement
+    if (!scrollEl) return
+    const elemRect = el.getBoundingClientRect()
+    const scrollRect = scrollEl.getBoundingClientRect()
+    const s = scaleRef.current
+    const newTop = scrollEl.scrollTop + (elemRect.top - scrollRect.top - 80) / s
+    const newLeft = scrollEl.scrollLeft + (elemRect.left - scrollRect.left - 50) / s
+    scrollEl.scrollTo({
+      top: Math.max(0, newTop),
+      left: Math.max(0, newLeft),
+      behavior: 'smooth',
+    })
+  }, [])
 
   // Pinch-zoom handling
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
