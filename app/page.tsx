@@ -32,6 +32,24 @@ export default function Home() {
   const [tournamentName, setTournamentName] = useState('')
   const [drawName, setDrawName] = useState('')
   const bracketRef = useRef<HTMLDivElement>(null)
+  const lastScrollY = useRef(0)
+  const [headerVisible, setHeaderVisible] = useState(true)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const y = window.scrollY
+      if (y <= 0) {
+        setHeaderVisible(true)
+      } else if (y < lastScrollY.current - 4) {
+        setHeaderVisible(true)
+      } else if (y > lastScrollY.current + 4) {
+        setHeaderVisible(false)
+      }
+      lastScrollY.current = y
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   // Load tournament list on mount
   useEffect(() => {
@@ -103,7 +121,10 @@ export default function Home() {
   return (
     <>
       {/* Top bar */}
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+      <div
+        className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm transition-transform duration-300"
+        style={{ transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)' }}
+      >
         <div className="flex items-end gap-3 px-5 py-2.5 flex-wrap">
           <div className="flex flex-col whitespace-nowrap mr-2">
             <span className="font-bold text-gray-900" style={{fontSize:'1.2rem',lineHeight:'2rem'}}>
