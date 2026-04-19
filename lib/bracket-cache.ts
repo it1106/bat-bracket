@@ -3,6 +3,7 @@ import { cache as drawsCache } from './draws-cache'
 import type { BracketData } from './types'
 
 export const cache = new Map<string, { bracket: BracketData; ts: number; done?: boolean }>()
+export const rawHtmlCache = new Map<string, string>()
 export const TTL_MS = 15 * 60 * 1000 // 15 min
 
 const TIMEOUT_MS = 50000
@@ -27,6 +28,7 @@ export async function fetchBracket(guid: string, drawNum: string): Promise<Brack
       const res = await fetch(apiUrl, { headers, signal: controller.signal })
       if (res.ok) {
         const html = await res.text()
+        rawHtmlCache.set(makeBracketKey(guid, drawNum), html)
         return parseBracket(html)
       }
       if (attempt === 2) throw new Error(`HTTP ${res.status}`)

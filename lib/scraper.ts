@@ -136,7 +136,7 @@ function playerText(el: cheerio.Cheerio<any>): string {
          el.clone().children().remove().end().text().trim()
 }
 
-export function parseBracket(html: string): BracketData {
+export function parseBracket(html: string, fromRound = 0): BracketData {
   const $ = cheerio.load(html, { xmlMode: false })
 
   const bracket = $('.bracket.js-bracket')
@@ -144,33 +144,40 @@ export function parseBracket(html: string): BracketData {
 
   const roundNames = bracket.find('.subheading').map((_, el) => $(el).text().trim()).get()
 
-  // First pass: collect rounds with non-empty match groups
-  const rounds: Array<{ name: string; slideIdx: number; groupCount: number }> = []
+  // First pass: collect all rounds with non-empty match groups
+  const allRounds: Array<{ name: string; slideIdx: number; groupCount: number }> = []
   for (let slideIdx = 0; slideIdx < roundNames.length; slideIdx++) {
     const slide = bracket.find('swiper-container > swiper-slide').eq(slideIdx)
     if (!slide.length) continue
     const groupCount = slide.find('.bracket-round__match-group-wrapper').length
     if (groupCount === 0) continue
-    rounds.push({ name: roundNames[slideIdx], slideIdx, groupCount })
+    allRounds.push({ name: roundNames[slideIdx], slideIdx, groupCount })
   }
 
-  if (rounds.length === 0) return { html: '', format: 'unknown' }
+  if (allRounds.length === 0) return { html: '', format: 'unknown' }
 
-  // Detect doubles: first match row has 2 .match__row-title-value divs
-  const firstSlide = bracket.find('swiper-container > swiper-slide').eq(rounds[0].slideIdx)
+  // Detect doubles using the original first round (regardless of fromRound)
+  const firstSlide = bracket.find('swiper-container > swiper-slide').eq(allRounds[0].slideIdx)
   const isDoubles = firstSlide.find('.match').first().find('.match__row').first()
     .find('.match__row-title-value').length >= 2
+
+  // Slice rounds from fromRound — treat slice[0] as r=0 for positioning
+  const clampedFrom = Math.max(0, Math.min(fromRound, allRounds.length - 1))
+  const rounds = allRounds.slice(clampedFrom)
+
+  if (rounds.length === 0) return { html: '', format: 'unknown' }
 
   const pitchBase = isDoubles ? SLOT_PITCH_BASE_DOUBLES : SLOT_PITCH_BASE_SINGLES
   const slotHeightApprox = isDoubles ? SLOT_HEIGHT_APPROX_DOUBLES : SLOT_HEIGHT_APPROX_SINGLES
 
-  // Bracket height is proportional to the first (largest) round's slot count
+  // Bracket height is proportional to the first displayed round's slot count
   const firstRoundGroups = rounds[0].groupCount
   const totalH = Math.ceil(LABEL_OFFSET + (firstRoundGroups * 2 - 1) * pitchBase + slotHeightApprox + 50)
 
   let bkWrapHtml = ''
 
   for (let r = 0; r < rounds.length; r++) {
+    const absoluteIdx = clampedFrom + r
     const { name: roundName, slideIdx, groupCount } = rounds[r]
     // Dynamic positioning: slot pitch doubles and topBase shifts right each round
     const slotPitch = pitchBase * Math.pow(2, r)
@@ -233,7 +240,7 @@ export function parseBracket(html: string): BracketData {
 
     const roundHtml =
       `<div class="bk-round" style="height:${totalH}px">` +
-      `<div class="bk-round-label" style="height:32px;line-height:32px">${roundName}</div>` +
+      `<div class="bk-round-label" data-round-index="${absoluteIdx}" style="height:32px;line-height:32px;cursor:pointer">${roundName}</div>` +
       slotParts.join('') +
       `</div>`
 

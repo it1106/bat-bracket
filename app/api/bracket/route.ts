@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { cache, TTL_MS, makeBracketKey, fetchAndCache } from '@/lib/bracket-cache'
+import { cache, TTL_MS, makeBracketKey, fetchAndCache, rawHtmlCache } from '@/lib/bracket-cache'
+import { parseBracket } from '@/lib/scraper'
 
 export const maxDuration = 60
 
@@ -13,6 +14,8 @@ export async function GET(request: Request) {
   const rawUrl = searchParams.get('url')
   const tournamentId = searchParams.get('tournament')
   const eventId = searchParams.get('event')
+
+  const fromRound = Math.max(0, parseInt(searchParams.get('fromRound') ?? '0', 10) || 0)
 
   let guid: string
   let drawNum: string
@@ -37,9 +40,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Provide either ?url= or ?tournament=&event=' }, { status: 400 })
   }
 
-  const cached = cache.get(makeBracketKey(guid, drawNum))
+  const key = makeBracketKey(guid, drawNum)
+
+  // fromRound > 0: re-parse from raw HTML without re-fetching
+  if (fromRound > 0) {
+    const rawHtml = rawHtmlCache.get(key)
+    if (rawHtml) return NextResponse.json(parseBracket(rawHtml, fromRound))
+    // fall through to fetch if raw HTML not cached yet
+  }
+
+  const cached = cache.get(key)
   if (cached && (cached.done || Date.now() - cached.ts < TTL_MS)) {
-    return NextResponse.json(cached.bracket)
+    return NextResponse.json(fromRound > 0 ? parseBracket(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket)
   }
 
   try {
