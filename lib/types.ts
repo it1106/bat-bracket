@@ -64,6 +64,7 @@ export interface MatchDay {
   date: string
   label: string
   dateIso: string
+  hasMatches?: boolean
 }
 
 export interface MatchesData {

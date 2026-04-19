@@ -322,6 +322,7 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchTimeGroup[] {
 export function parseMatchesFull(html: string): MatchesData {
   const $ = cheerio.load(html)
 
+  const todayIso = new Date().toISOString().split('T')[0]
   const days: MatchDay[] = []
   $('.js-date-selection-tab').each((_, el) => {
     const date = $(el).attr('data-value') ?? ''
@@ -329,7 +330,9 @@ export function parseMatchesFull(html: string): MatchesData {
     const day = $(el).find('.date__day').text().trim()
     const month = $(el).find('.date__month').text().trim()
     const label = `${day} ${month}`
-    if (date) days.push({ date, label, dateIso })
+    // Past/today assumed to have matches; future days assumed empty until proven otherwise
+    const hasMatches = dateIso ? dateIso <= todayIso : undefined
+    if (date) days.push({ date, label, dateIso, hasMatches })
   })
 
   const currentDate = $('.page-nav__item--active .js-date-selection-tab').attr('data-value') ?? days[0]?.date ?? ''

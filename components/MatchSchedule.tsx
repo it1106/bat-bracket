@@ -38,7 +38,11 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
             <button
               key={d.date}
               onClick={() => onDayChange(d.date)}
-              className={`match-schedule__day-tab${d.date === selectedDay ? ' active' : ''}`}
+              className={[
+                'match-schedule__day-tab',
+                d.date === selectedDay ? 'active' : '',
+                d.hasMatches === false ? 'empty' : '',
+              ].filter(Boolean).join(' ')}
             >
               {d.label}
             </button>
@@ -58,15 +62,13 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
         <div key={group.time} className="match-schedule__time-group">
           <div className="match-schedule__time-header">{group.time}</div>
           <table className="match-schedule__table">
-            <thead>
-              <tr>
-                <th>Event</th>
-                <th>Round</th>
-                <th>Team 1</th>
-                <th>Score</th>
-                <th>Team 2</th>
-              </tr>
-            </thead>
+            <colgroup>
+              <col className="col-event" />
+              <col className="col-round" />
+              <col className="col-team" />
+              <col className="col-score" />
+              <col className="col-team" />
+            </colgroup>
             <tbody>
               {group.matches.map((m, mi) => {
                 const tracked = isTracked(m, playerQuery)

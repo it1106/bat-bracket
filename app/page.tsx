@@ -161,6 +161,10 @@ export default function Home() {
       if (!isApiError(data)) {
         const md = data as Pick<MatchesData, 'timeGroups'>
         setMatchTimeGroups(md.timeGroups)
+        // Update hasMatches for this day based on actual result
+        setMatchDays(prev => prev.map(d =>
+          d.date === date ? { ...d, hasMatches: md.timeGroups.length > 0 } : d
+        ))
       }
     } catch {}
     finally { setLoadingMatches(false) }
