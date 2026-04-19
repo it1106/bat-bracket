@@ -83,7 +83,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                         {m.team1.map((p, i) => <div key={i}>{p.name}</div>)}
                       </div>
                       {m.walkover
-                        ? <span className="ms-board-badge">{m.winner === 1 ? 'W' : ''}</span>
+                        ? <span className="ms-board-badge">{m.winner === 2 ? 'Walkover' : ''}</span>
                         : m.scores.map((s, i) => <span key={i} className="ms-board-set">{s.t1}</span>)
                       }
                     </div>
@@ -92,7 +92,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                         {m.team2.map((p, i) => <div key={i}>{p.name}</div>)}
                       </div>
                       {m.walkover
-                        ? <span className="ms-board-badge">{m.winner === 2 ? 'W' : ''}</span>
+                        ? <span className="ms-board-badge">{m.winner === 1 ? 'Walkover' : ''}</span>
                         : m.scores.map((s, i) => <span key={i} className="ms-board-set">{s.t2}</span>)
                       }
                     </div>

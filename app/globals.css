@@ -471,6 +471,7 @@
 
 .ms-team--1 { grid-area: team1; line-height: 1.6; }
 .ms-team--2 { grid-area: team2; line-height: 1.6; }
+.ms-team--1 div + div, .ms-team--2 div + div { padding-top: 3px; }
 
 .ms-team--1.winner,
 .ms-team--2.winner {
@@ -559,6 +560,8 @@
     min-width: 0;
     overflow: hidden;
   }
+
+  .ms-board-players div + div { padding-top: 3px; }
 
   /* Each set score cell — fixed width ensures top/bottom alignment */
   .ms-board-set {
