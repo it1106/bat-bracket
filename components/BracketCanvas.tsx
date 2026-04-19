@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 
 interface BracketCanvasProps {
   bracketHtml: string
@@ -26,60 +26,47 @@ export default function BracketCanvas({
 
   useEffect(() => { scaleRef.current = scale }, [scale])
 
-  useEffect(() => {
-    if (!containerRef.current) return
+  // Pre-compute HTML with tracked/highlighted classes embedded so all elements
+  // (including off-screen) are styled correctly from initial render.
+  const displayHtml = useMemo(() => {
     const query = playerQuery.trim().toLowerCase()
+    if (!query || !bracketHtml || typeof document === 'undefined') return bracketHtml
+    const wrapper = document.createElement('div')
+    wrapper.innerHTML = bracketHtml
 
-    // New format: .match__row with player links
-    const playerLinks = containerRef.current.querySelectorAll<HTMLAnchorElement>(
-      '.match__row-title-value-content a'
-    )
-    if (playerLinks.length > 0) {
-      let firstMatch: HTMLElement | null = null
-      playerLinks.forEach((link) => {
-        const row = link.closest('.match__row') as HTMLElement | null
-        if (!row) return
-        const name = link.textContent?.toLowerCase() ?? ''
-        if (query && name.includes(query)) {
-          row.classList.add('highlighted')
-          if (!firstMatch) firstMatch = row
-        } else {
-          row.classList.remove('highlighted')
-        }
-      })
-      scrollToMatch(firstMatch, query)
-      return
-    }
-
-    // Legacy format: .bk-row with .bk-player spans
-    let firstMatch: HTMLElement | null = null
-    const bkRows = containerRef.current.querySelectorAll<HTMLElement>('.bk-row')
-    bkRows.forEach((row) => {
+    // bk-row format
+    wrapper.querySelectorAll<HTMLElement>('.bk-row').forEach((row) => {
       const spans = row.querySelectorAll<HTMLElement>('.bk-player, span')
-      const matches = query && Array.from(spans).some(
-        (s) => s.textContent?.toLowerCase().includes(query)
-      )
-      row.classList.toggle('tracked', !!matches)
-      if (matches && !firstMatch) firstMatch = row
+      const matches = Array.from(spans).some(s => s.textContent?.toLowerCase().includes(query))
+      row.classList.toggle('tracked', matches)
     })
-    scrollToMatch(firstMatch, query)
+
+    // match__row format
+    wrapper.querySelectorAll<HTMLAnchorElement>('.match__row-title-value-content a').forEach((link) => {
+      const row = link.closest<HTMLElement>('.match__row')
+      if (!row) return
+      row.classList.toggle('highlighted', !!(link.textContent?.toLowerCase().includes(query)))
+    })
+
+    return wrapper.innerHTML
   }, [bracketHtml, playerQuery])
 
-  const scrollToMatch = useCallback((el: HTMLElement | null, query: string) => {
-    if (!el || !query || !containerRef.current) return
+  // Scroll to first match after DOM updates with new displayHtml
+  useEffect(() => {
+    if (!containerRef.current || !playerQuery.trim()) return
+    const firstMatch = containerRef.current.querySelector<HTMLElement>('.bk-row.tracked, .match__row.highlighted')
+    if (!firstMatch) return
     const scrollEl = containerRef.current.parentElement
     if (!scrollEl) return
-    const elemRect = el.getBoundingClientRect()
+    const elemRect = firstMatch.getBoundingClientRect()
     const scrollRect = scrollEl.getBoundingClientRect()
     const s = scaleRef.current
-    const newTop = scrollEl.scrollTop + (elemRect.top - scrollRect.top - 80) / s
-    const newLeft = scrollEl.scrollLeft + (elemRect.left - scrollRect.left - 50) / s
     scrollEl.scrollTo({
-      top: Math.max(0, newTop),
-      left: Math.max(0, newLeft),
+      top: Math.max(0, scrollEl.scrollTop + (elemRect.top - scrollRect.top - 80) / s),
+      left: Math.max(0, scrollEl.scrollLeft + (elemRect.left - scrollRect.left - 50) / s),
       behavior: 'smooth',
     })
-  }, [])
+  }, [displayHtml, playerQuery])
 
   // Pinch-zoom handling
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
@@ -164,7 +151,7 @@ export default function BracketCanvas({
             ;(containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
             if (bracketRef) (bracketRef as React.MutableRefObject<HTMLDivElement | null>).current = el
           }}
-          dangerouslySetInnerHTML={{ __html: bracketHtml }}
+          dangerouslySetInnerHTML={{ __html: displayHtml }}
           style={{
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
