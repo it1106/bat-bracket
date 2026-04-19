@@ -370,6 +370,7 @@
   background: #f0f2f5;
   min-height: calc(100vh - 97px);
   padding: 16px 20px;
+  max-width: 800px;
 }
 
 .match-schedule__day-tabs {
