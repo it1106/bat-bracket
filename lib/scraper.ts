@@ -115,7 +115,7 @@ function buildSvgConnector(groupCount: number, topBase: number, slotPitch: numbe
   return `<svg width="24" height="${totalH}" style="position:absolute;top:${svgTop}px;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path></svg>`
 }
 
-function abbrevRound(name: string): string {
+export function abbrevRound(name: string): string {
   const n = name.trim()
   if (/^final$/i.test(n)) return 'F'
   if (/semi.?final/i.test(n)) return 'SF'

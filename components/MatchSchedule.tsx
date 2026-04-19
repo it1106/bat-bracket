@@ -1,6 +1,7 @@
 'use client'
 
 import type { MatchTimeGroup, MatchDay, MatchEntry } from '@/lib/types'
+import { abbrevRound } from '@/lib/scraper'
 
 interface Props {
   timeGroups: MatchTimeGroup[]
@@ -64,7 +65,6 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                 <th>Team 1</th>
                 <th>Score</th>
                 <th>Team 2</th>
-                <th>Court</th>
               </tr>
             </thead>
             <tbody>
@@ -75,7 +75,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                 return (
                   <tr key={mi} className={tracked ? 'match-schedule__row--tracked' : ''}>
                     <td className="match-schedule__event">{m.draw}</td>
-                    <td className="match-schedule__round">{m.round}</td>
+                    <td className="match-schedule__round">{abbrevRound(m.round)}</td>
                     <td className={`match-schedule__team${m.winner === 1 ? ' winner' : ''}`}>
                       {t1.map((n, i) => <div key={i}>{n}</div>)}
                     </td>
@@ -83,7 +83,6 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                     <td className={`match-schedule__team${m.winner === 2 ? ' winner' : ''}`}>
                       {t2.map((n, i) => <div key={i}>{n}</div>)}
                     </td>
-                    <td className="match-schedule__court">{m.court}</td>
                   </tr>
                 )
               })}
