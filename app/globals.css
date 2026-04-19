@@ -424,7 +424,7 @@
   letter-spacing: 0.3px;
 }
 
-/* ── Match rows (CSS Grid, works for both desktop and mobile) ── */
+/* ── Match rows ── */
 .ms-list {
   background: #fff;
   border: 1px solid #e5e7eb;
@@ -437,7 +437,7 @@
 /* Desktop: single horizontal row per match */
 .ms-match {
   display: grid;
-  grid-template-columns: 132px 1fr 108px 1fr;
+  grid-template-columns: 132px 300px 108px 300px;
   grid-template-areas: "meta team1 score team2";
   align-items: start;
   padding: 8px 12px;
@@ -489,9 +489,12 @@
   text-align: center;
 }
 
+/* Mobile scoreboard: hidden on desktop */
+.ms-m { display: none; }
+
 .ms-match--tracked { background: #fff3cd !important; }
 
-/* Mobile: card layout */
+/* Mobile: card layout (≤ 640px) */
 @media (max-width: 640px) {
   .ms-list {
     background: transparent;
@@ -500,11 +503,8 @@
   }
 
   .ms-match {
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "meta  meta"
-      "team1 score"
-      "team2 score";
+    display: flex;
+    flex-direction: column;
     border: 1px solid #e0e3eb;
     border-radius: 8px;
     background: #fff;
@@ -512,16 +512,21 @@
     padding: 10px 12px;
   }
 
-  .ms-match:last-child { border-bottom: 1px solid #e0e3eb; }
   .ms-match:hover { background: #fff; }
+
+  /* hide desktop-only elements on mobile */
+  .ms-d { display: none !important; }
+
+  /* show mobile scoreboard */
+  .ms-m { display: block; }
 
   .ms-meta {
     flex-direction: row;
     align-items: center;
     gap: 6px;
-    padding: 0 0 6px 0;
+    padding: 0 0 8px 0;
     border-bottom: 1px solid #f0f0f0;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 
   .ms-event { font-size: 12px; }
@@ -533,14 +538,50 @@
     border-radius: 4px;
   }
 
-  .ms-score {
-    grid-area: score;
-    align-self: center;
-    text-align: right;
-    padding: 0 0 0 10px;
-    font-size: 12px;
+  /* Scoreboard: each row = players + per-set score cells */
+  .ms-board-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    min-height: 28px;
   }
 
-  .ms-team--1 { padding-bottom: 4px; }
-  .ms-team--2 { padding-top: 4px; border-top: 1px solid #f0f0f0; }
+  .ms-board-row + .ms-board-row {
+    border-top: 1px solid #f0f0f0;
+    margin-top: 4px;
+    padding-top: 4px;
+  }
+
+  .ms-board-players {
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.45;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Each set score cell — fixed width ensures top/bottom alignment */
+  .ms-board-set {
+    display: inline-block;
+    width: 26px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: 13px;
+    flex-shrink: 0;
+    color: #333;
+  }
+
+  .ms-board-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #166534;
+    padding-left: 6px;
+    flex-shrink: 0;
+  }
+
+  .ms-board-row.winner .ms-board-players {
+    font-weight: 700;
+    color: #166534;
+  }
 }

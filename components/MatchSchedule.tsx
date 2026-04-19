@@ -66,12 +66,36 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                     <span className="ms-event">{m.draw}</span>
                     <span className="ms-round">{abbrevRound(m.round)}</span>
                   </div>
-                  <div className={`ms-team ms-team--1${m.winner === 1 ? ' winner' : ''}`}>
+
+                  {/* Desktop: grid columns team1 | score | team2 */}
+                  <div className={`ms-team ms-team--1 ms-d${m.winner === 1 ? ' winner' : ''}`}>
                     {m.team1.map((p, i) => <div key={i}>{p.name}</div>)}
                   </div>
-                  <div className="ms-score">{scoreStr(m)}</div>
-                  <div className={`ms-team ms-team--2${m.winner === 2 ? ' winner' : ''}`}>
+                  <div className="ms-score ms-d">{scoreStr(m)}</div>
+                  <div className={`ms-team ms-team--2 ms-d${m.winner === 2 ? ' winner' : ''}`}>
                     {m.team2.map((p, i) => <div key={i}>{p.name}</div>)}
+                  </div>
+
+                  {/* Mobile: scoreboard with player + per-set scores aligned */}
+                  <div className="ms-board ms-m">
+                    <div className={`ms-board-row${m.winner === 1 ? ' winner' : ''}`}>
+                      <div className="ms-board-players">
+                        {m.team1.map((p, i) => <div key={i}>{p.name}</div>)}
+                      </div>
+                      {m.walkover
+                        ? <span className="ms-board-badge">{m.winner === 1 ? 'W' : ''}</span>
+                        : m.scores.map((s, i) => <span key={i} className="ms-board-set">{s.t1}</span>)
+                      }
+                    </div>
+                    <div className={`ms-board-row${m.winner === 2 ? ' winner' : ''}`}>
+                      <div className="ms-board-players">
+                        {m.team2.map((p, i) => <div key={i}>{p.name}</div>)}
+                      </div>
+                      {m.walkover
+                        ? <span className="ms-board-badge">{m.winner === 2 ? 'W' : ''}</span>
+                        : m.scores.map((s, i) => <span key={i} className="ms-board-set">{s.t2}</span>)
+                      }
+                    </div>
                   </div>
                 </div>
               )
