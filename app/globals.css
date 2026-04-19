@@ -465,6 +465,16 @@
   white-space: nowrap;
 }
 
+.ms-event--link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ms-event--link:hover {
+  color: #1a237e;
+}
+
 .ms-team--1 { grid-area: team1; line-height: 1.6; }
 .ms-team--2 { grid-area: team2; line-height: 1.6; }
 .ms-team--1 div + div, .ms-team--2 div + div { padding-top: 3px; }

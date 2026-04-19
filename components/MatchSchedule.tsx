@@ -10,6 +10,7 @@ interface Props {
   onDayChange: (date: string) => void
   loading: boolean
   playerQuery: string
+  onEventClick?: (drawNum: string, round: string) => void
 }
 
 function scoreStr(entry: MatchEntry): string {
@@ -24,7 +25,7 @@ function isTracked(entry: MatchEntry, query: string): boolean {
   return [...entry.team1, ...entry.team2].some((p) => p.name.toLowerCase().includes(q))
 }
 
-export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChange, loading, playerQuery }: Props) {
+export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick }: Props) {
   return (
     <div className="match-schedule">
       {/* Date tabs */}
@@ -63,7 +64,10 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
               return (
                 <div key={mi} className={`ms-match${tracked ? ' ms-match--tracked' : ''}`}>
                   <div className="ms-meta">
-                    <span className="ms-event">{m.draw}</span>
+                    <span
+                      className={`ms-event${onEventClick && m.drawNum ? ' ms-event--link' : ''}`}
+                      onClick={onEventClick && m.drawNum ? () => onEventClick(m.drawNum, m.round) : undefined}
+                    >{m.draw}</span>
                     <span className="ms-round">{abbrevRound(m.round)}</span>
                   </div>
 

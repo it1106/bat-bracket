@@ -43,6 +43,7 @@ export default function Home() {
   const [matchTimeGroups, setMatchTimeGroups] = useState<MatchTimeGroup[]>([])
   const bracketRef = useRef<HTMLDivElement>(null)
   const lastScrollY = useRef(0)
+  const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
   const [headerVisible, setHeaderVisible] = useState(true)
 
   useEffect(() => {
@@ -150,6 +151,39 @@ export default function Home() {
     setFromRoundName(newFrom > 0 ? roundName : '')
     await fetchBracketFrom(selectedTournament, selectedDraw, newFrom)
   }, [selectedTournament, selectedDraw, fromRound, fetchBracketFrom])
+
+  // After bracketHtml updates, jump to the pending round if one was requested
+  useEffect(() => {
+    const jump = pendingJumpRef.current
+    if (!jump || !bracketHtml) return
+    pendingJumpRef.current = null
+    const labels = bracketRef.current?.querySelectorAll<HTMLElement>('.bk-round-label')
+    if (!labels) return
+    for (const label of Array.from(labels)) {
+      if (label.textContent?.trim() === jump.roundName) {
+        const idx = parseInt(label.getAttribute('data-round-index') ?? '-1', 10)
+        if (idx > 0) {
+          setFromRound(idx)
+          setFromRoundName(jump.roundName)
+          fetchBracketFrom(jump.tournamentId, jump.drawNum, idx)
+        }
+        return
+      }
+    }
+  }, [bracketHtml, fetchBracketFrom])
+
+  const handleOpenBracketAtRound = useCallback(async (drawNum: string, roundName: string) => {
+    setViewMode('bracket')
+    pendingJumpRef.current = { tournamentId: selectedTournament, drawNum, roundName }
+    setSelectedDraw(drawNum)
+    const d = draws.find((d) => d.drawNum === drawNum)
+    setDrawName(d?.name ?? drawNum)
+    setBracketHtml('')
+    setFromRound(0)
+    setFromRoundName('')
+    setError(null)
+    await fetchBracketFrom(selectedTournament, drawNum, 0)
+  }, [selectedTournament, draws, fetchBracketFrom])
 
   const handleDayChange = useCallback(async (date: string) => {
     if (!selectedTournament) return
@@ -368,6 +402,7 @@ export default function Home() {
           onDayChange={handleDayChange}
           loading={loadingMatches}
           playerQuery={playerQuery}
+          onEventClick={handleOpenBracketAtRound}
         />
       )}
     </>
