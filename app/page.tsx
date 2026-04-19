@@ -31,6 +31,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null)
   const [tournamentName, setTournamentName] = useState('')
   const [drawName, setDrawName] = useState('')
+  const [fromRound, setFromRound] = useState(0)
+  const [fromRoundName, setFromRoundName] = useState('')
   const bracketRef = useRef<HTMLDivElement>(null)
   const lastScrollY = useRef(0)
   const [headerVisible, setHeaderVisible] = useState(true)
@@ -83,27 +85,46 @@ export default function Home() {
     }
   }, [tournaments])
 
-  // Load bracket when draw changes
-  const handleDrawChange = useCallback(async (drawNum: string) => {
-    setSelectedDraw(drawNum)
-    setBracketHtml('')
-    setError(null)
-    if (!drawNum || !selectedTournament) return
+  const fetchBracketFrom = useCallback(async (tournamentId: string, drawNum: string, round: number) => {
     setLoadingBracket(true)
-    const url = `https://bat.tournamentsoftware.com/tournament/${selectedTournament}/draw/${drawNum}`
+    setError(null)
+    const params = new URLSearchParams({ tournament: tournamentId, event: drawNum })
+    if (round > 0) params.set('fromRound', String(round))
     try {
-      const res = await fetch(`/api/bracket?url=${encodeURIComponent(url)}`)
+      const res = await fetch(`/api/bracket?${params}`)
       const data = await safeJson(res) as BracketData | ApiError
       if (isApiError(data)) throw new Error(data.error)
       setBracketHtml(data.html)
-      const d = draws.find((d) => d.drawNum === drawNum)
-      setDrawName(d?.name ?? drawNum)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
       setLoadingBracket(false)
     }
-  }, [selectedTournament, draws])
+  }, [])
+
+  // Load bracket when draw changes
+  const handleDrawChange = useCallback(async (drawNum: string) => {
+    setSelectedDraw(drawNum)
+    setBracketHtml('')
+    setFromRound(0)
+    setFromRoundName('')
+    setError(null)
+    if (!drawNum || !selectedTournament) return
+    const d = draws.find((d) => d.drawNum === drawNum)
+    setDrawName(d?.name ?? drawNum)
+    await fetchBracketFrom(selectedTournament, drawNum, 0)
+  }, [selectedTournament, draws, fetchBracketFrom])
+
+  const handleRoundClick = useCallback(async (roundIndex: number) => {
+    if (!selectedTournament || !selectedDraw) return
+    const newFrom = roundIndex === fromRound && fromRound > 0 ? 0 : roundIndex
+    // Extract round name from the clicked label in the DOM
+    const label = bracketRef.current?.querySelector(`[data-round-index="${roundIndex}"]`)
+    const roundName = label?.textContent ?? ''
+    setFromRound(newFrom)
+    setFromRoundName(newFrom > 0 ? roundName : '')
+    await fetchBracketFrom(selectedTournament, selectedDraw, newFrom)
+  }, [selectedTournament, selectedDraw, fromRound, fetchBracketFrom])
 
   const handleExport = useCallback(() => {
     if (!bracketRef.current) return
@@ -235,11 +256,24 @@ export default function Home() {
         <div className="p-10 text-center text-gray-400 text-sm">Loading bracket…</div>
       )}
 
+      {fromRound > 0 && bracketHtml && (
+        <div className="flex items-center gap-2 px-5 py-1.5 bg-blue-50 border-b border-blue-200 text-xs text-blue-700">
+          <span>Viewing from <strong>{fromRoundName}</strong></span>
+          <button
+            onClick={() => handleRoundClick(0)}
+            className="ml-1 underline hover:no-underline"
+          >
+            ↩ Show all rounds
+          </button>
+        </div>
+      )}
+
       {bracketHtml && !loadingBracket && (
         <BracketCanvas
           bracketHtml={bracketHtml}
           playerQuery={playerQuery}
           bracketRef={bracketRef}
+          onRoundClick={handleRoundClick}
         />
       )}
     </>
