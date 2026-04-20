@@ -723,6 +723,34 @@
 .h2h-wins--leader { color: #166534; }
 .h2h-wins-sep { color: #ccc; font-size: 21px; }
 
+.h2h-filter-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.h2h-filter-tab {
+  padding: 4px 14px;
+  border-radius: 20px;
+  border: 1px solid #d1d5db;
+  background: transparent;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.h2h-filter-tab:hover {
+  background: #f3f4f6;
+}
+
+.h2h-filter-tab.active {
+  background: #25316B;
+  color: #fff;
+  border-color: #25316B;
+}
+
 .h2h-matches {
   display: flex;
   flex-direction: column;
