@@ -203,13 +203,16 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
           const hasWon = cls.includes('has-won')
           const titleValueDivs = $(row).find('.match__row-title-value')
           const playerCount = titleValueDivs.length || 1
-          const names = titleValueDivs.map((_, tv) => {
+          const players = titleValueDivs.map((_, tv) => {
             const a = $(tv).find('a')
-            if (a.length) return playerText($(a).first())
-            return $(tv).find('.nav-link__value').first().text().trim()
+            const hrefMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
+            const name = a.length ? playerText($(a).first()) : $(tv).find('.nav-link__value').first().text().trim()
+            return { name, playerId: hrefMatch ? hrefMatch[1] : '' }
           }).get()
-          while (names.length < playerCount) names.push('')
-          const playerSpans = names.map((n) => `<span class="bk-player">${n}</span>`).join('')
+          while (players.length < playerCount) players.push({ name: '', playerId: '' })
+          const playerSpans = players.map((p) =>
+            `<span class="bk-player"${p.playerId ? ` data-player-id="${p.playerId}"` : ''}>${p.name}</span>`
+          ).join('')
 
           rowParts.push(`<div class="bk-row${isDoubles ? ' bk-row--doubles' : ''}${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}">${playerSpans}</div>`)
         })

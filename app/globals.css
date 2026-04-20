@@ -91,6 +91,15 @@
   min-height: 16px;
 }
 
+.bk-player[data-player-id] {
+  cursor: pointer;
+}
+
+.bk-player[data-player-id]:hover {
+  text-decoration: underline;
+  color: #25316B;
+}
+
 .bk-row--team-sep {
   border-top: 1px solid #696969;
 }

@@ -424,6 +424,7 @@ export default function Home() {
               playerQuery={playerQuery}
               bracketRef={bracketRef}
               onRoundClick={handleRoundClick}
+              onPlayerClick={handlePlayerClick}
             />
           )}
         </>

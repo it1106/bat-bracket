@@ -7,6 +7,7 @@ interface BracketCanvasProps {
   playerQuery: string
   bracketRef: React.RefObject<HTMLDivElement>
   onRoundClick?: (roundIndex: number) => void
+  onPlayerClick?: (playerId: string) => void
 }
 
 const MIN_ZOOM = 0.25
@@ -17,6 +18,7 @@ export default function BracketCanvas({
   playerQuery,
   bracketRef,
   onRoundClick,
+  onPlayerClick,
 }: BracketCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -108,10 +110,17 @@ export default function BracketCanvas({
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const label = (e.target as Element).closest('.bk-round-label')
-    if (!label) return
-    const idx = parseInt(label.getAttribute('data-round-index') ?? '', 10)
-    if (!isNaN(idx)) onRoundClick?.(idx)
-  }, [onRoundClick])
+    if (label) {
+      const idx = parseInt(label.getAttribute('data-round-index') ?? '', 10)
+      if (!isNaN(idx)) onRoundClick?.(idx)
+      return
+    }
+    const playerEl = (e.target as Element).closest('.bk-player[data-player-id]')
+    if (playerEl) {
+      const playerId = playerEl.getAttribute('data-player-id')
+      if (playerId) onPlayerClick?.(playerId)
+    }
+  }, [onRoundClick, onPlayerClick])
 
   if (!bracketHtml) return null
 
