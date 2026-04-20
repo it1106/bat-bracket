@@ -285,7 +285,7 @@ export default function Home() {
           {/* Player search */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
-              Track Player
+              Track Player / Club / Event
             </label>
             <input
               type="text"
