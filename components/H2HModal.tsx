@@ -1,19 +1,12 @@
 'use client'
 
 import { useEffect } from 'react'
-import type { H2HData, MatchScore } from '@/lib/types'
+import type { H2HData } from '@/lib/types'
 
 interface Props {
   data: H2HData | null
   loading: boolean
   onClose: () => void
-}
-
-function scoreStr(scores: MatchScore[], walkover: boolean, retired: boolean): string {
-  if (walkover) return 'Walkover'
-  if (scores.length === 0) return '—'
-  const s = scores.map((s) => `${s.t1}–${s.t2}`).join(', ')
-  return retired ? `${s} Ret.` : s
 }
 
 export default function H2HModal({ data, loading, onClose }: Props) {
@@ -66,10 +59,21 @@ export default function H2HModal({ data, loading, onClose }: Props) {
                           {m.date && <span className="h2h-match-date">{m.date}</span>}
                         </div>
                       </div>
-                      <div className="h2h-match-result">
-                        <span className="h2h-match-player h2h-match-player--1">{data.player1}</span>
-                        <span className="h2h-match-score">{scoreStr(m.scores, m.walkover, m.retired)}</span>
-                        <span className="h2h-match-player h2h-match-player--2">{data.player2}</span>
+                      <div className="h2h-board">
+                        <div className="h2h-board-row">
+                          <span className="h2h-board-player">{data.player1}</span>
+                          {m.walkover
+                            ? <span className="h2h-board-badge">{m.winner === 1 ? 'W/O' : ''}</span>
+                            : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="h2h-board-badge">Ret.</span>}</>
+                          }
+                        </div>
+                        <div className="h2h-board-row">
+                          <span className="h2h-board-player">{data.player2}</span>
+                          {m.walkover
+                            ? <span className="h2h-board-badge">{m.winner === 2 ? 'W/O' : ''}</span>
+                            : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="h2h-board-badge">Ret.</span>}</>
+                          }
+                        </div>
                       </div>
                     </div>
                   ))}
