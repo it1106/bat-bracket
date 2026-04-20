@@ -40,10 +40,32 @@ export default function H2HModal({ data, loading, onClose }: Props) {
 
   const filteredMatches = data ? data.matches.filter((m) => matchFilter(m, filter)) : []
 
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim()
+  const sideOf = (name: string, m: H2HMatch): 1 | 2 | null => {
+    const n = norm(name)
+    if (!n) return null
+    if (m.team1.some((x) => norm(x) === n)) return 1
+    if (m.team2.some((x) => norm(x) === n)) return 2
+    if (m.team1.some((x) => norm(x).includes(n) || n.includes(norm(x)))) return 1
+    if (m.team2.some((x) => norm(x).includes(n) || n.includes(norm(x)))) return 2
+    return null
+  }
+
   let winsP1 = 0, winsP2 = 0
   filteredMatches.forEach((m) => {
-    if (m.winner === 1) winsP1++
-    else if (m.winner === 2) winsP2++
+    if (m.winner === null) return
+    const p1Side = data ? sideOf(data.player1, m) : null
+    const p2Side = data ? sideOf(data.player2, m) : null
+    const p1Won = p1Side !== null ? m.winner === p1Side : null
+    const p2Won = p2Side !== null ? m.winner === p2Side : null
+    if (p1Won === true) winsP1++
+    else if (p2Won === true) winsP2++
+    else if (p1Won === false) winsP2++
+    else if (p2Won === false) winsP1++
+    else {
+      if (m.winner === 1) winsP1++
+      else winsP2++
+    }
   })
 
   const FILTERS: { key: Filter; label: string }[] = [
