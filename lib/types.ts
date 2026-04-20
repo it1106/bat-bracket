@@ -69,6 +69,7 @@ export interface H2HMatch {
   tournament: string
   event: string
   round: string
+  date: string
   winner: 1 | 2 | null
   scores: MatchScore[]
   walkover: boolean

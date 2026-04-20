@@ -63,6 +63,7 @@ export default function H2HModal({ data, loading, onClose }: Props) {
                         <div className="h2h-match-info">
                           {m.event && <span className="h2h-match-event">{m.event}</span>}
                           {m.round && <span className="h2h-match-round">{m.round}</span>}
+                          {m.date && <span className="h2h-match-date">{m.date}</span>}
                         </div>
                       </div>
                       <div className="h2h-match-result">

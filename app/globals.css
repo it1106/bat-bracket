@@ -660,7 +660,8 @@
 
 /* ── H2H ── */
 .h2h-modal {
-  max-width: 600px;
+  width: 800px;
+  max-width: calc(100vw - 32px);
 }
 
 .h2h-header {
@@ -690,11 +691,13 @@
 
 .h2h-record {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 16px;
   padding: 10px 0;
   border-bottom: 1px solid #f0f0f0;
+  text-align: center;
 }
 
 .h2h-record:last-child { border-bottom: none; }
@@ -709,9 +712,11 @@
 .h2h-record-score {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   font-size: 28px;
   font-weight: 700;
+  width: 100%;
 }
 
 .h2h-wins { color: #aaa; }
@@ -756,6 +761,12 @@
 .h2h-match-round {
   font-size: 11px;
   color: #888;
+}
+
+.h2h-match-date {
+  font-size: 11px;
+  color: #aaa;
+  margin-left: auto;
 }
 
 .h2h-match-result {

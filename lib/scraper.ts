@@ -115,19 +115,33 @@ function buildSvgConnector(groupCount: number, topBase: number, slotPitch: numbe
   return `<svg width="24" height="${totalH}" style="position:absolute;top:${svgTop}px;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path></svg>`
 }
 
+const ROUND_TRANSLATIONS: Record<string, string> = {
+  'finale': 'Final',
+  'halve finale': 'Semi Final',
+  'kwartfinale': 'Quarter Final',
+  'eerste ronde': 'R1',
+  'tweede ronde': 'R2',
+  'derde ronde': 'R3',
+  'vierde ronde': 'R4',
+  'groepsfase': 'Groups',
+}
+
 export function abbrevRound(name: string): string {
   const n = name.trim()
-  if (/^final$/i.test(n)) return 'F'
-  if (/semi.?final/i.test(n)) return 'SF'
-  if (/quarter.?final/i.test(n)) return 'QF'
-  const rofMatch = n.match(/round\s+of\s+(\d+)/i)
+  const translated = ROUND_TRANSLATIONS[n.toLowerCase()] ?? n
+  const t = translated.trim()
+  if (/^final$/i.test(t)) return 'F'
+  if (/semi.?final/i.test(t)) return 'SF'
+  if (/quarter.?final/i.test(t)) return 'QF'
+  const rofMatch = t.match(/round\s+of\s+(\d+)/i)
   if (rofMatch) return `R${rofMatch[1]}`
-  const rMatch = n.match(/^(?:round|rd\.?)\s*(\d+)/i)
+  const rondVanMatch = t.match(/^ronde\s+van\s+(\d+)$/i)
+  if (rondVanMatch) return `R${rondVanMatch[1]}`
+  const rMatch = t.match(/^(?:round|rd\.?|r)\s*(\d+)/i)
   if (rMatch) return `R${rMatch[1]}`
-  const ordMatch = n.match(/^(\d+)(?:st|nd|rd|th)\s+round/i)
+  const ordMatch = t.match(/^(\d+)(?:st|nd|rd|th)\s+round/i)
   if (ordMatch) return `R${ordMatch[1]}`
-  // Fallback: initials of each word, max 4 chars
-  return n.split(/\s+/).map((w) => w[0].toUpperCase()).join('').slice(0, 4)
+  return t.split(/\s+/).map((w) => w[0]?.toUpperCase() ?? '').join('').slice(0, 4)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -485,7 +499,16 @@ export function parseH2H(html: string): H2HData {
     const t2 = titleItems.eq(2).find('.nav-link__value').text().trim()
     const tournament = t2 ? t0 : ''
     const event = t2 ? t1 : t0
-    const round = t2 ? t2 : t1
+    const rawRound = t2 ? t2 : t1
+    const round = ROUND_TRANSLATIONS[rawRound.toLowerCase()] ?? rawRound
+
+    // Date from footer (icon-clock item)
+    let date = ''
+    $(matchEl).find('.match__footer-list-item').each((_, item) => {
+      if ($(item).find('.icon-clock').length) {
+        date = $(item).find('.nav-link__value').text().trim()
+      }
+    })
 
     const msgText2 = $(matchEl).find('.match__message').text().trim()
     const rows2 = $(matchEl).find('.match__row')
@@ -515,7 +538,7 @@ export function parseH2H(html: string): H2HData {
     const walkover2 = !!msgText2 && !retired2
 
     if (event || tournament || scores.length) {
-      matches.push({ tournament, event, round, winner, scores, walkover: walkover2, retired: retired2 })
+      matches.push({ tournament, event, round, date, winner, scores, walkover: walkover2, retired: retired2 })
     }
   })
 
