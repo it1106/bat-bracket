@@ -470,9 +470,13 @@ export function parseH2H(html: string): H2HData {
   const player1 = playerNames[0] ?? ''
   const player2 = playerNames[1] ?? ''
 
-  // Win/loss from comparison widget
-  const winsP1 = parseInt($('.comparison-average__value.is-player-1').first().text().trim(), 10) || 0
-  const winsP2 = parseInt($('.comparison-average__value.is-player-2').first().text().trim(), 10) || 0
+  // Win/loss from match-group header — "4 - 5" or "6 - 16" pattern
+  let winsP1 = 0, winsP2 = 0
+  $('.match-group__header').each((_, el) => {
+    const text = $(el).text().trim()
+    const m = text.match(/^(\d+)\s*[-–]\s*(\d+)$/)
+    if (m) { winsP1 = parseInt(m[1], 10); winsP2 = parseInt(m[2], 10) }
+  })
   const records: H2HRecord[] = (winsP1 || winsP2) ? [{ category: '', winsP1, winsP2 }] : []
 
   // Past matches
@@ -491,10 +495,16 @@ export function parseH2H(html: string): H2HData {
     const rows2 = $(matchEl).find('.match__row')
     let winner: 1 | 2 | null = null
     rows2.each((ri, row) => {
-      // .has-won class or presence of a win indicator element
-      if ($(row).hasClass('has-won') || $(row).find('.match__row-won, .icon-won, [class*="won"]').length > 0) {
-        winner = ri === 0 ? 1 : 2
-      }
+      const $row = $(row)
+      const hasWonClass = $row.hasClass('has-won')
+      // "W" may appear as a child element text or next sibling on H2H page
+      const hasWonChild = $row.children().toArray().some(c => {
+        const cls = $(c).attr('class') ?? ''
+        return $(c).text().trim() === 'W' || cls.includes('won')
+      })
+      const hasWonSibling = ($row.next().text().trim() === 'W' || ($row.next().attr('class') ?? '').includes('won')) &&
+        !$row.next().hasClass('match__row')
+      if (hasWonClass || hasWonChild || hasWonSibling) winner = ri === 0 ? 1 : 2
     })
 
     const scores: import('./types').MatchScore[] = []

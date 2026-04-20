@@ -13,7 +13,7 @@ interface Props {
   onEventClick?: (drawNum: string, round: string) => void
   playerClubMap?: Record<string, string>
   onPlayerClick?: (playerId: string) => void
-  onH2HClick?: (h2hUrl: string, drawName: string) => void
+  onH2HClick?: (h2hUrl: string) => void
 }
 
 function scoreStr(entry: MatchEntry): string {
@@ -83,7 +83,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                     <span className="ms-round">{abbrevRound(m.round)}</span>
                     {m.nowPlaying && <span className="ms-now-playing" title="Now playing" />}
                     {m.h2hUrl && onH2HClick && (
-                      <button className="ms-h2h-btn" onClick={() => onH2HClick(m.h2hUrl!, m.draw)} title="Head to Head">H2H</button>
+                      <button className="ms-h2h-btn" onClick={() => onH2HClick(m.h2hUrl!)} title="Head to Head">H2H</button>
                     )}
                   </div>
 
