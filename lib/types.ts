@@ -36,6 +36,7 @@ export interface ApiError {
 export interface MatchPlayer {
   name: string
   playerId: string
+  club: string
 }
 
 export interface MatchScore {

@@ -19,10 +19,12 @@ function scoreStr(entry: MatchEntry): string {
   return entry.scores.map((s) => `${s.t1}-${s.t2}`).join(', ')
 }
 
-function isTracked(entry: MatchEntry, query: string): boolean {
-  if (!query) return false
+function matchesQuery(entry: MatchEntry, query: string): boolean {
+  if (!query) return true
   const q = query.toLowerCase()
-  return [...entry.team1, ...entry.team2].some((p) => p.name.toLowerCase().includes(q))
+  return [...entry.team1, ...entry.team2].some(
+    (p) => p.name.toLowerCase().includes(q) || p.club.toLowerCase().includes(q)
+  )
 }
 
 export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick }: Props) {
@@ -55,14 +57,18 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
         <div className="p-8 text-center text-gray-400 text-sm">No matches scheduled for this day.</div>
       )}
 
-      {!loading && timeGroups.map((group) => (
+      {!loading && timeGroups.map((group) => {
+        const filtered = playerQuery
+          ? group.matches.filter((m) => matchesQuery(m, playerQuery))
+          : group.matches
+        if (filtered.length === 0) return null
+        return (
         <div key={group.time} className="match-schedule__time-group">
           <div className="match-schedule__time-header">{group.time}</div>
           <div className="ms-list">
-            {group.matches.map((m, mi) => {
-              const tracked = isTracked(m, playerQuery)
+            {filtered.map((m, mi) => {
               return (
-                <div key={mi} className={`ms-match${tracked ? ' ms-match--tracked' : ''}`}>
+                <div key={mi} className="ms-match">
                   <div className="ms-meta">
                     <span
                       className={`ms-event${onEventClick && m.drawNum ? ' ms-event--link' : ''}`}
@@ -107,7 +113,8 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
             })}
           </div>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

@@ -293,11 +293,13 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchTimeGroup[] {
       rows.each((ri, row) => {
         const hasWon = $(row).hasClass('has-won')
         const players: MatchEntry['team1'] = []
+        const club = $(row).find('.match__row-entrant-info-club .nav-link__value').first().text().trim()
+          || $(row).find('.match__row-entrant-info .nav-link__value').first().text().trim()
         $(row).find('.match__row-title-value').each((_, tv) => {
           const a = $(tv).find('a')
           const name = a.find('.nav-link__value').text().trim()
           const hrefMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
-          if (name) players.push({ name, playerId: hrefMatch ? hrefMatch[1] : '' })
+          if (name) players.push({ name, playerId: hrefMatch ? hrefMatch[1] : '', club })
         })
         if (ri === 0) { team1 = players; if (hasWon) winner = 1 }
         else { team2 = players; if (hasWon) winner = 2 }
