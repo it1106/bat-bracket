@@ -121,7 +121,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
 
                   {m.h2hUrl && onH2HClick && (
                     <div className="ms-h2h-row">
-                      <button className="ms-h2h-btn" onClick={() => onH2HClick(m.h2hUrl!)} title="Head to Head">Head to Head</button>
+                      <button className="ms-h2h-btn" onClick={() => onH2HClick(m.h2hUrl!)} title="Head to Head">H2H</button>
                     </div>
                   )}
                 </div>

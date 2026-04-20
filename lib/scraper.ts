@@ -539,6 +539,14 @@ export function parseH2H(html: string): H2HData {
       if (!isNaN(t1v) && !isNaN(t2v)) scores.push({ t1: t1v, t2: t2v })
     })
 
+    // Fallback: infer winner from set count when has-won class is absent
+    if (winner === null && scores.length > 0) {
+      const setsT1 = scores.filter(s => s.t1 > s.t2).length
+      const setsT2 = scores.filter(s => s.t2 > s.t1).length
+      if (setsT1 > setsT2) winner = 1
+      else if (setsT2 > setsT1) winner = 2
+    }
+
     const retired2 = !!msgText2 && /ret/i.test(msgText2) && scores.length > 0
     const walkover2 = !!msgText2 && !retired2
 
