@@ -402,12 +402,12 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
       if (!isNaN(t1) && !isNaN(t2)) scores.push({ t1, t2 })
     })
 
-    // Extract scheduled time from footer icon-clock item
+    // Extract scheduled time: completed matches use icon-clock, upcoming use plain text
     let scheduledTime = ''
     $(matchEl).find('.match__footer-list-item').each((_, item) => {
-      if ($(item).find('.icon-clock').length) {
-        scheduledTime = $(item).find('.nav-link__value').text().trim()
-      }
+      if ($(item).find('.icon-marker, .icon-calendar-plus').length) return
+      const text = $(item).find('.nav-link__value').text().trim()
+      if (text) scheduledTime = text
     })
 
     if (draw || team1.length) {
