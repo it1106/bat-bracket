@@ -513,10 +513,10 @@ export function parseH2H(html: string): H2HData {
     const msgText2 = $(matchEl).find('.match__message').text().trim()
     const rows2 = $(matchEl).find('.match__row')
     let winner: 1 | 2 | null = null
+    let team1: string[] = [], team2: string[] = []
     rows2.each((ri, row) => {
       const $row = $(row)
       const hasWonClass = $row.hasClass('has-won')
-      // "W" may appear as a child element text or next sibling on H2H page
       const hasWonChild = $row.children().toArray().some(c => {
         const cls = $(c).attr('class') ?? ''
         return $(c).text().trim() === 'W' || cls.includes('won')
@@ -524,6 +524,11 @@ export function parseH2H(html: string): H2HData {
       const hasWonSibling = ($row.next().text().trim() === 'W' || ($row.next().attr('class') ?? '').includes('won')) &&
         !$row.next().hasClass('match__row')
       if (hasWonClass || hasWonChild || hasWonSibling) winner = ri === 0 ? 1 : 2
+      const names = $row.find('.match__row-title-value').map((_, el) =>
+        $(el).find('.nav-link__value').text().trim()
+      ).get().filter(Boolean)
+      if (ri === 0) team1 = names
+      else team2 = names
     })
 
     const scores: import('./types').MatchScore[] = []
@@ -538,7 +543,7 @@ export function parseH2H(html: string): H2HData {
     const walkover2 = !!msgText2 && !retired2
 
     if (event || tournament || scores.length) {
-      matches.push({ tournament, event, round, date, winner, scores, walkover: walkover2, retired: retired2 })
+      matches.push({ tournament, event, round, date, team1, team2, winner, scores, walkover: walkover2, retired: retired2 })
     }
   })
 

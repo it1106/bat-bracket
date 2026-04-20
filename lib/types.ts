@@ -70,6 +70,8 @@ export interface H2HMatch {
   event: string
   round: string
   date: string
+  team1: string[]
+  team2: string[]
   winner: 1 | 2 | null
   scores: MatchScore[]
   walkover: boolean

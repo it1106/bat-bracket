@@ -112,14 +112,18 @@ export default function H2HModal({ data, loading, onClose }: Props) {
                       </div>
                       <div className="h2h-board">
                         <div className={`h2h-board-row${m.winner === 1 ? ' winner' : ''}`}>
-                          <span className="h2h-board-player">{data.player1}</span>
+                          <span className="h2h-board-player">
+                            {(m.team1.length > 0 ? m.team1 : [data.player1]).join(' / ')}
+                          </span>
                           {m.walkover
                             ? <span className="h2h-board-badge">{m.winner === 1 ? 'W/O' : ''}</span>
                             : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="h2h-board-badge">Ret.</span>}</>
                           }
                         </div>
                         <div className={`h2h-board-row${m.winner === 2 ? ' winner' : ''}`}>
-                          <span className="h2h-board-player">{data.player2}</span>
+                          <span className="h2h-board-player">
+                            {(m.team2.length > 0 ? m.team2 : [data.player2]).join(' / ')}
+                          </span>
                           {m.walkover
                             ? <span className="h2h-board-badge">{m.winner === 2 ? 'W/O' : ''}</span>
                             : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="h2h-board-badge">Ret.</span>}</>
