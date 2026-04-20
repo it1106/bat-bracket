@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import type { H2HData, MatchScore } from '@/lib/types'
 
 interface Props {
   data: H2HData | null
   loading: boolean
+  drawName?: string  // e.g. "BS U15" — used to filter discipline record
   onClose: () => void
 }
 
@@ -16,7 +17,21 @@ function scoreStr(scores: MatchScore[], walkover: boolean, retired: boolean): st
   return retired ? `${s} Ret.` : s
 }
 
-export default function H2HModal({ data, loading, onClose }: Props) {
+function discipline(draw: string): 'singles' | 'doubles' | 'mixed' | null {
+  const d = draw.toUpperCase()
+  if (/^(BS|GS|MS|WS|BD|GD|MD|WD|XD)/.test(d)) {
+    if (d.startsWith('XD')) return 'mixed'
+    if (d.startsWith('BD') || d.startsWith('GD') || d.startsWith('MD') || d.startsWith('WD')) return 'doubles'
+    return 'singles'
+  }
+  return null
+}
+
+function matchDiscipline(event: string): 'singles' | 'doubles' | 'mixed' | null {
+  return discipline(event.trim().split(' ')[0])
+}
+
+export default function H2HModal({ data, loading, drawName, onClose }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
@@ -24,6 +39,24 @@ export default function H2HModal({ data, loading, onClose }: Props) {
   }, [onClose])
 
   if (!loading && !data) return null
+
+  const currentDiscipline = drawName ? discipline(drawName.trim().split(' ')[0]) : null
+
+  // Compute discipline-filtered record from matches
+  const filteredRecord = useMemo(() => {
+    if (!data || !currentDiscipline) return null
+    let w1 = 0, w2 = 0
+    data.matches.forEach(m => {
+      if (matchDiscipline(m.event) === currentDiscipline && m.winner !== null) {
+        if (m.winner === 1) w1++; else w2++
+      }
+    })
+    return { winsP1: w1, winsP2: w2 }
+  }, [data, currentDiscipline])
+
+  const disciplineLabel = currentDiscipline
+    ? currentDiscipline.charAt(0).toUpperCase() + currentDiscipline.slice(1)
+    : null
 
   return (
     <div className="pm-overlay" onClick={onClose}>
@@ -42,20 +75,30 @@ export default function H2HModal({ data, loading, onClose }: Props) {
               </div>
             </div>
 
-            {data.records.length > 0 && (
-              <div className="pm-section">
-                {data.records.map((r, i) => (
-                  <div key={i} className="h2h-record">
-                    {r.category && <div className="h2h-record-category">{r.category}</div>}
-                    <div className="h2h-record-score">
-                      <span className={`h2h-wins${r.winsP1 > r.winsP2 ? ' h2h-wins--leader' : ''}`}>{r.winsP1}</span>
-                      <span className="h2h-wins-sep">–</span>
-                      <span className={`h2h-wins${r.winsP2 > r.winsP1 ? ' h2h-wins--leader' : ''}`}>{r.winsP2}</span>
-                    </div>
+            <div className="pm-section">
+              {/* Discipline-specific record */}
+              {filteredRecord && (
+                <div className="h2h-record">
+                  <div className="h2h-record-category">{disciplineLabel}</div>
+                  <div className="h2h-record-score">
+                    <span className={`h2h-wins${filteredRecord.winsP1 > filteredRecord.winsP2 ? ' h2h-wins--leader' : ''}`}>{filteredRecord.winsP1}</span>
+                    <span className="h2h-wins-sep">–</span>
+                    <span className={`h2h-wins${filteredRecord.winsP2 > filteredRecord.winsP1 ? ' h2h-wins--leader' : ''}`}>{filteredRecord.winsP2}</span>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              )}
+              {/* Overall record */}
+              {data.records.map((r, i) => (
+                <div key={i} className="h2h-record h2h-record--overall">
+                  <div className="h2h-record-category">Overall</div>
+                  <div className="h2h-record-score h2h-record-score--overall">
+                    <span className={`h2h-wins${r.winsP1 > r.winsP2 ? ' h2h-wins--leader' : ''}`}>{r.winsP1}</span>
+                    <span className="h2h-wins-sep">–</span>
+                    <span className={`h2h-wins${r.winsP2 > r.winsP1 ? ' h2h-wins--leader' : ''}`}>{r.winsP2}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
 
             {data.matches.length > 0 && (
               <div className="pm-section">

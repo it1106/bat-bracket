@@ -48,6 +48,7 @@ export default function Home() {
   const [modalLoading, setModalLoading] = useState(false)
   const [h2hData, setH2hData] = useState<H2HData | null>(null)
   const [h2hLoading, setH2hLoading] = useState(false)
+  const [h2hDrawName, setH2hDrawName] = useState('')
   const bracketRef = useRef<HTMLDivElement>(null)
   const lastScrollY = useRef(0)
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
@@ -224,8 +225,9 @@ export default function Home() {
     setModalLoading(false)
   }, [])
 
-  const handleH2HClick = useCallback(async (h2hUrl: string) => {
+  const handleH2HClick = useCallback(async (h2hUrl: string, drawName: string) => {
     setH2hData(null)
+    setH2hDrawName(drawName)
     setH2hLoading(true)
     try {
       const res = await fetch(`/api/h2h?path=${encodeURIComponent(h2hUrl)}`)
@@ -479,6 +481,7 @@ export default function Home() {
         <H2HModal
           data={h2hData}
           loading={h2hLoading}
+          drawName={h2hDrawName}
           onClose={handleH2HClose}
         />
       )}

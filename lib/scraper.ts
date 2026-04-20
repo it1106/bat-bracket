@@ -457,40 +457,35 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
 export function parseH2H(html: string): H2HData {
   const $ = cheerio.load(html)
 
-  // Player names from comparison header
-  const playerEls = $('.comparison__name, .h2h__player-name, .media__title .nav-link__value')
-  const player1 = playerEls.eq(0).text().trim()
-  const player2 = playerEls.eq(1).text().trim()
-
-  // Win/loss records by category — look for comparison groups
-  const records: H2HRecord[] = []
-  $('.comparison__group, .h2h__category').each((_, el) => {
-    const category = $(el).find('.comparison__group-title, .h2h__category-title').text().trim()
-    const counts = $(el).find('.comparison__count, .h2h__count')
-    const winsP1 = parseInt(counts.eq(0).text().trim(), 10) || 0
-    const winsP2 = parseInt(counts.eq(1).text().trim(), 10) || 0
-    if (category || winsP1 || winsP2) records.push({ category, winsP1, winsP2 })
+  // Player names from global /player/ profile links (not tournament-specific)
+  const playerLinks: string[] = []
+  $('a[href*="/player/"]').each((_, el) => {
+    const text = $(el).text().trim()
+    if (text.length > 3 && playerLinks.length < 2) playerLinks.push(text)
   })
+  const player1 = playerLinks[0] ?? ''
+  const player2 = playerLinks[1] ?? ''
 
-  // Fallback: overall counts from .comparison__result or similar
-  if (records.length === 0) {
-    const counts = $('.comparison__result-count, .h2h__result-count, .comparison .count')
-    const winsP1 = parseInt(counts.eq(0).text().trim(), 10) || 0
-    const winsP2 = parseInt(counts.eq(1).text().trim(), 10) || 0
-    if (winsP1 || winsP2) records.push({ category: '', winsP1, winsP2 })
-  }
+  // Win/loss from match-group header — "6 - 16" pattern
+  let winsP1 = 0, winsP2 = 0
+  $('.match-group__header').each((_, el) => {
+    const text = $(el).text().trim()
+    const m = text.match(/(\d+)\s*[-–]\s*(\d+)/)
+    if (m) { winsP1 = parseInt(m[1], 10); winsP2 = parseInt(m[2], 10) }
+  })
+  const records: H2HRecord[] = (winsP1 || winsP2) ? [{ category: '', winsP1, winsP2 }] : []
 
-  // Past matches — similar structure to player profile matches
+  // Past matches
   const matches: H2HMatch[] = []
-  $('.match-group .match-group__item .match, .match-group__item .match').each((_, matchEl) => {
+  $('.match-group__item .match').each((_, matchEl) => {
     const titleItems = $(matchEl).find('.match__header-title .match__header-title-item')
-    const round = titleItems.eq(0).find('.nav-link__value').text().trim()
-    const eventEl = titleItems.eq(1).find('.nav-link__value')
-    const event = eventEl.text().trim()
-
-    // Tournament name from breadcrumb or aside
-    const tournament = $(matchEl).find('.match__header-aside .nav-link__value').first().text().trim()
-      || $(matchEl).closest('[data-tournament]').attr('data-tournament') || ''
+    // H2H page: 3 title items — tournament, event, round
+    const t0 = titleItems.eq(0).find('.nav-link__value').text().trim()
+    const t1 = titleItems.eq(1).find('.nav-link__value').text().trim()
+    const t2 = titleItems.eq(2).find('.nav-link__value').text().trim()
+    const tournament = t2 ? t0 : ''
+    const event = t2 ? t1 : t0
+    const round = t2 ? t2 : t1
 
     const msgText2 = $(matchEl).find('.match__message').text().trim()
     const rows2 = $(matchEl).find('.match__row')
@@ -502,15 +497,15 @@ export function parseH2H(html: string): H2HData {
     const scores: import('./types').MatchScore[] = []
     $(matchEl).find('.match__result ul.points').each((_, pts) => {
       const cells = $(pts).find('.points__cell')
-      const t1 = parseInt(cells.eq(0).text().trim(), 10)
-      const t2 = parseInt(cells.eq(1).text().trim(), 10)
-      if (!isNaN(t1) && !isNaN(t2)) scores.push({ t1, t2 })
+      const t1v = parseInt(cells.eq(0).text().trim(), 10)
+      const t2v = parseInt(cells.eq(1).text().trim(), 10)
+      if (!isNaN(t1v) && !isNaN(t2v)) scores.push({ t1: t1v, t2: t2v })
     })
 
     const retired2 = !!msgText2 && /ret/i.test(msgText2) && scores.length > 0
     const walkover2 = !!msgText2 && !retired2
 
-    if (round || event || scores.length) {
+    if (event || tournament || scores.length) {
       matches.push({ tournament, event, round, winner, scores, walkover: walkover2, retired: retired2 })
     }
   })
