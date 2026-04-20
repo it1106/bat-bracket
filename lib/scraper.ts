@@ -470,18 +470,14 @@ export function parseH2H(html: string): H2HData {
   const player1 = playerNames[0] ?? ''
   const player2 = playerNames[1] ?? ''
 
-  // Win/loss from match-group header — "4 - 5" or "6 - 16" pattern
-  let winsP1 = 0, winsP2 = 0
-  $('.match-group__header').each((_, el) => {
-    const text = $(el).text().trim()
-    const m = text.match(/^(\d+)\s*[-–]\s*(\d+)$/)
-    if (m) { winsP1 = parseInt(m[1], 10); winsP2 = parseInt(m[2], 10) }
-  })
+  // Win/loss from comparison widget spans
+  const winsP1 = parseInt($('.comparison-average__value.is-player-1').first().text().trim(), 10) || 0
+  const winsP2 = parseInt($('.comparison-average__value.is-player-2').first().text().trim(), 10) || 0
   const records: H2HRecord[] = (winsP1 || winsP2) ? [{ category: '', winsP1, winsP2 }] : []
 
-  // Past matches
+  // Past matches — H2H page uses ol.match-group > div.match (no match-group__item wrapper)
   const matches: H2HMatch[] = []
-  $('.match-group__item .match').each((_, matchEl) => {
+  $('.match-group div.match').each((_, matchEl) => {
     const titleItems = $(matchEl).find('.match__header-title .match__header-title-item')
     // H2H page: 3 title items — tournament, event, round
     const t0 = titleItems.eq(0).find('.nav-link__value').text().trim()
