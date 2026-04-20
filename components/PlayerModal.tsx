@@ -61,7 +61,7 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
               <div className="pm-section">
                 <div className="pm-section-title">Match Results</div>
                 <div className="pm-matches">
-                  {profile.matches.map((m, i) => {
+                  {profile.matches.filter(m => m.team1.length > 0 && m.team2.length > 0).map((m, i) => {
                     const renderName = (p: import('@/lib/types').MatchPlayer, pi: number) => (
                       <div key={pi}>{p.name}</div>
                     )
