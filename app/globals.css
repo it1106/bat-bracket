@@ -382,7 +382,7 @@
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   width: 100%;
-  max-width: 600px;
+  max-width: 800px;
   max-height: 85vh;
   overflow-y: auto;
   position: relative;
@@ -554,6 +554,11 @@
   .pm-match {
     display: flex;
     flex-direction: column;
+    border: 1px solid #e0e3eb;
+    border-radius: 8px;
+    background: #fff;
+    margin-bottom: 8px;
+    padding: 10px 12px;
     gap: 0;
   }
 
@@ -567,23 +572,26 @@
     flex-direction: row;
     align-items: center;
     gap: 6px;
-    padding-bottom: 6px;
+    padding: 0 0 8px 0;
     border-bottom: 1px solid #f0f0f0;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 
+  .pm-match-draw { font-size: 12px; }
+
   .pm-match-round {
+    font-size: 11px;
     background: #f0f2f8;
     color: #25316B;
     padding: 1px 6px;
     border-radius: 4px;
-    font-size: 11px;
   }
 
   .pm-board-row {
     display: flex;
     align-items: normal;
-    min-height: 26px;
+    gap: 0;
+    min-height: 28px;
   }
 
   .pm-board-row + .pm-board-row {
@@ -594,7 +602,7 @@
 
   .pm-board-players {
     flex: 1;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.45;
     min-width: 0;
     overflow: hidden;
@@ -604,11 +612,11 @@
 
   .pm-board-set {
     display: inline-block;
-    width: 24px;
+    width: 26px;
     text-align: right;
     font-variant-numeric: tabular-nums;
     font-weight: 600;
-    font-size: 12px;
+    font-size: 13px;
     flex-shrink: 0;
     color: #333;
   }
