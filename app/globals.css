@@ -843,22 +843,32 @@
   font-style: italic;
 }
 
-/* H2H button in match meta */
+/* H2H row at bottom of match card */
+.ms-h2h-row {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  padding-top: 6px;
+  margin-top: 4px;
+  border-top: 1px solid #f0f0f0;
+}
+
 .ms-h2h-btn {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
   color: #25316B;
-  background: #eef0f8;
+  background: transparent;
   border: 1px solid #c5cae8;
-  border-radius: 4px;
-  padding: 1px 5px;
+  border-radius: 20px;
+  padding: 2px 16px;
   cursor: pointer;
-  line-height: 1.4;
+  letter-spacing: 0.02em;
 }
 
 .ms-h2h-btn:hover {
   background: #25316B;
   color: #fff;
+  border-color: #25316B;
 }
 
 /* ── Match Schedule ── */
