@@ -283,7 +283,7 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchTimeGroup[] {
       const court = courtMatch ? courtMatch[1].trim() : ''
 
       const walkover = $(matchEl).find('.match__message').length > 0
-      const nowPlaying = $(matchEl).find('svg.icon-sport2, use[*|href*="icon-sport2"]').length > 0
+      const nowPlaying = ($(matchEl).html() ?? '').includes('icon-sport2')
 
       const rows = $(matchEl).find('.match__row')
       let team1: MatchEntry['team1'] = []
