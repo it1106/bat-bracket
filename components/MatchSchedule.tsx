@@ -12,6 +12,7 @@ interface Props {
   playerQuery: string
   onEventClick?: (drawNum: string, round: string) => void
   playerClubMap?: Record<string, string>
+  onPlayerClick?: (playerId: string) => void
 }
 
 function scoreStr(entry: MatchEntry): string {
@@ -30,7 +31,7 @@ function matchesQuery(entry: MatchEntry, query: string, clubMap?: Record<string,
   )
 }
 
-export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick, playerClubMap }: Props) {
+export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick, playerClubMap, onPlayerClick }: Props) {
   return (
     <div className="match-schedule">
       {/* Date tabs */}
@@ -83,18 +84,22 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
 
                   {/* Desktop: grid columns team1 | score | team2 */}
                   <div className={`ms-team ms-team--1 ms-d${m.winner === 1 ? ' winner' : ''}`}>
-                    {m.team1.map((p, i) => <div key={i}>{p.name}</div>)}
+                    {m.team1.map((p, i) => (
+                      <div key={i} className={onPlayerClick && p.playerId ? 'pm-player-link' : ''} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>
+                    ))}
                   </div>
                   <div className="ms-score ms-d">{scoreStr(m)}</div>
                   <div className={`ms-team ms-team--2 ms-d${m.winner === 2 ? ' winner' : ''}`}>
-                    {m.team2.map((p, i) => <div key={i}>{p.name}</div>)}
+                    {m.team2.map((p, i) => (
+                      <div key={i} className={onPlayerClick && p.playerId ? 'pm-player-link' : ''} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>
+                    ))}
                   </div>
 
                   {/* Mobile: scoreboard with player + per-set scores aligned */}
                   <div className="ms-board ms-m">
                     <div className={`ms-board-row${m.winner === 1 ? ' winner' : ''}`}>
                       <div className="ms-board-players">
-                        {m.team1.map((p, i) => <div key={i}>{p.name}</div>)}
+                        {m.team1.map((p, i) => <div key={i} className={onPlayerClick && p.playerId ? 'pm-player-link' : ''} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>)}
                       </div>
                       {m.walkover
                         ? <span className="ms-board-badge">{m.winner === 1 ? 'Walkover' : ''}</span>
@@ -103,7 +108,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                     </div>
                     <div className={`ms-board-row${m.winner === 2 ? ' winner' : ''}`}>
                       <div className="ms-board-players">
-                        {m.team2.map((p, i) => <div key={i}>{p.name}</div>)}
+                        {m.team2.map((p, i) => <div key={i} className={onPlayerClick && p.playerId ? 'pm-player-link' : ''} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>)}
                       </div>
                       {m.walkover
                         ? <span className="ms-board-badge">{m.winner === 2 ? 'Walkover' : ''}</span>

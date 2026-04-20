@@ -3,8 +3,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import BracketCanvas from '@/components/BracketCanvas'
 import MatchSchedule from '@/components/MatchSchedule'
+import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
-import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchTimeGroup, MatchesData } from '@/lib/types'
+import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchTimeGroup, MatchesData, PlayerProfile } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
   return typeof data === 'object' && data !== null && 'error' in data
@@ -42,6 +43,8 @@ export default function Home() {
   const [selectedDay, setSelectedDay] = useState('')
   const [matchTimeGroups, setMatchTimeGroups] = useState<MatchTimeGroup[]>([])
   const [playerClubMap, setPlayerClubMap] = useState<Record<string, string>>({})
+  const [modalProfile, setModalProfile] = useState<PlayerProfile | null>(null)
+  const [modalLoading, setModalLoading] = useState(false)
   const bracketRef = useRef<HTMLDivElement>(null)
   const lastScrollY = useRef(0)
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
@@ -192,6 +195,23 @@ export default function Home() {
     setError(null)
     await fetchBracketFrom(selectedTournament, drawNum, 0)
   }, [selectedTournament, draws, fetchBracketFrom])
+
+  const handlePlayerClick = useCallback(async (playerId: string) => {
+    if (!selectedTournament) return
+    setModalProfile(null)
+    setModalLoading(true)
+    try {
+      const res = await fetch(`/api/player?tournament=${encodeURIComponent(selectedTournament)}&player=${encodeURIComponent(playerId)}`)
+      const data = await safeJson(res) as PlayerProfile | ApiError
+      if (!isApiError(data)) setModalProfile(data)
+    } catch {}
+    finally { setModalLoading(false) }
+  }, [selectedTournament])
+
+  const handleModalClose = useCallback(() => {
+    setModalProfile(null)
+    setModalLoading(false)
+  }, [])
 
   const handleDayChange = useCallback(async (date: string) => {
     if (!selectedTournament) return
@@ -412,6 +432,16 @@ export default function Home() {
           playerQuery={playerQuery}
           onEventClick={handleOpenBracketAtRound}
           playerClubMap={playerClubMap}
+          onPlayerClick={handlePlayerClick}
+        />
+      )}
+
+      {/* Player profile modal (fixed, rendered outside view blocks) */}
+      {(modalLoading || modalProfile) && (
+        <PlayerModal
+          profile={modalProfile}
+          loading={modalLoading}
+          onClose={handleModalClose}
         />
       )}
     </>

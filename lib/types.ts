@@ -73,3 +73,15 @@ export interface MatchesData {
   currentDate: string
   timeGroups: MatchTimeGroup[]
 }
+
+export interface PlayerEvent {
+  eventId: string
+  name: string
+}
+
+export interface PlayerProfile {
+  name: string
+  club: string
+  events: PlayerEvent[]
+  matches: MatchEntry[]
+}

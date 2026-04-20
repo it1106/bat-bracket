@@ -345,3 +345,67 @@ export function parseMatchesPartial(html: string): Pick<MatchesData, 'timeGroups
   const $ = cheerio.load(html)
   return { timeGroups: parseMatchGroups($) }
 }
+
+export function parsePlayerProfile(html: string, playerClubMap?: Record<string, string>): import('./types').PlayerProfile {
+  const $ = cheerio.load(html)
+
+  const name = $('.media__link.text--link-white.text--link .nav-link__value').first().text().trim()
+
+  const events: import('./types').PlayerEvent[] = []
+  $('.media__subheading a[href*="event="]').each((_, el) => {
+    const href = $(el).attr('href') ?? ''
+    const m = href.match(/event=(\d+)/)
+    if (m) events.push({ eventId: m[1], name: $(el).find('.nav-link__value').text().trim() })
+  })
+
+  // Find this player's own ID to look up club
+  const playerId = $('.match__row a[data-player-id]').first().attr('data-player-id') ?? ''
+  const club = (playerClubMap && playerId) ? (playerClubMap[playerId] ?? '') : ''
+
+  // Parse matches from .match-group (profile page uses different wrapper than schedule)
+  const matches: import('./types').MatchEntry[] = []
+  $('.match-group .match-group__item .match, .match-group.match-group .match-group__item .match').each((_, matchEl) => {
+    const titleItems = $(matchEl).find('.match__header-title .match__header-title-item')
+    // Profile page: first = round, second = draw
+    const round = titleItems.eq(0).find('.nav-link__value').text().trim()
+    const drawLink = titleItems.eq(1).find('a')
+    const draw = drawLink.find('.nav-link__value').text().trim()
+    const drawHref = drawLink.attr('href') ?? ''
+    const drawNumMatch = drawHref.match(/draw=(\d+)/)
+    const drawNum = drawNumMatch ? drawNumMatch[1] : ''
+
+    const walkover = $(matchEl).find('.match__message').length > 0
+    const nowPlaying = ($(matchEl).html() ?? '').includes('icon-sport2')
+    const rows = $(matchEl).find('.match__row')
+    let team1: import('./types').MatchPlayer[] = []
+    let team2: import('./types').MatchPlayer[] = []
+    let winner: 1 | 2 | null = null
+
+    rows.each((ri, row) => {
+      const hasWon = $(row).hasClass('has-won')
+      const players: import('./types').MatchPlayer[] = []
+      $(row).find('.match__row-title-value').each((_, tv) => {
+        const a = $(tv).find('a')
+        const pname = a.find('.nav-link__value').text().trim()
+        const hrefMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
+        if (pname) players.push({ name: pname, playerId: hrefMatch ? hrefMatch[1] : '' })
+      })
+      if (ri === 0) { team1 = players; if (hasWon) winner = 1 }
+      else { team2 = players; if (hasWon) winner = 2 }
+    })
+
+    const scores: import('./types').MatchScore[] = []
+    $(matchEl).find('.match__result ul.points').each((_, pts) => {
+      const cells = $(pts).find('.points__cell')
+      const t1 = parseInt(cells.eq(0).text().trim(), 10)
+      const t2 = parseInt(cells.eq(1).text().trim(), 10)
+      if (!isNaN(t1) && !isNaN(t2)) scores.push({ t1, t2 })
+    })
+
+    if (draw || team1.length) {
+      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, nowPlaying })
+    }
+  })
+
+  return { name, club, events, matches }
+}
