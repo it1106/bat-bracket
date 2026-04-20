@@ -561,7 +561,7 @@
 /* Mobile scoreboard elements — hidden on desktop */
 .pm-m { display: none; }
 
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .pm-modal {
     padding: 16px 14px 20px;
     max-height: 90vh;
@@ -809,8 +809,8 @@
 
 .ms-match--tracked { background: #fff3cd !important; }
 
-/* Mobile: card layout (≤ 800px) */
-@media (max-width: 800px) {
+/* Mobile: card layout (≤ 900px) */
+@media (max-width: 900px) {
   .match-schedule {
     padding: 20px;
   }
