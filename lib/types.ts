@@ -54,6 +54,7 @@ export interface MatchEntry {
   court: string
   walkover: boolean
   nowPlaying: boolean
+  scheduledTime?: string
 }
 
 export interface MatchTimeGroup {

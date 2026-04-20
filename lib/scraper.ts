@@ -402,8 +402,16 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
       if (!isNaN(t1) && !isNaN(t2)) scores.push({ t1, t2 })
     })
 
+    // Extract scheduled time from footer icon-clock item
+    let scheduledTime = ''
+    $(matchEl).find('.match__footer-list-item').each((_, item) => {
+      if ($(item).find('.icon-clock').length) {
+        scheduledTime = $(item).find('.nav-link__value').text().trim()
+      }
+    })
+
     if (draw || team1.length) {
-      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, nowPlaying })
+      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, nowPlaying, scheduledTime })
     }
   })
 

@@ -469,9 +469,11 @@
 .pm-match {
   display: grid;
   grid-template-columns: 110px 1fr 90px 1fr;
-  grid-template-areas: "meta team1 score team2";
+  grid-template-areas:
+    "meta team1 score team2"
+    "meta sched sched sched";
   gap: 0 8px;
-  align-items: center;
+  align-items: flex-start;
   padding: 6px 10px;
   background: #fafafa;
   border: 1px solid #e5e7eb;
@@ -480,9 +482,8 @@
 }
 
 .pm-match .pm-match-meta { grid-area: meta; }
-.pm-match .pm-match-team.pm-d:first-of-type { grid-area: team1; }
 .pm-match .pm-match-score.pm-d { grid-area: score; }
-.pm-match .pm-board { grid-area: team1 / team1 / team1 / team2; }
+.pm-match .pm-match-scheduled { grid-area: sched; font-size: 11px; color: #888; padding-top: 2px; }
 
 .pm-match-meta {
   display: flex;
@@ -632,6 +633,12 @@
   .pm-board-row.winner .pm-board-players {
     font-weight: 700;
     color: #166534;
+  }
+
+  .pm-board-scheduled {
+    font-size: 11px;
+    color: #888;
+    margin-top: 6px;
   }
 }
 

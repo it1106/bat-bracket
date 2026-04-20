@@ -67,12 +67,17 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
 
                       {/* Desktop: team1 | score | team2 */}
                       <div className={`pm-match-team pm-d${m.winner === 1 ? ' winner' : ''}`}>
-                        {m.team1.map((p) => p.name).join(' / ')}
+                        {m.team1.map((p, pi) => <div key={pi}>{p.name}</div>)}
                       </div>
                       <div className="pm-match-score pm-d">{scoreStr(m)}</div>
                       <div className={`pm-match-team pm-d${m.winner === 2 ? ' winner' : ''}`}>
-                        {m.team2.map((p) => p.name).join(' / ')}
+                        {m.team2.map((p, pi) => <div key={pi}>{p.name}</div>)}
                       </div>
+
+                      {/* Scheduled time (upcoming matches) */}
+                      {m.scheduledTime && !m.scores.length && !m.walkover && (
+                        <div className="pm-match-scheduled pm-d">{m.scheduledTime}</div>
+                      )}
 
                       {/* Mobile: two-row scoreboard */}
                       <div className="pm-board pm-m">
@@ -95,6 +100,9 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                           }
                         </div>
                       </div>
+                      {m.scheduledTime && !m.scores.length && !m.walkover && (
+                        <div className="pm-board-scheduled pm-m">{m.scheduledTime}</div>
+                      )}
                     </div>
                   ))}
                 </div>
