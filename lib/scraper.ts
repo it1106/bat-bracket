@@ -319,7 +319,7 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchTimeGroup[] {
       const retired = !!msgText && /ret/i.test(msgText) && scores.length > 0
       const walkover = !!msgText && !retired
 
-      const h2hHref = $(matchEl).find('.match__btn a').attr('href') ?? ''
+      const h2hHref = $(matchEl).find('a.match__btn-h2h').attr('href') ?? ''
       const h2hUrl = h2hHref || undefined
 
       matches.push({ draw, drawNum, round, team1, team2, winner, scores, court, walkover, retired, nowPlaying, h2hUrl })
@@ -457,22 +457,22 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
 export function parseH2H(html: string): H2HData {
   const $ = cheerio.load(html)
 
-  // Player names from global /player/ profile links (not tournament-specific)
-  const playerLinks: string[] = []
-  $('a[href*="/player/"]').each((_, el) => {
-    const text = $(el).text().trim()
-    if (text.length > 3 && playerLinks.length < 2) playerLinks.push(text)
+  // Player names from comparison table header
+  const playerNames: string[] = []
+  $('table.table--comparison thead th.th__title').each((_, th) => {
+    if ($(th).hasClass('comparison-thead__title')) return
+    const links = $(th).find('a[data-player-id], a')
+    const name = links.length
+      ? links.map((_, a) => $(a).text().trim()).get().filter(Boolean).join(' & ')
+      : $(th).text().trim()
+    if (name) playerNames.push(name)
   })
-  const player1 = playerLinks[0] ?? ''
-  const player2 = playerLinks[1] ?? ''
+  const player1 = playerNames[0] ?? ''
+  const player2 = playerNames[1] ?? ''
 
-  // Win/loss from match-group header — "6 - 16" pattern
-  let winsP1 = 0, winsP2 = 0
-  $('.match-group__header').each((_, el) => {
-    const text = $(el).text().trim()
-    const m = text.match(/(\d+)\s*[-–]\s*(\d+)/)
-    if (m) { winsP1 = parseInt(m[1], 10); winsP2 = parseInt(m[2], 10) }
-  })
+  // Win/loss from comparison widget
+  const winsP1 = parseInt($('.comparison-average__value.is-player-1').first().text().trim(), 10) || 0
+  const winsP2 = parseInt($('.comparison-average__value.is-player-2').first().text().trim(), 10) || 0
   const records: H2HRecord[] = (winsP1 || winsP2) ? [{ category: '', winsP1, winsP2 }] : []
 
   // Past matches
@@ -491,7 +491,10 @@ export function parseH2H(html: string): H2HData {
     const rows2 = $(matchEl).find('.match__row')
     let winner: 1 | 2 | null = null
     rows2.each((ri, row) => {
-      if ($(row).hasClass('has-won')) winner = ri === 0 ? 1 : 2
+      // .has-won class or presence of a win indicator element
+      if ($(row).hasClass('has-won') || $(row).find('.match__row-won, .icon-won, [class*="won"]').length > 0) {
+        winner = ri === 0 ? 1 : 2
+      }
     })
 
     const scores: import('./types').MatchScore[] = []
