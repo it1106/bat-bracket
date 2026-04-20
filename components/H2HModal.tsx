@@ -38,11 +38,8 @@ export default function H2HModal({ data, loading, drawName, onClose }: Props) {
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  if (!loading && !data) return null
-
   const currentDiscipline = drawName ? discipline(drawName.trim().split(' ')[0]) : null
 
-  // Compute discipline-filtered record from matches
   const filteredRecord = useMemo(() => {
     if (!data || !currentDiscipline) return null
     let w1 = 0, w2 = 0
@@ -57,6 +54,8 @@ export default function H2HModal({ data, loading, drawName, onClose }: Props) {
   const disciplineLabel = currentDiscipline
     ? currentDiscipline.charAt(0).toUpperCase() + currentDiscipline.slice(1)
     : null
+
+  if (!loading && !data) return null
 
   return (
     <div className="pm-overlay" onClick={onClose}>
