@@ -14,7 +14,8 @@ interface Props {
 function scoreStr(entry: MatchEntry): string {
   if (entry.walkover) return 'Walkover'
   if (entry.scores.length === 0) return '—'
-  return entry.scores.map((s) => `${s.t1}–${s.t2}`).join(', ')
+  const s = entry.scores.map((s) => `${s.t1}–${s.t2}`).join(', ')
+  return entry.retired ? `${s} Ret.` : s
 }
 
 export default function PlayerModal({ profile, loading, onClose }: Props) {
@@ -93,7 +94,7 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                           </div>
                           {m.walkover
                             ? <span className="pm-board-badge">{m.winner === 1 ? 'Walkover' : ''}</span>
-                            : m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t1}</span>)
+                            : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="pm-board-badge">Ret.</span>}</>
                           }
                         </div>
                         <div className={`pm-board-row${m.winner === 2 ? ' winner' : ''}`}>
@@ -102,7 +103,7 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                           </div>
                           {m.walkover
                             ? <span className="pm-board-badge">{m.winner === 2 ? 'Walkover' : ''}</span>
-                            : m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t2}</span>)
+                            : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="pm-board-badge">Ret.</span>}</>
                           }
                         </div>
                       </div>

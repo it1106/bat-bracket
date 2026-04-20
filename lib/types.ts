@@ -53,6 +53,7 @@ export interface MatchEntry {
   scores: MatchScore[]
   court: string
   walkover: boolean
+  retired: boolean
   nowPlaying: boolean
   scheduledTime?: string
 }

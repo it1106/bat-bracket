@@ -18,7 +18,8 @@ interface Props {
 function scoreStr(entry: MatchEntry): string {
   if (entry.walkover) return 'Walkover'
   if (entry.scores.length === 0) return '—'
-  return entry.scores.map((s) => `${s.t1}-${s.t2}`).join(', ')
+  const s = entry.scores.map((s) => `${s.t1}-${s.t2}`).join(', ')
+  return entry.retired ? `${s} Ret.` : s
 }
 
 function matchesQuery(entry: MatchEntry, query: string, clubMap?: Record<string, string>): boolean {
@@ -103,7 +104,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                       </div>
                       {m.walkover
                         ? <span className="ms-board-badge">{m.winner === 1 ? 'Walkover' : ''}</span>
-                        : m.scores.map((s, i) => <span key={i} className="ms-board-set">{s.t1}</span>)
+                        : <>{m.scores.map((s, i) => <span key={i} className="ms-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="ms-board-badge">Ret.</span>}</>
                       }
                     </div>
                     <div className={`ms-board-row${m.winner === 2 ? ' winner' : ''}`}>
@@ -112,7 +113,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                       </div>
                       {m.walkover
                         ? <span className="ms-board-badge">{m.winner === 2 ? 'Walkover' : ''}</span>
-                        : m.scores.map((s, i) => <span key={i} className="ms-board-set">{s.t2}</span>)
+                        : <>{m.scores.map((s, i) => <span key={i} className="ms-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="ms-board-badge">Ret.</span>}</>
                       }
                     </div>
                   </div>

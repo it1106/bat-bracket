@@ -225,13 +225,15 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
         const scoreStr = gameScores.length > 0 ? gameScores.join(', ') : ''
         const footerEl = $(matchEl).find('.match__footer').first()
         const footerRaw = footerText(footerEl)
-        const walkover = $(matchEl).find('.match__message').text().trim()
+        const msgText = $(matchEl).find('.match__message').text().trim()
+        const retired = !!msgText && /ret/i.test(msgText) && gameScores.length > 0
+        const walkover = !!msgText && !retired
 
         const matchBoxHtml = rowParts.join('')
         const abbrev = abbrevRound(roundName)
         const matchNum = gi * 2 + mi + 1
         const abbrevLabel = abbrev === 'F' ? abbrev : `${abbrev} #${matchNum}`
-        const scoreContent = walkover || scoreStr || footerRaw
+        const scoreContent = retired ? `${scoreStr} Ret.` : walkover ? msgText : scoreStr || footerRaw
         const scoreHtml = `<div class="bk-score"><span class="bk-round-abbrev">${abbrevLabel}</span>${scoreContent}</div>`
 
         slotParts.push(
@@ -285,7 +287,7 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchTimeGroup[] {
       const courtMatch = tooltip.match(/\|\s*(.+)$/)
       const court = courtMatch ? courtMatch[1].trim() : ''
 
-      const walkover = $(matchEl).find('.match__message').length > 0
+      const msgText = $(matchEl).find('.match__message').text().trim()
       const nowPlaying = ($(matchEl).html() ?? '').includes('icon-sport2')
 
       const rows = $(matchEl).find('.match__row')
@@ -314,7 +316,10 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchTimeGroup[] {
         if (!isNaN(t1) && !isNaN(t2)) scores.push({ t1, t2 })
       })
 
-      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court, walkover, nowPlaying })
+      const retired = !!msgText && /ret/i.test(msgText) && scores.length > 0
+      const walkover = !!msgText && !retired
+
+      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court, walkover, retired, nowPlaying })
     })
 
     if (matches.length > 0) timeGroups.push({ time, matches })
@@ -399,7 +404,7 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
     const drawNumMatch = drawHref.match(/draw=(\d+)/)
     const drawNum = drawNumMatch ? drawNumMatch[1] : ''
 
-    const walkover = $(matchEl).find('.match__message').length > 0
+    const msgText = $(matchEl).find('.match__message').text().trim()
     const nowPlaying = ($(matchEl).html() ?? '').includes('icon-sport2')
     const rows = $(matchEl).find('.match__row')
     let team1: import('./types').MatchPlayer[] = []
@@ -435,8 +440,11 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
       if (text) scheduledTime = text
     })
 
+    const retired = !!msgText && /ret/i.test(msgText) && scores.length > 0
+    const walkover = !!msgText && !retired
+
     if (draw || team1.length) {
-      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, nowPlaying, scheduledTime })
+      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, retired, nowPlaying, scheduledTime })
     }
   })
 
