@@ -71,11 +71,11 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
 
                       {/* Desktop: team1 | score | team2 */}
                       <div className={`pm-match-team pm-d${m.winner === 1 ? ' winner' : ''}`}>
-                        {m.team1.map((p, pi) => <div key={pi}>{p.name}</div>)}
+                        {m.team1.length ? m.team1.map((p, pi) => <div key={pi}>{p.name}</div>) : <div className="pm-bye">Bye</div>}
                       </div>
                       <div className="pm-match-score pm-d">{scoreStr(m)}</div>
                       <div className={`pm-match-team pm-d${m.winner === 2 ? ' winner' : ''}`}>
-                        {m.team2.map((p, pi) => <div key={pi}>{p.name}</div>)}
+                        {m.team2.length ? m.team2.map((p, pi) => <div key={pi}>{p.name}</div>) : <div className="pm-bye">Bye</div>}
                       </div>
 
                       {/* Scheduled time (upcoming matches) */}
@@ -87,7 +87,7 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                       <div className="pm-board pm-m">
                         <div className={`pm-board-row${m.winner === 1 ? ' winner' : ''}`}>
                           <div className="pm-board-players">
-                            {m.team1.map((p, pi) => <div key={pi}>{p.name}</div>)}
+                            {m.team1.length ? m.team1.map((p, pi) => <div key={pi}>{p.name}</div>) : <div className="pm-bye">Bye</div>}
                           </div>
                           {m.walkover
                             ? <span className="pm-board-badge">{m.winner === 1 ? 'Walkover' : ''}</span>
@@ -96,7 +96,7 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                         </div>
                         <div className={`pm-board-row${m.winner === 2 ? ' winner' : ''}`}>
                           <div className="pm-board-players">
-                            {m.team2.map((p, pi) => <div key={pi}>{p.name}</div>)}
+                            {m.team2.length ? m.team2.map((p, pi) => <div key={pi}>{p.name}</div>) : <div className="pm-bye">Bye</div>}
                           </div>
                           {m.walkover
                             ? <span className="pm-board-badge">{m.winner === 2 ? 'Walkover' : ''}</span>

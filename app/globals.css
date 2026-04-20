@@ -533,6 +533,12 @@
   font-size: 13px;
 }
 
+.pm-bye {
+  color: #bbb;
+  font-style: italic;
+  font-size: 11px;
+}
+
 .pm-player-link {
   cursor: pointer;
 }
