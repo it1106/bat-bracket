@@ -83,6 +83,7 @@ export interface PlayerEvent {
 export interface PlayerProfile {
   name: string
   club: string
+  yob: string
   events: PlayerEvent[]
   matches: MatchEntry[]
 }

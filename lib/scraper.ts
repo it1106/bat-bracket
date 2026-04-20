@@ -346,6 +346,28 @@ export function parseMatchesPartial(html: string): Pick<MatchesData, 'timeGroups
   return { timeGroups: parseMatchGroups($) }
 }
 
+export function parseGlobalPlayerProfile(html: string): { club: string; yob: string; profileUrl: string } {
+  const $ = cheerio.load(html)
+  // Global profile link in tournament player page
+  const profileUrl = $('a.media__link[href*="/player-profile/"]').attr('href') ?? ''
+  return { club: '', yob: '', profileUrl }
+}
+
+export function parseGlobalProfileDetails(html: string): { club: string; yob: string } {
+  const $ = cheerio.load(html)
+  const club = $('.media__subheading .icon-club').closest('.media__subheading')
+    .find('.nav-link__value').text().trim()
+  const yobText = $('.media__subheading--muted .nav-link__value').map((_, el) => $(el).text().trim()).get()
+    .find(t => t.startsWith('YOB:')) ?? ''
+  const yob = yobText.replace('YOB:', '').trim()
+  return { club, yob }
+}
+
+export function extractProfileUrl(html: string): string {
+  const $ = cheerio.load(html)
+  return $('a[href*="/player-profile/"]').first().attr('href') ?? ''
+}
+
 export function parsePlayerProfile(html: string, playerClubMap?: Record<string, string>): import('./types').PlayerProfile {
   const $ = cheerio.load(html)
 
@@ -415,5 +437,5 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
     }
   })
 
-  return { name, club, events, matches }
+  return { name, club, yob: '', events, matches }
 }

@@ -38,7 +38,11 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
           <>
             <div className="pm-header">
               <div className="pm-name">{profile.name}</div>
-              {profile.club && <div className="pm-club">{profile.club}</div>}
+              {(profile.club || profile.yob) && (
+                <div className="pm-club">
+                  {[profile.club, profile.yob ? `YOB: ${profile.yob}` : ''].filter(Boolean).join(' · ')}
+                </div>
+              )}
             </div>
 
             {profile.events.length > 0 && (

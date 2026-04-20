@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { parsePlayerProfile } from '@/lib/scraper'
+import { parsePlayerProfile, extractProfileUrl, parseGlobalProfileDetails } from '@/lib/scraper'
 import { playerClubCache } from '@/lib/bracket-cache'
 
 export const maxDuration = 30
@@ -19,11 +19,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    const url = `https://bat.tournamentsoftware.com/sport/player.aspx?id=${tournamentId}&player=${playerId}`
-    const res = await fetch(url, { headers: HEADERS })
+    const tournamentUrl = `https://bat.tournamentsoftware.com/sport/player.aspx?id=${tournamentId}&player=${playerId}`
+    const res = await fetch(tournamentUrl, { headers: HEADERS })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const tournamentHtml = await res.text()
 
-    // Build a club map scoped to this tournament for lookup
+    // Build club map from bracket cache
     const tid = tournamentId.toLowerCase()
     const prefix = `${tid}:`
     const clubMap: Record<string, string> = {}
@@ -31,7 +32,22 @@ export async function GET(request: Request) {
       if (key.startsWith(prefix)) clubMap[key.slice(prefix.length)] = club
     })
 
-    return NextResponse.json(parsePlayerProfile(await res.text(), clubMap))
+    const profile = parsePlayerProfile(tournamentHtml, clubMap)
+
+    // Fetch global profile for club name and YOB
+    const globalPath = extractProfileUrl(tournamentHtml)
+    if (globalPath) {
+      try {
+        const globalRes = await fetch(`https://bat.tournamentsoftware.com${globalPath}`, { headers: HEADERS })
+        if (globalRes.ok) {
+          const { club, yob } = parseGlobalProfileDetails(await globalRes.text())
+          profile.club = club || profile.club
+          profile.yob = yob
+        }
+      } catch { /* non-fatal */ }
+    }
+
+    return NextResponse.json(profile)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: `Could not load player profile: ${message}` }, { status: 500 })
