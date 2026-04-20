@@ -468,7 +468,7 @@
 
 .pm-match {
   display: grid;
-  grid-template-columns: 100px 250px 200px 250px;
+  grid-template-columns: 100px 100px 300px 100px;
   grid-template-areas:
     "meta team1 score team2"
     "meta sched sched sched";
@@ -568,6 +568,7 @@
 
   /* Show mobile board */
   .pm-m { display: block; }
+  .pm-match { display: block; }
 
   .pm-match-meta {
     flex-direction: row;
