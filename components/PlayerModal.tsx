@@ -58,17 +58,42 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                 <div className="pm-matches">
                   {profile.matches.map((m, i) => (
                     <div key={i} className="pm-match">
+                      {/* Meta: draw + round */}
                       <div className="pm-match-meta">
                         <span className="pm-match-draw">{m.draw}</span>
                         <span className="pm-match-round">{abbrevRound(m.round)}</span>
                         {m.nowPlaying && <span className="ms-now-playing" title="Now playing" />}
                       </div>
-                      <div className={`pm-match-team${m.winner === 1 ? ' winner' : ''}`}>
+
+                      {/* Desktop: team1 | score | team2 */}
+                      <div className={`pm-match-team pm-d${m.winner === 1 ? ' winner' : ''}`}>
                         {m.team1.map((p) => p.name).join(' / ')}
                       </div>
-                      <div className="pm-match-score">{scoreStr(m)}</div>
-                      <div className={`pm-match-team${m.winner === 2 ? ' winner' : ''}`}>
+                      <div className="pm-match-score pm-d">{scoreStr(m)}</div>
+                      <div className={`pm-match-team pm-d${m.winner === 2 ? ' winner' : ''}`}>
                         {m.team2.map((p) => p.name).join(' / ')}
+                      </div>
+
+                      {/* Mobile: two-row scoreboard */}
+                      <div className="pm-board pm-m">
+                        <div className={`pm-board-row${m.winner === 1 ? ' winner' : ''}`}>
+                          <div className="pm-board-players">
+                            {m.team1.map((p, pi) => <div key={pi}>{p.name}</div>)}
+                          </div>
+                          {m.walkover
+                            ? <span className="pm-board-badge">{m.winner === 1 ? 'Walkover' : ''}</span>
+                            : m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t1}</span>)
+                          }
+                        </div>
+                        <div className={`pm-board-row${m.winner === 2 ? ' winner' : ''}`}>
+                          <div className="pm-board-players">
+                            {m.team2.map((p, pi) => <div key={pi}>{p.name}</div>)}
+                          </div>
+                          {m.walkover
+                            ? <span className="pm-board-badge">{m.winner === 2 ? 'Walkover' : ''}</span>
+                            : m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t2}</span>)
+                          }
+                        </div>
                       </div>
                     </div>
                   ))}

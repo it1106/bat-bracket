@@ -382,7 +382,7 @@
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   width: 100%;
-  max-width: 520px;
+  max-width: 600px;
   max-height: 85vh;
   overflow-y: auto;
   position: relative;
@@ -469,6 +469,7 @@
 .pm-match {
   display: grid;
   grid-template-columns: 110px 1fr 90px 1fr;
+  grid-template-areas: "meta team1 score team2";
   gap: 0 8px;
   align-items: center;
   padding: 6px 10px;
@@ -477,6 +478,11 @@
   border-radius: 6px;
   font-size: 12px;
 }
+
+.pm-match .pm-match-meta { grid-area: meta; }
+.pm-match .pm-match-team.pm-d:first-of-type { grid-area: team1; }
+.pm-match .pm-match-score.pm-d { grid-area: score; }
+.pm-match .pm-board { grid-area: team1 / team1 / team1 / team2; }
 
 .pm-match-meta {
   display: flex;
@@ -536,11 +542,88 @@
   color: #25316B;
 }
 
+/* Mobile scoreboard elements — hidden on desktop */
+.pm-m { display: none; }
+
 @media (max-width: 640px) {
-  .pm-modal { padding: 16px 14px 20px; }
+  .pm-modal {
+    padding: 16px 14px 20px;
+    max-height: 90vh;
+  }
+
   .pm-match {
-    grid-template-columns: 90px 1fr 70px 1fr;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Hide desktop columns */
+  .pm-d { display: none !important; }
+
+  /* Show mobile board */
+  .pm-m { display: block; }
+
+  .pm-match-meta {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 6px;
+  }
+
+  .pm-match-round {
+    background: #f0f2f8;
+    color: #25316B;
+    padding: 1px 6px;
+    border-radius: 4px;
     font-size: 11px;
+  }
+
+  .pm-board-row {
+    display: flex;
+    align-items: normal;
+    min-height: 26px;
+  }
+
+  .pm-board-row + .pm-board-row {
+    border-top: 1px solid #f0f0f0;
+    margin-top: 4px;
+    padding-top: 4px;
+  }
+
+  .pm-board-players {
+    flex: 1;
+    font-size: 12px;
+    line-height: 1.45;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .pm-board-players div + div { padding-top: 3px; }
+
+  .pm-board-set {
+    display: inline-block;
+    width: 24px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: 12px;
+    flex-shrink: 0;
+    color: #333;
+  }
+
+  .pm-board-badge {
+    font-size: 13px;
+    font-weight: 700;
+    color: #166534;
+    padding-left: 6px;
+    flex-shrink: 0;
+  }
+
+  .pm-board-row.winner .pm-board-players {
+    font-weight: 700;
+    color: #166534;
   }
 }
 
