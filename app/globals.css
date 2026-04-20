@@ -483,7 +483,7 @@
 
 .pm-match .pm-match-meta { grid-area: meta; }
 .pm-match .pm-match-score.pm-d { grid-area: score; }
-.pm-match .pm-match-scheduled { grid-area: sched; font-size: 11px; color: #888; padding-top: 2px; }
+.pm-match .pm-match-scheduled { grid-area: sched; font-size: 12px; color: #888; padding-top: 2px; }
 
 .pm-match-meta {
   display: flex;
@@ -534,9 +534,9 @@
 }
 
 .pm-bye {
-  color: #bbb;
+  color: #696969;
   font-style: italic;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .pm-player-link {
