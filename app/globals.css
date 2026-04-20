@@ -653,7 +653,7 @@
 .match-schedule {
   background: #f0f2f5;
   min-height: calc(100vh - 97px);
-  padding: 16px 20px;
+  padding: 16px 50px;
   max-width: 1000px;
 }
 
@@ -717,7 +717,7 @@
 /* Desktop: single horizontal row per match */
 .ms-match {
   display: grid;
-  grid-template-columns: 132px 200px 180px 200px;
+  grid-template-columns: 130px 250px 250px 250px;
   grid-template-areas: "meta team1 score team2";
   align-items: normal;
   padding: 8px 12px;
