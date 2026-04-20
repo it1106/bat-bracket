@@ -51,6 +51,13 @@ export default function Home() {
   const [headerVisible, setHeaderVisible] = useState(true)
 
   useEffect(() => {
+    if (!selectedTournament) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [selectedTournament])
+
+  useEffect(() => {
     const handleScroll = () => {
       const y = window.scrollY
       if (y <= 10) {
