@@ -11,6 +11,7 @@ interface Props {
   loading: boolean
   playerQuery: string
   onEventClick?: (drawNum: string, round: string) => void
+  playerClubMap?: Record<string, string>
 }
 
 function scoreStr(entry: MatchEntry): string {
@@ -19,15 +20,17 @@ function scoreStr(entry: MatchEntry): string {
   return entry.scores.map((s) => `${s.t1}-${s.t2}`).join(', ')
 }
 
-function matchesQuery(entry: MatchEntry, query: string): boolean {
+function matchesQuery(entry: MatchEntry, query: string, clubMap?: Record<string, string>): boolean {
   if (!query) return true
   const q = query.toLowerCase()
+  if (entry.draw.toLowerCase().includes(q)) return true
   return [...entry.team1, ...entry.team2].some(
-    (p) => p.name.toLowerCase().includes(q) || p.club.toLowerCase().includes(q)
+    (p) => p.name.toLowerCase().includes(q) ||
+           (clubMap && p.playerId && (clubMap[p.playerId] ?? '').toLowerCase().includes(q))
   )
 }
 
-export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick }: Props) {
+export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick, playerClubMap }: Props) {
   return (
     <div className="match-schedule">
       {/* Date tabs */}
@@ -59,7 +62,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
 
       {!loading && timeGroups.map((group) => {
         const filtered = playerQuery
-          ? group.matches.filter((m) => matchesQuery(m, playerQuery))
+          ? group.matches.filter((m) => matchesQuery(m, playerQuery, playerClubMap))
           : group.matches
         if (filtered.length === 0) return null
         return (

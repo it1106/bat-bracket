@@ -1,6 +1,25 @@
+import * as cheerio from 'cheerio'
 import { parseBracket } from './scraper'
 import { cache as drawsCache } from './draws-cache'
 import type { BracketData } from './types'
+
+// playerId → clubName, scoped per tournament as "{tournamentId}:{playerId}"
+export const playerClubCache = new Map<string, string>()
+
+export function extractPlayerClubs(html: string, guid: string): void {
+  const $ = cheerio.load(html)
+  const prefix = guid.toLowerCase()
+  $('.match__row').each((_, row) => {
+    const clubs = $(row).find('.match__row-entrant-info-club')
+      .map((_, el) => $(el).text().replace(/\u00A0/g, '').trim())
+      .get()
+    $(row).find('a[data-player-id]').each((i, a) => {
+      const playerId = $(a).attr('data-player-id') ?? ''
+      const club = clubs[i] ?? clubs[0] ?? ''
+      if (playerId && club) playerClubCache.set(`${prefix}:${playerId}`, club)
+    })
+  })
+}
 
 export const cache = new Map<string, { bracket: BracketData; ts: number; done?: boolean }>()
 export const rawHtmlCache = new Map<string, string>()
@@ -29,6 +48,7 @@ export async function fetchBracket(guid: string, drawNum: string): Promise<Brack
       if (res.ok) {
         const html = await res.text()
         rawHtmlCache.set(makeBracketKey(guid, drawNum), html)
+        extractPlayerClubs(html, guid)
         return parseBracket(html)
       }
       if (attempt === 2) throw new Error(`HTTP ${res.status}`)

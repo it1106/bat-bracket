@@ -41,6 +41,7 @@ export default function Home() {
   const [matchDays, setMatchDays] = useState<MatchDay[]>([])
   const [selectedDay, setSelectedDay] = useState('')
   const [matchTimeGroups, setMatchTimeGroups] = useState<MatchTimeGroup[]>([])
+  const [playerClubMap, setPlayerClubMap] = useState<Record<string, string>>({})
   const bracketRef = useRef<HTMLDivElement>(null)
   const lastScrollY = useRef(0)
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
@@ -85,8 +86,15 @@ export default function Home() {
 
     setLoadingDraws(true)
     setLoadingMatches(true)
+    setPlayerClubMap({})
     const t = tournaments.find((t) => t.id === id)
     setTournamentName(t?.name ?? id)
+
+    // Background: build player→club map from all brackets (non-blocking)
+    fetch(`/api/clubs?tournament=${encodeURIComponent(id)}`)
+      .then(r => r.json())
+      .then((data: Record<string, string>) => { if (data && !('error' in data)) setPlayerClubMap(data) })
+      .catch(() => {})
 
     const [drawsResult, matchesResult] = await Promise.allSettled([
       fetch(`/api/draws?id=${encodeURIComponent(id)}`).then(safeJson),
@@ -281,7 +289,7 @@ export default function Home() {
             </label>
             <input
               type="text"
-              placeholder="Search player…"
+              placeholder="Search player or event…"
               value={playerQuery}
               onChange={(e) => setPlayerQuery(e.target.value)}
               className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[180px] bg-white focus:outline-none focus:border-blue-500"
@@ -403,6 +411,7 @@ export default function Home() {
           loading={loadingMatches}
           playerQuery={playerQuery}
           onEventClick={handleOpenBracketAtRound}
+          playerClubMap={playerClubMap}
         />
       )}
     </>
