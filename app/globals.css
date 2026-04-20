@@ -658,6 +658,148 @@
   }
 }
 
+/* ── H2H ── */
+.h2h-modal {
+  max-width: 600px;
+}
+
+.h2h-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.h2h-player {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  flex: 1;
+}
+
+.h2h-player--1 { text-align: right; }
+.h2h-player--2 { text-align: left; }
+
+.h2h-vs {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.h2h-record {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.h2h-record:last-child { border-bottom: none; }
+
+.h2h-record-category {
+  font-size: 12px;
+  color: #888;
+  min-width: 120px;
+  text-align: center;
+}
+
+.h2h-record-score {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.h2h-wins { color: #aaa; }
+.h2h-wins--leader { color: #166534; }
+.h2h-wins-sep { color: #ccc; font-size: 20px; }
+
+.h2h-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.h2h-match {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.h2h-match-meta {
+  margin-bottom: 4px;
+}
+
+.h2h-match-tournament {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 2px;
+}
+
+.h2h-match-info {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.h2h-match-event {
+  font-weight: 600;
+  color: #25316B;
+  font-size: 12px;
+}
+
+.h2h-match-round {
+  font-size: 11px;
+  color: #888;
+}
+
+.h2h-match-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.h2h-match-player {
+  flex: 1;
+  color: #555;
+  font-size: 12px;
+}
+
+.h2h-match-player:first-child { text-align: right; }
+.h2h-match-player:last-child { text-align: left; }
+.h2h-match-player.winner { font-weight: 700; color: #166534; }
+
+.h2h-match-score {
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* H2H button in match meta */
+.ms-h2h-btn {
+  font-size: 10px;
+  font-weight: 700;
+  color: #25316B;
+  background: #eef0f8;
+  border: 1px solid #c5cae8;
+  border-radius: 4px;
+  padding: 1px 5px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.ms-h2h-btn:hover {
+  background: #25316B;
+  color: #fff;
+}
+
 /* ── Match Schedule ── */
 .match-schedule {
   background: #f0f2f5;

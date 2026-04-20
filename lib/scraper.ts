@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchTimeGroup, MatchDay, MatchesData } from './types'
+import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchTimeGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch } from './types'
 
 function extractId(url: string): string {
   const match = url.match(/\/tournament\/([^/]+)/)
@@ -319,7 +319,10 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchTimeGroup[] {
       const retired = !!msgText && /ret/i.test(msgText) && scores.length > 0
       const walkover = !!msgText && !retired
 
-      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court, walkover, retired, nowPlaying })
+      const h2hHref = $(matchEl).find('.match__btn a').attr('href') ?? ''
+      const h2hUrl = h2hHref || undefined
+
+      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court, walkover, retired, nowPlaying, h2hUrl })
     })
 
     if (matches.length > 0) timeGroups.push({ time, matches })
@@ -449,4 +452,68 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
   })
 
   return { playerId, name, club, yob: '', events, matches }
+}
+
+export function parseH2H(html: string): H2HData {
+  const $ = cheerio.load(html)
+
+  // Player names from comparison header
+  const playerEls = $('.comparison__name, .h2h__player-name, .media__title .nav-link__value')
+  const player1 = playerEls.eq(0).text().trim()
+  const player2 = playerEls.eq(1).text().trim()
+
+  // Win/loss records by category — look for comparison groups
+  const records: H2HRecord[] = []
+  $('.comparison__group, .h2h__category').each((_, el) => {
+    const category = $(el).find('.comparison__group-title, .h2h__category-title').text().trim()
+    const counts = $(el).find('.comparison__count, .h2h__count')
+    const winsP1 = parseInt(counts.eq(0).text().trim(), 10) || 0
+    const winsP2 = parseInt(counts.eq(1).text().trim(), 10) || 0
+    if (category || winsP1 || winsP2) records.push({ category, winsP1, winsP2 })
+  })
+
+  // Fallback: overall counts from .comparison__result or similar
+  if (records.length === 0) {
+    const counts = $('.comparison__result-count, .h2h__result-count, .comparison .count')
+    const winsP1 = parseInt(counts.eq(0).text().trim(), 10) || 0
+    const winsP2 = parseInt(counts.eq(1).text().trim(), 10) || 0
+    if (winsP1 || winsP2) records.push({ category: '', winsP1, winsP2 })
+  }
+
+  // Past matches — similar structure to player profile matches
+  const matches: H2HMatch[] = []
+  $('.match-group .match-group__item .match, .match-group__item .match').each((_, matchEl) => {
+    const titleItems = $(matchEl).find('.match__header-title .match__header-title-item')
+    const round = titleItems.eq(0).find('.nav-link__value').text().trim()
+    const eventEl = titleItems.eq(1).find('.nav-link__value')
+    const event = eventEl.text().trim()
+
+    // Tournament name from breadcrumb or aside
+    const tournament = $(matchEl).find('.match__header-aside .nav-link__value').first().text().trim()
+      || $(matchEl).closest('[data-tournament]').attr('data-tournament') || ''
+
+    const msgText2 = $(matchEl).find('.match__message').text().trim()
+    const rows2 = $(matchEl).find('.match__row')
+    let winner: 1 | 2 | null = null
+    rows2.each((ri, row) => {
+      if ($(row).hasClass('has-won')) winner = ri === 0 ? 1 : 2
+    })
+
+    const scores: import('./types').MatchScore[] = []
+    $(matchEl).find('.match__result ul.points').each((_, pts) => {
+      const cells = $(pts).find('.points__cell')
+      const t1 = parseInt(cells.eq(0).text().trim(), 10)
+      const t2 = parseInt(cells.eq(1).text().trim(), 10)
+      if (!isNaN(t1) && !isNaN(t2)) scores.push({ t1, t2 })
+    })
+
+    const retired2 = !!msgText2 && /ret/i.test(msgText2) && scores.length > 0
+    const walkover2 = !!msgText2 && !retired2
+
+    if (round || event || scores.length) {
+      matches.push({ tournament, event, round, winner, scores, walkover: walkover2, retired: retired2 })
+    }
+  })
+
+  return { player1, player2, records, matches }
 }

@@ -56,6 +56,30 @@ export interface MatchEntry {
   retired: boolean
   nowPlaying: boolean
   scheduledTime?: string
+  h2hUrl?: string
+}
+
+export interface H2HRecord {
+  category: string
+  winsP1: number
+  winsP2: number
+}
+
+export interface H2HMatch {
+  tournament: string
+  event: string
+  round: string
+  winner: 1 | 2 | null
+  scores: MatchScore[]
+  walkover: boolean
+  retired: boolean
+}
+
+export interface H2HData {
+  player1: string
+  player2: string
+  records: H2HRecord[]
+  matches: H2HMatch[]
 }
 
 export interface MatchTimeGroup {

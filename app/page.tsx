@@ -5,7 +5,8 @@ import BracketCanvas from '@/components/BracketCanvas'
 import MatchSchedule from '@/components/MatchSchedule'
 import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
-import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchTimeGroup, MatchesData, PlayerProfile } from '@/lib/types'
+import H2HModal from '@/components/H2HModal'
+import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchTimeGroup, MatchesData, PlayerProfile, H2HData } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
   return typeof data === 'object' && data !== null && 'error' in data
@@ -45,6 +46,8 @@ export default function Home() {
   const [playerClubMap, setPlayerClubMap] = useState<Record<string, string>>({})
   const [modalProfile, setModalProfile] = useState<PlayerProfile | null>(null)
   const [modalLoading, setModalLoading] = useState(false)
+  const [h2hData, setH2hData] = useState<H2HData | null>(null)
+  const [h2hLoading, setH2hLoading] = useState(false)
   const bracketRef = useRef<HTMLDivElement>(null)
   const lastScrollY = useRef(0)
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
@@ -219,6 +222,22 @@ export default function Home() {
   const handleModalClose = useCallback(() => {
     setModalProfile(null)
     setModalLoading(false)
+  }, [])
+
+  const handleH2HClick = useCallback(async (h2hUrl: string) => {
+    setH2hData(null)
+    setH2hLoading(true)
+    try {
+      const res = await fetch(`/api/h2h?path=${encodeURIComponent(h2hUrl)}`)
+      const data = await safeJson(res) as H2HData | ApiError
+      if (!isApiError(data)) setH2hData(data)
+    } catch {}
+    finally { setH2hLoading(false) }
+  }, [])
+
+  const handleH2HClose = useCallback(() => {
+    setH2hData(null)
+    setH2hLoading(false)
   }, [])
 
   const handleDayChange = useCallback(async (date: string) => {
@@ -442,15 +461,25 @@ export default function Home() {
           onEventClick={handleOpenBracketAtRound}
           playerClubMap={playerClubMap}
           onPlayerClick={handlePlayerClick}
+          onH2HClick={handleH2HClick}
         />
       )}
 
-      {/* Player profile modal (fixed, rendered outside view blocks) */}
+      {/* Player profile modal */}
       {(modalLoading || modalProfile) && (
         <PlayerModal
           profile={modalProfile}
           loading={modalLoading}
           onClose={handleModalClose}
+        />
+      )}
+
+      {/* H2H modal */}
+      {(h2hLoading || h2hData) && (
+        <H2HModal
+          data={h2hData}
+          loading={h2hLoading}
+          onClose={handleH2HClose}
         />
       )}
     </>
