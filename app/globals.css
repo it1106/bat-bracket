@@ -802,6 +802,10 @@
 
 /* Mobile: card layout (≤ 640px) */
 @media (max-width: 640px) {
+  .match-schedule {
+    padding: 20px;
+  }
+
   .ms-list {
     background: transparent;
     border: none;
