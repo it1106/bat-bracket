@@ -18,7 +18,7 @@ interface Props {
 
 function scoreStr(entry: MatchEntry): string {
   if (entry.walkover) return 'Walkover'
-  if (entry.scores.length === 0) return '—'
+  if (entry.scores.length === 0) return ''
   const s = entry.scores.map((s) => `${s.t1}-${s.t2}`).join(', ')
   return entry.retired ? `${s} Ret.` : s
 }
