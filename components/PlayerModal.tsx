@@ -10,13 +10,6 @@ interface Props {
   onClose: () => void
 }
 
-function resultBubble(entry: MatchEntry, playerId: string): 'win' | 'loss' | null {
-  if (entry.winner === null) return null
-  const inTeam1 = entry.team1.some(p => p.playerId === playerId)
-  const inTeam2 = entry.team2.some(p => p.playerId === playerId)
-  if (!inTeam1 && !inTeam2) return null
-  return (inTeam1 && entry.winner === 1) || (inTeam2 && entry.winner === 2) ? 'win' : 'loss'
-}
 
 function scoreStr(entry: MatchEntry): string {
   if (entry.walkover) return 'Walkover'
@@ -69,14 +62,8 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                 <div className="pm-section-title">Match Results</div>
                 <div className="pm-matches">
                   {profile.matches.map((m, i) => {
-                    const bubble = resultBubble(m, profile.playerId)
                     const renderName = (p: import('@/lib/types').MatchPlayer, pi: number) => (
-                      <div key={pi} className="pm-player-row">
-                        {p.playerId === profile.playerId && bubble && (
-                          <span className={`pm-result-bubble pm-result-${bubble}`} />
-                        )}
-                        {p.name}
-                      </div>
+                      <div key={pi}>{p.name}</div>
                     )
                     return (
                     <div key={i} className="pm-match">

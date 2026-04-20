@@ -382,7 +382,7 @@
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   width: 100%;
-  max-width: 800px;
+  max-width: 850px;
   max-height: 85vh;
   overflow-y: auto;
   position: relative;
@@ -468,7 +468,7 @@
 
 .pm-match {
   display: grid;
-  grid-template-columns: 100px 170px 300px 170px;
+  grid-template-columns: 70px 250px 200px 250px;
   grid-template-areas:
     "meta team1 score team2"
     "meta sched sched sched";
@@ -522,7 +522,7 @@
   font-weight: 600;
   color: #444;
   font-size: 13px;
-  text-align: center;
+  text-align: left;
   white-space: nowrap;
 }
 
@@ -537,28 +537,6 @@
   color: #696969;
   font-style: italic;
   font-size: 13px;
-}
-
-.pm-player-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.pm-result-bubble {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.pm-result-win {
-  background-color: #22c55e;
-}
-
-.pm-result-loss {
-  background-color: #ef4444;
 }
 
 .pm-player-link {
