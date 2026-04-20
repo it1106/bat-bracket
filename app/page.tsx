@@ -51,7 +51,8 @@ export default function Home() {
   const [headerVisible, setHeaderVisible] = useState(true)
 
   useEffect(() => {
-    if (!selectedTournament) return
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+    if (!selectedTournament || !isMobile) return
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
