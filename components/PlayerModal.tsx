@@ -10,6 +10,14 @@ interface Props {
   onClose: () => void
 }
 
+function resultBubble(entry: MatchEntry, playerId: string): 'win' | 'loss' | null {
+  if (entry.winner === null) return null
+  const inTeam1 = entry.team1.some(p => p.playerId === playerId)
+  const inTeam2 = entry.team2.some(p => p.playerId === playerId)
+  if (!inTeam1 && !inTeam2) return null
+  return (inTeam1 && entry.winner === 1) || (inTeam2 && entry.winner === 2) ? 'win' : 'loss'
+}
+
 function scoreStr(entry: MatchEntry): string {
   if (entry.walkover) return 'Walkover'
   if (entry.scores.length === 0) return '—'
@@ -60,7 +68,17 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
               <div className="pm-section">
                 <div className="pm-section-title">Match Results</div>
                 <div className="pm-matches">
-                  {profile.matches.map((m, i) => (
+                  {profile.matches.map((m, i) => {
+                    const bubble = resultBubble(m, profile.playerId)
+                    const renderName = (p: import('@/lib/types').MatchPlayer, pi: number) => (
+                      <div key={pi} className="pm-player-row">
+                        {p.playerId === profile.playerId && bubble && (
+                          <span className={`pm-result-bubble pm-result-${bubble}`} />
+                        )}
+                        {p.name}
+                      </div>
+                    )
+                    return (
                     <div key={i} className="pm-match">
                       {/* Meta: draw + round */}
                       <div className="pm-match-meta">
@@ -71,11 +89,11 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
 
                       {/* Desktop: team1 | score | team2 */}
                       <div className={`pm-match-team pm-d${m.winner === 1 ? ' winner' : ''}`}>
-                        {m.team1.length ? m.team1.map((p, pi) => <div key={pi}>{p.name}</div>) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
+                        {m.team1.length ? m.team1.map(renderName) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
                       </div>
                       <div className="pm-match-score pm-d">{scoreStr(m)}</div>
                       <div className={`pm-match-team pm-d${m.winner === 2 ? ' winner' : ''}`}>
-                        {m.team2.length ? m.team2.map((p, pi) => <div key={pi}>{p.name}</div>) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
+                        {m.team2.length ? m.team2.map(renderName) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
                       </div>
 
                       {/* Scheduled time (upcoming matches) */}
@@ -87,7 +105,7 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                       <div className="pm-board pm-m">
                         <div className={`pm-board-row${m.winner === 1 ? ' winner' : ''}`}>
                           <div className="pm-board-players">
-                            {m.team1.length ? m.team1.map((p, pi) => <div key={pi}>{p.name}</div>) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
+                            {m.team1.length ? m.team1.map(renderName) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
                           </div>
                           {m.walkover
                             ? <span className="pm-board-badge">{m.winner === 1 ? 'Walkover' : ''}</span>
@@ -96,7 +114,7 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                         </div>
                         <div className={`pm-board-row${m.winner === 2 ? ' winner' : ''}`}>
                           <div className="pm-board-players">
-                            {m.team2.length ? m.team2.map((p, pi) => <div key={pi}>{p.name}</div>) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
+                            {m.team2.length ? m.team2.map(renderName) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
                           </div>
                           {m.walkover
                             ? <span className="pm-board-badge">{m.winner === 2 ? 'Walkover' : ''}</span>
@@ -108,7 +126,7 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                         <div className="pm-board-scheduled pm-m">{m.scheduledTime}</div>
                       )}
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
             )}

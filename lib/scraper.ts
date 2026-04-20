@@ -437,5 +437,5 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
     }
   })
 
-  return { name, club, yob: '', events, matches }
+  return { playerId, name, club, yob: '', events, matches }
 }

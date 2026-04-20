@@ -81,6 +81,7 @@ export interface PlayerEvent {
 }
 
 export interface PlayerProfile {
+  playerId: string
   name: string
   club: string
   yob: string
