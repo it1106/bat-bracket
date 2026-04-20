@@ -69,6 +69,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                       onClick={onEventClick && m.drawNum ? () => onEventClick(m.drawNum, m.round) : undefined}
                     >{m.draw}</span>
                     <span className="ms-round">{abbrevRound(m.round)}</span>
+                    {m.nowPlaying && <span className="ms-now-playing" title="Now playing" />}
                   </div>
 
                   {/* Desktop: grid columns team1 | score | team2 */}
