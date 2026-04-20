@@ -40,19 +40,11 @@ export default function H2HModal({ data, loading, onClose }: Props) {
 
   const filteredMatches = data ? data.matches.filter((m) => matchFilter(m, filter)) : []
 
-  // For non-"all" filters, compute record from filtered matches using winner field
   let winsP1 = 0, winsP2 = 0
-  if (data) {
-    if (filter === 'all' && data.records.length > 0) {
-      winsP1 = data.records[0].winsP1
-      winsP2 = data.records[0].winsP2
-    } else {
-      filteredMatches.forEach((m) => {
-        if (m.winner === 1) winsP1++
-        else if (m.winner === 2) winsP2++
-      })
-    }
-  }
+  filteredMatches.forEach((m) => {
+    if (m.winner === 1) winsP1++
+    else if (m.winner === 2) winsP2++
+  })
 
   const FILTERS: { key: Filter; label: string }[] = [
     { key: 'all', label: 'All' },
