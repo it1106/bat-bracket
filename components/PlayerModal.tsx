@@ -78,15 +78,12 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                       <div className={`pm-match-team pm-d${m.winner === 1 ? ' winner' : ''}`}>
                         {m.team1.length ? m.team1.map(renderName) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
                       </div>
-                      <div className="pm-match-score pm-d">{scoreStr(m)}</div>
+                      <div className="pm-match-score pm-d">
+                        {m.scheduledTime && !m.scores.length && !m.walkover ? m.scheduledTime : scoreStr(m)}
+                      </div>
                       <div className={`pm-match-team pm-d${m.winner === 2 ? ' winner' : ''}`}>
                         {m.team2.length ? m.team2.map(renderName) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
                       </div>
-
-                      {/* Scheduled time (upcoming matches) */}
-                      {m.scheduledTime && !m.scores.length && !m.walkover && (
-                        <div className="pm-match-scheduled pm-d">{m.scheduledTime}</div>
-                      )}
 
                       {/* Mobile: two-row scoreboard */}
                       <div className="pm-board pm-m">
