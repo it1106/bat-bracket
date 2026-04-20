@@ -478,7 +478,7 @@
   background: #fafafa;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .pm-match .pm-match-meta { grid-area: meta; }
@@ -521,7 +521,7 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: #444;
-  font-size: 12px;
+  font-size: 13px;
   text-align: center;
   white-space: nowrap;
 }
