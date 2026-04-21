@@ -281,6 +281,7 @@ function footerText(el: cheerio.Cheerio<any>): string {
   return el.find('.match__footer-list').text().replace(/\s+/g, ' ').trim()
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseSingleMatch($: cheerio.CheerioAPI, matchEl: any): MatchEntry {
   const titleItems = $(matchEl).find('.match__header-title-item')
   const drawLink = titleItems.eq(0).find('a')
