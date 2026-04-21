@@ -123,7 +123,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     appSubtitle: 'Check BAT official website for accuracy',
     tournament: 'Tournament',
     draw: 'Draw',
-    trackLabel: 'Track Player / Club / Event',
+    trackLabel: 'Search',
     searchPlaceholder: 'Search player, club, or event… (/)',
     selectTournament: '— Select tournament —',
     selectDraw: '— Select draw —',
