@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { H2HData, H2HMatch } from '@/lib/types'
+import { longRound } from '@/lib/scraper'
 
 interface Props {
   data: H2HData | null
@@ -124,7 +125,7 @@ export default function H2HModal({ data, loading, onClose }: Props) {
                         {m.tournament && <div className="h2h-match-tournament">{m.tournament}</div>}
                         <div className="h2h-match-info">
                           {m.event && <span className="h2h-match-event">{m.event}</span>}
-                          {m.round && <span className="h2h-match-round">{m.round}</span>}
+                          {m.round && <span className="h2h-match-round">{longRound(m.round)}</span>}
                           {m.date && <span className="h2h-match-date">{m.date}</span>}
                         </div>
                       </div>
