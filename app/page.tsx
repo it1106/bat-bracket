@@ -473,6 +473,7 @@ export default function Home() {
           loading={modalLoading}
           onClose={handleModalClose}
           onH2HClick={handleH2HClick}
+          onPlayerClick={handlePlayerClick}
         />
       )}
 

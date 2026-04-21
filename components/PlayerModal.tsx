@@ -9,6 +9,7 @@ interface Props {
   loading: boolean
   onClose: () => void
   onH2HClick?: (h2hUrl: string) => void
+  onPlayerClick?: (playerId: string) => void
 }
 
 
@@ -19,7 +20,7 @@ function scoreStr(entry: MatchEntry): string {
   return entry.retired ? `${s} Ret.` : s
 }
 
-export default function PlayerModal({ profile, loading, onClose, onH2HClick }: Props) {
+export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick }: Props) {
   const [activeEventIds, setActiveEventIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -93,7 +94,11 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick }: P
                 <div className="pm-matches">
                   {profile.matches.filter(m => m.team1.length > 0 && m.team2.length > 0 && matchInActiveEvent(m)).map((m, i) => {
                     const renderName = (p: import('@/lib/types').MatchPlayer, pi: number) => (
-                      <div key={pi}>{p.name}</div>
+                      <div
+                        key={pi}
+                        className={onPlayerClick && p.playerId ? 'pm-player-link' : ''}
+                        onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}
+                      >{p.name}</div>
                     )
                     return (
                     <div key={i} className="pm-match">
