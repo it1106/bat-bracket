@@ -30,15 +30,6 @@ export default function Home() {
   const [selectedDraw, setSelectedDraw] = useState('')
   const [bracketHtml, setBracketHtml] = useState('')
   const [playerQuery, setPlayerQuery] = useState('')
-
-  useEffect(() => {
-    const saved = localStorage.getItem('playerQuery')
-    if (saved) setPlayerQuery(saved)
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem('playerQuery', playerQuery)
-  }, [playerQuery])
   const [loadingTournaments, setLoadingTournaments] = useState(true)
   const [loadingDraws, setLoadingDraws] = useState(false)
   const [loadingBracket, setLoadingBracket] = useState(false)
