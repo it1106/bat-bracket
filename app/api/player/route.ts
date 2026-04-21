@@ -40,9 +40,10 @@ export async function GET(request: Request) {
       try {
         const globalRes = await fetch(`https://bat.tournamentsoftware.com${globalPath}`, { headers: HEADERS })
         if (globalRes.ok) {
-          const { club, yob } = parseGlobalProfileDetails(await globalRes.text())
+          const { club, yob, stats } = parseGlobalProfileDetails(await globalRes.text())
           profile.club = club || profile.club
           profile.yob = yob
+          profile.stats = stats
         }
       } catch { /* non-fatal */ }
     }

@@ -119,6 +119,23 @@ export interface PlayerEvent {
   name: string
 }
 
+export interface WLRecord {
+  wins: number
+  losses: number
+}
+
+export interface CategoryStats {
+  career: WLRecord
+  ytd: WLRecord
+}
+
+export interface PlayerStats {
+  total: CategoryStats
+  singles: CategoryStats
+  doubles: CategoryStats
+  mixed: CategoryStats
+}
+
 export interface PlayerProfile {
   playerId: string
   name: string
@@ -126,4 +143,5 @@ export interface PlayerProfile {
   yob: string
   events: PlayerEvent[]
   matches: MatchEntry[]
+  stats?: PlayerStats
 }

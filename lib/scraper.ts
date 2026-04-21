@@ -429,14 +429,37 @@ export function parseGlobalPlayerProfile(html: string): { club: string; yob: str
   return { club: '', yob: '', profileUrl }
 }
 
-export function parseGlobalProfileDetails(html: string): { club: string; yob: string } {
+export function parseGlobalProfileDetails(html: string): { club: string; yob: string; stats: import('./types').PlayerStats } {
   const $ = cheerio.load(html)
   const club = $('.media__subheading .icon-club').closest('.media__subheading')
     .find('.nav-link__value').text().trim()
   const yobText = $('.media__subheading--muted .nav-link__value').map((_, el) => $(el).text().trim()).get()
     .find(t => t.startsWith('YOB:')) ?? ''
   const yob = yobText.replace('YOB:', '').trim()
-  return { club, yob }
+  return { club, yob, stats: parseProfileStats($) }
+}
+
+function parseProfileStats($: cheerio.CheerioAPI): import('./types').PlayerStats {
+  const empty = { career: { wins: 0, losses: 0 }, ytd: { wins: 0, losses: 0 } }
+  const readTab = (tabId: string): import('./types').CategoryStats => {
+    const tab = $(`#${tabId}`)
+    if (!tab.length) return { ...empty }
+    const parseRow = (label: string): import('./types').WLRecord => {
+      const item = tab.find('.list__item').filter((_, el) => {
+        return $(el).find('.list__label').text().trim().toLowerCase() === label.toLowerCase()
+      }).first()
+      const raw = item.find('.list__value-start').text().trim()
+      const m = raw.match(/^(\d+)\s*\/\s*(\d+)/)
+      return m ? { wins: parseInt(m[1], 10), losses: parseInt(m[2], 10) } : { wins: 0, losses: 0 }
+    }
+    return { career: parseRow('Career'), ytd: parseRow('This year') }
+  }
+  return {
+    total: readTab('tabStatsTotal'),
+    singles: readTab('tabStatsSingles'),
+    doubles: readTab('tabStatsDoubles'),
+    mixed: readTab('tabStatsMixed'),
+  }
 }
 
 export function extractProfileUrl(html: string): string {

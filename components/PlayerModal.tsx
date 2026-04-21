@@ -72,6 +72,30 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                   {[profile.club, profile.yob ? `${t('yob')}: ${profile.yob}` : ''].filter(Boolean).join(' · ')}
                 </div>
               )}
+              {profile.stats && (() => {
+                const s = profile.stats
+                const fmt = (r: { wins: number; losses: number }) => `${r.wins}–${r.losses}`
+                return (
+                  <div className="pm-stats">
+                    <div className="pm-stats-banner">
+                      <div className="pm-stats-banner-label">{t('statsCareer')}</div>
+                      <div className="pm-stats-banner-value">
+                        <span className="pm-stats-banner-career">{fmt(s.total.career)}</span>
+                        <span className="pm-stats-banner-ytd">({fmt(s.total.ytd)})</span>
+                      </div>
+                    </div>
+                    <div className="pm-stats-cells">
+                      {(['singles','doubles','mixed'] as const).map((k) => (
+                        <div key={k} className="pm-stats-cell">
+                          <div className="pm-stats-cell-label">{t(`stats${k.charAt(0).toUpperCase()+k.slice(1)}` as 'statsSingles'|'statsDoubles'|'statsMixed')}</div>
+                          <div className="pm-stats-cell-value">{fmt(s[k].career)}</div>
+                          <div className="pm-stats-cell-ytd">({fmt(s[k].ytd)})</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
 
             {profile.events.length > 0 && (

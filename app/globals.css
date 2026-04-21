@@ -438,6 +438,80 @@
   margin-top: 2px;
 }
 
+/* ── Player stats (banner + 3 cells) ─────────────────────── */
+.pm-stats {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pm-stats-banner {
+  background: linear-gradient(60deg, #3f53b3 0%, #14151b 100%);
+  color: #fff;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.pm-stats-banner-label {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.pm-stats-banner-value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.pm-stats-banner-career {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.pm-stats-banner-ytd {
+  font-size: 16px;
+  opacity: 0.85;
+  font-weight: 600;
+}
+.pm-stats-cells {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+.pm-stats-cell {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px 6px;
+  text-align: center;
+  background: #fff;
+}
+.pm-stats-cell-label {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #888;
+}
+html[lang="th"] .pm-stats-cell-label {
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.pm-stats-cell-value {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+  color: #25316B;
+}
+.pm-stats-cell-ytd {
+  font-size: 12px;
+  color: #888;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
 .pm-section {
   margin-top: 16px;
 }

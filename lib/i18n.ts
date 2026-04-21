@@ -114,6 +114,11 @@ export type TKey =
   | 'close'
   | 'h2hButton'
   | 'langToggle'
+  | 'statsCareer'
+  | 'statsSingles'
+  | 'statsDoubles'
+  | 'statsMixed'
+  | 'statsYearSuffix'
 
 const dict: Record<Lang, Record<TKey, string>> = {
   en: {
@@ -165,6 +170,11 @@ const dict: Record<Lang, Record<TKey, string>> = {
     close: 'Close',
     h2hButton: 'H2H',
     langToggle: 'ภาษาไทย',
+    statsCareer: 'Career · this year in parens',
+    statsSingles: 'Singles',
+    statsDoubles: 'Doubles',
+    statsMixed: 'Mixed',
+    statsYearSuffix: 'YTD',
   },
   th: {
     appTitle1: 'BAT',
@@ -215,6 +225,11 @@ const dict: Record<Lang, Record<TKey, string>> = {
     close: 'ปิด',
     h2hButton: 'H2H',
     langToggle: 'English',
+    statsCareer: 'สถิติอาชีพ · ในวงเล็บคือปีนี้',
+    statsSingles: 'เดี่ยว',
+    statsDoubles: 'คู่',
+    statsMixed: 'คู่ผสม',
+    statsYearSuffix: 'ปีนี้',
   },
 }
 
