@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { H2HData, H2HMatch } from '@/lib/types'
-import { longRound } from '@/lib/scraper'
+import { useLanguage } from '@/lib/LanguageContext'
 
 interface Props {
   data: H2HData | null
@@ -25,6 +25,7 @@ function matchFilter(m: H2HMatch, filter: Filter): boolean {
 }
 
 export default function H2HModal({ data, loading, onClose }: Props) {
+  const { t, longRound } = useLanguage()
   const [filter, setFilter] = useState<Filter>('all')
 
   useEffect(() => {
@@ -70,18 +71,18 @@ export default function H2HModal({ data, loading, onClose }: Props) {
   })
 
   const FILTERS: { key: Filter; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'singles', label: 'Singles' },
-    { key: 'doubles', label: 'Doubles' },
-    { key: 'mixed', label: 'Mixed' },
+    { key: 'all', label: t('filterAll') },
+    { key: 'singles', label: t('filterSingles') },
+    { key: 'doubles', label: t('filterDoubles') },
+    { key: 'mixed', label: t('filterMixed') },
   ]
 
   return (
     <div className="pm-overlay" onClick={onClose}>
       <div className="pm-modal h2h-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="pm-close" onClick={onClose} aria-label="Close">✕</button>
+        <button className="pm-close" onClick={onClose} aria-label={t('close')}>✕</button>
 
-        {loading && <div className="pm-loading">Loading H2H data…</div>}
+        {loading && <div className="pm-loading">{t('loadingH2H')}</div>}
 
         {!loading && data && (
           <>
@@ -90,7 +91,7 @@ export default function H2HModal({ data, loading, onClose }: Props) {
                 <div className="h2h-player h2h-player--1">
                   {data.player1.split(' & ').map((n, i) => <div key={i}>{n}</div>)}
                 </div>
-                <div className="h2h-vs">vs</div>
+                <div className="h2h-vs">{t('vs')}</div>
                 <div className="h2h-player h2h-player--2">
                   {data.player2.split(' & ').map((n, i) => <div key={i}>{n}</div>)}
                 </div>
@@ -117,7 +118,7 @@ export default function H2HModal({ data, loading, onClose }: Props) {
 
             {filteredMatches.length > 0 && (
               <div className="pm-section">
-                <div className="pm-section-title">Match History ({filteredMatches.length})</div>
+                <div className="pm-section-title">{t('matchHistory')} ({filteredMatches.length})</div>
                 <div className="h2h-matches">
                   {filteredMatches.map((m, i) => (
                     <div key={i} className="h2h-match">
@@ -136,7 +137,7 @@ export default function H2HModal({ data, loading, onClose }: Props) {
                           </span>
                           {m.walkover
                             ? <span className="h2h-board-badge">{m.winner === 1 ? 'W/O' : ''}</span>
-                            : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="h2h-board-badge">Ret.</span>}</>
+                            : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="h2h-board-badge">{t('retired')}</span>}</>
                           }
                         </div>
                         <div className={`h2h-board-row${m.winner === 2 ? ' winner' : ''}`}>
@@ -145,7 +146,7 @@ export default function H2HModal({ data, loading, onClose }: Props) {
                           </span>
                           {m.walkover
                             ? <span className="h2h-board-badge">{m.winner === 2 ? 'W/O' : ''}</span>
-                            : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="h2h-board-badge">Ret.</span>}</>
+                            : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="h2h-board-badge">{t('retired')}</span>}</>
                           }
                         </div>
                       </div>
@@ -157,7 +158,7 @@ export default function H2HModal({ data, loading, onClose }: Props) {
 
             {filteredMatches.length === 0 && (
               <div className="pm-empty">
-                {data.matches.length === 0 ? 'No H2H data available.' : 'No matches for this discipline.'}
+                {data.matches.length === 0 ? t('noH2HData') : t('noH2HDiscipline')}
               </div>
             )}
           </>

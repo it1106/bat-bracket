@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { PlayerProfile, MatchEntry } from '@/lib/types'
-import { abbrevRound } from '@/lib/scraper'
+import { useLanguage } from '@/lib/LanguageContext'
 
 interface Props {
   profile: PlayerProfile | null
@@ -13,14 +13,16 @@ interface Props {
 }
 
 
-function scoreStr(entry: MatchEntry): string {
-  if (entry.walkover) return 'Walkover'
-  if (entry.scores.length === 0) return 'vs.'
+function scoreStr(entry: MatchEntry, tr: { walkover: string; vsMatch: string; retired: string }): string {
+  if (entry.walkover) return tr.walkover
+  if (entry.scores.length === 0) return tr.vsMatch
   const s = entry.scores.map((s) => `${s.t1}–${s.t2}`).join(', ')
-  return entry.retired ? `${s} Ret.` : s
+  return entry.retired ? `${s} ${tr.retired}` : s
 }
 
 export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick }: Props) {
+  const { t, abbrevRound } = useLanguage()
+  const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const [activeEventIds, setActiveEventIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -55,10 +57,10 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
   return (
     <div className="pm-overlay" onClick={onClose}>
       <div className="pm-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="pm-close" onClick={onClose} aria-label="Close">✕</button>
+        <button className="pm-close" onClick={onClose} aria-label={t('close')}>✕</button>
 
         {loading && (
-          <div className="pm-loading">Loading player profile…</div>
+          <div className="pm-loading">{t('loadingPlayer')}</div>
         )}
 
         {!loading && profile && (
@@ -67,14 +69,14 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
               <div className="pm-name">{profile.name}</div>
               {(profile.club || profile.yob) && (
                 <div className="pm-club">
-                  {[profile.club, profile.yob ? `YOB: ${profile.yob}` : ''].filter(Boolean).join(' · ')}
+                  {[profile.club, profile.yob ? `${t('yob')}: ${profile.yob}` : ''].filter(Boolean).join(' · ')}
                 </div>
               )}
             </div>
 
             {profile.events.length > 0 && (
               <div className="pm-section">
-                <div className="pm-section-title">Events Entered</div>
+                <div className="pm-section-title">{t('eventsEntered')}</div>
                 <div className="pm-events">
                   {profile.events.map((ev) => (
                     <button
@@ -90,7 +92,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
 
             {profile.matches.length > 0 && (
               <div className="pm-section">
-                <div className="pm-section-title">Match Results</div>
+                <div className="pm-section-title">{t('matchResults')}</div>
                 <div className="pm-matches">
                   {profile.matches.filter(m => m.team1.length > 0 && m.team2.length > 0 && matchInActiveEvent(m)).map((m, i) => {
                     const renderName = (p: import('@/lib/types').MatchPlayer, pi: number) => (
@@ -106,45 +108,45 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                       <div className="pm-match-meta">
                         <span className="pm-match-draw">{m.draw}</span>
                         <span className="pm-match-round">{abbrevRound(m.round)}</span>
-                        {m.nowPlaying && <span className="ms-now-playing" title="Now playing" />}
+                        {m.nowPlaying && <span className="ms-now-playing" title={t('nowPlaying')} />}
                         {m.h2hUrl && onH2HClick && (
                           <button
                             className="ms-h2h-inline"
                             onClick={() => onH2HClick(m.h2hUrl!)}
-                            title="Head to Head"
-                          >H2H</button>
+                            title={t('h2hButton')}
+                          >{t('h2hButton')}</button>
                         )}
                       </div>
 
                       {/* Desktop: team1 | score | team2 */}
                       <div className={`pm-match-team pm-d${m.winner === 1 ? ' winner' : ''}`}>
-                        {m.team1.length ? m.team1.map(renderName) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
+                        {m.team1.length ? m.team1.map(renderName) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                       </div>
                       <div className="pm-match-score pm-d">
-                        {m.scheduledTime && !m.scores.length && !m.walkover ? m.scheduledTime : scoreStr(m)}
+                        {m.scheduledTime && !m.scores.length && !m.walkover ? m.scheduledTime : scoreStr(m, scoreTr)}
                       </div>
                       <div className={`pm-match-team pm-d${m.winner === 2 ? ' winner' : ''}`}>
-                        {m.team2.length ? m.team2.map(renderName) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
+                        {m.team2.length ? m.team2.map(renderName) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                       </div>
 
                       {/* Mobile: two-row scoreboard */}
                       <div className="pm-board pm-m">
                         <div className={`pm-board-row${m.winner === 1 ? ' winner' : ''}`}>
                           <div className="pm-board-players">
-                            {m.team1.length ? m.team1.map(renderName) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
+                            {m.team1.length ? m.team1.map(renderName) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                           </div>
                           {m.walkover
-                            ? <span className="pm-board-badge">{m.winner === 1 ? 'Walkover' : ''}</span>
-                            : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="pm-board-badge">Ret.</span>}</>
+                            ? <span className="pm-board-badge">{m.winner === 1 ? t('walkover') : ''}</span>
+                            : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="pm-board-badge">{t('retired')}</span>}</>
                           }
                         </div>
                         <div className={`pm-board-row${m.winner === 2 ? ' winner' : ''}`}>
                           <div className="pm-board-players">
-                            {m.team2.length ? m.team2.map(renderName) : m.winner !== null ? <div className="pm-bye">Bye</div> : null}
+                            {m.team2.length ? m.team2.map(renderName) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                           </div>
                           {m.walkover
-                            ? <span className="pm-board-badge">{m.winner === 2 ? 'Walkover' : ''}</span>
-                            : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="pm-board-badge">Ret.</span>}</>
+                            ? <span className="pm-board-badge">{m.winner === 2 ? t('walkover') : ''}</span>
+                            : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="pm-board-badge">{t('retired')}</span>}</>
                           }
                         </div>
                       </div>
@@ -158,7 +160,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
             )}
 
             {profile.matches.length === 0 && profile.events.length === 0 && (
-              <div className="pm-empty">No match data available yet.</div>
+              <div className="pm-empty">{t('noPlayerMatches')}</div>
             )}
           </>
         )}

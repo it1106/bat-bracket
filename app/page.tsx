@@ -6,6 +6,7 @@ import MatchSchedule from '@/components/MatchSchedule'
 import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
+import { useLanguage } from '@/lib/LanguageContext'
 import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
@@ -24,6 +25,7 @@ async function safeJson(res: Response): Promise<unknown> {
 type ViewMode = 'bracket' | 'matches'
 
 export default function Home() {
+  const { lang, toggleLang, t } = useLanguage()
   const [tournaments, setTournaments] = useState<TournamentInfo[]>([])
   const [draws, setDraws] = useState<DrawInfo[]>([])
   const [selectedTournament, setSelectedTournament] = useState('')
@@ -294,15 +296,15 @@ export default function Home() {
         <div className="flex items-end gap-3 px-5 py-2.5 flex-wrap">
           <div className="flex flex-col whitespace-nowrap mr-2">
             <span className="font-bold text-gray-900" style={{fontSize:'1.2rem',lineHeight:'2rem'}}>
-              <span style={{color:'#25316B'}}>BAT</span> <span style={{color:'#BE1D2E'}}>Unofficial</span> Scores
+              <span style={{color:'#25316B'}}>{t('appTitle1')}</span> <span style={{color:'#BE1D2E'}}>{t('appTitle2')}</span> {t('appTitle3')}
             </span>
-            <span className="text-[12px] text-gray-400">Check BAT official website for accuracy</span>
+            <span className="text-[12px] text-gray-400">{t('appSubtitle')}</span>
           </div>
 
           {/* Tournament selector */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
-              Tournament
+            <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-gray-400 uppercase tracking-wide`}>
+              {t('tournament')}
             </label>
             <select
               value={selectedTournament}
@@ -311,10 +313,10 @@ export default function Home() {
               className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[220px] bg-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
             >
               <option value="">
-                {loadingTournaments ? 'Loading…' : '— Select tournament —'}
+                {loadingTournaments ? t('loading') : t('selectTournament')}
               </option>
-              {tournaments.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+              {tournaments.map((tn) => (
+                <option key={tn.id} value={tn.id}>{tn.name}</option>
               ))}
             </select>
           </div>
@@ -322,8 +324,8 @@ export default function Home() {
           {/* Draw selector — only relevant in bracket view */}
           {viewMode === 'bracket' && (
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
-                Draw
+              <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-gray-400 uppercase tracking-wide`}>
+                {t('draw')}
               </label>
               <select
                 value={selectedDraw}
@@ -332,7 +334,7 @@ export default function Home() {
                 className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[160px] bg-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
               >
                 <option value="">
-                  {loadingDraws ? 'Loading…' : draws.length === 0 && selectedTournament ? 'No draws' : '— Select draw —'}
+                  {loadingDraws ? t('loading') : draws.length === 0 && selectedTournament ? t('noDraws') : t('selectDraw')}
                 </option>
                 {draws.map((d) => (
                   <option key={d.drawNum} value={d.drawNum}>
@@ -345,14 +347,14 @@ export default function Home() {
 
           {/* Player search */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
-              Track Player / Club / Event
+            <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-gray-400 uppercase tracking-wide`}>
+              {t('trackLabel')}
             </label>
-            <div className="relative min-w-[180px]">
+            <div className="relative min-w-[200px]">
               <input
                 ref={playerSearchRef}
                 type="text"
-                placeholder="Search player, club, or event… (/)"
+                placeholder={t('searchPlaceholder')}
                 value={playerQuery}
                 onChange={(e) => setPlayerQuery(e.target.value)}
                 className="w-full border border-gray-300 rounded-md pl-2.5 pr-7 py-1.5 text-xs bg-white focus:outline-none focus:border-blue-500"
@@ -361,23 +363,34 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setPlayerQuery('')}
-                  aria-label="Clear search"
+                  aria-label={t('clearSearch')}
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 text-[11px] leading-none"
                 >✕</button>
               )}
             </div>
           </div>
 
-          {/* Export — bracket view only */}
-          {viewMode === 'bracket' && (
+          {/* Right-side controls: export (bracket only) + language toggle */}
+          <div className="ml-auto flex items-center gap-2">
+            {viewMode === 'bracket' && (
+              <button
+                onClick={handleExport}
+                disabled={!bracketHtml || loading}
+                className="bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white rounded-md px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors"
+              >
+                {t('exportJpg')}
+              </button>
+            )}
             <button
-              onClick={handleExport}
-              disabled={!bracketHtml || loading}
-              className="ml-auto bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white rounded-md px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors"
+              onClick={toggleLang}
+              aria-label="Toggle language"
+              title={lang === 'en' ? 'เปลี่ยนเป็นภาษาไทย' : 'Switch to English'}
+              className="inline-flex items-center rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold overflow-hidden"
             >
-              ↓ Export JPG
+              <span className={`px-2 py-1 ${lang === 'en' ? 'bg-[#25316B] text-white' : ''}`}>EN</span>
+              <span className={`px-2 py-1 ${lang === 'th' ? 'bg-[#25316B] text-white' : ''}`}>TH</span>
             </button>
-          )}
+          </div>
         </div>
       </div>
 
@@ -392,7 +405,7 @@ export default function Home() {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            Bracket
+            {t('bracket')}
           </button>
           <button
             onClick={() => setViewMode('matches')}
@@ -402,7 +415,7 @@ export default function Home() {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            Match Schedule
+            {t('matchSchedule')}
             {loadingMatches && <span className="ml-1 opacity-50">…</span>}
           </button>
         </div>
@@ -413,15 +426,15 @@ export default function Home() {
         <div className="flex gap-4 px-5 py-2 bg-white border-b border-gray-100 text-xs text-gray-500">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-sm bg-green-100 border border-green-300" />
-            Winner
+            {t('winner')}
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-sm bg-gray-50 border border-gray-300" />
-            Not played
+            {t('notPlayed')}
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-sm bg-yellow-100 border border-yellow-400" />
-            Tracked player
+            {t('trackedPlayer')}
           </div>
         </div>
       )}
@@ -439,25 +452,25 @@ export default function Home() {
           {!bracketHtml && !loading && !error && (
             <div className="p-10 text-center text-gray-400 text-sm">
               {!selectedTournament
-                ? 'Select a tournament above to get started.'
+                ? t('startPrompt')
                 : !selectedDraw
-                ? 'Select a draw to view the bracket.'
-                : 'Loading…'}
+                ? t('selectDrawPrompt')
+                : t('loading')}
             </div>
           )}
 
           {loadingBracket && (
-            <div className="p-10 text-center text-gray-400 text-sm">Loading bracket…</div>
+            <div className="p-10 text-center text-gray-400 text-sm">{t('loadingBracket')}</div>
           )}
 
           {fromRound > 0 && bracketHtml && (
             <div className="flex items-center gap-2 px-5 py-1.5 bg-blue-50 border-b border-blue-200 text-xs text-blue-700">
-              <span>Viewing from <strong>{fromRoundName}</strong></span>
+              <span>{t('viewingFrom')} <strong>{fromRoundName}</strong></span>
               <button
                 onClick={() => handleRoundClick(0)}
                 className="ml-1 underline hover:no-underline"
               >
-                ↩ Show all rounds
+                {t('showAllRounds')}
               </button>
             </div>
           )}

@@ -451,6 +451,10 @@
   margin-bottom: 8px;
 }
 
+html[lang="th"] .pm-section-title {
+  font-size: 11px;
+}
+
 .pm-events {
   display: flex;
   flex-wrap: wrap;
