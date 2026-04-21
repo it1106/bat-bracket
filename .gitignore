@@ -37,3 +37,6 @@ next-env.d.ts
 
 # superpowers
 .superpowers/
+
+# external projects
+KBADashboard/

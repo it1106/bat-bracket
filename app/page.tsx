@@ -5,7 +5,8 @@ import BracketCanvas from '@/components/BracketCanvas'
 import MatchSchedule from '@/components/MatchSchedule'
 import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
-import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchTimeGroup, MatchesData, PlayerProfile } from '@/lib/types'
+import H2HModal from '@/components/H2HModal'
+import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchTimeGroup, MatchesData, PlayerProfile, H2HData } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
   return typeof data === 'object' && data !== null && 'error' in data
@@ -38,13 +39,15 @@ export default function Home() {
   const [drawName, setDrawName] = useState('')
   const [fromRound, setFromRound] = useState(0)
   const [fromRoundName, setFromRoundName] = useState('')
-  const [viewMode, setViewMode] = useState<ViewMode>('bracket')
+  const [viewMode, setViewMode] = useState<ViewMode>('matches')
   const [matchDays, setMatchDays] = useState<MatchDay[]>([])
   const [selectedDay, setSelectedDay] = useState('')
   const [matchTimeGroups, setMatchTimeGroups] = useState<MatchTimeGroup[]>([])
   const [playerClubMap, setPlayerClubMap] = useState<Record<string, string>>({})
   const [modalProfile, setModalProfile] = useState<PlayerProfile | null>(null)
   const [modalLoading, setModalLoading] = useState(false)
+  const [h2hData, setH2hData] = useState<H2HData | null>(null)
+  const [h2hLoading, setH2hLoading] = useState(false)
   const bracketRef = useRef<HTMLDivElement>(null)
   const lastScrollY = useRef(0)
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
@@ -93,6 +96,7 @@ export default function Home() {
     setMatchDays([])
     setMatchTimeGroups([])
     setSelectedDay('')
+    setViewMode('matches')
     if (!id) return
 
     setLoadingDraws(true)
@@ -221,6 +225,22 @@ export default function Home() {
     setModalLoading(false)
   }, [])
 
+  const handleH2HClick = useCallback(async (h2hUrl: string) => {
+    setH2hData(null)
+    setH2hLoading(true)
+    try {
+      const res = await fetch(`/api/h2h?path=${encodeURIComponent(h2hUrl)}`)
+      const data = await safeJson(res) as H2HData | ApiError
+      if (!isApiError(data)) setH2hData(data)
+    } catch {}
+    finally { setH2hLoading(false) }
+  }, [])
+
+  const handleH2HClose = useCallback(() => {
+    setH2hData(null)
+    setH2hLoading(false)
+  }, [])
+
   const handleDayChange = useCallback(async (date: string) => {
     if (!selectedTournament) return
     setSelectedDay(date)
@@ -317,7 +337,7 @@ export default function Home() {
             </label>
             <input
               type="text"
-              placeholder="Search player or event…"
+              placeholder="Search player, club, or event…"
               value={playerQuery}
               onChange={(e) => setPlayerQuery(e.target.value)}
               className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[180px] bg-white focus:outline-none focus:border-blue-500"
@@ -425,6 +445,7 @@ export default function Home() {
               bracketRef={bracketRef}
               onRoundClick={handleRoundClick}
               onPlayerClick={handlePlayerClick}
+              playerClubMap={playerClubMap}
             />
           )}
         </>
@@ -442,15 +463,27 @@ export default function Home() {
           onEventClick={handleOpenBracketAtRound}
           playerClubMap={playerClubMap}
           onPlayerClick={handlePlayerClick}
+          onH2HClick={handleH2HClick}
         />
       )}
 
-      {/* Player profile modal (fixed, rendered outside view blocks) */}
+      {/* Player profile modal */}
       {(modalLoading || modalProfile) && (
         <PlayerModal
           profile={modalProfile}
           loading={modalLoading}
           onClose={handleModalClose}
+          onH2HClick={handleH2HClick}
+          onPlayerClick={handlePlayerClick}
+        />
+      )}
+
+      {/* H2H modal */}
+      {(h2hLoading || h2hData) && (
+        <H2HModal
+          data={h2hData}
+          loading={h2hLoading}
+          onClose={handleH2HClose}
         />
       )}
     </>

@@ -452,21 +452,40 @@
 }
 
 .pm-events {
-  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
-.pm-event-item {
-  font-size: 13px;
-  color: #1a1a1a;
-  padding: 5px 10px;
+.pm-event-pill {
+  font-size: 12px;
+  font-weight: 600;
+  color: #25316B;
   background: #f0f2f8;
-  border-radius: 6px;
-  font-weight: 500;
+  border: 1px solid #d8dcec;
+  border-radius: 14px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+
+.pm-event-pill:hover {
+  background: #e2e6f4;
+  border-color: #c5cae8;
+}
+
+.pm-event-pill.active {
+  background: #25316B;
+  color: #fff;
+  border-color: #25316B;
+}
+
+.pm-event-pill.active:hover {
+  background: #1a237e;
+  border-color: #1a237e;
 }
 
 .pm-matches {
@@ -656,6 +675,214 @@
     color: #888;
     margin-top: 6px;
   }
+}
+
+/* ── H2H ── */
+.h2h-modal {
+  width: 800px;
+  max-width: calc(100vw - 32px);
+}
+
+.h2h-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.h2h-player {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a1a1a;
+  flex: 1;
+  line-height: 1.25;
+}
+
+.h2h-player--1 { text-align: right; }
+.h2h-player--2 { text-align: left; }
+
+.h2h-vs {
+  font-size: 14px;
+  color: #aaa;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.h2h-record {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+  text-align: center;
+}
+
+.h2h-record:last-child { border-bottom: none; }
+
+.h2h-record-category {
+  font-size: 14px;
+  color: #888;
+  min-width: 120px;
+  text-align: center;
+}
+
+.h2h-record-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 30px;
+  font-weight: 700;
+  width: 100%;
+}
+
+.h2h-wins { color: #aaa; }
+.h2h-wins--leader { color: #166534; }
+.h2h-wins-sep { color: #ccc; font-size: 22px; }
+
+.h2h-filter-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.h2h-filter-tab {
+  padding: 4px 14px;
+  border-radius: 20px;
+  border: 1px solid #d1d5db;
+  background: transparent;
+  font-size: 14px;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.h2h-filter-tab:hover {
+  background: #f3f4f6;
+}
+
+.h2h-filter-tab.active {
+  background: #25316B;
+  color: #fff;
+  border-color: #25316B;
+}
+
+.h2h-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.h2h-match {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 15px;
+}
+
+.h2h-match-meta {
+  margin-bottom: 6px;
+}
+
+.h2h-match-tournament {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 2px;
+}
+
+.h2h-match-info {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.h2h-match-event {
+  font-weight: 600;
+  color: #25316B;
+  font-size: 14px;
+}
+
+.h2h-match-round {
+  font-size: 13px;
+  color: #888;
+}
+
+.h2h-match-date {
+  font-size: 13px;
+  color: #aaa;
+  margin-left: auto;
+}
+
+/* Scoreboard rows */
+.h2h-board {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.h2h-board-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.h2h-board-player {
+  flex: 1;
+  font-size: 14px;
+  color: #999;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.h2h-board-row.winner .h2h-board-player {
+  color: #111;
+  font-weight: 700;
+}
+
+.h2h-board-set {
+  font-size: 14px;
+  font-weight: 600;
+  color: #bbb;
+  min-width: 22px;
+  text-align: center;
+}
+
+.h2h-board-row.winner .h2h-board-set {
+  color: #111;
+}
+
+.h2h-board-badge {
+  font-size: 12px;
+  color: #888;
+  font-style: italic;
+}
+
+/* H2H inline pill within ms-meta */
+.ms-h2h-inline {
+  align-self: flex-start;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #25316B;
+  background: #f0f2f8;
+  border: 1px solid #d8dcec;
+  border-radius: 10px;
+  padding: 1px 8px;
+  cursor: pointer;
+}
+
+.ms-h2h-inline:hover {
+  background: #25316B;
+  color: #fff;
+  border-color: #25316B;
 }
 
 /* ── Match Schedule ── */
@@ -855,6 +1082,12 @@
     color: #25316B;
     padding: 1px 6px;
     border-radius: 4px;
+  }
+
+  .ms-h2h-inline {
+    align-self: center;
+    margin-top: 0;
+    margin-left: auto;
   }
 
   /* Scoreboard: each row = players + per-set score cells */

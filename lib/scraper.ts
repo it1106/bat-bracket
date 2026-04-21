@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchTimeGroup, MatchDay, MatchesData } from './types'
+import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchTimeGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch } from './types'
 
 function extractId(url: string): string {
   const match = url.match(/\/tournament\/([^/]+)/)
@@ -115,19 +115,33 @@ function buildSvgConnector(groupCount: number, topBase: number, slotPitch: numbe
   return `<svg width="24" height="${totalH}" style="position:absolute;top:${svgTop}px;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path></svg>`
 }
 
+const ROUND_TRANSLATIONS: Record<string, string> = {
+  'finale': 'Final',
+  'halve finale': 'Semi Final',
+  'kwartfinale': 'Quarter Final',
+  'eerste ronde': 'R1',
+  'tweede ronde': 'R2',
+  'derde ronde': 'R3',
+  'vierde ronde': 'R4',
+  'groepsfase': 'Groups',
+}
+
 export function abbrevRound(name: string): string {
   const n = name.trim()
-  if (/^final$/i.test(n)) return 'F'
-  if (/semi.?final/i.test(n)) return 'SF'
-  if (/quarter.?final/i.test(n)) return 'QF'
-  const rofMatch = n.match(/round\s+of\s+(\d+)/i)
+  const translated = ROUND_TRANSLATIONS[n.toLowerCase()] ?? n
+  const t = translated.trim()
+  if (/^final$/i.test(t)) return 'F'
+  if (/semi.?final/i.test(t)) return 'SF'
+  if (/quarter.?final/i.test(t)) return 'QF'
+  const rofMatch = t.match(/round\s+of\s+(\d+)/i)
   if (rofMatch) return `R${rofMatch[1]}`
-  const rMatch = n.match(/^(?:round|rd\.?)\s*(\d+)/i)
+  const rondVanMatch = t.match(/^ronde\s+van\s+(\d+)$/i)
+  if (rondVanMatch) return `R${rondVanMatch[1]}`
+  const rMatch = t.match(/^(?:round|rd\.?|r)\s*(\d+)/i)
   if (rMatch) return `R${rMatch[1]}`
-  const ordMatch = n.match(/^(\d+)(?:st|nd|rd|th)\s+round/i)
+  const ordMatch = t.match(/^(\d+)(?:st|nd|rd|th)\s+round/i)
   if (ordMatch) return `R${ordMatch[1]}`
-  // Fallback: initials of each word, max 4 chars
-  return n.split(/\s+/).map((w) => w[0].toUpperCase()).join('').slice(0, 4)
+  return t.split(/\s+/).map((w) => w[0]?.toUpperCase() ?? '').join('').slice(0, 4)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -319,7 +333,10 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchTimeGroup[] {
       const retired = !!msgText && /ret/i.test(msgText) && scores.length > 0
       const walkover = !!msgText && !retired
 
-      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court, walkover, retired, nowPlaying })
+      const h2hHref = $(matchEl).find('a.match__btn-h2h').attr('href') ?? ''
+      const h2hUrl = h2hHref || undefined
+
+      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court, walkover, retired, nowPlaying, h2hUrl })
     })
 
     if (matches.length > 0) timeGroups.push({ time, matches })
@@ -443,10 +460,110 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
     const retired = !!msgText && /ret/i.test(msgText) && scores.length > 0
     const walkover = !!msgText && !retired
 
+    const h2hHref = $(matchEl).find('a.match__btn-h2h').attr('href') ?? ''
+    const h2hUrl = h2hHref || undefined
+
+    let eventId: string | undefined
+    $(matchEl).find('a[href*="event="]').each((_, a) => {
+      if (eventId) return
+      const m = ($(a).attr('href') ?? '').match(/event=(\d+)/)
+      if (m) eventId = m[1]
+    })
+
     if (draw || team1.length) {
-      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, retired, nowPlaying, scheduledTime })
+      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, retired, nowPlaying, scheduledTime, h2hUrl, eventId })
     }
   })
 
   return { playerId, name, club, yob: '', events, matches }
+}
+
+export function parseH2H(html: string): H2HData {
+  const $ = cheerio.load(html)
+
+  // Player names from comparison table header
+  const playerNames: string[] = []
+  $('table.table--comparison thead th.th__title').each((_, th) => {
+    if ($(th).hasClass('comparison-thead__title')) return
+    const links = $(th).find('a[data-player-id], a')
+    const name = links.length
+      ? links.map((_, a) => $(a).text().trim()).get().filter(Boolean).join(' & ')
+      : $(th).text().trim()
+    if (name) playerNames.push(name)
+  })
+  const player1 = playerNames[0] ?? ''
+  const player2 = playerNames[1] ?? ''
+
+  // Win/loss from comparison widget spans
+  const winsP1 = parseInt($('.comparison-average__value.is-player-1').first().text().trim(), 10) || 0
+  const winsP2 = parseInt($('.comparison-average__value.is-player-2').first().text().trim(), 10) || 0
+  const records: H2HRecord[] = (winsP1 || winsP2) ? [{ category: '', winsP1, winsP2 }] : []
+
+  // Past matches — H2H page uses ol.match-group > div.match (no match-group__item wrapper)
+  const matches: H2HMatch[] = []
+  $('.match-group div.match').each((_, matchEl) => {
+    const titleItems = $(matchEl).find('.match__header-title .match__header-title-item')
+    // H2H page: 3 title items — tournament, event, round
+    const t0 = titleItems.eq(0).find('.nav-link__value').text().trim()
+    const t1 = titleItems.eq(1).find('.nav-link__value').text().trim()
+    const t2 = titleItems.eq(2).find('.nav-link__value').text().trim()
+    const tournament = t2 ? t0 : ''
+    const event = t2 ? t1 : t0
+    const rawRound = t2 ? t2 : t1
+    const round = ROUND_TRANSLATIONS[rawRound.toLowerCase()] ?? rawRound
+
+    // Date from footer (icon-clock item)
+    let date = ''
+    $(matchEl).find('.match__footer-list-item').each((_, item) => {
+      if ($(item).find('.icon-clock').length) {
+        date = $(item).find('.nav-link__value').text().trim()
+      }
+    })
+
+    const msgText2 = $(matchEl).find('.match__message').text().trim()
+    const rows2 = $(matchEl).find('.match__row')
+    let winner: 1 | 2 | null = null
+    let team1: string[] = [], team2: string[] = []
+    rows2.each((ri, row) => {
+      const $row = $(row)
+      const hasWonClass = $row.hasClass('has-won')
+      const hasWonChild = $row.children().toArray().some(c => {
+        const cls = $(c).attr('class') ?? ''
+        return $(c).text().trim() === 'W' || cls.includes('won')
+      })
+      const hasWonSibling = ($row.next().text().trim() === 'W' || ($row.next().attr('class') ?? '').includes('won')) &&
+        !$row.next().hasClass('match__row')
+      if (hasWonClass || hasWonChild || hasWonSibling) winner = ri === 0 ? 1 : 2
+      const names = $row.find('.match__row-title-value').map((_, el) =>
+        $(el).find('.nav-link__value').text().trim()
+      ).get().filter(Boolean)
+      if (ri === 0) team1 = names
+      else team2 = names
+    })
+
+    const scores: import('./types').MatchScore[] = []
+    $(matchEl).find('.match__result ul.points').each((_, pts) => {
+      const cells = $(pts).find('.points__cell')
+      const t1v = parseInt(cells.eq(0).text().trim(), 10)
+      const t2v = parseInt(cells.eq(1).text().trim(), 10)
+      if (!isNaN(t1v) && !isNaN(t2v)) scores.push({ t1: t1v, t2: t2v })
+    })
+
+    // Fallback: infer winner from set count when has-won class is absent
+    if (winner === null && scores.length > 0) {
+      const setsT1 = scores.filter(s => s.t1 > s.t2).length
+      const setsT2 = scores.filter(s => s.t2 > s.t1).length
+      if (setsT1 > setsT2) winner = 1
+      else if (setsT2 > setsT1) winner = 2
+    }
+
+    const retired2 = !!msgText2 && /ret/i.test(msgText2) && scores.length > 0
+    const walkover2 = !!msgText2 && !retired2
+
+    if (event || tournament || scores.length) {
+      matches.push({ tournament, event, round, date, team1, team2, winner, scores, walkover: walkover2, retired: retired2 })
+    }
+  })
+
+  return { player1, player2, records, matches }
 }
