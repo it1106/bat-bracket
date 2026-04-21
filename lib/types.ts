@@ -56,6 +56,7 @@ export interface MatchEntry {
   retired: boolean
   nowPlaying: boolean
   scheduledTime?: string
+  sequenceLabel?: string
   h2hUrl?: string
   eventId?: string
 }
@@ -91,6 +92,15 @@ export interface MatchTimeGroup {
   matches: MatchEntry[]
 }
 
+export interface MatchCourtGroup {
+  court: string
+  matches: MatchEntry[]
+}
+
+export type MatchScheduleGroup =
+  | ({ type: 'time' } & MatchTimeGroup)
+  | ({ type: 'court' } & MatchCourtGroup)
+
 export interface MatchDay {
   date: string
   label: string
@@ -101,7 +111,7 @@ export interface MatchDay {
 export interface MatchesData {
   days: MatchDay[]
   currentDate: string
-  timeGroups: MatchTimeGroup[]
+  groups: MatchScheduleGroup[]
 }
 
 export interface PlayerEvent {
