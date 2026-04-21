@@ -21,7 +21,7 @@ function scoreStr(entry: MatchEntry, tr: { walkover: string; vsMatch: string; re
 }
 
 export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick }: Props) {
-  const { t, abbrevRound } = useLanguage()
+  const { t, abbrevRound, lang } = useLanguage()
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const [activeEventIds, setActiveEventIds] = useState<Set<string>>(new Set())
 
@@ -108,7 +108,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                       type="button"
                       className={`pm-event-pill${activeEventIds.has(ev.eventId) ? ' active' : ''}`}
                       onClick={() => toggleEvent(ev.eventId)}
-                    >{ev.name}</button>
+                    >{lang === 'th' ? ev.name.replace(/\s+with\s+/i, ' คู่กับ ') : ev.name}</button>
                   ))}
                 </div>
               </div>
