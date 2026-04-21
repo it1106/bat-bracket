@@ -350,7 +350,7 @@ export default function Home() {
             <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-gray-400 uppercase tracking-wide`}>
               {t('trackLabel')}
             </label>
-            <div className="relative min-w-[200px]">
+            <div className="relative min-w-[240px]">
               <input
                 ref={playerSearchRef}
                 type="text"

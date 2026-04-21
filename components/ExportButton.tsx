@@ -35,14 +35,14 @@ export async function exportBracketAsJpg({
   const header = document.createElement('div')
   header.style.cssText = `
     margin-bottom: 20px;
-    padding-bottom: 16px;
+    padding: 24px 24px 16px 24px;
     border-bottom: 2px solid #dee2e6;
     font-family: 'Segoe UI', system-ui, sans-serif;
     background: white;
   `
   header.innerHTML = `
     <div style="font-size:20px;font-weight:700;margin-bottom:2px;font-family:'Segoe UI',system-ui,sans-serif;">
-      <span style="color:#25316B;">BAT</span> <span style="color:#BE1D2E;">Unofficial</span> Brackets
+      <span style="color:#25316B;">BAT</span> <span style="color:#BE1D2E;">Unofficial</span> Scores
     </div>
     <div style="font-size:11px;color:#888;margin-bottom:8px;font-family:'Segoe UI',system-ui,sans-serif;">Check BAT official website for accuracy</div>
     <div style="font-size:15px;font-weight:600;color:#333;margin-bottom:2px;font-family:'Segoe UI',system-ui,sans-serif;">${tournamentName}</div>
