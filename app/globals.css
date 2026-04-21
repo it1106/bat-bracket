@@ -582,8 +582,12 @@
 
 @media (max-width: 900px) {
   .pm-modal {
-    padding: 20px 14px;
+    padding: 40px 14px 20px;
     max-height: 90vh;
+  }
+
+  .pm-close {
+    padding: 30px 4px 2px;
   }
 
   .pm-match {
