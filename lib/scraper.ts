@@ -126,6 +126,24 @@ const ROUND_TRANSLATIONS: Record<string, string> = {
   'groepsfase': 'Groups',
 }
 
+export function longRound(name: string): string {
+  const n = name.trim()
+  const translated = ROUND_TRANSLATIONS[n.toLowerCase()] ?? n
+  const t = translated.trim()
+  if (/^final$/i.test(t)) return 'Final'
+  if (/semi.?final/i.test(t)) return 'Semi Final'
+  if (/quarter.?final/i.test(t)) return 'Quarter Final'
+  const rofMatch = t.match(/round\s+of\s+(\d+)/i)
+  if (rofMatch) return `Round of ${rofMatch[1]}`
+  const rondVanMatch = t.match(/^ronde\s+van\s+(\d+)$/i)
+  if (rondVanMatch) return `Round of ${rondVanMatch[1]}`
+  const rMatch = t.match(/^(?:round|rd\.?|r)\s*(\d+)/i)
+  if (rMatch) return `Round ${rMatch[1]}`
+  const ordMatch = t.match(/^(\d+)(?:st|nd|rd|th)\s+round/i)
+  if (ordMatch) return `Round ${ordMatch[1]}`
+  return t
+}
+
 export function abbrevRound(name: string): string {
   const n = name.trim()
   const translated = ROUND_TRANSLATIONS[n.toLowerCase()] ?? n

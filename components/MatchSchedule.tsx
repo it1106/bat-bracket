@@ -1,7 +1,7 @@
 'use client'
 
 import type { MatchScheduleGroup, MatchDay, MatchEntry } from '@/lib/types'
-import { abbrevRound } from '@/lib/scraper'
+import { longRound } from '@/lib/scraper'
 
 interface Props {
   groups: MatchScheduleGroup[]
@@ -57,7 +57,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           className={`ms-event${onEventClick && m.drawNum ? ' ms-event--link' : ''}`}
           onClick={onEventClick && m.drawNum ? () => onEventClick(m.drawNum, m.round) : undefined}
         >{m.draw}</span>
-        <span className="ms-round">{abbrevRound(m.round)}</span>
+        <span className="ms-round">{longRound(m.round)}</span>
         {m.sequenceLabel && <span className="ms-seq">{m.sequenceLabel}</span>}
         {m.nowPlaying && <span className="ms-now-playing" title="Now playing" />}
         {m.h2hUrl && onH2HClick && (
