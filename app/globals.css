@@ -422,7 +422,6 @@
 
 .pm-header {
   margin-bottom: 16px;
-  padding-right: 24px;
 }
 
 .pm-name {
@@ -449,10 +448,10 @@
   background: linear-gradient(60deg, #3f53b3 0%, #14151b 100%);
   color: #fff;
   border-radius: 8px;
-  padding: 12px 14px;
+  padding: 14px;
 }
 .pm-stats-banner-label {
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   opacity: 0.75;
@@ -488,25 +487,25 @@
   background: #fff;
 }
 .pm-stats-cell-label {
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #888;
 }
 html[lang="th"] .pm-stats-cell-label {
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0;
   text-transform: none;
 }
 .pm-stats-cell-value {
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
   color: #25316B;
 }
 .pm-stats-cell-ytd {
-  font-size: 12px;
+  font-size: 14px;
   color: #888;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -517,7 +516,7 @@ html[lang="th"] .pm-stats-cell-label {
 }
 
 .pm-section-title {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
