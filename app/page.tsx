@@ -39,7 +39,7 @@ export default function Home() {
   const [drawName, setDrawName] = useState('')
   const [fromRound, setFromRound] = useState(0)
   const [fromRoundName, setFromRoundName] = useState('')
-  const [viewMode, setViewMode] = useState<ViewMode>('bracket')
+  const [viewMode, setViewMode] = useState<ViewMode>('matches')
   const [matchDays, setMatchDays] = useState<MatchDay[]>([])
   const [selectedDay, setSelectedDay] = useState('')
   const [matchTimeGroups, setMatchTimeGroups] = useState<MatchTimeGroup[]>([])
@@ -96,6 +96,7 @@ export default function Home() {
     setMatchDays([])
     setMatchTimeGroups([])
     setSelectedDay('')
+    setViewMode('matches')
     if (!id) return
 
     setLoadingDraws(true)
@@ -471,6 +472,7 @@ export default function Home() {
           profile={modalProfile}
           loading={modalLoading}
           onClose={handleModalClose}
+          onH2HClick={handleH2HClick}
         />
       )}
 

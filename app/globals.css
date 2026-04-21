@@ -677,6 +677,7 @@
   font-weight: 700;
   color: #1a1a1a;
   flex: 1;
+  line-height: 1.25;
 }
 
 .h2h-player--1 { text-align: right; }
@@ -843,29 +844,23 @@
   font-style: italic;
 }
 
-/* H2H row at bottom of match card */
-.ms-h2h-row {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: center;
-  padding-top: 6px;
+/* H2H inline pill within ms-meta */
+.ms-h2h-inline {
+  align-self: flex-start;
   margin-top: 4px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.ms-h2h-btn {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: #25316B;
-  background: transparent;
-  border: 1px solid #c5cae8;
-  border-radius: 20px;
-  padding: 2px 16px;
+  background: #f0f2f8;
+  border: 1px solid #d8dcec;
+  border-radius: 10px;
+  padding: 1px 8px;
   cursor: pointer;
-  letter-spacing: 0.02em;
 }
 
-.ms-h2h-btn:hover {
+.ms-h2h-inline:hover {
   background: #25316B;
   color: #fff;
   border-color: #25316B;
@@ -1068,6 +1063,12 @@
     color: #25316B;
     padding: 1px 6px;
     border-radius: 4px;
+  }
+
+  .ms-h2h-inline {
+    align-self: center;
+    margin-top: 0;
+    margin-left: auto;
   }
 
   /* Scoreboard: each row = players + per-set score cells */

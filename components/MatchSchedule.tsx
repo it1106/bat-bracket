@@ -18,7 +18,7 @@ interface Props {
 
 function scoreStr(entry: MatchEntry): string {
   if (entry.walkover) return 'Walkover'
-  if (entry.scores.length === 0) return ''
+  if (entry.scores.length === 0) return 'vs.'
   const s = entry.scores.map((s) => `${s.t1}-${s.t2}`).join(', ')
   return entry.retired ? `${s} Ret.` : s
 }
@@ -82,6 +82,13 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                     >{m.draw}</span>
                     <span className="ms-round">{abbrevRound(m.round)}</span>
                     {m.nowPlaying && <span className="ms-now-playing" title="Now playing" />}
+                    {m.h2hUrl && onH2HClick && (
+                      <button
+                        className="ms-h2h-inline"
+                        onClick={() => onH2HClick(m.h2hUrl!)}
+                        title="Head to Head"
+                      >H2H</button>
+                    )}
                   </div>
 
                   {/* Desktop: grid columns team1 | score | team2 */}
@@ -119,11 +126,6 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                     </div>
                   </div>
 
-                  {m.h2hUrl && onH2HClick && (
-                    <div className="ms-h2h-row">
-                      <button className="ms-h2h-btn" onClick={() => onH2HClick(m.h2hUrl!)} title="Head to Head">H2H</button>
-                    </div>
-                  )}
                 </div>
               )
             })}

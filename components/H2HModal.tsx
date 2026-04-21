@@ -86,9 +86,13 @@ export default function H2HModal({ data, loading, onClose }: Props) {
           <>
             <div className="pm-header">
               <div className="h2h-header">
-                <div className="h2h-player h2h-player--1">{data.player1}</div>
+                <div className="h2h-player h2h-player--1">
+                  {data.player1.split(' & ').map((n, i) => <div key={i}>{n}</div>)}
+                </div>
                 <div className="h2h-vs">vs</div>
-                <div className="h2h-player h2h-player--2">{data.player2}</div>
+                <div className="h2h-player h2h-player--2">
+                  {data.player2.split(' & ').map((n, i) => <div key={i}>{n}</div>)}
+                </div>
               </div>
             </div>
 

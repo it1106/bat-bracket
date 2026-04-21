@@ -8,17 +8,18 @@ interface Props {
   profile: PlayerProfile | null
   loading: boolean
   onClose: () => void
+  onH2HClick?: (h2hUrl: string) => void
 }
 
 
 function scoreStr(entry: MatchEntry): string {
   if (entry.walkover) return 'Walkover'
-  if (entry.scores.length === 0) return ''
+  if (entry.scores.length === 0) return 'vs.'
   const s = entry.scores.map((s) => `${s.t1}–${s.t2}`).join(', ')
   return entry.retired ? `${s} Ret.` : s
 }
 
-export default function PlayerModal({ profile, loading, onClose }: Props) {
+export default function PlayerModal({ profile, loading, onClose, onH2HClick }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
@@ -73,6 +74,13 @@ export default function PlayerModal({ profile, loading, onClose }: Props) {
                         <span className="pm-match-draw">{m.draw}</span>
                         <span className="pm-match-round">{abbrevRound(m.round)}</span>
                         {m.nowPlaying && <span className="ms-now-playing" title="Now playing" />}
+                        {m.h2hUrl && onH2HClick && (
+                          <button
+                            className="ms-h2h-inline"
+                            onClick={() => onH2HClick(m.h2hUrl!)}
+                            title="Head to Head"
+                          >H2H</button>
+                        )}
                       </div>
 
                       {/* Desktop: team1 | score | team2 */}

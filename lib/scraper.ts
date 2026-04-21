@@ -460,8 +460,11 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
     const retired = !!msgText && /ret/i.test(msgText) && scores.length > 0
     const walkover = !!msgText && !retired
 
+    const h2hHref = $(matchEl).find('a.match__btn-h2h').attr('href') ?? ''
+    const h2hUrl = h2hHref || undefined
+
     if (draw || team1.length) {
-      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, retired, nowPlaying, scheduledTime })
+      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, retired, nowPlaying, scheduledTime, h2hUrl })
     }
   })
 
