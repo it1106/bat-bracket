@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchTimeGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch } from './types'
+import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch } from './types'
 
 function extractId(url: string): string {
   const match = url.match(/\/tournament\/([^/]+)/)
@@ -281,68 +281,100 @@ function footerText(el: cheerio.Cheerio<any>): string {
   return el.find('.match__footer-list').text().replace(/\s+/g, ' ').trim()
 }
 
-function parseMatchGroups($: cheerio.CheerioAPI): MatchTimeGroup[] {
-  const timeGroups: MatchTimeGroup[] = []
+function parseSingleMatch($: cheerio.CheerioAPI, matchEl: any): MatchEntry {
+  const titleItems = $(matchEl).find('.match__header-title-item')
+  const drawLink = titleItems.eq(0).find('a')
+  const draw = drawLink.find('.nav-link__value').text().trim()
+  const drawHref = drawLink.attr('href') ?? ''
+  const drawNumMatch = drawHref.match(/draw=(\d+)/)
+  const drawNum = drawNumMatch ? drawNumMatch[1] : ''
+  const round = titleItems.eq(1).find('.nav-link__value').text().trim()
 
-  $('.match-group__wrapper').each((_, wrapper) => {
-    const time = $(wrapper).find('.match-group__header').text().trim()
-    const matches: MatchEntry[] = []
+  const tooltip = $(matchEl).find('.match__header-aside-block').attr('title') ?? ''
+  const courtMatch = tooltip.match(/\|\s*(.+)$/)
+  const court = courtMatch ? courtMatch[1].trim() : ''
 
-    $(wrapper).find('.match.match--list').each((_, matchEl) => {
-      const titleItems = $(matchEl).find('.match__header-title-item')
-      const drawLink = titleItems.eq(0).find('a')
-      const draw = drawLink.find('.nav-link__value').text().trim()
-      const drawHref = drawLink.attr('href') ?? ''
-      const drawNumMatch = drawHref.match(/draw=(\d+)/)
-      const drawNum = drawNumMatch ? drawNumMatch[1] : ''
-      const round = titleItems.eq(1).find('.nav-link__value').text().trim()
+  const msgText = $(matchEl).find('.match__message').text().trim()
+  const nowPlaying = ($(matchEl).html() ?? '').includes('icon-sport2')
 
-      const tooltip = $(matchEl).find('.match__header-aside-block').attr('title') ?? ''
-      const courtMatch = tooltip.match(/\|\s*(.+)$/)
-      const court = courtMatch ? courtMatch[1].trim() : ''
+  const rows = $(matchEl).find('.match__row')
+  let team1: MatchEntry['team1'] = []
+  let team2: MatchEntry['team2'] = []
+  let winner: MatchEntry['winner'] = null
 
-      const msgText = $(matchEl).find('.match__message').text().trim()
-      const nowPlaying = ($(matchEl).html() ?? '').includes('icon-sport2')
-
-      const rows = $(matchEl).find('.match__row')
-      let team1: MatchEntry['team1'] = []
-      let team2: MatchEntry['team2'] = []
-      let winner: MatchEntry['winner'] = null
-
-      rows.each((ri, row) => {
-        const hasWon = $(row).hasClass('has-won')
-        const players: MatchEntry['team1'] = []
-        $(row).find('.match__row-title-value').each((_, tv) => {
-          const a = $(tv).find('a')
-          const name = a.find('.nav-link__value').text().trim()
-          const hrefMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
-          if (name) players.push({ name, playerId: hrefMatch ? hrefMatch[1] : '' })
-        })
-        if (ri === 0) { team1 = players; if (hasWon) winner = 1 }
-        else { team2 = players; if (hasWon) winner = 2 }
-      })
-
-      const scores: MatchEntry['scores'] = []
-      $(matchEl).find('.match__result ul.points').each((_, pts) => {
-        const cells = $(pts).find('.points__cell')
-        const t1 = parseInt(cells.eq(0).text().trim(), 10)
-        const t2 = parseInt(cells.eq(1).text().trim(), 10)
-        if (!isNaN(t1) && !isNaN(t2)) scores.push({ t1, t2 })
-      })
-
-      const retired = !!msgText && /ret/i.test(msgText) && scores.length > 0
-      const walkover = !!msgText && !retired
-
-      const h2hHref = $(matchEl).find('a.match__btn-h2h').attr('href') ?? ''
-      const h2hUrl = h2hHref || undefined
-
-      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court, walkover, retired, nowPlaying, h2hUrl })
+  rows.each((ri, row) => {
+    const hasWon = $(row).hasClass('has-won')
+    const players: MatchEntry['team1'] = []
+    $(row).find('.match__row-title-value').each((_, tv) => {
+      const a = $(tv).find('a')
+      const name = a.find('.nav-link__value').text().trim()
+      const hrefMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
+      if (name) players.push({ name, playerId: hrefMatch ? hrefMatch[1] : '' })
     })
-
-    if (matches.length > 0) timeGroups.push({ time, matches })
+    if (ri === 0) { team1 = players; if (hasWon) winner = 1 }
+    else { team2 = players; if (hasWon) winner = 2 }
   })
 
-  return timeGroups
+  const scores: MatchEntry['scores'] = []
+  $(matchEl).find('.match__result ul.points').each((_, pts) => {
+    const cells = $(pts).find('.points__cell')
+    const t1 = parseInt(cells.eq(0).text().trim(), 10)
+    const t2 = parseInt(cells.eq(1).text().trim(), 10)
+    if (!isNaN(t1) && !isNaN(t2)) scores.push({ t1, t2 })
+  })
+
+  const retired = !!msgText && /ret/i.test(msgText) && scores.length > 0
+  const walkover = !!msgText && !retired
+
+  const h2hHref = $(matchEl).find('a.match__btn-h2h').attr('href') ?? ''
+  const h2hUrl = h2hHref || undefined
+
+  return { draw, drawNum, round, team1, team2, winner, scores, court, walkover, retired, nowPlaying, h2hUrl }
+}
+
+function parseMatchGroups($: cheerio.CheerioAPI): MatchScheduleGroup[] {
+  const groups: MatchScheduleGroup[] = []
+
+  $('.match-group__wrapper').each((_, wrapper) => {
+    const header = $(wrapper).find('.match-group__header').first()
+    const isCourtGroup = header.find('span').length > 0
+    if (isCourtGroup) {
+      const num = header.clone().children().remove().end().text().trim()
+      const name = header.find('span').first().text().trim()
+      const court = num ? `${name} - ${num}` : name
+      const matches: MatchEntry[] = []
+
+      $(wrapper).find('> ol > li.match-group__item, > ol.match-group > li.match-group__item').each((_, item) => {
+        const subheader = $(item).find('> .match-group__subheader .nav-link__value').first().text().replace(/\s+/g, ' ').trim()
+        const matchEl = $(item).find('.match.match--list').first().get(0)
+        if (!matchEl) return
+        const entry = parseSingleMatch($, matchEl)
+        if (subheader) {
+          entry.sequenceLabel = subheader
+          const timeAttr = $(item).find('> .match-group__subheader time').attr('datetime')
+          if (timeAttr) entry.scheduledTime = timeAttr
+          else {
+            const tm = subheader.match(/(\d{1,2}:\d{2})/)
+            if (tm) entry.scheduledTime = tm[1]
+          }
+        }
+        matches.push(entry)
+      })
+
+      if (matches.length > 0) groups.push({ type: 'court', court, matches })
+      return
+    }
+
+    const time = header.text().trim()
+    const matches: MatchEntry[] = []
+    $(wrapper).find('.match.match--list').each((_, matchEl) => {
+      matches.push(parseSingleMatch($, matchEl))
+    })
+
+    if (matches.length > 0) groups.push({ type: 'time', time, matches })
+  })
+
+  return groups
 }
 
 export function parseMatchesFull(html: string): MatchesData {
@@ -363,12 +395,12 @@ export function parseMatchesFull(html: string): MatchesData {
 
   const currentDate = $('.page-nav__item--active .js-date-selection-tab').attr('data-value') ?? days[0]?.date ?? ''
 
-  return { days, currentDate, timeGroups: parseMatchGroups($) }
+  return { days, currentDate, groups: parseMatchGroups($) }
 }
 
-export function parseMatchesPartial(html: string): Pick<MatchesData, 'timeGroups'> {
+export function parseMatchesPartial(html: string): Pick<MatchesData, 'groups'> {
   const $ = cheerio.load(html)
-  return { timeGroups: parseMatchGroups($) }
+  return { groups: parseMatchGroups($) }
 }
 
 export function parseGlobalPlayerProfile(html: string): { club: string; yob: string; profileUrl: string } {

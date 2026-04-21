@@ -6,7 +6,7 @@ import MatchSchedule from '@/components/MatchSchedule'
 import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
-import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchTimeGroup, MatchesData, PlayerProfile, H2HData } from '@/lib/types'
+import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
   return typeof data === 'object' && data !== null && 'error' in data
@@ -42,7 +42,7 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<ViewMode>('matches')
   const [matchDays, setMatchDays] = useState<MatchDay[]>([])
   const [selectedDay, setSelectedDay] = useState('')
-  const [matchTimeGroups, setMatchTimeGroups] = useState<MatchTimeGroup[]>([])
+  const [matchGroups, setMatchGroups] = useState<MatchScheduleGroup[]>([])
   const [playerClubMap, setPlayerClubMap] = useState<Record<string, string>>({})
   const [modalProfile, setModalProfile] = useState<PlayerProfile | null>(null)
   const [modalLoading, setModalLoading] = useState(false)
@@ -94,7 +94,7 @@ export default function Home() {
     setBracketHtml('')
     setError(null)
     setMatchDays([])
-    setMatchTimeGroups([])
+    setMatchGroups([])
     setSelectedDay('')
     setViewMode('matches')
     if (!id) return
@@ -130,7 +130,7 @@ export default function Home() {
     if (matchesResult.status === 'fulfilled' && !isApiError(matchesResult.value)) {
       const md = matchesResult.value as MatchesData
       setMatchDays(md.days)
-      setMatchTimeGroups(md.timeGroups)
+      setMatchGroups(md.groups)
       setSelectedDay(md.currentDate || md.days[0]?.date || '')
     }
   }, [tournaments])
@@ -249,11 +249,10 @@ export default function Home() {
       const res = await fetch(`/api/matches?tournament=${encodeURIComponent(selectedTournament)}&date=${date}`)
       const data = await safeJson(res)
       if (!isApiError(data)) {
-        const md = data as Pick<MatchesData, 'timeGroups'>
-        setMatchTimeGroups(md.timeGroups)
-        // Update hasMatches for this day based on actual result
+        const md = data as Pick<MatchesData, 'groups'>
+        setMatchGroups(md.groups)
         setMatchDays(prev => prev.map(d =>
-          d.date === date ? { ...d, hasMatches: md.timeGroups.length > 0 } : d
+          d.date === date ? { ...d, hasMatches: md.groups.length > 0 } : d
         ))
       }
     } catch {}
@@ -464,7 +463,7 @@ export default function Home() {
       {/* Matches view */}
       {viewMode === 'matches' && (
         <MatchSchedule
-          timeGroups={matchTimeGroups}
+          groups={matchGroups}
           days={matchDays}
           selectedDay={selectedDay}
           onDayChange={handleDayChange}
