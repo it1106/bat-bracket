@@ -27,13 +27,28 @@ function matchesQuery(entry: MatchEntry, query: string, clubMap?: Record<string,
   if (!query) return true
   const q = query.toLowerCase()
   if (entry.draw.toLowerCase().includes(q)) return true
-  return [...entry.team1, ...entry.team2].some(
-    (p) => p.name.toLowerCase().includes(q) ||
-           (clubMap && p.playerId && (clubMap[p.playerId] ?? '').toLowerCase().includes(q))
-  )
+  return [...entry.team1, ...entry.team2].some((p) => playerMatchesQuery(p, q, clubMap))
+}
+
+function playerMatchesQuery(
+  p: { name: string; playerId: string },
+  qLower: string,
+  clubMap?: Record<string, string>,
+): boolean {
+  if (!qLower) return false
+  if (p.name.toLowerCase().includes(qLower)) return true
+  if (clubMap && p.playerId && (clubMap[p.playerId] ?? '').toLowerCase().includes(qLower)) return true
+  return false
 }
 
 export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick, playerClubMap, onPlayerClick, onH2HClick }: Props) {
+  const qLower = playerQuery.trim().toLowerCase()
+  const nameCls = (p: { name: string; playerId: string }) => {
+    const cls: string[] = []
+    if (onPlayerClick && p.playerId) cls.push('pm-player-link')
+    if (qLower && playerMatchesQuery(p, qLower, playerClubMap)) cls.push('ms-player-highlight')
+    return cls.join(' ')
+  }
   return (
     <div className="match-schedule">
       {/* Date tabs */}
@@ -94,13 +109,13 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                   {/* Desktop: grid columns team1 | score | team2 */}
                   <div className={`ms-team ms-team--1 ms-d${m.winner === 1 ? ' winner' : ''}`}>
                     {m.team1.map((p, i) => (
-                      <div key={i} className={onPlayerClick && p.playerId ? 'pm-player-link' : ''} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>
+                      <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>
                     ))}
                   </div>
                   <div className="ms-score ms-d">{scoreStr(m)}</div>
                   <div className={`ms-team ms-team--2 ms-d${m.winner === 2 ? ' winner' : ''}`}>
                     {m.team2.map((p, i) => (
-                      <div key={i} className={onPlayerClick && p.playerId ? 'pm-player-link' : ''} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>
+                      <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>
                     ))}
                   </div>
 
@@ -108,7 +123,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                   <div className="ms-board ms-m">
                     <div className={`ms-board-row${m.winner === 1 ? ' winner' : ''}`}>
                       <div className="ms-board-players">
-                        {m.team1.map((p, i) => <div key={i} className={onPlayerClick && p.playerId ? 'pm-player-link' : ''} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>)}
+                        {m.team1.map((p, i) => <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>)}
                       </div>
                       {m.walkover
                         ? <span className="ms-board-badge">{m.winner === 1 ? 'Walkover' : ''}</span>
@@ -117,7 +132,7 @@ export default function MatchSchedule({ timeGroups, days, selectedDay, onDayChan
                     </div>
                     <div className={`ms-board-row${m.winner === 2 ? ' winner' : ''}`}>
                       <div className="ms-board-players">
-                        {m.team2.map((p, i) => <div key={i} className={onPlayerClick && p.playerId ? 'pm-player-link' : ''} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>)}
+                        {m.team2.map((p, i) => <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{p.name}</div>)}
                       </div>
                       {m.walkover
                         ? <span className="ms-board-badge">{m.winner === 2 ? 'Walkover' : ''}</span>

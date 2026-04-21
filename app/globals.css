@@ -1027,6 +1027,15 @@
   color: #166534;
 }
 
+.ms-player-highlight {
+  background: #fff3bf;
+  border-radius: 3px;
+  padding: 0 3px;
+  margin: 0 -3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 .ms-score {
   grid-area: score;
   font-variant-numeric: tabular-nums;

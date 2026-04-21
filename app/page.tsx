@@ -30,6 +30,15 @@ export default function Home() {
   const [selectedDraw, setSelectedDraw] = useState('')
   const [bracketHtml, setBracketHtml] = useState('')
   const [playerQuery, setPlayerQuery] = useState('')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('playerQuery')
+    if (saved) setPlayerQuery(saved)
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('playerQuery', playerQuery)
+  }, [playerQuery])
   const [loadingTournaments, setLoadingTournaments] = useState(true)
   const [loadingDraws, setLoadingDraws] = useState(false)
   const [loadingBracket, setLoadingBracket] = useState(false)
@@ -335,13 +344,23 @@ export default function Home() {
             <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
               Track Player / Club / Event
             </label>
-            <input
-              type="text"
-              placeholder="Search player, club, or event…"
-              value={playerQuery}
-              onChange={(e) => setPlayerQuery(e.target.value)}
-              className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[180px] bg-white focus:outline-none focus:border-blue-500"
-            />
+            <div className="relative min-w-[180px]">
+              <input
+                type="text"
+                placeholder="Search player, club, or event…"
+                value={playerQuery}
+                onChange={(e) => setPlayerQuery(e.target.value)}
+                className="w-full border border-gray-300 rounded-md pl-2.5 pr-7 py-1.5 text-xs bg-white focus:outline-none focus:border-blue-500"
+              />
+              {playerQuery && (
+                <button
+                  type="button"
+                  onClick={() => setPlayerQuery('')}
+                  aria-label="Clear search"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 text-[11px] leading-none"
+                >✕</button>
+              )}
+            </div>
           </div>
 
           {/* Export — bracket view only */}
