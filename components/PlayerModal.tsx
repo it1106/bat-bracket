@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { PlayerProfile, MatchEntry } from '@/lib/types'
 import { abbrevRound } from '@/lib/scraper'
 
@@ -20,13 +20,36 @@ function scoreStr(entry: MatchEntry): string {
 }
 
 export default function PlayerModal({ profile, loading, onClose, onH2HClick }: Props) {
+  const [activeEventIds, setActiveEventIds] = useState<Set<string>>(new Set())
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  useEffect(() => { setActiveEventIds(new Set()) }, [profile?.playerId])
+
+  const toggleEvent = (id: string) => {
+    setActiveEventIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
   if (!loading && !profile) return null
+
+  const eventShortName = (name: string) => name.split(' (')[0].trim().toLowerCase()
+  const activeEventShortNames = profile
+    ? profile.events.filter((e) => activeEventIds.has(e.eventId)).map((e) => eventShortName(e.name))
+    : []
+  const matchInActiveEvent = (m: MatchEntry) => {
+    if (activeEventIds.size === 0) return true
+    if (m.eventId && activeEventIds.has(m.eventId)) return true
+    const drawLower = m.draw.toLowerCase()
+    return activeEventShortNames.some((n) => drawLower === n || drawLower.includes(n) || n.includes(drawLower))
+  }
 
   return (
     <div className="pm-overlay" onClick={onClose}>
@@ -51,11 +74,16 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick }: P
             {profile.events.length > 0 && (
               <div className="pm-section">
                 <div className="pm-section-title">Events Entered</div>
-                <ul className="pm-events">
+                <div className="pm-events">
                   {profile.events.map((ev) => (
-                    <li key={ev.eventId} className="pm-event-item">{ev.name}</li>
+                    <button
+                      key={ev.eventId}
+                      type="button"
+                      className={`pm-event-pill${activeEventIds.has(ev.eventId) ? ' active' : ''}`}
+                      onClick={() => toggleEvent(ev.eventId)}
+                    >{ev.name}</button>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
 
@@ -63,7 +91,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick }: P
               <div className="pm-section">
                 <div className="pm-section-title">Match Results</div>
                 <div className="pm-matches">
-                  {profile.matches.filter(m => m.team1.length > 0 && m.team2.length > 0).map((m, i) => {
+                  {profile.matches.filter(m => m.team1.length > 0 && m.team2.length > 0 && matchInActiveEvent(m)).map((m, i) => {
                     const renderName = (p: import('@/lib/types').MatchPlayer, pi: number) => (
                       <div key={pi}>{p.name}</div>
                     )

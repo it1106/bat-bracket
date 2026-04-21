@@ -463,8 +463,15 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
     const h2hHref = $(matchEl).find('a.match__btn-h2h').attr('href') ?? ''
     const h2hUrl = h2hHref || undefined
 
+    let eventId: string | undefined
+    $(matchEl).find('a[href*="event="]').each((_, a) => {
+      if (eventId) return
+      const m = ($(a).attr('href') ?? '').match(/event=(\d+)/)
+      if (m) eventId = m[1]
+    })
+
     if (draw || team1.length) {
-      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, retired, nowPlaying, scheduledTime, h2hUrl })
+      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, retired, nowPlaying, scheduledTime, h2hUrl, eventId })
     }
   })
 

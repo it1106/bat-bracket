@@ -452,21 +452,40 @@
 }
 
 .pm-events {
-  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
-.pm-event-item {
-  font-size: 13px;
-  color: #1a1a1a;
-  padding: 5px 10px;
+.pm-event-pill {
+  font-size: 12px;
+  font-weight: 600;
+  color: #25316B;
   background: #f0f2f8;
-  border-radius: 6px;
-  font-weight: 500;
+  border: 1px solid #d8dcec;
+  border-radius: 14px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+
+.pm-event-pill:hover {
+  background: #e2e6f4;
+  border-color: #c5cae8;
+}
+
+.pm-event-pill.active {
+  background: #25316B;
+  color: #fff;
+  border-color: #25316B;
+}
+
+.pm-event-pill.active:hover {
+  background: #1a237e;
+  border-color: #1a237e;
 }
 
 .pm-matches {

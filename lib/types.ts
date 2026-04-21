@@ -57,6 +57,7 @@ export interface MatchEntry {
   nowPlaying: boolean
   scheduledTime?: string
   h2hUrl?: string
+  eventId?: string
 }
 
 export interface H2HRecord {
