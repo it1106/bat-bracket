@@ -49,6 +49,7 @@ export default function Home() {
   const [h2hData, setH2hData] = useState<H2HData | null>(null)
   const [h2hLoading, setH2hLoading] = useState(false)
   const bracketRef = useRef<HTMLDivElement>(null)
+  const playerSearchRef = useRef<HTMLInputElement>(null)
   const lastScrollY = useRef(0)
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
   const [headerVisible, setHeaderVisible] = useState(true)
@@ -60,6 +61,19 @@ export default function Home() {
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [selectedTournament])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return
+      const el = document.activeElement as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      e.preventDefault()
+      playerSearchRef.current?.focus()
+      playerSearchRef.current?.select()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -336,8 +350,9 @@ export default function Home() {
             </label>
             <div className="relative min-w-[180px]">
               <input
+                ref={playerSearchRef}
                 type="text"
-                placeholder="Search player, club, or event…"
+                placeholder="Search player, club, or event… (/)"
                 value={playerQuery}
                 onChange={(e) => setPlayerQuery(e.target.value)}
                 className="w-full border border-gray-300 rounded-md pl-2.5 pr-7 py-1.5 text-xs bg-white focus:outline-none focus:border-blue-500"
