@@ -337,7 +337,7 @@ export default function Home() {
             </label>
             <input
               type="text"
-              placeholder="Search player or event…"
+              placeholder="Search player, club, or event…"
               value={playerQuery}
               onChange={(e) => setPlayerQuery(e.target.value)}
               className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[180px] bg-white focus:outline-none focus:border-blue-500"
@@ -445,6 +445,7 @@ export default function Home() {
               bracketRef={bracketRef}
               onRoundClick={handleRoundClick}
               onPlayerClick={handlePlayerClick}
+              playerClubMap={playerClubMap}
             />
           )}
         </>

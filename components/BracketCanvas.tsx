@@ -8,6 +8,7 @@ interface BracketCanvasProps {
   bracketRef: React.RefObject<HTMLDivElement>
   onRoundClick?: (roundIndex: number) => void
   onPlayerClick?: (playerId: string) => void
+  playerClubMap?: Record<string, string>
 }
 
 const MIN_ZOOM = 0.25
@@ -19,6 +20,7 @@ export default function BracketCanvas({
   bracketRef,
   onRoundClick,
   onPlayerClick,
+  playerClubMap,
 }: BracketCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -36,22 +38,34 @@ export default function BracketCanvas({
     const wrapper = document.createElement('div')
     wrapper.innerHTML = bracketHtml
 
+    const clubMatches = (pid: string | null) => {
+      if (!pid || !playerClubMap) return false
+      const club = (playerClubMap[pid] ?? '').toLowerCase()
+      return !!club && club.includes(query)
+    }
+
     // bk-row format
     wrapper.querySelectorAll<HTMLElement>('.bk-row').forEach((row) => {
       const spans = row.querySelectorAll<HTMLElement>('.bk-player, span')
-      const matches = Array.from(spans).some(s => s.textContent?.toLowerCase().includes(query))
+      const matches = Array.from(spans).some((s) =>
+        (s.textContent?.toLowerCase().includes(query)) ||
+        clubMatches(s.getAttribute('data-player-id'))
+      )
       row.classList.toggle('tracked', matches)
     })
 
     // match__row format
-    wrapper.querySelectorAll<HTMLAnchorElement>('.match__row-title-value-content a').forEach((link) => {
-      const row = link.closest<HTMLElement>('.match__row')
-      if (!row) return
-      row.classList.toggle('highlighted', !!(link.textContent?.toLowerCase().includes(query)))
+    wrapper.querySelectorAll<HTMLElement>('.match__row').forEach((row) => {
+      const links = row.querySelectorAll<HTMLAnchorElement>('.match__row-title-value-content a')
+      const matches = Array.from(links).some((link) =>
+        (link.textContent?.toLowerCase().includes(query)) ||
+        clubMatches(link.getAttribute('data-player-id'))
+      )
+      row.classList.toggle('highlighted', matches)
     })
 
     return wrapper.innerHTML
-  }, [bracketHtml, playerQuery])
+  }, [bracketHtml, playerQuery, playerClubMap])
 
   // Scroll to first match after DOM updates with new displayHtml
   useEffect(() => {
