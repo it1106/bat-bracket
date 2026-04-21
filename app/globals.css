@@ -395,7 +395,7 @@
   max-height: 85vh;
   overflow-y: auto;
   position: relative;
-  padding: 20px 20px 24px;
+  padding: 20px;
 }
 
 .pm-close {
@@ -408,7 +408,7 @@
   color: #888;
   cursor: pointer;
   line-height: 1;
-  padding: 2px 4px;
+  padding: 10px 4px 2px;
 }
 
 .pm-close:hover { color: #333; }
@@ -582,7 +582,7 @@
 
 @media (max-width: 900px) {
   .pm-modal {
-    padding: 16px 14px 20px;
+    padding: 20px 14px;
     max-height: 90vh;
   }
 
@@ -696,7 +696,14 @@
   font-weight: 700;
   color: #1a1a1a;
   flex: 1;
+  min-width: 0;
   line-height: 1.25;
+}
+
+.h2h-player > div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .h2h-player--1 { text-align: right; }
@@ -1039,7 +1046,7 @@
 /* Mobile: card layout (≤ 900px) */
 @media (max-width: 900px) {
   .match-schedule {
-    padding: 20px;
+    padding: 10px;
   }
 
   .ms-list {
