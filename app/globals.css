@@ -825,7 +825,7 @@ html[lang="th"] .pm-section-title {
 .h2h-player {
   font-size: 17px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--fg);
   flex: 1;
   min-width: 0;
   line-height: 1.25;
@@ -842,7 +842,7 @@ html[lang="th"] .pm-section-title {
 
 .h2h-vs {
   font-size: 14px;
-  color: #aaa;
+  color: var(--muted);
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -854,7 +854,7 @@ html[lang="th"] .pm-section-title {
   justify-content: center;
   gap: 16px;
   padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--row-sep);
   text-align: center;
 }
 
@@ -862,7 +862,7 @@ html[lang="th"] .pm-section-title {
 
 .h2h-record-category {
   font-size: 14px;
-  color: #888;
+  color: var(--muted);
   min-width: 120px;
   text-align: center;
 }
@@ -877,9 +877,9 @@ html[lang="th"] .pm-section-title {
   width: 100%;
 }
 
-.h2h-wins { color: #aaa; }
-.h2h-wins--leader { color: #166534; }
-.h2h-wins-sep { color: #ccc; font-size: 22px; }
+.h2h-wins { color: var(--muted); }
+.h2h-wins--leader { color: var(--win-fg); }
+.h2h-wins-sep { color: var(--muted); font-size: 22px; }
 
 .h2h-filter-tabs {
   display: flex;
@@ -891,22 +891,22 @@ html[lang="th"] .pm-section-title {
 .h2h-filter-tab {
   padding: 4px 14px;
   border-radius: 20px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
   background: transparent;
   font-size: 14px;
-  color: #555;
+  color: var(--fg);
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .h2h-filter-tab:hover {
-  background: #f3f4f6;
+  background: var(--bg);
 }
 
 .h2h-filter-tab.active {
-  background: #25316B;
+  background: var(--brand);
   color: #fff;
-  border-color: #25316B;
+  border-color: var(--brand);
 }
 
 .h2h-matches {
@@ -916,7 +916,7 @@ html[lang="th"] .pm-section-title {
 }
 
 .h2h-match {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px 12px;
   font-size: 15px;
@@ -928,7 +928,7 @@ html[lang="th"] .pm-section-title {
 
 .h2h-match-tournament {
   font-size: 13px;
-  color: #888;
+  color: var(--muted);
   margin-bottom: 2px;
 }
 
@@ -940,18 +940,18 @@ html[lang="th"] .pm-section-title {
 
 .h2h-match-event {
   font-weight: 600;
-  color: #25316B;
+  color: var(--brand-fg);
   font-size: 14px;
 }
 
 .h2h-match-round {
   font-size: 13px;
-  color: #888;
+  color: var(--muted);
 }
 
 .h2h-match-date {
   font-size: 13px;
-  color: #aaa;
+  color: var(--muted);
   margin-left: auto;
 }
 
@@ -971,7 +971,7 @@ html[lang="th"] .pm-section-title {
 .h2h-board-player {
   flex: 1;
   font-size: 14px;
-  color: #999;
+  color: var(--muted);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -979,25 +979,25 @@ html[lang="th"] .pm-section-title {
 }
 
 .h2h-board-row.winner .h2h-board-player {
-  color: #111;
+  color: var(--win-fg);
   font-weight: 700;
 }
 
 .h2h-board-set {
   font-size: 14px;
   font-weight: 600;
-  color: #bbb;
+  color: var(--muted);
   min-width: 22px;
   text-align: center;
 }
 
 .h2h-board-row.winner .h2h-board-set {
-  color: #111;
+  color: var(--win-fg);
 }
 
 .h2h-board-badge {
   font-size: 12px;
-  color: #888;
+  color: var(--muted);
   font-style: italic;
 }
 
@@ -1009,18 +1009,18 @@ html[lang="th"] .pm-section-title {
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #25316B;
-  background: #f0f2f8;
-  border: 1px solid #d8dcec;
+  color: var(--brand-fg);
+  background: var(--track-bg);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1px 8px;
   cursor: pointer;
 }
 
 .ms-h2h-inline:hover {
-  background: #25316B;
+  background: var(--brand);
   color: #fff;
-  border-color: #25316B;
+  border-color: var(--brand);
 }
 
 /* ── Match Schedule ── */
