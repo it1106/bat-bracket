@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BAT Dark Mode — Mockup</title>
+  <style>
+    :root {
+      --bg: #f0f2f5; --surface: #ffffff; --fg: #1a1a1a; --muted: #888888;
+      --border: #e5e7eb; --brand: #25316B; --brand-fg: #25316B; --red: #BE1D2E;
+      --win-bg: #e8f5e9; --win-fg: #166534;
+      --track-bg: #fff3cd; --track-fg: #856404;
+      --score-bg: #f8f9fa; --row-sep: #f0f0f0; --match-border: #696969;
+      --info-bg: #eff6ff; --info-fg: #1d4ed8;
+    }
+    html.dark {
+      --bg: #0d1117; --surface: #161b22; --fg: #e6edf3; --muted: #7d8590;
+      --border: #30363d; --brand: #1f6feb; --brand-fg: #58a6ff; --red: #ff7b72;
+      --win-bg: rgba(46,160,67,.15); --win-fg: #7ee787;
+      --track-bg: rgba(210,153,34,.18); --track-fg: #d29922;
+      --score-bg: #0d1117; --row-sep: #21262d; --match-border: #30363d;
+      --info-bg: rgba(56,139,253,.15); --info-fg: #79c0ff;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg);
+      font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; }
+
+    /* Top bar */
+    .tb { background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 10px 20px; display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+    .tb-title { display: flex; flex-direction: column; line-height: 1.1; }
+    .tb-title .main { font-weight: 700; font-size: 1.2rem; line-height: 2rem; }
+    .tb-title .main .brand-fg { color: var(--brand-fg); }
+    .tb-title .main .red { color: var(--red); }
+    .tb-title .sub { font-size: 12px; color: var(--muted); }
+    .tb-field { display: flex; flex-direction: column; gap: 4px; }
+    .tb-field label { font-size: 10px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.5px; }
+    .tb-field select, .tb-field input { border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 10px; font-size: 12px;
+      background: var(--surface); color: var(--fg); min-width: 200px; }
+    .tb-field select:focus, .tb-field input:focus { outline: none;
+      border-color: var(--brand); }
+    .tb-spacer { flex: 1; }
+    .tb-btn { background: #16a34a; color: #fff; border: 0; border-radius: 6px;
+      padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .tb-iconbtn { width: 30px; height: 28px; border: 1px solid var(--border);
+      border-radius: 6px; background: var(--surface); color: var(--fg);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 14px; cursor: pointer; }
+    .tb-iconbtn:hover { background: var(--bg); }
+    .tb-seg { display: inline-flex; border: 1px solid var(--border);
+      border-radius: 6px; overflow: hidden; font-size: 11px; font-weight: 700; }
+    .tb-seg > span { padding: 4px 10px; cursor: pointer; }
+    .tb-seg .on { background: var(--brand); color: #fff; }
+    .tb-seg .off { background: var(--surface); color: var(--muted); }
+
+    /* Match schedule */
+    .ms { padding: 16px 20px; }
+    .ms-group { background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; margin-bottom: 16px; overflow: hidden; }
+    .ms-hdr { padding: 8px 12px; font-size: 13px; font-weight: 700;
+      color: var(--brand-fg); background: var(--surface);
+      border-bottom: 2px solid var(--brand); }
+    .ms-row { display: grid; grid-template-columns: 150px 1fr 180px 1fr;
+      gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--row-sep);
+      align-items: center; }
+    .ms-row:last-child { border-bottom: none; }
+    .ms-row.tracked { background: var(--track-bg); }
+    .ms-meta .evt { font-weight: 700; color: var(--brand-fg); font-size: 13px; }
+    .ms-meta .rnd { color: var(--muted); font-size: 12px; display: block; margin-top: 2px; }
+    .ms-team { font-size: 13px; }
+    .ms-team.winner { color: var(--win-fg); font-weight: 700; }
+    .ms-score { text-align: center; font-variant-numeric: tabular-nums;
+      font-weight: 600; color: var(--fg); }
+    .ms-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+      background: #22c55e; margin-right: 6px; vertical-align: middle;
+      animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); }
+      50% { box-shadow: 0 0 0 5px rgba(34,197,94,0); } }
+
+    /* Bracket */
+    .bk { padding: 0 20px 20px; }
+    .bk-wrap { display: flex; gap: 24px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 8px; padding: 16px;
+      overflow-x: auto; }
+    .bk-col { display: flex; flex-direction: column; gap: 14px; min-width: 220px; }
+    .bk-label { font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--row-sep); padding-bottom: 4px; }
+    .bk-box { border: 1.5px solid var(--match-border); border-radius: 5px;
+      overflow: hidden; background: var(--surface); }
+    .bk-row { padding: 5px 8px; font-size: 12px; color: var(--fg);
+      min-height: 28px; border-bottom: 1px solid var(--row-sep); }
+    .bk-row:last-child { border-bottom: none; }
+    .bk-row.winner { background: var(--win-bg); color: var(--win-fg); font-weight: 600; }
+    .bk-row.tracked { background: var(--track-bg); color: var(--track-fg); font-weight: 700; }
+    .bk-score { font-size: 10px; color: var(--muted); padding: 2px 8px 3px;
+      background: var(--score-bg); border-top: 1px solid var(--row-sep); }
+
+    /* Player modal */
+    .pm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      z-index: 200; display: flex; align-items: center; justify-content: center;
+      padding: 16px; }
+    .pm-modal { background: var(--surface); border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25); width: 100%; max-width: 700px;
+      max-height: 80vh; overflow-y: auto; position: relative; padding: 20px;
+      color: var(--fg); }
+    .pm-close { position: absolute; top: 12px; right: 14px; background: none;
+      border: 0; color: var(--muted); font-size: 16px; cursor: pointer;
+      padding: 8px; }
+    .pm-name { font-size: 22px; font-weight: 700; color: var(--brand-fg); }
+    .pm-club { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .pm-banner { background: linear-gradient(60deg, var(--brand) 0%, #14151b 100%);
+      color: #fff; border-radius: 8px; padding: 14px; margin-top: 12px; }
+    .pm-banner .lbl { font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.14em; opacity: 0.75; }
+    .pm-banner .val { font-size: 28px; font-weight: 800; margin-top: 2px; }
+    .pm-cells { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px;
+      margin-top: 8px; }
+    .pm-cell { border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 6px; text-align: center; background: var(--surface); }
+    .pm-cell .lbl { font-size: 12px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.1em; }
+    .pm-cell .val { font-size: 20px; font-weight: 700; color: var(--brand-fg);
+      margin-top: 4px; }
+    .pm-section { margin-top: 16px; }
+    .pm-section-title { font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      color: var(--muted); margin-bottom: 8px; }
+    .pm-pill { display: inline-block; font-size: 12px; font-weight: 600;
+      color: var(--brand-fg); background: var(--track-bg); border: 1px solid var(--border);
+      border-radius: 14px; padding: 4px 12px; margin-right: 6px; cursor: pointer; }
+    .pm-pill.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .pm-match { border: 1px solid var(--border); background: var(--bg);
+      border-radius: 6px; padding: 8px 12px; font-size: 13px;
+      margin-bottom: 6px; display: grid;
+      grid-template-columns: 80px 1fr 120px 1fr; gap: 8px; align-items: center; }
+    .pm-match .draw { font-weight: 700; color: var(--brand-fg); font-size: 12px; }
+    .pm-match .round { font-size: 11px; color: var(--muted); }
+    .pm-match .team.winner { font-weight: 700; color: var(--win-fg); }
+    .pm-match .score { text-align: center; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Top bar -->
+  <div class="tb">
+    <div class="tb-title">
+      <span class="main"><span class="brand-fg">BAT</span> <span class="red">Unofficial</span> Scores</span>
+      <span class="sub">Check BAT official website for accuracy</span>
+    </div>
+    <div class="tb-field">
+      <label>Tournament</label>
+      <select><option>National Championships 2026</option></select>
+    </div>
+    <div class="tb-field">
+      <label>Search</label>
+      <input type="text" id="demo-search" placeholder="Search player…" />
+    </div>
+    <div class="tb-spacer"></div>
+    <button class="tb-btn">↓ Export JPG</button>
+    <button class="tb-iconbtn" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
+    <span class="tb-seg"><span class="on">EN</span><span class="off" id="lang-th">TH</span></span>
+  </div>
+
+  <!-- Match schedule -->
+  <div class="ms">
+    <div class="ms-group">
+      <div class="ms-hdr">Court 1 — 10:00</div>
+      <div class="ms-row tracked">
+        <div class="ms-meta"><span class="evt">BS U15</span><span class="rnd">Semi Final</span></div>
+        <div class="ms-team winner">Somchai P. / Nattapon S.</div>
+        <div class="ms-score">21-18, 21-14</div>
+        <div class="ms-team">Kittisak R. / Pakpoom T.</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-meta"><span class="evt">GD U17</span><span class="rnd">Quarter Final</span></div>
+        <div class="ms-team"><span class="ms-dot"></span>Siriporn W.</div>
+        <div class="ms-score">— —</div>
+        <div class="ms-team">Ananya K.</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-meta"><span class="evt">MS Open</span><span class="rnd">Final</span></div>
+        <div class="ms-team">Chaiyo B.</div>
+        <div class="ms-score">11:30</div>
+        <div class="ms-team">Naren P.</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-meta"><span class="evt">WD U13</span><span class="rnd">R1</span></div>
+        <div class="ms-team winner">Wipa / Jira</div>
+        <div class="ms-score">21-9, 21-12</div>
+        <div class="ms-team">Malee / Som</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bracket -->
+  <div class="bk">
+    <div class="bk-wrap">
+      <div class="bk-col">
+        <div class="bk-label">Quarter Final</div>
+        <div class="bk-box">
+          <div class="bk-row winner">Somchai / Nattapon</div>
+          <div class="bk-row">Arun / Bank</div>
+          <div class="bk-score">QF · 21-14, 21-17</div>
+        </div>
+        <div class="bk-box">
+          <div class="bk-row">Kittisak / Pakpoom</div>
+          <div class="bk-row winner">Chai / Nop</div>
+          <div class="bk-score">QF · 18-21, 21-14, 21-18</div>
+        </div>
+      </div>
+      <div class="bk-col">
+        <div class="bk-label">Semi Final</div>
+        <div class="bk-box">
+          <div class="bk-row tracked">Somchai / Nattapon</div>
+          <div class="bk-row">Chai / Nop</div>
+          <div class="bk-score">SF · 21-18, 21-14</div>
+        </div>
+      </div>
+      <div class="bk-col">
+        <div class="bk-label">Final</div>
+        <div class="bk-box">
+          <div class="bk-row">Somchai / Nattapon</div>
+          <div class="bk-row">(TBD)</div>
+          <div class="bk-score">F · —</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player modal (open by default) -->
+  <div class="pm-overlay" id="demo-modal">
+    <div class="pm-modal">
+      <button class="pm-close" id="modal-close">✕</button>
+      <div class="pm-name">Somchai Prasong</div>
+      <div class="pm-club">Bangkok Badminton Club · YOB: 2010</div>
+      <div class="pm-banner">
+        <div class="lbl">Career · this year in parens</div>
+        <div class="val">47–12 <span style="font-size:16px;opacity:0.85">(18–3)</span></div>
+      </div>
+      <div class="pm-cells">
+        <div class="pm-cell"><div class="lbl">Singles</div><div class="val">20–7</div></div>
+        <div class="pm-cell"><div class="lbl">Doubles</div><div class="val">18–4</div></div>
+        <div class="pm-cell"><div class="lbl">Mixed</div><div class="val">9–1</div></div>
+      </div>
+      <div class="pm-section">
+        <div class="pm-section-title">Events Entered</div>
+        <span class="pm-pill active">BS U15</span>
+        <span class="pm-pill">BD U15</span>
+      </div>
+      <div class="pm-section">
+        <div class="pm-section-title">Match Results</div>
+        <div class="pm-match">
+          <div><div class="draw">BS U15</div><div class="round">SF</div></div>
+          <div class="team winner">Somchai P.</div>
+          <div class="score">21-18, 21-14</div>
+          <div class="team">Arun K.</div>
+        </div>
+        <div class="pm-match">
+          <div><div class="draw">BD U15</div><div class="round">QF</div></div>
+          <div class="team winner">Somchai / Nattapon</div>
+          <div class="score">21-14, 21-17</div>
+          <div class="team">Arun / Bank</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const THEME_KEY = 'bat-theme';
+  const html = document.documentElement;
+
+  function applyTheme(theme) {
+    if (theme === 'dark') html.classList.add('dark');
+    else html.classList.remove('dark');
+    const btn = document.getElementById('theme-toggle');
+    if (btn) btn.textContent = theme === 'dark' ? '☀' : '🌙';
+  }
+
+  function currentTheme() {
+    return html.classList.contains('dark') ? 'dark' : 'light';
+  }
+
+  function toggleTheme() {
+    const next = currentTheme() === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem(THEME_KEY, next); } catch {}
+    applyTheme(next);
+  }
+
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === 'dark' || stored === 'light') applyTheme(stored);
+    else applyTheme('light');
+  } catch { applyTheme('light'); }
+
+  document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+
+  document.getElementById('modal-close').addEventListener('click', () => {
+    document.getElementById('demo-modal').style.display = 'none';
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'd' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    e.preventDefault();
+    toggleTheme();
+  });
+</script>
+</body>
+</html>

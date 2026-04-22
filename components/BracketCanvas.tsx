@@ -144,17 +144,17 @@ export default function BracketCanvas({
       <div className="absolute top-4 right-4 z-50 flex flex-col gap-1">
         <button
           onClick={zoomIn}
-          className="w-8 h-8 bg-white border border-gray-300 rounded-md text-sm font-bold shadow-sm hover:bg-gray-50"
+          className="w-8 h-8 bg-[var(--surface)] border border-[var(--border)] text-[var(--fg)] rounded-md text-sm font-bold shadow-sm hover:bg-[var(--bg)]"
           title="Zoom in"
         >+</button>
         <button
           onClick={zoomOut}
-          className="w-8 h-8 bg-white border border-gray-300 rounded-md text-sm font-bold shadow-sm hover:bg-gray-50"
+          className="w-8 h-8 bg-[var(--surface)] border border-[var(--border)] text-[var(--fg)] rounded-md text-sm font-bold shadow-sm hover:bg-[var(--bg)]"
           title="Zoom out"
         >−</button>
         <button
           onClick={resetZoom}
-          className="w-8 h-8 bg-white border border-gray-300 rounded-md text-xs font-bold shadow-sm hover:bg-gray-50"
+          className="w-8 h-8 bg-[var(--surface)] border border-[var(--border)] text-[var(--fg)] rounded-md text-xs font-bold shadow-sm hover:bg-[var(--bg)]"
           title="Reset zoom"
         >{Math.round(scale * 100)}%</button>
       </div>

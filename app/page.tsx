@@ -7,6 +7,7 @@ import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
 import { useLanguage } from '@/lib/LanguageContext'
+import { useTheme } from '@/lib/ThemeContext'
 import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
@@ -26,12 +27,14 @@ type ViewMode = 'bracket' | 'matches'
 
 export default function Home() {
   const { lang, toggleLang, t } = useLanguage()
+  const { theme, toggleTheme } = useTheme()
   const [tournaments, setTournaments] = useState<TournamentInfo[]>([])
   const [draws, setDraws] = useState<DrawInfo[]>([])
   const [selectedTournament, setSelectedTournament] = useState('')
   const [selectedDraw, setSelectedDraw] = useState('')
   const [bracketHtml, setBracketHtml] = useState('')
   const [playerQuery, setPlayerQuery] = useState('')
+  const [highlightResults, setHighlightResults] = useState(true)
   const [loadingTournaments, setLoadingTournaments] = useState(true)
   const [loadingDraws, setLoadingDraws] = useState(false)
   const [loadingBracket, setLoadingBracket] = useState(false)
@@ -76,6 +79,24 @@ export default function Home() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'd' && e.key !== 'D') return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const el = document.activeElement as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      e.preventDefault()
+      toggleTheme()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleTheme])
+
+  useEffect(() => {
+    document.body.classList.toggle('no-highlight', !highlightResults)
+    return () => { document.body.classList.remove('no-highlight') }
+  }, [highlightResults])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -290,27 +311,27 @@ export default function Home() {
     <>
       {/* Top bar */}
       <div
-        className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm transition-transform duration-300"
+        className="sticky top-0 z-50 bg-[var(--surface)] border-b border-[var(--border)] shadow-sm transition-transform duration-300"
         style={{ transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)' }}
       >
         <div className="flex items-end gap-3 px-5 py-2.5 flex-wrap">
           <div className="flex flex-col whitespace-nowrap mr-2">
-            <span className="font-bold text-gray-900" style={{fontSize:'1.2rem',lineHeight:'2rem'}}>
-              <span style={{color:'#25316B'}}>{t('appTitle1')}</span> <span style={{color:'#BE1D2E'}}>{t('appTitle2')}</span> {t('appTitle3')}
+            <span className="font-bold text-[var(--fg)]" style={{fontSize:'1.2rem',lineHeight:'2rem'}}>
+              <span style={{color:'var(--brand-fg)'}}>{t('appTitle1')}</span> <span style={{color:'var(--red)'}}>{t('appTitle2')}</span> {t('appTitle3')}
             </span>
-            <span className="text-[12px] text-gray-400">{t('appSubtitle')}</span>
+            <span className="text-[12px] text-[var(--muted)]">{t('appSubtitle')}</span>
           </div>
 
           {/* Tournament selector */}
           <div className="flex flex-col gap-1">
-            <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-gray-400 uppercase tracking-wide`}>
+            <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
               {t('tournament')}
             </label>
             <select
               value={selectedTournament}
               onChange={(e) => handleTournamentChange(e.target.value)}
               disabled={loadingTournaments}
-              className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[220px] bg-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
+              className="border border-[var(--border)] rounded-md px-2.5 py-1.5 text-xs min-w-[220px] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:border-[var(--brand)] disabled:opacity-50"
             >
               <option value="">
                 {loadingTournaments ? t('loading') : t('selectTournament')}
@@ -324,14 +345,14 @@ export default function Home() {
           {/* Draw selector — only relevant in bracket view */}
           {viewMode === 'bracket' && (
             <div className="flex flex-col gap-1">
-              <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-gray-400 uppercase tracking-wide`}>
+              <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
                 {t('draw')}
               </label>
               <select
                 value={selectedDraw}
                 onChange={(e) => handleDrawChange(e.target.value)}
                 disabled={!selectedTournament || loadingDraws || draws.length === 0}
-                className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[160px] bg-white focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                className="border border-[var(--border)] rounded-md px-2.5 py-1.5 text-xs min-w-[160px] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:border-[var(--brand)] disabled:opacity-50"
               >
                 <option value="">
                   {loadingDraws ? t('loading') : draws.length === 0 && selectedTournament ? t('noDraws') : t('selectDraw')}
@@ -347,26 +368,37 @@ export default function Home() {
 
           {/* Player search */}
           <div className="flex flex-col gap-1">
-            <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-gray-400 uppercase tracking-wide`}>
+            <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
               {t('trackLabel')}
             </label>
-            <div className="relative min-w-[240px]">
-              <input
-                ref={playerSearchRef}
-                type="text"
-                placeholder={t('searchPlaceholder')}
-                value={playerQuery}
-                onChange={(e) => setPlayerQuery(e.target.value)}
-                className="w-full border border-gray-300 rounded-md pl-2.5 pr-7 py-1.5 text-xs bg-white focus:outline-none focus:border-blue-500"
-              />
-              {playerQuery && (
-                <button
-                  type="button"
-                  onClick={() => setPlayerQuery('')}
-                  aria-label={t('clearSearch')}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 text-[11px] leading-none"
-                >✕</button>
-              )}
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-[240px]">
+                <input
+                  ref={playerSearchRef}
+                  type="text"
+                  placeholder={t('searchPlaceholder')}
+                  value={playerQuery}
+                  onChange={(e) => setPlayerQuery(e.target.value)}
+                  className="w-full border border-[var(--border)] rounded-md pl-2.5 pr-7 py-1.5 text-xs bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:border-[var(--brand)]"
+                />
+                {playerQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setPlayerQuery('')}
+                    aria-label={t('clearSearch')}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--border)] text-[11px] leading-none"
+                  >✕</button>
+                )}
+              </div>
+              <label className="flex items-center gap-1 text-xs text-[var(--fg)] whitespace-nowrap cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={highlightResults}
+                  onChange={(e) => setHighlightResults(e.target.checked)}
+                  className="accent-yellow-400"
+                />
+                {t('highlight')}
+              </label>
             </div>
           </div>
 
@@ -382,13 +414,21 @@ export default function Home() {
               </button>
             )}
             <button
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? t('lightMode') : t('darkMode')}
+              title={theme === 'dark' ? t('lightMode') : t('darkMode')}
+              className="inline-flex items-center justify-center w-[30px] h-[28px] rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] text-sm"
+            >
+              {theme === 'dark' ? '☀' : '🌙'}
+            </button>
+            <button
               onClick={toggleLang}
               aria-label="Toggle language"
               title={lang === 'en' ? 'เปลี่ยนเป็นภาษาไทย' : 'Switch to English'}
-              className="inline-flex items-center rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold overflow-hidden"
+              className="inline-flex items-center rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] text-xs font-semibold overflow-hidden"
             >
-              <span className={`px-2 py-1 ${lang === 'en' ? 'bg-[#25316B] text-white' : ''}`}>EN</span>
-              <span className={`px-2 py-1 ${lang === 'th' ? 'bg-[#25316B] text-white' : ''}`}>TH</span>
+              <span className={`px-2 py-1 ${lang === 'en' ? 'bg-[var(--brand)] text-white' : ''}`}>EN</span>
+              <span className={`px-2 py-1 ${lang === 'th' ? 'bg-[var(--brand)] text-white' : ''}`}>TH</span>
             </button>
           </div>
         </div>
@@ -396,13 +436,13 @@ export default function Home() {
 
       {/* View mode tabs */}
       {selectedTournament && (
-        <div className="flex items-center gap-0 px-5 py-0 bg-white border-b border-gray-200">
+        <div className="flex items-center gap-0 px-5 py-0 bg-[var(--surface)] border-b border-[var(--border)]">
           <button
             onClick={() => setViewMode('bracket')}
             className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
               viewMode === 'bracket'
-                ? 'border-[#25316B] text-[#25316B]'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-[var(--brand)] text-[var(--brand-fg)]'
+                : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
             }`}
           >
             {t('bracket')}
@@ -411,8 +451,8 @@ export default function Home() {
             onClick={() => setViewMode('matches')}
             className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
               viewMode === 'matches'
-                ? 'border-[#25316B] text-[#25316B]'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-[var(--brand)] text-[var(--brand-fg)]'
+                : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
             }`}
           >
             {t('matchSchedule')}
@@ -423,7 +463,7 @@ export default function Home() {
 
       {/* Legend (bracket view only) */}
       {viewMode === 'bracket' && (
-        <div className="flex gap-4 px-5 py-2 bg-white border-b border-gray-100 text-xs text-gray-500">
+        <div className="flex gap-4 px-5 py-2 bg-[var(--surface)] border-b border-[var(--row-sep)] text-xs text-[var(--muted)]">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-sm bg-green-100 border border-green-300" />
             {t('winner')}
@@ -450,7 +490,7 @@ export default function Home() {
       {viewMode === 'bracket' && (
         <>
           {!bracketHtml && !loading && !error && (
-            <div className="p-10 text-center text-gray-400 text-sm">
+            <div className="p-10 text-center text-[var(--muted)] text-sm">
               {!selectedTournament
                 ? t('startPrompt')
                 : !selectedDraw
@@ -460,11 +500,11 @@ export default function Home() {
           )}
 
           {loadingBracket && (
-            <div className="p-10 text-center text-gray-400 text-sm">{t('loadingBracket')}</div>
+            <div className="p-10 text-center text-[var(--muted)] text-sm">{t('loadingBracket')}</div>
           )}
 
           {fromRound > 0 && bracketHtml && (
-            <div className="flex items-center gap-2 px-5 py-1.5 bg-blue-50 border-b border-blue-200 text-xs text-blue-700">
+            <div className="flex items-center gap-2 px-5 py-1.5 bg-[var(--info-bg)] border-b border-[var(--border)] text-xs text-[var(--info-fg)]">
               <span>{t('viewingFrom')} <strong>{fromRoundName}</strong></span>
               <button
                 onClick={() => handleRoundClick(0)}

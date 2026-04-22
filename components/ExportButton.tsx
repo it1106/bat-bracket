@@ -50,6 +50,11 @@ export async function exportBracketAsJpg({
     <div style="font-size:11px;color:#999;font-family:'Segoe UI',system-ui,sans-serif;">Exported: ${formatDate(new Date())}</div>
   `
 
+  // Force light mode during capture so exported JPGs always look the same
+  const root = document.documentElement
+  const hadDark = root.classList.contains('dark')
+  if (hadDark) root.classList.remove('dark')
+
   // Save current transform, reset to 1:1 for capture
   const origTransform = bracketEl.style.transform
   const origTransition = bracketEl.style.transition
@@ -90,5 +95,6 @@ export async function exportBracketAsJpg({
     bracketEl.style.transform = origTransform
     bracketEl.style.transition = origTransition
     if (parent) parent.style.overflow = origOverflow
+    if (hadDark) root.classList.add('dark')
   }
 }
