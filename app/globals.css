@@ -2,6 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ──────────────────────────────────────────────────────────
+   Theme tokens
+   Light (default) lives on :root; dark overrides on html.dark.
+   Driven by lib/ThemeContext + no-flash inline script in layout.tsx.
+   ────────────────────────────────────────────────────────── */
+:root {
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #888888;
+  --border: #e5e7eb;
+  --brand: #25316B;
+  --brand-fg: #25316B;
+  --red: #BE1D2E;
+  --win-bg: #e8f5e9;
+  --win-fg: #166534;
+  --track-bg: #fff3cd;
+  --track-fg: #856404;
+  --score-bg: #f8f9fa;
+  --row-sep: #f0f0f0;
+  --match-border: #696969;
+  --info-bg: #eff6ff;
+  --info-fg: #1d4ed8;
+}
+
+html.dark {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --fg: #e6edf3;
+  --muted: #7d8590;
+  --border: #30363d;
+  --brand: #1f6feb;
+  --brand-fg: #58a6ff;
+  --red: #ff7b72;
+  --win-bg: rgba(46, 160, 67, 0.15);
+  --win-fg: #7ee787;
+  --track-bg: rgba(210, 153, 34, 0.18);
+  --track-fg: #d29922;
+  --score-bg: #0d1117;
+  --row-sep: #21262d;
+  --match-border: #30363d;
+  --info-bg: rgba(56, 139, 253, 0.15);
+  --info-fg: #79c0ff;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
 /* ── Bracket canvas ── */
 .bracket-canvas {
   overflow-x: auto;
