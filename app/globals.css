@@ -57,7 +57,7 @@ html, body {
   overflow-x: auto;
   overflow-y: auto;
   padding: 20px;
-  background: #f0f2f5;
+  background: var(--bg);
   min-height: calc(100vh - 97px);
   /* Touch & responsive: allow pinch-zoom and smooth scrolling */
   touch-action: pan-x pan-y pinch-zoom;
@@ -75,8 +75,8 @@ html, body {
   flex-direction: row;
   align-items: flex-start;
   width: max-content;
-  background: #fff;
-  border: 1px solid #dee2e6;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px 0 24px 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -91,11 +91,11 @@ html, body {
 .bk-round-label {
   font-size: 11px;
   font-weight: 700;
-  color: #888;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 0 8px 8px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--row-sep);
   margin-bottom: 4px;
   height: 32px;
   line-height: 32px;
@@ -108,10 +108,10 @@ html, body {
 }
 
 .bk-match-box {
-  border: 1.5px solid #696969;
+  border: 1.5px solid var(--match-border);
   border-radius: 5px;
   overflow: hidden;
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
@@ -120,7 +120,7 @@ html, body {
   align-items: center;
   padding: 5px 8px;
   font-size: 12px;
-  color: #333;
+  color: var(--fg);
   min-height: 28px;
   line-height: 1.3;
   font-family: 'Segoe UI', system-ui, sans-serif;
@@ -147,22 +147,22 @@ html, body {
 
 .bk-player[data-player-id]:hover {
   text-decoration: underline;
-  color: #25316B;
+  color: var(--brand-fg);
 }
 
 .bk-row--team-sep {
-  border-top: 1px solid #696969;
+  border-top: 1px solid var(--match-border);
 }
 
 .bk-row.winner {
-  background: #e8f5e9;
+  background: var(--win-bg);
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--win-fg);
 }
 
 .bk-row.bye {
-  color: #bbb;
-  background: #fafafa;
+  color: var(--muted);
+  background: var(--bg);
   font-style: italic;
   font-size: 11px;
 }
@@ -172,30 +172,30 @@ html, body {
 }
 
 .bk-row.tracked {
-  background: #fff3cd !important;
-  color: #856404 !important;
+  background: var(--track-bg) !important;
+  color: var(--track-fg) !important;
   font-weight: 700 !important;
 }
 
 .bk-score {
   font-size: 10px;
-  color: #121212;
+  color: var(--fg);
   padding: 2px 8px 3px;
-  background: #f8f9fa;
-  border-top: 1px solid #f0f0f0;
+  background: var(--score-bg);
+  border-top: 1px solid var(--row-sep);
 }
 
 .bk-round-abbrev {
   font-weight: 600;
-  color: #555;
+  color: var(--muted);
   margin-right: 4px;
 }
 
 .bk-time {
   font-size: 10px;
-  color: #aaa;
+  color: var(--muted);
   padding: 2px 8px 4px;
-  background: #f8f9fa;
+  background: var(--score-bg);
 }
 
 .bk-conn {
@@ -212,7 +212,7 @@ html, body {
 }
 
 .bk-conn path {
-  stroke: #696969;
+  stroke: var(--match-border);
   stroke-width: 1.4px;
   stroke-linecap: round;
   fill: none;
