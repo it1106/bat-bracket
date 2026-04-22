@@ -1025,7 +1025,7 @@ html[lang="th"] .pm-section-title {
 
 /* ── Match Schedule ── */
 .match-schedule {
-  background: #f0f2f5;
+  background: var(--bg);
   min-height: calc(100vh - 97px);
   padding: 16px 50px;
   max-width: 1000px;
@@ -1040,24 +1040,24 @@ html[lang="th"] .pm-section-title {
 
 .match-schedule__day-tab {
   padding: 5px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--surface);
   font-size: 12px;
   font-weight: 500;
-  color: #555;
+  color: var(--fg);
   cursor: pointer;
   transition: background 0.1s, border-color 0.1s;
   white-space: nowrap;
 }
 
 .match-schedule__day-tab:hover {
-  background: #f3f4f6;
+  background: var(--bg);
 }
 
 .match-schedule__day-tab.active {
-  background: #25316B;
-  border-color: #25316B;
+  background: var(--brand);
+  border-color: var(--brand);
   color: #fff;
   font-weight: 700;
 }
@@ -1070,24 +1070,24 @@ html[lang="th"] .pm-section-title {
 .match-schedule__time-header {
   font-size: 13px;
   font-weight: 700;
-  color: #25316B;
+  color: var(--brand-fg);
   padding: 6px 10px;
-  background: #e8eaf0;
+  background: var(--surface);
   border-radius: 6px 6px 0 0;
-  border-bottom: 2px solid #25316B;
+  border-bottom: 2px solid var(--brand);
   letter-spacing: 0.3px;
 }
 
 .ms-seq {
   font-size: 12px;
   font-weight: 600;
-  color: #2d6a31;
+  color: var(--win-fg);
 }
 
 /* ── Match rows ── */
 .ms-list {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-top: none;
   border-radius: 0 0 6px 6px;
   overflow: hidden;
@@ -1101,12 +1101,12 @@ html[lang="th"] .pm-section-title {
   grid-template-areas: "meta team1 score team2";
   align-items: normal;
   padding: 8px 12px;
-  border-bottom: 1px solid #f3f4f6;
-  color: #1a1a1a;
+  border-bottom: 1px solid var(--row-sep);
+  color: var(--fg);
 }
 
 .ms-match:last-child { border-bottom: none; }
-.ms-match:hover { background: #fafafa; }
+.ms-match:hover { background: var(--bg); }
 
 .ms-meta {
   grid-area: meta;
@@ -1118,13 +1118,13 @@ html[lang="th"] .pm-section-title {
 
 .ms-event {
   font-weight: 700;
-  color: #25316B;
+  color: var(--brand-fg);
   white-space: nowrap;
   font-size: 13px;
 }
 
 .ms-round {
-  color: #888;
+  color: var(--muted);
   font-size: 12px;
   white-space: nowrap;
 }
@@ -1149,7 +1149,7 @@ html[lang="th"] .pm-section-title {
 }
 
 .ms-event--link:hover {
-  color: #1a237e;
+  color: var(--brand-fg);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -1161,11 +1161,11 @@ html[lang="th"] .pm-section-title {
 .ms-team--1.winner,
 .ms-team--2.winner {
   font-weight: 700;
-  color: #166534;
+  color: var(--win-fg);
 }
 
 .ms-player-highlight {
-  background: #fff3bf;
+  background: var(--track-bg);
   border-radius: 3px;
   padding: 0 3px;
   margin: 0 -3px;
@@ -1190,7 +1190,7 @@ body.no-highlight .ms-player-highlight {
   grid-area: score;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  color: #444;
+  color: var(--fg);
   font-size: 13px;
   white-space: nowrap;
   padding: 0 8px;
@@ -1200,7 +1200,7 @@ body.no-highlight .ms-player-highlight {
 /* Mobile scoreboard: hidden on desktop */
 .ms-m { display: none; }
 
-.ms-match--tracked { background: #fff3cd !important; }
+.ms-match--tracked { background: var(--track-bg) !important; }
 
 /* Mobile: card layout (≤ 900px) */
 @media (max-width: 900px) {
@@ -1217,14 +1217,14 @@ body.no-highlight .ms-player-highlight {
   .ms-match {
     display: flex;
     flex-direction: column;
-    border: 1px solid #e0e3eb;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--surface);
     margin-bottom: 8px;
     padding: 10px 12px;
   }
 
-  .ms-match:hover { background: #fff; }
+  .ms-match:hover { background: var(--surface); }
 
   /* hide desktop-only elements on mobile */
   .ms-d { display: none !important; }
@@ -1237,15 +1237,15 @@ body.no-highlight .ms-player-highlight {
     align-items: center;
     gap: 6px;
     padding: 0 0 8px 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--row-sep);
     margin-bottom: 8px;
   }
 
   .ms-event { font-size: 13px; }
   .ms-round {
     font-size: 12px;
-    background: #f0f2f8;
-    color: #25316B;
+    background: var(--track-bg);
+    color: var(--brand-fg);
     padding: 1px 6px;
     border-radius: 4px;
   }
@@ -1265,7 +1265,7 @@ body.no-highlight .ms-player-highlight {
   }
 
   .ms-board-row + .ms-board-row {
-    border-top: 1px solid #f0f0f0;
+    border-top: 1px solid var(--row-sep);
     margin-top: 4px;
     padding-top: 4px;
   }
@@ -1289,19 +1289,19 @@ body.no-highlight .ms-player-highlight {
     font-weight: 600;
     font-size: 14px;
     flex-shrink: 0;
-    color: #333;
+    color: var(--fg);
   }
 
   .ms-board-badge {
     font-size: 14px;
     font-weight: 700;
-    color: #166534;
+    color: var(--win-fg);
     padding-left: 6px;
     flex-shrink: 0;
   }
 
   .ms-board-row.winner .ms-board-players {
     font-weight: 700;
-    color: #166534;
+    color: var(--win-fg);
   }
 }
