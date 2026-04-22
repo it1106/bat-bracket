@@ -223,8 +223,8 @@ html, body {
 .bracket {
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border: 1px solid #dee2e6;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
@@ -234,7 +234,7 @@ html, body {
 
 /* Round name header strip */
 .swiper-bracket-header {
-  background: #1e3a5f;
+  background: var(--brand);
   border-radius: 7px 7px 0 0;
   padding: 0;
 }
@@ -290,16 +290,16 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border-left: 2px solid #e9ecef;
+  border-left: 2px solid var(--row-sep);
   padding-left: 4px;
 }
 
 /* Individual match box */
 .match {
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border);
   border-radius: 5px;
   overflow: hidden;
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   margin-bottom: 4px;
 }
@@ -320,9 +320,9 @@ html, body {
   align-items: center;
   padding: 5px 8px;
   font-size: 12px;
-  color: #333;
+  color: var(--fg);
   min-height: 28px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--row-sep);
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
@@ -332,15 +332,15 @@ html, body {
 
 /* Winner row */
 .match__row.has-won {
-  background: #e8f5e9;
+  background: var(--win-bg);
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--win-fg);
 }
 
 /* Tracked/highlighted player */
 .match__row.highlighted {
-  background: #fff3cd !important;
-  color: #856404 !important;
+  background: var(--track-bg) !important;
+  color: var(--track-fg) !important;
   font-weight: 700 !important;
 }
 
@@ -375,7 +375,7 @@ html, body {
 
 .match__row-title-value-content a:hover {
   text-decoration: underline;
-  color: #2563eb;
+  color: var(--brand-fg);
 }
 
 /* Match status tag (W, etc.) */
@@ -388,17 +388,17 @@ html, body {
 }
 
 .tag--success {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--win-bg);
+  color: var(--win-fg);
 }
 
 /* Match footer (score/time) */
 .match__footer {
-  background: #f8f9fa;
-  border-top: 1px solid #f0f0f0;
+  background: var(--score-bg);
+  border-top: 1px solid var(--row-sep);
   padding: 2px 8px;
   font-size: 10px;
-  color: #888;
+  color: var(--muted);
 }
 
 .match__footer-list {
