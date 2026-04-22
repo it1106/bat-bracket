@@ -1014,7 +1014,7 @@ html[lang="th"] .pm-section-title {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--brand-fg);
-  background: var(--track-bg);
+  background: rgba(0, 0, 0, 0.05);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1px 8px;
@@ -1252,7 +1252,6 @@ body.no-highlight .ms-player-highlight {
   .ms-event { font-size: 13px; }
   .ms-round {
     font-size: 12px;
-    background: var(--track-bg);
     color: var(--brand-fg);
     padding: 1px 6px;
     border-radius: 4px;
