@@ -111,6 +111,7 @@ export type TKey =
   | 'vs'
   | 'vsMatch'
   | 'clearSearch'
+  | 'highlight'
   | 'close'
   | 'h2hButton'
   | 'langToggle'
@@ -167,6 +168,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     vs: 'vs',
     vsMatch: 'vs.',
     clearSearch: 'Clear search',
+    highlight: 'Highlight',
     close: 'Close',
     h2hButton: 'H2H',
     langToggle: 'ภาษาไทย',
@@ -222,6 +224,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     vs: 'พบ',
     vsMatch: 'พบ',
     clearSearch: 'ล้างคำค้น',
+    highlight: 'ไฮไลท์',
     close: 'ปิด',
     h2hButton: 'H2H',
     langToggle: 'English',

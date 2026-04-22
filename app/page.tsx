@@ -32,6 +32,7 @@ export default function Home() {
   const [selectedDraw, setSelectedDraw] = useState('')
   const [bracketHtml, setBracketHtml] = useState('')
   const [playerQuery, setPlayerQuery] = useState('')
+  const [highlightResults, setHighlightResults] = useState(true)
   const [loadingTournaments, setLoadingTournaments] = useState(true)
   const [loadingDraws, setLoadingDraws] = useState(false)
   const [loadingBracket, setLoadingBracket] = useState(false)
@@ -76,6 +77,11 @@ export default function Home() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  useEffect(() => {
+    document.body.classList.toggle('no-highlight', !highlightResults)
+    return () => { document.body.classList.remove('no-highlight') }
+  }, [highlightResults])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -350,23 +356,34 @@ export default function Home() {
             <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-gray-400 uppercase tracking-wide`}>
               {t('trackLabel')}
             </label>
-            <div className="relative min-w-[240px]">
-              <input
-                ref={playerSearchRef}
-                type="text"
-                placeholder={t('searchPlaceholder')}
-                value={playerQuery}
-                onChange={(e) => setPlayerQuery(e.target.value)}
-                className="w-full border border-gray-300 rounded-md pl-2.5 pr-7 py-1.5 text-xs bg-white focus:outline-none focus:border-blue-500"
-              />
-              {playerQuery && (
-                <button
-                  type="button"
-                  onClick={() => setPlayerQuery('')}
-                  aria-label={t('clearSearch')}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 text-[11px] leading-none"
-                >✕</button>
-              )}
+            <div className="flex items-center gap-2">
+              <div className="relative min-w-[240px]">
+                <input
+                  ref={playerSearchRef}
+                  type="text"
+                  placeholder={t('searchPlaceholder')}
+                  value={playerQuery}
+                  onChange={(e) => setPlayerQuery(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md pl-2.5 pr-7 py-1.5 text-xs bg-white focus:outline-none focus:border-blue-500"
+                />
+                {playerQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setPlayerQuery('')}
+                    aria-label={t('clearSearch')}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 text-[11px] leading-none"
+                  >✕</button>
+                )}
+              </div>
+              <label className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={highlightResults}
+                  onChange={(e) => setHighlightResults(e.target.checked)}
+                  className="accent-yellow-400"
+                />
+                {t('highlight')}
+              </label>
             </div>
           </div>
 

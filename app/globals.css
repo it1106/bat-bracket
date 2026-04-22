@@ -1123,6 +1123,19 @@ html[lang="th"] .pm-section-title {
   -webkit-box-decoration-break: clone;
 }
 
+/* Disable yellow highlighting when user unchecks the "Highlight" option */
+body.no-highlight .bk-row.tracked,
+body.no-highlight .match__row.highlighted {
+  background: transparent !important;
+  color: inherit !important;
+  font-weight: inherit !important;
+}
+body.no-highlight .ms-player-highlight {
+  background: transparent;
+  padding: 0;
+  margin: 0;
+}
+
 .ms-score {
   grid-area: score;
   font-variant-numeric: tabular-nums;
