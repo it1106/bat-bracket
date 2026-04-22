@@ -81,6 +81,19 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'd' && e.key !== 'D') return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const el = document.activeElement as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      e.preventDefault()
+      toggleTheme()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleTheme])
+
+  useEffect(() => {
     document.body.classList.toggle('no-highlight', !highlightResults)
     return () => { document.body.classList.remove('no-highlight') }
   }, [highlightResults])
