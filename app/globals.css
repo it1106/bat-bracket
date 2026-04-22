@@ -1164,6 +1164,10 @@ html[lang="th"] .pm-section-title {
   color: var(--win-fg);
 }
 
+.ms-medal {
+  margin-right: 4px;
+}
+
 .ms-player-highlight {
   background: var(--track-bg);
   border-radius: 3px;
