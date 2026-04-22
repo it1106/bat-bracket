@@ -418,6 +418,7 @@ export default function Home() {
               aria-label={theme === 'dark' ? t('lightMode') : t('darkMode')}
               title={theme === 'dark' ? t('lightMode') : t('darkMode')}
               className="inline-flex items-center justify-center w-[30px] h-[28px] rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] text-sm"
+              suppressHydrationWarning
             >
               {theme === 'dark' ? '☀' : '🌙'}
             </button>

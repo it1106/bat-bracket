@@ -40,3 +40,7 @@ next-env.d.ts
 
 # external projects
 KBADashboard/
+CoreUI/
+
+# local tooling
+.claude/
