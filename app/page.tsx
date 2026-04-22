@@ -7,6 +7,7 @@ import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
 import { useLanguage } from '@/lib/LanguageContext'
+import { useTheme } from '@/lib/ThemeContext'
 import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
@@ -26,6 +27,7 @@ type ViewMode = 'bracket' | 'matches'
 
 export default function Home() {
   const { lang, toggleLang, t } = useLanguage()
+  const { theme, toggleTheme } = useTheme()
   const [tournaments, setTournaments] = useState<TournamentInfo[]>([])
   const [draws, setDraws] = useState<DrawInfo[]>([])
   const [selectedTournament, setSelectedTournament] = useState('')
@@ -398,6 +400,14 @@ export default function Home() {
                 {t('exportJpg')}
               </button>
             )}
+            <button
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? t('lightMode') : t('darkMode')}
+              title={theme === 'dark' ? t('lightMode') : t('darkMode')}
+              className="inline-flex items-center justify-center w-[30px] h-[28px] rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] text-sm"
+            >
+              {theme === 'dark' ? '☀' : '🌙'}
+            </button>
             <button
               onClick={toggleLang}
               aria-label="Toggle language"
