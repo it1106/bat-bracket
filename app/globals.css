@@ -437,7 +437,7 @@ html, body {
 }
 
 .pm-modal {
-  background: #fff;
+  background: var(--surface);
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   width: 100%;
@@ -455,18 +455,18 @@ html, body {
   background: none;
   border: none;
   font-size: 16px;
-  color: #888;
+  color: var(--muted);
   cursor: pointer;
   line-height: 1;
   padding: 10px 4px 2px;
 }
 
-.pm-close:hover { color: #333; }
+.pm-close:hover { color: var(--fg); }
 
 .pm-loading {
   padding: 32px;
   text-align: center;
-  color: #888;
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -477,13 +477,13 @@ html, body {
 .pm-name {
   font-size: 22px;
   font-weight: 700;
-  color: #25316B;
+  color: var(--brand-fg);
   line-height: 1.3;
 }
 
 .pm-club {
   font-size: 13px;
-  color: #888;
+  color: var(--muted);
   margin-top: 2px;
 }
 
@@ -495,7 +495,7 @@ html, body {
   gap: 6px;
 }
 .pm-stats-banner {
-  background: linear-gradient(60deg, #3f53b3 0%, #14151b 100%);
+  background: linear-gradient(60deg, var(--brand) 0%, #0d1117 100%);
   color: #fff;
   border-radius: 8px;
   padding: 14px;
@@ -530,17 +530,17 @@ html, body {
   gap: 6px;
 }
 .pm-stats-cell {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px 6px;
   text-align: center;
-  background: #fff;
+  background: var(--surface);
 }
 .pm-stats-cell-label {
   font-size: 14px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #888;
+  color: var(--muted);
 }
 html[lang="th"] .pm-stats-cell-label {
   font-size: 14px;
@@ -552,11 +552,11 @@ html[lang="th"] .pm-stats-cell-label {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
-  color: #25316B;
+  color: var(--brand-fg);
 }
 .pm-stats-cell-ytd {
   font-size: 14px;
-  color: #888;
+  color: var(--muted);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
@@ -570,7 +570,7 @@ html[lang="th"] .pm-stats-cell-label {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: #aaa;
+  color: var(--muted);
   margin-bottom: 8px;
 }
 
@@ -589,9 +589,9 @@ html[lang="th"] .pm-section-title {
 .pm-event-pill {
   font-size: 12px;
   font-weight: 600;
-  color: #25316B;
-  background: #f0f2f8;
-  border: 1px solid #d8dcec;
+  color: var(--brand-fg);
+  background: var(--track-bg);
+  border: 1px solid var(--border);
   border-radius: 14px;
   padding: 4px 12px;
   cursor: pointer;
@@ -600,19 +600,19 @@ html[lang="th"] .pm-section-title {
 }
 
 .pm-event-pill:hover {
-  background: #e2e6f4;
-  border-color: #c5cae8;
+  background: var(--border);
+  border-color: var(--muted);
 }
 
 .pm-event-pill.active {
-  background: #25316B;
+  background: var(--brand);
   color: #fff;
-  border-color: #25316B;
+  border-color: var(--brand);
 }
 
 .pm-event-pill.active:hover {
-  background: #1a237e;
-  border-color: #1a237e;
+  background: var(--brand-fg);
+  border-color: var(--brand-fg);
 }
 
 .pm-matches {
@@ -630,15 +630,15 @@ html[lang="th"] .pm-section-title {
   gap: 0 8px;
   align-items: flex-start;
   padding: 6px 10px;
-  background: #fafafa;
-  border: 1px solid #e5e7eb;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
 }
 
 .pm-match .pm-match-meta { grid-area: meta; }
 .pm-match .pm-match-score.pm-d { grid-area: score; }
-.pm-match .pm-match-scheduled { grid-area: sched; font-size: 12px; color: #888; padding-top: 2px; }
+.pm-match .pm-match-scheduled { grid-area: sched; font-size: 12px; color: var(--muted); padding-top: 2px; }
 
 .pm-match-meta {
   display: flex;
@@ -648,7 +648,7 @@ html[lang="th"] .pm-section-title {
 
 .pm-match-draw {
   font-weight: 700;
-  color: #25316B;
+  color: var(--brand-fg);
   font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
@@ -657,11 +657,11 @@ html[lang="th"] .pm-section-title {
 
 .pm-match-round {
   font-size: 11px;
-  color: #888;
+  color: var(--muted);
 }
 
 .pm-match-team {
-  color: #333;
+  color: var(--fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -669,13 +669,13 @@ html[lang="th"] .pm-section-title {
 
 .pm-match-team.winner {
   font-weight: 700;
-  color: #166534;
+  color: var(--win-fg);
 }
 
 .pm-match-score {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  color: #444;
+  color: var(--fg);
   font-size: 13px;
   text-align: left;
   white-space: nowrap;
@@ -684,12 +684,12 @@ html[lang="th"] .pm-section-title {
 .pm-empty {
   padding: 24px 0;
   text-align: center;
-  color: #aaa;
+  color: var(--muted);
   font-size: 13px;
 }
 
 .pm-bye {
-  color: #696969;
+  color: var(--muted);
   font-style: italic;
   font-size: 13px;
 }
@@ -701,7 +701,7 @@ html[lang="th"] .pm-section-title {
 .pm-player-link:hover {
   text-decoration: underline;
   text-underline-offset: 2px;
-  color: #25316B;
+  color: var(--brand-fg);
 }
 
 /* Mobile scoreboard elements — hidden on desktop */
@@ -720,9 +720,9 @@ html[lang="th"] .pm-section-title {
   .pm-match {
     display: flex;
     flex-direction: column;
-    border: 1px solid #e0e3eb;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--surface);
     margin-bottom: 8px;
     padding: 10px 12px;
     gap: 0;
@@ -740,7 +740,7 @@ html[lang="th"] .pm-section-title {
     align-items: center;
     gap: 6px;
     padding: 0 0 8px 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--row-sep);
     margin-bottom: 8px;
   }
 
@@ -748,8 +748,8 @@ html[lang="th"] .pm-section-title {
 
   .pm-match-round {
     font-size: 12px;
-    background: #f0f2f8;
-    color: #25316B;
+    background: var(--track-bg);
+    color: var(--brand-fg);
     padding: 1px 6px;
     border-radius: 4px;
   }
@@ -762,7 +762,7 @@ html[lang="th"] .pm-section-title {
   }
 
   .pm-board-row + .pm-board-row {
-    border-top: 1px solid #f0f0f0;
+    border-top: 1px solid var(--row-sep);
     margin-top: 4px;
     padding-top: 4px;
   }
@@ -785,25 +785,25 @@ html[lang="th"] .pm-section-title {
     font-weight: 600;
     font-size: 14px;
     flex-shrink: 0;
-    color: #333;
+    color: var(--fg);
   }
 
   .pm-board-badge {
     font-size: 14px;
     font-weight: 700;
-    color: #166534;
+    color: var(--win-fg);
     padding-left: 6px;
     flex-shrink: 0;
   }
 
   .pm-board-row.winner .pm-board-players {
     font-weight: 700;
-    color: #166534;
+    color: var(--win-fg);
   }
 
   .pm-board-scheduled {
     font-size: 12px;
-    color: #888;
+    color: var(--muted);
     margin-top: 6px;
   }
 }
