@@ -225,7 +225,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     close: 'ปิด',
     h2hButton: 'H2H',
     langToggle: 'English',
-    statsCareer: 'สถิติอาชีพ · ในวงเล็บคือปีนี้',
+    statsCareer: 'สถิติรวม · ในวงเล็บคือปีนี้',
     statsSingles: 'เดี่ยว',
     statsDoubles: 'คู่',
     statsMixed: 'คู่ผสม',
