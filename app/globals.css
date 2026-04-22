@@ -177,6 +177,10 @@ html, body {
   font-weight: 700 !important;
 }
 
+.bk-medal {
+  margin-right: 2px;
+}
+
 .bk-score {
   font-size: 10px;
   color: var(--fg);

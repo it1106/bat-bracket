@@ -33,36 +33,68 @@ export default function BracketCanvas({
   // Pre-compute HTML with tracked/highlighted classes embedded so all elements
   // (including off-screen) are styled correctly from initial render.
   const displayHtml = useMemo(() => {
+    if (!bracketHtml || typeof document === 'undefined') return bracketHtml
     const query = playerQuery.trim().toLowerCase()
-    if (!query || !bracketHtml || typeof document === 'undefined') return bracketHtml
     const wrapper = document.createElement('div')
     wrapper.innerHTML = bracketHtml
 
-    const clubMatches = (pid: string | null) => {
-      if (!pid || !playerClubMap) return false
-      const club = (playerClubMap[pid] ?? '').toLowerCase()
-      return !!club && club.includes(query)
+    if (query) {
+      const clubMatches = (pid: string | null) => {
+        if (!pid || !playerClubMap) return false
+        const club = (playerClubMap[pid] ?? '').toLowerCase()
+        return !!club && club.includes(query)
+      }
+
+      // bk-row format
+      wrapper.querySelectorAll<HTMLElement>('.bk-row').forEach((row) => {
+        const spans = row.querySelectorAll<HTMLElement>('.bk-player, span')
+        const matches = Array.from(spans).some((s) =>
+          (s.textContent?.toLowerCase().includes(query)) ||
+          clubMatches(s.getAttribute('data-player-id'))
+        )
+        row.classList.toggle('tracked', matches)
+      })
+
+      // match__row format
+      wrapper.querySelectorAll<HTMLElement>('.match__row').forEach((row) => {
+        const links = row.querySelectorAll<HTMLAnchorElement>('.match__row-title-value-content a')
+        const matches = Array.from(links).some((link) =>
+          (link.textContent?.toLowerCase().includes(query)) ||
+          clubMatches(link.getAttribute('data-player-id'))
+        )
+        row.classList.toggle('highlighted', matches)
+      })
     }
 
-    // bk-row format
-    wrapper.querySelectorAll<HTMLElement>('.bk-row').forEach((row) => {
-      const spans = row.querySelectorAll<HTMLElement>('.bk-player, span')
-      const matches = Array.from(spans).some((s) =>
-        (s.textContent?.toLowerCase().includes(query)) ||
-        clubMatches(s.getAttribute('data-player-id'))
-      )
-      row.classList.toggle('tracked', matches)
-    })
-
-    // match__row format
-    wrapper.querySelectorAll<HTMLElement>('.match__row').forEach((row) => {
-      const links = row.querySelectorAll<HTMLAnchorElement>('.match__row-title-value-content a')
-      const matches = Array.from(links).some((link) =>
-        (link.textContent?.toLowerCase().includes(query)) ||
-        clubMatches(link.getAttribute('data-player-id'))
-      )
-      row.classList.toggle('highlighted', matches)
-    })
+    // Gold/silver/bronze medals: final round awards 🥇/🥈,
+    // semi-final awards 🥉 to each losing team.
+    const addMedal = (row: HTMLElement, emoji: string) => {
+      row.querySelectorAll<HTMLElement>('.bk-player').forEach((p) => {
+        if (!p.textContent?.trim()) return
+        if (p.querySelector('.bk-medal')) return
+        const m = document.createElement('span')
+        m.className = 'bk-medal'
+        m.textContent = `${emoji} `
+        p.insertBefore(m, p.firstChild)
+      })
+    }
+    const rounds = wrapper.querySelectorAll<HTMLElement>('.bk-round')
+    if (rounds.length >= 1) {
+      const finalBox = rounds[rounds.length - 1].querySelector<HTMLElement>('.bk-match-box')
+      if (finalBox && finalBox.querySelector('.bk-row.winner')) {
+        finalBox.querySelectorAll<HTMLElement>('.bk-row').forEach((row) => {
+          addMedal(row, row.classList.contains('winner') ? '🥇' : '🥈')
+        })
+      }
+    }
+    if (rounds.length >= 2) {
+      rounds[rounds.length - 2].querySelectorAll<HTMLElement>('.bk-match-box').forEach((box) => {
+        if (!box.querySelector('.bk-row.winner')) return
+        box.querySelectorAll<HTMLElement>('.bk-row').forEach((row) => {
+          if (!row.classList.contains('winner')) addMedal(row, '🥉')
+        })
+      })
+    }
 
     return wrapper.innerHTML
   }, [bracketHtml, playerQuery, playerClubMap])
