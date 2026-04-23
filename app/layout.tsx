@@ -6,7 +6,7 @@ import { ThemeProvider } from '@/lib/ThemeContext'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'BAT Unofficial Brackets',
+  title: 'BAT Unofficial Scoreboard',
   description: 'Tournament bracket viewer for bat.tournamentsoftware.com',
 }
 

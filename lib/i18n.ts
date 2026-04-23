@@ -127,7 +127,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
   en: {
     appTitle1: 'BAT',
     appTitle2: 'Unofficial',
-    appTitle3: 'Scores',
+    appTitle3: 'Scoreboard',
     appSubtitle: 'Check BAT official website for accuracy',
     tournament: 'Tournament',
     draw: 'Draw',
@@ -185,7 +185,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
   th: {
     appTitle1: 'BAT',
     appTitle2: 'Unofficial',
-    appTitle3: 'Scores',
+    appTitle3: 'Scoreboard',
     appSubtitle: 'กรุณาตรวจสอบความถูกต้องจากเว็บไซต์ BAT อีกครั้ง',
     tournament: 'รายการแข่งขัน',
     draw: 'ตารางแข่ง',
