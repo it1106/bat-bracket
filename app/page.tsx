@@ -336,7 +336,13 @@ export default function Home() {
               <option value="">
                 {loadingTournaments ? t('loading') : t('selectTournament')}
               </option>
-              {tournaments.map((tn) => (
+              {tournaments.filter((tn) => !tn.done).map((tn) => (
+                <option key={tn.id} value={tn.id}>{tn.name}</option>
+              ))}
+              {tournaments.some((tn) => tn.done) && tournaments.some((tn) => !tn.done) && (
+                <option disabled>──────────</option>
+              )}
+              {tournaments.filter((tn) => tn.done).map((tn) => (
                 <option key={tn.id} value={tn.id}>{tn.name}</option>
               ))}
             </select>
