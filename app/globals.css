@@ -38,7 +38,7 @@ html.dark {
   --red: #ff7b72;
   --win-bg: rgba(46, 160, 67, 0.15);
   --win-fg: #7ee787;
-  --track-bg: rgba(210, 153, 34, 0.18);
+  --track-bg: rgba(210, 153, 34, 0.4);
   --track-fg: #d29922;
   --score-bg: #0d1117;
   --row-sep: #21262d;
