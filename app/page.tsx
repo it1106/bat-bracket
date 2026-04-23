@@ -57,6 +57,7 @@ export default function Home() {
   const playerSearchRef = useRef<HTMLInputElement>(null)
   const lastScrollY = useRef(0)
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
+  const autoSelectedTournamentRef = useRef(false)
   const [headerVisible, setHeaderVisible] = useState(true)
 
   useEffect(() => {
@@ -126,6 +127,10 @@ export default function Home() {
   // Load draws + matches when tournament changes
   const handleTournamentChange = useCallback(async (id: string) => {
     setSelectedTournament(id)
+    if (typeof window !== 'undefined') {
+      if (id) localStorage.setItem('selectedTournament', id)
+      else localStorage.removeItem('selectedTournament')
+    }
     setSelectedDraw('')
     setDraws([])
     setBracketHtml('')
@@ -171,6 +176,18 @@ export default function Home() {
       setSelectedDay(md.currentDate || md.days[0]?.date || '')
     }
   }, [tournaments])
+
+  // Restore previously selected tournament from localStorage once the list is known
+  useEffect(() => {
+    if (autoSelectedTournamentRef.current) return
+    if (loadingTournaments || tournaments.length === 0) return
+    autoSelectedTournamentRef.current = true
+    if (typeof window === 'undefined') return
+    const saved = localStorage.getItem('selectedTournament')
+    if (saved && tournaments.some((t) => t.id === saved)) {
+      handleTournamentChange(saved)
+    }
+  }, [loadingTournaments, tournaments, handleTournamentChange])
 
   const fetchBracketFrom = useCallback(async (tournamentId: string, drawNum: string, round: number) => {
     setLoadingBracket(true)
