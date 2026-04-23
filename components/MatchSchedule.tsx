@@ -57,7 +57,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     return cls.join(' ')
   }
 
-  const renderMatch = (m: MatchEntry, mi: number) => {
+  const renderMatch = (m: MatchEntry, mi: number, showCourt: boolean) => {
     const finalMedal = isFinalRound(m.round)
     const medal = (team: 1 | 2) =>
       finalMedal && m.winner === team ? <span className="ms-medal" aria-label="winner">🥇</span> : null
@@ -69,6 +69,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           onClick={onEventClick && m.drawNum ? () => onEventClick(m.drawNum, m.round) : undefined}
         >{m.draw}</span>
         <span className="ms-round">{longRound(m.round)}</span>
+        {showCourt && m.court && <span className="ms-court">{m.court}</span>}
         {m.sequenceLabel && <span className="ms-seq">{m.sequenceLabel}</span>}
         {m.nowPlaying && <span className="ms-now-playing" title={t('nowPlaying')} />}
         {m.h2hUrl && onH2HClick && (
@@ -156,7 +157,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           <div key={gi} className="match-schedule__time-group">
             <div className="match-schedule__time-header">{headerText}</div>
             <div className="ms-list">
-              {filtered.map((m, mi) => renderMatch(m, mi))}
+              {filtered.map((m, mi) => renderMatch(m, mi, group.type === 'time'))}
             </div>
           </div>
         )

@@ -1131,6 +1131,12 @@ html[lang="th"] .pm-section-title {
   white-space: nowrap;
 }
 
+.ms-court {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .ms-now-playing {
   display: inline-block;
   width: 9px;

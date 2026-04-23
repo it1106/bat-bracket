@@ -310,8 +310,8 @@ function parseSingleMatch($: cheerio.CheerioAPI, matchEl: any): MatchEntry {
   const round = titleItems.eq(1).find('.nav-link__value').text().trim()
 
   const tooltip = $(matchEl).find('.match__header-aside-block').attr('title') ?? ''
-  const courtMatch = tooltip.match(/\|\s*(.+)$/)
-  const court = courtMatch ? courtMatch[1].trim() : ''
+  const pipeIdx = tooltip.lastIndexOf('|')
+  const court = (pipeIdx >= 0 ? tooltip.slice(pipeIdx + 1) : tooltip).trim()
 
   const msgText = $(matchEl).find('.match__message').text().trim()
   const nowPlaying = ($(matchEl).html() ?? '').includes('icon-sport2')
