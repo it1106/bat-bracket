@@ -594,7 +594,6 @@ html[lang="th"] .pm-section-title {
   font-size: 12px;
   font-weight: 600;
   color: var(--brand-fg);
-  background: var(--track-bg);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 4px 12px;
@@ -752,7 +751,6 @@ html[lang="th"] .pm-section-title {
 
   .pm-match-round {
     font-size: 12px;
-    background: var(--track-bg);
     color: var(--brand-fg);
     padding: 1px 6px;
     border-radius: 4px;
