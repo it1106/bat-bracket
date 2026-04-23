@@ -340,7 +340,7 @@ export default function Home() {
                 <option key={tn.id} value={tn.id}>{tn.name}</option>
               ))}
               {tournaments.some((tn) => tn.done) && tournaments.some((tn) => !tn.done) && (
-                <option disabled>──────────</option>
+                <option disabled>───────── Past Events ─────────</option>
               )}
               {tournaments.filter((tn) => tn.done).map((tn) => (
                 <option key={tn.id} value={tn.id}>{tn.name}</option>
