@@ -464,7 +464,11 @@ function parseProfileStats($: cheerio.CheerioAPI): import('./types').PlayerStats
 
 export function extractProfileUrl(html: string): string {
   const $ = cheerio.load(html)
-  return $('a[href*="/player-profile/"]').first().attr('href') ?? ''
+  return (
+    $('a[href*="/player-profile/"]').first().attr('href') ||
+    $('a.media__link[href^="/player/"]').first().attr('href') ||
+    ''
+  )
 }
 
 export function parsePlayerProfile(html: string, playerClubMap?: Record<string, string>): import('./types').PlayerProfile {

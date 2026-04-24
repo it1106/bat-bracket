@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { parseTournaments, parseEvents, parseBracket } from '@/lib/scraper'
+import { parseTournaments, parseEvents, parseBracket, extractProfileUrl } from '@/lib/scraper'
 
 const fixtureHtml = (name: string) =>
   fs.readFileSync(path.join(process.cwd(), 'fixtures', name), 'utf-8')
@@ -60,5 +60,39 @@ describe('parseBracket', () => {
     const result = parseBracket('<html><body>not a bracket</body></html>')
     expect(result.html).toBe('')
     expect(result.format).toBe('unknown')
+  })
+})
+
+describe('extractProfileUrl', () => {
+  it('matches the legacy /player-profile/{guid} format', () => {
+    const html = '<a class="media__link" href="/player-profile/abc-123">Name</a>'
+    expect(extractProfileUrl(html)).toBe('/player-profile/abc-123')
+  })
+
+  it('matches the new /player/{orgCode}/{memberID} format', () => {
+    const html =
+      '<a class="nav-link media__link text--link-white text--link" ' +
+      'href="/player/b06eafc7-fdae-450f-909e-317c6770352d/YmFzZTY0OjgxODk2NDA5">Name</a>'
+    expect(extractProfileUrl(html)).toBe(
+      '/player/b06eafc7-fdae-450f-909e-317c6770352d/YmFzZTY0OjgxODk2NDA5'
+    )
+  })
+
+  it('prefers the legacy format when both are present', () => {
+    const html =
+      '<a class="media__link" href="/player/org/mid">New</a>' +
+      '<a class="media__link" href="/player-profile/legacy">Legacy</a>'
+    expect(extractProfileUrl(html)).toBe('/player-profile/legacy')
+  })
+
+  it('ignores same-tournament /sport/player.aspx links', () => {
+    const html =
+      '<a href="/sport/player.aspx?id=X&player=2835">Opponent</a>' +
+      '<a href="/find/player">Find players</a>'
+    expect(extractProfileUrl(html)).toBe('')
+  })
+
+  it('returns empty string when no profile link is present', () => {
+    expect(extractProfileUrl('<html><body></body></html>')).toBe('')
   })
 })
