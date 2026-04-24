@@ -74,6 +74,10 @@ export class LiveScoreClient {
   private ws: WebSocket | null = null
   private connectionToken: string | null = null
   private lastHeartbeat = 0
+  private subscribeTimer: ReturnType<typeof setTimeout> | null = null
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  private reconnectAttempts = 0
+  private sawCourts = false
 
   on<K extends keyof Events>(ev: K, cb: Events[K]) {
     this.listeners[ev].push(cb)
@@ -86,10 +90,12 @@ export class LiveScoreClient {
   }
 
   disconnect() {
-    if (this.ws) {
-      try { this.ws.close() } catch { /* ignore */ }
-      this.ws = null
-    }
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null }
+    this.clearSubscribeTimer()
+    this.tournamentId = null
+    this.sawCourts = false
+    this.reconnectAttempts = 0
+    this.closeSocket()
     this.setState('idle')
   }
 
@@ -100,6 +106,32 @@ export class LiveScoreClient {
   private setState(s: State) {
     this.state = s
     this.emit('state', s)
+    if (s === 'subscribed') {
+      this.clearSubscribeTimer()
+      this.subscribeTimer = setTimeout(() => {
+        if (this.state === 'subscribed' && !this.sawCourts) {
+          this.setState('disabled')
+          this.closeSocket()
+        }
+      }, 8000)
+    }
+    if (s === 'active' || s === 'disabled' || s === 'idle' || s === 'reconnecting') {
+      this.clearSubscribeTimer()
+    }
+    if (s === 'active') {
+      this.reconnectAttempts = 0
+    }
+  }
+
+  private clearSubscribeTimer() {
+    if (this.subscribeTimer) { clearTimeout(this.subscribeTimer); this.subscribeTimer = null }
+  }
+
+  private closeSocket() {
+    if (this.ws) {
+      try { this.ws.close() } catch { /* ignore */ }
+      this.ws = null
+    }
   }
 
   private async doNegotiate() {
@@ -181,13 +213,32 @@ export class LiveScoreClient {
       if (inv.H === HUB_NAME && inv.M === 'sendScoreboard') {
         const payload = Array.isArray(inv.A) ? inv.A[0] : null
         const courts = normalizePayload(payload)
-        if (courts.length > 0 && this.state !== 'active') this.setState('active')
+        if (courts.length > 0) {
+          this.sawCourts = true
+          if (this.state !== 'active') this.setState('active')
+        }
         this.emit('scoreboard', courts)
       }
     }
   }
 
-  private onWsClose() { /* Task 5 */ }
+  private onWsClose() {
+    this.ws = null
+    if (this.state === 'disabled' || this.state === 'idle') return
+    if (this.reconnectAttempts >= 5) {
+      this.setState('disabled')
+      return
+    }
+    const delays = [1000, 2000, 4000, 8000, 15000]
+    const delay = delays[Math.min(this.reconnectAttempts, delays.length - 1)]
+    this.reconnectAttempts++
+    this.setState('reconnecting')
+    this.reconnectTimer = setTimeout(() => {
+      if (!this.tournamentId) return
+      this.setState('negotiating')
+      void this.doNegotiate()
+    }, delay)
+  }
 }
 
 export function normalizePayload(raw: unknown): CourtLive[] {

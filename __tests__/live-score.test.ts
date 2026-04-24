@@ -334,3 +334,82 @@ describe('LiveScoreClient — messages', () => {
     expect(heard.length).toBe(0)
   })
 })
+
+describe('LiveScoreClient — reconnect + disable', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+    MockSocket.last = null
+  })
+  afterEach(() => jest.useRealTimers())
+
+  async function runToSubscribed() {
+    const { fetchMock } = installMocks()
+    fetchMock.mockResolvedValue(mockJsonOk({ ConnectionToken: 'TOK', ProtocolVersion: '1.5' }))
+    const c = new LiveScoreClient()
+    c.connect('GUID-R')
+    await Promise.resolve(); await Promise.resolve()
+    MockSocket.last!.simulateOpen()
+    await Promise.resolve(); await Promise.resolve()
+    return c
+  }
+
+  it('soft-disables after 8s with empty CS (subscribed but never active)', async () => {
+    const c = await runToSubscribed()
+    const states: string[] = []
+    c.on('state', (s) => states.push(s))
+    jest.advanceTimersByTime(8100)
+    await Promise.resolve()
+    expect(states).toContain('disabled')
+  })
+
+  it('does not soft-disable if a non-empty CS arrives in time', async () => {
+    const c = await runToSubscribed()
+    const states: string[] = []
+    c.on('state', (s) => states.push(s))
+    MockSocket.last!.simulateMessage({
+      C: 'x', M: [{ H: 'scoreboardHub', M: 'sendScoreboard', A: [{ S: 1, CS: [{ MID: 1, N: 'C1', T1: {}, T2: {}, SCS: [], LSC: null, D: 0, W: 0 }] }] }],
+    })
+    jest.advanceTimersByTime(9000)
+    await Promise.resolve()
+    expect(states).not.toContain('disabled')
+  })
+
+  it('reconnects with back-off after socket close', async () => {
+    await runToSubscribed()
+    const firstSocket = MockSocket.last
+    MockSocket.last!.simulateClose()
+    jest.advanceTimersByTime(1100)
+    await Promise.resolve(); await Promise.resolve()
+    expect(MockSocket.last).not.toBeNull()
+    expect(MockSocket.last).not.toBe(firstSocket)
+  })
+
+  it('goes to disabled after 5 failed reconnect attempts', async () => {
+    const { fetchMock } = installMocks()
+    fetchMock.mockResolvedValue(mockJsonOk({ ConnectionToken: 'TOK', ProtocolVersion: '1.5' }))
+    const c = new LiveScoreClient()
+    const states: string[] = []
+    c.on('state', (s) => states.push(s))
+    c.connect('GUID-X')
+    await Promise.resolve(); await Promise.resolve()
+    const backoffs = [1000, 2000, 4000, 8000, 15000, 15000]
+    for (const ms of backoffs) {
+      if (MockSocket.last) {
+        MockSocket.last.simulateOpen()
+        await Promise.resolve(); await Promise.resolve()
+        MockSocket.last.simulateClose()
+      }
+      jest.advanceTimersByTime(ms + 100)
+      await Promise.resolve(); await Promise.resolve()
+    }
+    expect(states).toContain('disabled')
+  })
+
+  it('disconnect() closes the socket and returns to idle', async () => {
+    const c = await runToSubscribed()
+    const states: string[] = []
+    c.on('state', (s) => states.push(s))
+    c.disconnect()
+    expect(states).toContain('idle')
+  })
+})
