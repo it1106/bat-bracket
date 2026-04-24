@@ -100,6 +100,7 @@ export type TKey =
   | 'bye'
   | 'walkover'
   | 'retired'
+  | 'live'
   | 'nowPlaying'
   | 'noPlayerMatches'
   | 'noH2HData'
@@ -159,6 +160,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     bye: 'Bye',
     walkover: 'Walkover',
     retired: 'Ret.',
+    live: 'LIVE',
     nowPlaying: 'Now playing',
     noPlayerMatches: 'No match data available yet.',
     noH2HData: 'No H2H data available.',
@@ -217,6 +219,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     bye: 'บาย',
     walkover: 'ชนะบาย',
     retired: 'ถอน',
+    live: 'สด',
     nowPlaying: 'กำลังแข่ง',
     noPlayerMatches: 'ยังไม่มีข้อมูลการแข่งขัน',
     noH2HData: 'ไม่มีข้อมูลการเจอกัน',
