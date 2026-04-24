@@ -18,7 +18,7 @@ function entry(over: Partial<MatchEntry> = {}): MatchEntry {
 
 function live(over: Partial<CourtLive> = {}): CourtLive {
   return {
-    courtKey: 'court3',
+    courtKey: '3',
     matchId: 42,
     playerIds: ['100', '200'],
     setScores: [],
@@ -33,12 +33,14 @@ function live(over: Partial<CourtLive> = {}): CourtLive {
 
 describe('normalizeCourtName', () => {
   it.each([
-    ['Court - 3', 'court3'],
-    ['Court 3', 'court3'],
-    ['court3', 'court3'],
+    ['Court - 3', '3'],
+    ['Court 3', '3'],
+    ['court3', '3'],
     ['3', '3'],
-    ['  Court—3  ', 'court3'],
-    ['Court 12', 'court12'],
+    ['  Court—3  ', '3'],
+    ['Court 12', '12'],
+    ['Court A', 'a'],
+    ['A', 'a'],
     ['', ''],
   ])('%s → %s', (input, expected) => {
     expect(normalizeCourtName(input)).toBe(expected)
@@ -47,32 +49,38 @@ describe('normalizeCourtName', () => {
 
 describe('matchLiveCourt', () => {
   it('returns live when court key + ≥1 player ID match', () => {
-    const map = new Map([['court3', live()]])
+    const map = new Map([['3', live()]])
     expect(matchLiveCourt(entry(), map)).toEqual(live())
   })
 
   it('returns null when court matches but no player IDs overlap', () => {
-    const map = new Map([['court3', live({ playerIds: ['999'] })]])
+    const map = new Map([['3', live({ playerIds: ['999'] })]])
     expect(matchLiveCourt(entry(), map)).toBeNull()
   })
 
-  it('returns null when court key does not match', () => {
-    const map = new Map([['court4', live()]])
+  it('falls back to player-ID scan when court key does not match', () => {
+    const map = new Map([['4', live()]])
+    expect(matchLiveCourt(entry(), map)).toEqual(live())
+  })
+
+  it('returns null when court key does not match AND no player IDs overlap', () => {
+    const unrelated = live({ courtKey: '4', playerIds: ['555'] })
+    const map = new Map([['4', unrelated]])
     expect(matchLiveCourt(entry(), map)).toBeNull()
   })
 
   it('returns null when nowPlaying is false', () => {
-    const map = new Map([['court3', live()]])
+    const map = new Map([['3', live()]])
     expect(matchLiveCourt(entry({ nowPlaying: false }), map)).toBeNull()
   })
 
-  it('returns null when entry has empty court', () => {
-    const map = new Map([['', live()]])
-    expect(matchLiveCourt(entry({ court: '' }), map)).toBeNull()
+  it('falls back to player-ID scan even when entry court is "Now playing"', () => {
+    const map = new Map([['3', live()]])
+    expect(matchLiveCourt(entry({ court: 'Now playing' }), map)).toEqual(live())
   })
 
   it('matches when only one player in common (doubles substitution)', () => {
-    const map = new Map([['court3', live({ playerIds: ['100', '888'] })]])
+    const map = new Map([['3', live({ playerIds: ['100', '888'] })]])
     const e = entry({
       team1: [{ name: 'A', playerId: '100' }, { name: 'C', playerId: '777' }],
       team2: [{ name: 'B', playerId: '200' }, { name: 'D', playerId: '999' }],
@@ -81,7 +89,7 @@ describe('matchLiveCourt', () => {
   })
 
   it('ignores empty playerId strings on match entry', () => {
-    const map = new Map([['court3', live({ playerIds: ['', '200'] })]])
+    const map = new Map([['3', live({ playerIds: ['', '200'] })]])
     const e = entry({
       team1: [{ name: 'A', playerId: '' }],
       team2: [{ name: 'B', playerId: '200' }],
@@ -113,7 +121,7 @@ describe('normalizePayload', () => {
   it('normalizes an active match with completed sets and a live game', () => {
     const [c] = normalizePayload({ S: 1, CS: [activeCourt] })
     expect(c).toMatchObject({
-      courtKey: 'court3',
+      courtKey: '3',
       matchId: 42,
       playerIds: ['100', '200'],
       setScores: [{ t1: 21, t2: 15, winner: 1 }],
@@ -301,7 +309,7 @@ describe('LiveScoreClient — messages', () => {
       C: 'x', M: [{ H: 'scoreboardHub', M: 'sendScoreboard', A: [payload] }],
     })
     expect(heard.length).toBe(1)
-    expect(heard[0][0].courtKey).toBe('court1')
+    expect(heard[0][0].courtKey).toBe('1')
     expect(heard[0][0].current).toEqual({ gameNo: 1, setNo: 1, t1: 5, t2: 3 })
   })
 

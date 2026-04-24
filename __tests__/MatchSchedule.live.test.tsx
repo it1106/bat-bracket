@@ -22,7 +22,7 @@ function entry(over: Partial<MatchEntry> = {}): MatchEntry {
 const group = (m: MatchEntry): MatchScheduleGroup => ({ type: 'time', time: '10:00', matches: [m] })
 
 const live = (over: Partial<CourtLive> = {}): CourtLive => ({
-  courtKey: 'court3', matchId: 42, playerIds: ['100', '200'],
+  courtKey: '3', matchId: 42, playerIds: ['100', '200'],
   setScores: [{ t1: 21, t2: 15, winner: 1 }],
   current: { gameNo: 2, setNo: 1, t1: 11, t2: 9 },
   serving: 0, winner: 0,
@@ -45,14 +45,14 @@ function renderWith(m: MatchEntry, liveByCourt?: Map<string, CourtLive>) {
 
 describe('MatchSchedule — live overlay', () => {
   it('renders LIVE badge and set-live span when a live record matches', () => {
-    renderWith(entry(), new Map([['court3', live()]]))
+    renderWith(entry(), new Map([['3', live()]]))
     expect(screen.getAllByText('LIVE')[0]).toHaveClass('ms-live-badge')
     const liveSet = screen.getByText('11-9')
     expect(liveSet).toHaveClass('set-live')
   })
 
   it('suppresses the green ms-now-playing pulse when a live record matches', () => {
-    const { container } = renderWith(entry(), new Map([['court3', live()]]))
+    const { container } = renderWith(entry(), new Map([['3', live()]]))
     expect(container.querySelector('.ms-now-playing')).toBeNull()
   })
 
@@ -63,14 +63,14 @@ describe('MatchSchedule — live overlay', () => {
   })
 
   it('shows LIVE badge but no set-live span between games (current=null)', () => {
-    renderWith(entry(), new Map([['court3', live({ current: null })]]))
+    renderWith(entry(), new Map([['3', live({ current: null })]]))
     expect(screen.getAllByText('LIVE').length).toBeGreaterThan(0)
     expect(document.querySelector('.set-live')).toBeNull()
   })
 
   it('does not render LIVE when the match is nowPlaying but player IDs do not overlap', () => {
     const unrelated = live({ playerIds: ['555'] })
-    renderWith(entry(), new Map([['court3', unrelated]]))
+    renderWith(entry(), new Map([['3', unrelated]]))
     expect(screen.queryByText('LIVE')).toBeNull()
   })
 })

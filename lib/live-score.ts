@@ -14,23 +14,41 @@ export interface CourtLive {
 }
 
 export function normalizeCourtName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '')
+  // Upstream SignalR feed uses bare identifiers like "1" / "2" / "A".
+  // The schedule scrape stores the same courts as "Court - 1", "Court A", etc.
+  // Strip non-alphanumerics and the leading "court" prefix so both sides collapse
+  // to the same canonical form.
+  const stripped = name.toLowerCase().replace(/[^a-z0-9]+/g, '')
+  return stripped.replace(/^court/, '')
 }
 
 export function matchLiveCourt(
   m: MatchEntry,
   map: Map<string, CourtLive>,
 ): CourtLive | null {
-  if (!m.nowPlaying || !m.court) return null
-  const key = normalizeCourtName(m.court)
-  if (!key) return null
-  const live = map.get(key)
-  if (!live) return null
+  if (!m.nowPlaying) return null
   const schedIds = new Set(
     [...m.team1, ...m.team2].map((p) => p.playerId).filter(Boolean),
   )
   if (schedIds.size === 0) return null
-  return live.playerIds.some((id) => id && schedIds.has(id)) ? live : null
+
+  // Preferred path: normalized court name hits a live record that also shares
+  // at least one player ID (guards against back-to-back matches on same court).
+  if (m.court) {
+    const key = normalizeCourtName(m.court)
+    if (key) {
+      const live = map.get(key)
+      if (live && live.playerIds.some((id) => id && schedIds.has(id))) return live
+    }
+  }
+
+  // Fallback: the schedule often reports `court = "Now playing"` for active
+  // matches instead of a real court number. Scan all live records by player ID.
+  const liveValues = Array.from(map.values())
+  for (const live of liveValues) {
+    if (live.playerIds.some((id) => id && schedIds.has(id))) return live
+  }
+  return null
 }
 
 interface RawTeam {
@@ -207,14 +225,27 @@ export class LiveScoreClient {
     let msg: unknown
     try { msg = JSON.parse(e.data as string) } catch { return }
     if (!msg || typeof msg !== 'object') return
-    const invocations = (msg as { M?: unknown }).M
-    if (!Array.isArray(invocations)) return
-    for (const inv of invocations as Array<{ H?: string; M?: string; A?: unknown[] }>) {
+    const m = msg as { M?: unknown; R?: unknown }
+    const hubLower = HUB_NAME.toLowerCase()
+
+    // Response to our joinScoreboardNew RPC carries the initial snapshot in `R`.
+    if (m.R && typeof m.R === 'object') {
+      const courts = normalizePayload(m.R)
+      if (courts.length > 0) {
+        this.sawCourts = true
+        if (this.state !== 'active') this.setState('active')
+      }
+      this.emit('scoreboard', courts)
+    }
+
+    // Server pushes arrive in the M array.
+    if (!Array.isArray(m.M)) return
+    for (const inv of m.M as Array<{ H?: string; M?: string; A?: unknown[] }>) {
       if (inv.M === 'heartbeat') {
         this.lastHeartbeat = Date.now()
         continue
       }
-      if (inv.H === HUB_NAME && inv.M === 'sendScoreboard') {
+      if ((inv.H ?? '').toLowerCase() === hubLower && inv.M === 'sendScoreboard') {
         const payload = Array.isArray(inv.A) ? inv.A[0] : null
         const courts = normalizePayload(payload)
         if (courts.length > 0) {
