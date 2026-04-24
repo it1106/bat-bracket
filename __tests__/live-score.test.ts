@@ -213,7 +213,7 @@ describe('LiveScoreClient — negotiate + connect', () => {
     c.connect('GUID-1')
     await Promise.resolve()
     const url = fetchMock.mock.calls[0][0] as string
-    expect(url).toContain('/signalr/negotiate')
+    expect(url).toContain('/api/livescore/negotiate')
     expect(url).toContain('clientProtocol=1.5')
     expect(url).toContain(encodeURIComponent('[{"name":"scoreboardHub"}]'))
     expect(url).toContain('VClientID=')
@@ -244,7 +244,7 @@ describe('LiveScoreClient — negotiate + connect', () => {
     MockSocket.last!.simulateOpen()
     await Promise.resolve(); await Promise.resolve()
     const startUrl = fetchMock.mock.calls[1][0] as string
-    expect(startUrl).toContain('/signalr/start')
+    expect(startUrl).toContain('/api/livescore/start')
     expect(MockSocket.last!.sent[0]).toBe(JSON.stringify({
       H: 'scoreboardHub', M: 'joinScoreboardNew', A: ['GUID-3'], I: 0,
     }))

@@ -51,8 +51,12 @@ function teamIds(t: RawTeam | undefined): string[] {
     .map(String)
 }
 
-const HUB_HOST = 'https://livescore.tournamentsoftware.com'
-const WS_HOST  = 'wss://livescore.tournamentsoftware.com'
+// /signalr/negotiate, /signalr/start, /signalr/abort are blocked by CORS
+// when called directly from the browser, so route them through our own
+// Next.js API proxy. The WebSocket itself does not need a proxy — browsers
+// allow cross-origin WebSocket handshakes.
+const HUB_HTTP_BASE = '/api/livescore'
+const WS_HOST = 'wss://livescore.tournamentsoftware.com'
 const HUB_NAME = 'scoreboardHub'
 const CLIENT_PROTOCOL = '1.5'
 const CONNECTION_DATA = JSON.stringify([{ name: HUB_NAME }])
@@ -141,7 +145,7 @@ export class LiveScoreClient {
       VClientID: VCLIENT_ID,
       _: String(Date.now()),
     })
-    const url = `${HUB_HOST}/signalr/negotiate?${qs}`
+    const url = `${HUB_HTTP_BASE}/negotiate?${qs}`
     let res: Response
     try {
       res = await fetch(url)
@@ -192,7 +196,7 @@ export class LiveScoreClient {
       VClientID: VCLIENT_ID,
       _: String(Date.now()),
     })
-    try { await fetch(`${HUB_HOST}/signalr/start?${qs}`) } catch { /* proceed */ }
+    try { await fetch(`${HUB_HTTP_BASE}/start?${qs}`) } catch { /* proceed */ }
     this.ws?.send(JSON.stringify({
       H: HUB_NAME, M: 'joinScoreboardNew', A: [this.tournamentId], I: 0,
     }))
