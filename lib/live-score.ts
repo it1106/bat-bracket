@@ -51,6 +51,125 @@ function teamIds(t: RawTeam | undefined): string[] {
     .map(String)
 }
 
+const HUB_HOST = 'https://livescore.tournamentsoftware.com'
+const WS_HOST  = 'wss://livescore.tournamentsoftware.com'
+const HUB_NAME = 'scoreboardHub'
+const CLIENT_PROTOCOL = '1.5'
+const CONNECTION_DATA = JSON.stringify([{ name: HUB_NAME }])
+const VCLIENT_ID = 'NYrnY8LtCyasfDWQHf9KFBsdfgCwjpvWQ4JHTNtJg'
+
+type State =
+  | 'idle' | 'negotiating' | 'subscribed' | 'active'
+  | 'reconnecting' | 'disabled'
+
+type Events = {
+  scoreboard: (courts: CourtLive[]) => void
+  state: (state: State) => void
+}
+
+export class LiveScoreClient {
+  private listeners: { [K in keyof Events]: Events[K][] } = { scoreboard: [], state: [] }
+  private tournamentId: string | null = null
+  private state: State = 'idle'
+  private ws: WebSocket | null = null
+  private connectionToken: string | null = null
+
+  on<K extends keyof Events>(ev: K, cb: Events[K]) {
+    this.listeners[ev].push(cb)
+  }
+
+  connect(tournamentId: string) {
+    this.tournamentId = tournamentId
+    this.setState('negotiating')
+    void this.doNegotiate()
+  }
+
+  disconnect() {
+    if (this.ws) {
+      try { this.ws.close() } catch { /* ignore */ }
+      this.ws = null
+    }
+    this.setState('idle')
+  }
+
+  private emit<K extends keyof Events>(ev: K, ...args: Parameters<Events[K]>) {
+    for (const cb of this.listeners[ev]) (cb as (...a: unknown[]) => void)(...args)
+  }
+
+  private setState(s: State) {
+    this.state = s
+    this.emit('state', s)
+  }
+
+  private async doNegotiate() {
+    const qs = new URLSearchParams({
+      clientProtocol: CLIENT_PROTOCOL,
+      connectionData: CONNECTION_DATA,
+      VClientID: VCLIENT_ID,
+      _: String(Date.now()),
+    })
+    const url = `${HUB_HOST}/signalr/negotiate?${qs}`
+    let res: Response
+    try {
+      res = await fetch(url)
+    } catch {
+      this.setState('reconnecting')
+      return
+    }
+    if (res.status >= 400 && res.status < 500) {
+      this.setState('disabled')
+      return
+    }
+    if (!res.ok) {
+      this.setState('reconnecting')
+      return
+    }
+    const data = await res.json() as { ConnectionToken?: string }
+    if (!data.ConnectionToken) {
+      this.setState('disabled')
+      return
+    }
+    this.connectionToken = data.ConnectionToken
+    this.openSocket()
+  }
+
+  private openSocket() {
+    const qs = new URLSearchParams({
+      transport: 'webSockets',
+      clientProtocol: CLIENT_PROTOCOL,
+      connectionToken: this.connectionToken!,
+      connectionData: CONNECTION_DATA,
+      VClientID: VCLIENT_ID,
+      tid: String(Math.floor(Math.random() * 10)),
+    })
+    const url = `${WS_HOST}/signalr/connect?${qs}`
+    this.ws = new WebSocket(url)
+    this.ws.onopen = () => void this.onWsOpen()
+    this.ws.onmessage = (e) => this.onWsMessage(e)
+    this.ws.onclose = () => this.onWsClose()
+    this.ws.onerror = () => { /* surfaced via onclose */ }
+  }
+
+  private async onWsOpen() {
+    const qs = new URLSearchParams({
+      transport: 'webSockets',
+      clientProtocol: CLIENT_PROTOCOL,
+      connectionToken: this.connectionToken!,
+      connectionData: CONNECTION_DATA,
+      VClientID: VCLIENT_ID,
+      _: String(Date.now()),
+    })
+    try { await fetch(`${HUB_HOST}/signalr/start?${qs}`) } catch { /* proceed */ }
+    this.ws?.send(JSON.stringify({
+      H: HUB_NAME, M: 'joinScoreboardNew', A: [this.tournamentId], I: 0,
+    }))
+    this.setState('subscribed')
+  }
+
+  private onWsMessage(_e: MessageEvent) { /* Task 4 */ }
+  private onWsClose() { /* Task 5 */ }
+}
+
 export function normalizePayload(raw: unknown): CourtLive[] {
   if (!raw || typeof raw !== 'object') return []
   const cs = (raw as { CS?: unknown }).CS

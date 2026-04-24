@@ -156,3 +156,109 @@ describe('normalizePayload', () => {
     expect(normalizePayload({ S: 1 })).toEqual([])
   })
 })
+
+import { LiveScoreClient } from '@/lib/live-score'
+
+class MockSocket {
+  static last: MockSocket | null = null
+  url: string
+  readyState = 0
+  sent: string[] = []
+  onopen: ((ev: Event) => void) | null = null
+  onmessage: ((ev: MessageEvent) => void) | null = null
+  onclose: ((ev: CloseEvent) => void) | null = null
+  onerror: ((ev: Event) => void) | null = null
+  constructor(url: string) {
+    this.url = url
+    MockSocket.last = this
+  }
+  send(data: string) { this.sent.push(data) }
+  close() {
+    this.readyState = 3
+    this.onclose?.(new CloseEvent('close'))
+  }
+  simulateOpen() { this.readyState = 1; this.onopen?.(new Event('open')) }
+  simulateMessage(payload: unknown) {
+    this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(payload) }))
+  }
+  simulateClose() { this.readyState = 3; this.onclose?.(new CloseEvent('close')) }
+}
+
+function installMocks() {
+  ;(global as unknown as { WebSocket: typeof MockSocket }).WebSocket = MockSocket
+  const fetchMock = jest.fn()
+  global.fetch = fetchMock as unknown as typeof fetch
+  return { fetchMock }
+}
+
+function mockJsonOk(data: unknown) {
+  return { ok: true, status: 200, json: async () => data, text: async () => JSON.stringify(data) } as Response
+}
+
+describe('LiveScoreClient — negotiate + connect', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+    MockSocket.last = null
+  })
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  it('calls negotiate with clientProtocol, connectionData, VClientID', async () => {
+    const { fetchMock } = installMocks()
+    fetchMock.mockResolvedValue(
+      mockJsonOk({ ConnectionToken: 'TOKEN_XYZ', ProtocolVersion: '1.5' }),
+    )
+    const c = new LiveScoreClient()
+    c.connect('GUID-1')
+    await Promise.resolve()
+    const url = fetchMock.mock.calls[0][0] as string
+    expect(url).toContain('/signalr/negotiate')
+    expect(url).toContain('clientProtocol=1.5')
+    expect(url).toContain(encodeURIComponent('[{"name":"scoreboardHub"}]'))
+    expect(url).toContain('VClientID=')
+  })
+
+  it('opens the WebSocket with the returned connection token after negotiate', async () => {
+    const { fetchMock } = installMocks()
+    fetchMock.mockResolvedValue(
+      mockJsonOk({ ConnectionToken: 'TOK', ProtocolVersion: '1.5' }),
+    )
+    const c = new LiveScoreClient()
+    c.connect('GUID-2')
+    await Promise.resolve(); await Promise.resolve()
+    expect(MockSocket.last).not.toBeNull()
+    expect(MockSocket.last!.url).toContain('wss://livescore.tournamentsoftware.com/signalr/connect')
+    expect(MockSocket.last!.url).toContain(`connectionToken=${encodeURIComponent('TOK')}`)
+    expect(MockSocket.last!.url).toContain('transport=webSockets')
+  })
+
+  it('calls start and sends joinScoreboardNew after socket opens', async () => {
+    const { fetchMock } = installMocks()
+    fetchMock
+      .mockResolvedValueOnce(mockJsonOk({ ConnectionToken: 'TOK', ProtocolVersion: '1.5' })) // negotiate
+      .mockResolvedValueOnce(mockJsonOk({ Response: 'started' }))                             // start
+    const c = new LiveScoreClient()
+    c.connect('GUID-3')
+    await Promise.resolve(); await Promise.resolve()
+    MockSocket.last!.simulateOpen()
+    await Promise.resolve(); await Promise.resolve()
+    const startUrl = fetchMock.mock.calls[1][0] as string
+    expect(startUrl).toContain('/signalr/start')
+    expect(MockSocket.last!.sent[0]).toBe(JSON.stringify({
+      H: 'scoreboardHub', M: 'joinScoreboardNew', A: ['GUID-3'], I: 0,
+    }))
+  })
+
+  it('transitions directly to disabled on negotiate 4xx (e.g. rotated VClientID)', async () => {
+    const { fetchMock } = installMocks()
+    fetchMock.mockResolvedValue({ ok: false, status: 401, json: async () => ({}), text: async () => '' } as Response)
+    const c = new LiveScoreClient()
+    const states: string[] = []
+    c.on('state', (s) => states.push(s))
+    c.connect('GUID-4')
+    await Promise.resolve(); await Promise.resolve()
+    expect(states).toContain('disabled')
+    expect(MockSocket.last).toBeNull()
+  })
+})
