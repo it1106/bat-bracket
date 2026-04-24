@@ -112,7 +112,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       <div className="ms-score ms-d">
         {doneScore && <span>{doneScore}</span>}
         {liveText && doneScore && <span>, </span>}
-        {liveText && <span className="set-live">{liveText}</span>}
+        {liveText && <span key={liveText} className="set-live">{liveText}</span>}
       </div>
       <div className={`ms-team ms-team--2 ms-d${m.winner === 2 ? ' winner' : ''}`}>
         {m.team2.map((p, i) => (
@@ -130,7 +130,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             : (
               <>
                 {boardSets1.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
-                {live?.current && <span className="ms-board-set live">{live.current.t1}</span>}
+                {live?.current && <span key={live.current.t1} className="ms-board-set live">{live.current.t1}</span>}
                 {m.retired && m.winner === 1 && <span className="ms-board-badge">{t('retired')}</span>}
               </>
             )
@@ -145,7 +145,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             : (
               <>
                 {boardSets2.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
-                {live?.current && <span className="ms-board-set live">{live.current.t2}</span>}
+                {live?.current && <span key={live.current.t2} className="ms-board-set live">{live.current.t2}</span>}
                 {m.retired && m.winner === 2 && <span className="ms-board-badge">{t('retired')}</span>}
               </>
             )
