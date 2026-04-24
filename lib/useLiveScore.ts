@@ -39,6 +39,10 @@ export function useLiveScore(
         hiddenTimer = setTimeout(() => { stop() }, 60000)
       } else {
         if (hiddenTimer) { clearTimeout(hiddenTimer); hiddenTimer = null }
+        // Mobile OSes silently suspend background WebSockets; the JS client
+        // often thinks it's still connected after a short tab switch.
+        // Force a fresh handshake on every return to foreground.
+        stop()
         start()
       }
     }

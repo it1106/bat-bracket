@@ -116,9 +116,10 @@ export class LiveScoreClient {
   private state: State = 'idle'
   private ws: WebSocket | null = null
   private connectionToken: string | null = null
-  private lastHeartbeat = 0
+  private lastMsgAt = 0
   private subscribeTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  private watchdogTimer: ReturnType<typeof setInterval> | null = null
   private reconnectAttempts = 0
   private sawCourts = false
 
@@ -135,6 +136,7 @@ export class LiveScoreClient {
   disconnect() {
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null }
     this.clearSubscribeTimer()
+    this.stopWatchdog()
     this.tournamentId = null
     this.sawCourts = false
     this.reconnectAttempts = 0
@@ -168,6 +170,25 @@ export class LiveScoreClient {
 
   private clearSubscribeTimer() {
     if (this.subscribeTimer) { clearTimeout(this.subscribeTimer); this.subscribeTimer = null }
+  }
+
+  // Detects silently-dead sockets (OS suspend, network flap) where onclose
+  // never fired. Server sends heartbeats every ~10s, so 45s of total silence
+  // is a strong signal the connection is gone.
+  private startWatchdog() {
+    this.stopWatchdog()
+    this.lastMsgAt = Date.now()
+    this.watchdogTimer = setInterval(() => {
+      if (this.state !== 'subscribed' && this.state !== 'active') return
+      if (Date.now() - this.lastMsgAt > 45000) {
+        this.stopWatchdog()
+        this.closeSocket() // triggers onWsClose → normal reconnect path
+      }
+    }, 15000)
+  }
+
+  private stopWatchdog() {
+    if (this.watchdogTimer) { clearInterval(this.watchdogTimer); this.watchdogTimer = null }
   }
 
   private closeSocket() {
@@ -240,12 +261,14 @@ export class LiveScoreClient {
       H: HUB_NAME, M: 'joinScoreboardNew', A: [this.tournamentId], I: 0,
     }))
     this.setState('subscribed')
+    this.startWatchdog()
   }
 
   private onWsMessage(e: MessageEvent) {
     let msg: unknown
     try { msg = JSON.parse(e.data as string) } catch { return }
     if (!msg || typeof msg !== 'object') return
+    this.lastMsgAt = Date.now()
     const m = msg as { M?: unknown; R?: unknown }
     const hubLower = HUB_NAME.toLowerCase()
 
@@ -263,7 +286,6 @@ export class LiveScoreClient {
     if (!Array.isArray(m.M)) return
     for (const inv of m.M as Array<{ H?: string; M?: string; A?: unknown[] }>) {
       if (inv.M === 'heartbeat') {
-        this.lastHeartbeat = Date.now()
         continue
       }
       if ((inv.H ?? '').toLowerCase() === hubLower && inv.M === 'sendScoreboard') {
@@ -280,6 +302,7 @@ export class LiveScoreClient {
 
   private onWsClose() {
     this.ws = null
+    this.stopWatchdog()
     if (this.state === 'disabled' || this.state === 'idle') return
     if (this.reconnectAttempts >= 5) {
       this.setState('disabled')

@@ -108,4 +108,19 @@ describe('useLiveScore', () => {
     expect(mocked.__client.connect).toHaveBeenCalledTimes(2)
     jest.useRealTimers()
   })
+
+  it('force-reconnects on foreground after a brief hide (under 60s)', () => {
+    jest.useFakeTimers()
+    renderHook(({ id, gate }) => useLiveScore(id, gate),
+      { initialProps: { id: 'T1' as string | null, gate: true } })
+    expect(mocked.__client.connect).toHaveBeenCalledTimes(1)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    jest.advanceTimersByTime(5000) // mobile OS would suspend the WS here
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(mocked.__client.disconnect).toHaveBeenCalled()
+    expect(mocked.__client.connect).toHaveBeenCalledTimes(2)
+    jest.useRealTimers()
+  })
 })

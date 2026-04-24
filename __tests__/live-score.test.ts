@@ -447,4 +447,20 @@ describe('LiveScoreClient — reconnect + disable', () => {
     c.disconnect()
     expect(states).toContain('idle')
   })
+
+  it('watchdog closes a silent socket after 45s and triggers reconnect', async () => {
+    const c = await runToSubscribed()
+    // Prove an active, healthy-looking connection before the stall.
+    MockSocket.last!.simulateMessage({
+      C: 'x', M: [{ H: 'scoreboardHub', M: 'sendScoreboard', A: [{ S: 1, CS: [{ MID: 1, N: 'C1', T1: {}, T2: {}, SCS: [], LSC: null, D: 0, W: 0 }] }] }],
+    })
+    const firstSocket = MockSocket.last
+    // No inbound messages for 45+ seconds → watchdog fires → socket closes → reconnect scheduled.
+    jest.advanceTimersByTime(60000)
+    await Promise.resolve()
+    jest.advanceTimersByTime(2000) // let the first reconnect back-off elapse
+    await Promise.resolve(); await Promise.resolve()
+    expect(MockSocket.last).not.toBe(firstSocket)
+    void c
+  })
 })
