@@ -19,7 +19,9 @@ function entry(over: Partial<MatchEntry> = {}): MatchEntry {
 function live(over: Partial<CourtLive> = {}): CourtLive {
   return {
     courtKey: '3',
+    courtName: 'Court 3',
     matchId: 42,
+    event: 'WS',
     playerIds: ['100', '200'],
     setScores: [],
     current: null,
@@ -69,9 +71,25 @@ describe('matchLiveCourt', () => {
     expect(matchLiveCourt(entry(), map)).toBeNull()
   })
 
-  it('returns null when nowPlaying is false', () => {
+  it('still matches when scraped nowPlaying is stale/false (SignalR-driven rescue)', () => {
     const map = new Map([['3', live()]])
-    expect(matchLiveCourt(entry({ nowPlaying: false }), map)).toBeNull()
+    expect(matchLiveCourt(entry({ nowPlaying: false }), map)).toEqual(live())
+  })
+
+  it('rejects a player-ID overlap across different events (singles vs doubles same player)', () => {
+    // Scheduled: completed WS match of player 100 vs 200
+    // Live: player 100 is currently in a XD match with new partners
+    const map = new Map([
+      ['3', live({ event: 'XD', playerIds: ['100', '300', '400', '500'] })],
+    ])
+    expect(matchLiveCourt(entry({ draw: 'WS', nowPlaying: false }), map)).toBeNull()
+  })
+
+  it('tolerates missing event on either side and falls back to player overlap', () => {
+    const map = new Map([['3', live({ event: '' })]])
+    expect(matchLiveCourt(entry({ draw: 'WS' }), map)).toEqual(live({ event: '' }))
+    const map2 = new Map([['3', live()]])
+    expect(matchLiveCourt(entry({ draw: '' }), map2)).toEqual(live())
   })
 
   it('falls back to player-ID scan even when entry court is "Now playing"', () => {
@@ -122,7 +140,9 @@ describe('normalizePayload', () => {
     const [c] = normalizePayload({ S: 1, CS: [activeCourt] })
     expect(c).toMatchObject({
       courtKey: '3',
+      courtName: 'Court 3',
       matchId: 42,
+      event: 'WS',
       playerIds: ['100', '200'],
       setScores: [{ t1: 21, t2: 15, winner: 1 }],
       current: { gameNo: 2, setNo: 1, t1: 11, t2: 9 },
@@ -131,6 +151,13 @@ describe('normalizePayload', () => {
       team2Points: 0,
       durationSec: 1800,
     })
+  })
+
+  it('defaults event to empty string when payload omits E', () => {
+    const { E: _E, ...rest } = activeCourt
+    void _E
+    const [c] = normalizePayload({ S: 1, CS: [rest] })
+    expect(c.event).toBe('')
   })
 
   it('filters out courts where MID <= 0', () => {

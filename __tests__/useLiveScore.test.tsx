@@ -75,7 +75,7 @@ describe('useLiveScore', () => {
     const { result } = renderHook(({ id, gate }) => useLiveScore(id, gate),
       { initialProps: { id: 'T1' as string | null, gate: true } })
     const sample: CourtLive = {
-      courtKey: 'court1', matchId: 5, playerIds: ['10'],
+      courtKey: 'court1', courtName: 'Court 1', matchId: 5, event: 'WS', playerIds: ['10'],
       setScores: [], current: null, serving: 0, winner: 0,
       team1Points: 0, team2Points: 0, durationSec: 0,
     }
@@ -86,8 +86,8 @@ describe('useLiveScore', () => {
   it('replaces the map wholesale on each scoreboard push', () => {
     const { result } = renderHook(({ id, gate }) => useLiveScore(id, gate),
       { initialProps: { id: 'T1' as string | null, gate: true } })
-    const a: CourtLive = { courtKey: 'court1', matchId: 1, playerIds: [], setScores: [], current: null, serving: 0, winner: 0, team1Points: 0, team2Points: 0, durationSec: 0 }
-    const b: CourtLive = { ...a, courtKey: 'court2', matchId: 2 }
+    const a: CourtLive = { courtKey: 'court1', courtName: 'Court 1', matchId: 1, event: 'WS', playerIds: [], setScores: [], current: null, serving: 0, winner: 0, team1Points: 0, team2Points: 0, durationSec: 0 }
+    const b: CourtLive = { ...a, courtKey: 'court2', courtName: 'Court 2', matchId: 2 }
     act(() => { mocked.__client.emit('scoreboard', [a]) })
     act(() => { mocked.__client.emit('scoreboard', [b]) })
     expect(result.current.has('court1')).toBe(false)

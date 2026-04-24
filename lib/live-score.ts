@@ -2,7 +2,9 @@ import type { MatchEntry } from './types'
 
 export interface CourtLive {
   courtKey: string
+  courtName: string
   matchId: number
+  event: string
   playerIds: string[]
   setScores: { t1: number; t2: number; winner: 0 | 1 | 2 }[]
   current: { gameNo: number; setNo: number; t1: number; t2: number } | null
@@ -22,31 +24,49 @@ export function normalizeCourtName(name: string): string {
   return stripped.replace(/^court/, '')
 }
 
+function eventMatches(draw: string, event: string): boolean {
+  // Tolerate either side missing — some tournaments don't surface an event code.
+  if (!draw || !event) return true
+  return draw.trim().toLowerCase() === event.trim().toLowerCase()
+}
+
 export function matchLiveCourt(
   m: MatchEntry,
   map: Map<string, CourtLive>,
 ): CourtLive | null {
-  if (!m.nowPlaying) return null
+  // No nowPlaying gate: SignalR is the source of truth for what's actually live,
+  // so a stale scrape can be rescued by the live feed. The draw/event join below
+  // prevents cross-event collisions (e.g. a player's completed singles match
+  // matching against their currently-live doubles court on player ID alone).
   const schedIds = new Set(
     [...m.team1, ...m.team2].map((p) => p.playerId).filter(Boolean),
   )
   if (schedIds.size === 0) return null
 
-  // Preferred path: normalized court name hits a live record that also shares
-  // at least one player ID (guards against back-to-back matches on same court).
   if (m.court) {
     const key = normalizeCourtName(m.court)
     if (key) {
       const live = map.get(key)
-      if (live && live.playerIds.some((id) => id && schedIds.has(id))) return live
+      if (
+        live &&
+        live.playerIds.some((id) => id && schedIds.has(id)) &&
+        eventMatches(m.draw, live.event)
+      ) {
+        return live
+      }
     }
   }
 
   // Fallback: the schedule often reports `court = "Now playing"` for active
-  // matches instead of a real court number. Scan all live records by player ID.
+  // matches instead of a real court number. Scan all live records.
   const liveValues = Array.from(map.values())
   for (const live of liveValues) {
-    if (live.playerIds.some((id) => id && schedIds.has(id))) return live
+    if (
+      live.playerIds.some((id) => id && schedIds.has(id)) &&
+      eventMatches(m.draw, live.event)
+    ) {
+      return live
+    }
   }
   return null
 }
@@ -57,6 +77,7 @@ interface RawTeam {
 }
 interface RawCourt {
   N?: string; MID?: number; D?: number; W?: 0 | 1 | 2
+  E?: string
   T1?: RawTeam; T2?: RawTeam
   SCS?: { W: 0 | 1 | 2; T1: number; T2: number }[]
   LSC?: { GMNO: number; STNO: number; T1: number; T2: number } | null
@@ -294,7 +315,9 @@ export function normalizePayload(raw: unknown): CourtLive[] {
       : null
     out.push({
       courtKey: normalizeCourtName(name),
+      courtName: name,
       matchId: mid,
+      event: typeof item.E === 'string' ? item.E : '',
       playerIds: [...teamIds(item.T1), ...teamIds(item.T2)],
       setScores,
       current,

@@ -22,7 +22,7 @@ function entry(over: Partial<MatchEntry> = {}): MatchEntry {
 const group = (m: MatchEntry): MatchScheduleGroup => ({ type: 'time', time: '10:00', matches: [m] })
 
 const live = (over: Partial<CourtLive> = {}): CourtLive => ({
-  courtKey: '3', matchId: 42, playerIds: ['100', '200'],
+  courtKey: '3', courtName: 'Court 3', matchId: 42, event: 'WS', playerIds: ['100', '200'],
   setScores: [{ t1: 21, t2: 15, winner: 1 }],
   current: { gameNo: 2, setNo: 1, t1: 11, t2: 9 },
   serving: 0, winner: 0,
@@ -72,5 +72,13 @@ describe('MatchSchedule — live overlay', () => {
     const unrelated = live({ playerIds: ['555'] })
     renderWith(entry(), new Map([['3', unrelated]]))
     expect(screen.queryByText('LIVE')).toBeNull()
+  })
+
+  it('shows the real court name from live data when scraped court is "Now playing"', () => {
+    const { container } = renderWith(
+      entry({ court: 'Now playing' }),
+      new Map([['3', live()]]),
+    )
+    expect(container.querySelector('.ms-court')?.textContent).toBe('Court 3')
   })
 })
