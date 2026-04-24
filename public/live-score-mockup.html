@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Live score — update animation mockup</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root {
+        --bg: #f0f2f5;
+        --surface: #ffffff;
+        --fg: #1a1a1a;
+        --muted: #888888;
+        --border: #e5e7eb;
+        --brand-fg: #25316B;
+        --win-bg: #e8f5e9;
+        --win-fg: #166534;
+        --row-sep: #f0f0f0;
+      }
+      html, body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        margin: 0;
+      }
+      .page { max-width: 1000px; margin: 0 auto; padding: 24px; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      h2 {
+        font-size: 13px; font-weight: 600; color: var(--muted);
+        text-transform: uppercase; letter-spacing: 0.06em;
+        margin: 32px 0 8px;
+      }
+      .note { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+
+      .controls {
+        display: flex; align-items: center; gap: 10px;
+        margin: 0 0 20px;
+      }
+      .controls button {
+        font-family: inherit; font-size: 13px;
+        padding: 6px 14px; border: 1px solid var(--border);
+        background: var(--surface); border-radius: 6px; cursor: pointer;
+      }
+      .controls button:hover { background: #f3f4f6; }
+      .controls .state { color: var(--muted); font-size: 12px; }
+
+      /* ── Schedule card styles (copied from globals.css) ── */
+      .match-schedule__time-header {
+        font-size: 12px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.06em; color: var(--muted);
+        padding: 10px 12px 6px; background: var(--bg);
+      }
+      .ms-list {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 8px; overflow: hidden;
+      }
+      .ms-match {
+        display: grid;
+        grid-template-columns: 180px 250px 250px 250px;
+        grid-template-areas: 'meta team1 score team2';
+        align-items: normal;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--row-sep);
+        color: var(--fg); font-size: 13px;
+      }
+      .ms-match:last-child { border-bottom: none; }
+      .ms-meta {
+        grid-area: meta; display: flex; flex-direction: column;
+        gap: 2px; padding-right: 8px;
+      }
+      .ms-meta-row {
+        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      }
+      .ms-event { font-weight: 700; color: var(--brand-fg); font-size: 13px; }
+      .ms-round, .ms-court { color: var(--muted); font-size: 12px; }
+      .ms-team--1 { grid-area: team1; line-height: 1.6; }
+      .ms-team--2 { grid-area: team2; line-height: 1.6; }
+      .ms-score {
+        grid-area: score;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600; font-size: 13px; padding: 0 8px;
+      }
+
+      .ms-live-badge {
+        display: inline-block;
+        background: #ef4444; color: #fff;
+        font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+        padding: 1px 5px; border-radius: 3px;
+      }
+
+      /* ── Flash animation (copied from globals.css) ── */
+      @keyframes ms-score-flash {
+        0%   { background-color: #fde047; box-shadow: 0 0 0 4px rgba(253, 224, 71, 0.9); }
+        25%  { background-color: #fde047; box-shadow: 0 0 0 4px rgba(253, 224, 71, 0.9); }
+        100% { background-color: transparent; box-shadow: 0 0 0 0 rgba(253, 224, 71, 0); }
+      }
+      .ms-score .set-live {
+        color: #ef4444; font-weight: 700;
+        display: inline-block; padding: 0 4px; border-radius: 3px;
+      }
+      .ms-board-set.live {
+        color: #ef4444; border-radius: 3px;
+      }
+      .ms-score .set-live.is-flashing,
+      .ms-board-set.live.is-flashing {
+        animation: ms-score-flash 1.5s ease-out both;
+      }
+
+      /* ── Mobile board ── */
+      .mobile-wrap { max-width: 420px; margin-top: 16px; }
+      .mobile-wrap .ms-match {
+        display: flex; flex-direction: column; padding: 10px 12px;
+      }
+      .mobile-wrap .ms-meta {
+        flex-direction: row; align-items: center; gap: 6px;
+        padding: 0 0 8px 0;
+        border-bottom: 1px solid var(--row-sep);
+        margin-bottom: 8px;
+      }
+      .ms-board-row {
+        display: flex; align-items: center; gap: 8px; min-height: 28px;
+      }
+      .ms-board-players { flex: 1; }
+      .ms-board-set {
+        font-variant-numeric: tabular-nums; font-weight: 600;
+        width: 22px; text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Live score — update animation mockup</h1>
+      <p class="note">
+        The <code>.set-live</code> (desktop score cell) and
+        <code>.ms-board-set.live</code> (mobile per-row point) flash yellow for
+        1.5s whenever the value changes. The mockup re-applies the
+        <code>.is-flashing</code> class with a forced reflow in between, which
+        is exactly what the updated <code>LiveScore</code> React component
+        does on every prop update.
+      </p>
+
+      <div class="controls">
+        <button id="toggle">Pause</button>
+        <button id="step">Step</button>
+        <button id="reset">Reset</button>
+        <span class="state" id="state">Auto-stepping every 1800ms</span>
+      </div>
+
+      <h2>Desktop — grouped by time</h2>
+      <div class="ms-list">
+        <div class="match-schedule__time-header">10:00</div>
+        <div class="ms-match">
+          <div class="ms-meta">
+            <div class="ms-meta-row">
+              <span class="ms-live-badge">LIVE</span>
+              <span class="ms-event">WS U17</span>
+            </div>
+            <div class="ms-meta-row">
+              <span class="ms-round">Semi Final</span>
+              <span class="ms-court">Court 3</span>
+            </div>
+          </div>
+          <div class="ms-team--1"><div>Pornpicha Maneechote</div></div>
+          <div class="ms-score" id="desktop-score">
+            <span id="done-sets">21-15</span><span id="sep">, </span><span class="set-live" id="live-set">8-5</span>
+          </div>
+          <div class="ms-team--2"><div>Arisa Thaiprecha</div></div>
+        </div>
+      </div>
+
+      <h2>Mobile</h2>
+      <div class="mobile-wrap">
+        <div class="ms-list">
+          <div class="match-schedule__time-header">10:00</div>
+          <div class="ms-match">
+            <div class="ms-meta">
+              <span class="ms-live-badge">LIVE</span>
+              <span class="ms-event">WS U17</span>
+              <span class="ms-round">SF</span>
+              <span class="ms-court">Court 3</span>
+            </div>
+            <div class="ms-board-row">
+              <div class="ms-board-players">Pornpicha Maneechote</div>
+              <span class="ms-board-set">21</span>
+              <span class="ms-board-set live" id="board-t1">8</span>
+            </div>
+            <div class="ms-board-row">
+              <div class="ms-board-players">Arisa Thaiprecha</div>
+              <span class="ms-board-set">15</span>
+              <span class="ms-board-set live" id="board-t2">5</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        // Simulates the point-by-point rally of game 2 after a 21-15 first set.
+        const rally = [
+          { t1: 8, t2: 5 },
+          { t1: 9, t2: 5 },
+          { t1: 9, t2: 6 },
+          { t1: 9, t2: 7 },
+          { t1: 10, t2: 7 },
+          { t1: 11, t2: 7 },
+          { t1: 11, t2: 8 },
+          { t1: 12, t2: 8 },
+          { t1: 12, t2: 9 },
+          { t1: 13, t2: 9 },
+          { t1: 13, t2: 10 },
+          { t1: 14, t2: 10 },
+          { t1: 14, t2: 11 },
+          { t1: 15, t2: 11 },
+          { t1: 15, t2: 12 },
+        ]
+        let idx = 0
+        let timer = null
+
+        const liveSet = document.getElementById('live-set')
+        const boardT1 = document.getElementById('board-t1')
+        const boardT2 = document.getElementById('board-t2')
+        const stateEl = document.getElementById('state')
+
+        function flash(el, newText) {
+          if (el.textContent === newText) return
+          el.textContent = newText
+          el.classList.remove('is-flashing')
+          // Force reflow so the animation restarts when the class is re-added.
+          void el.offsetWidth
+          el.classList.add('is-flashing')
+        }
+
+        function render(state) {
+          flash(liveSet, `${state.t1}-${state.t2}`)
+          flash(boardT1, String(state.t1))
+          flash(boardT2, String(state.t2))
+        }
+
+        function step() {
+          idx = (idx + 1) % rally.length
+          render(rally[idx])
+        }
+
+        function start() {
+          if (timer) return
+          timer = setInterval(step, 1800)
+          stateEl.textContent = 'Auto-stepping every 1800ms'
+          document.getElementById('toggle').textContent = 'Pause'
+        }
+
+        function stop() {
+          if (!timer) return
+          clearInterval(timer)
+          timer = null
+          stateEl.textContent = 'Paused — use Step to advance manually'
+          document.getElementById('toggle').textContent = 'Resume'
+        }
+
+        document.getElementById('toggle').addEventListener('click', () => {
+          if (timer) stop(); else start()
+        })
+        document.getElementById('step').addEventListener('click', () => {
+          stop()
+          step()
+        })
+        document.getElementById('reset').addEventListener('click', () => {
+          idx = 0
+          render(rally[0])
+        })
+
+        // Initial render flashes immediately so the user sees the animation
+        // on page load even before the first tick.
+        render(rally[0])
+        start()
+      })()
+    </script>
+  </body>
+</html>

@@ -1181,7 +1181,6 @@ html.dark .ms-live-badge {
   display: inline-block;
   padding: 0 4px;
   border-radius: 3px;
-  animation: ms-score-flash 1.5s ease-out both;
 }
 html.dark .ms-score .set-live {
   color: #ff7b72;
@@ -1190,10 +1189,16 @@ html.dark .ms-score .set-live {
 .ms-board-set.live {
   color: #ef4444;
   border-radius: 3px;
-  animation: ms-score-flash 1.5s ease-out both;
 }
 html.dark .ms-board-set.live {
   color: #ff7b72;
+}
+
+/* Applied/removed by the LiveScore component to replay the flash on every
+   value change — see components/MatchSchedule.tsx. */
+.ms-score .set-live.is-flashing,
+.ms-board-set.live.is-flashing {
+  animation: ms-score-flash 1.5s ease-out both;
 }
 
 .ms-event--link {

@@ -1,8 +1,25 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import type { MatchScheduleGroup, MatchDay, MatchEntry } from '@/lib/types'
 import { matchLiveCourt, type CourtLive } from '@/lib/live-score'
 import { useLanguage } from '@/lib/LanguageContext'
+
+// Replays the .is-flashing CSS animation every time `value` changes by
+// toggling the class and forcing a reflow. React key-based remounts are
+// unreliable here — siblings with stable keys (and browsers that cache
+// animation state on the reused DOM node) would otherwise skip replays.
+function LiveScore({ value, className }: { value: string | number; className: string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.classList.remove('is-flashing')
+    void el.offsetWidth
+    el.classList.add('is-flashing')
+  }, [value])
+  return <span ref={ref} className={`${className} is-flashing`}>{value}</span>
+}
 
 interface Props {
   groups: MatchScheduleGroup[]
@@ -114,7 +131,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       <div className="ms-score ms-d">
         {doneScore && <span>{doneScore}</span>}
         {liveText && doneScore && <span>, </span>}
-        {liveText && <span key={liveText} className="set-live">{liveText}</span>}
+        {liveText && <LiveScore value={liveText} className="set-live" />}
       </div>
       <div className={`ms-team ms-team--2 ms-d${m.winner === 2 ? ' winner' : ''}`}>
         {m.team2.map((p, i) => (
@@ -132,7 +149,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             : (
               <>
                 {boardSets1.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
-                {live?.current && <span key={live.current.t1} className="ms-board-set live">{live.current.t1}</span>}
+                {live?.current && <LiveScore value={live.current.t1} className="ms-board-set live" />}
                 {m.retired && m.winner === 1 && <span className="ms-board-badge">{t('retired')}</span>}
               </>
             )
@@ -147,7 +164,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             : (
               <>
                 {boardSets2.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
-                {live?.current && <span key={live.current.t2} className="ms-board-set live">{live.current.t2}</span>}
+                {live?.current && <LiveScore value={live.current.t2} className="ms-board-set live" />}
                 {m.retired && m.winner === 2 && <span className="ms-board-badge">{t('retired')}</span>}
               </>
             )
