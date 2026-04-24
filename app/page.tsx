@@ -8,6 +8,7 @@ import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
 import { useLanguage } from '@/lib/LanguageContext'
 import { useTheme } from '@/lib/ThemeContext'
+import { useLiveScore } from '@/lib/useLiveScore'
 import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
@@ -59,6 +60,9 @@ export default function Home() {
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
   const autoSelectedTournamentRef = useRef(false)
   const [headerVisible, setHeaderVisible] = useState(true)
+
+  const liveGate = matchGroups.some((g) => g.matches.some((m) => m.nowPlaying))
+  const liveByCourt = useLiveScore(selectedTournament || null, liveGate)
 
   useEffect(() => {
     const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
@@ -565,6 +569,7 @@ export default function Home() {
           playerClubMap={playerClubMap}
           onPlayerClick={handlePlayerClick}
           onH2HClick={handleH2HClick}
+          liveByCourt={liveByCourt}
         />
       )}
 
