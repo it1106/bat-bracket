@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Winner Emoji Mockup — 🏸 / 🥇</title>
+<style>
+  :root {
+    --bg: #f7f8fb;
+    --surface: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #6b7280;
+    --brand-fg: #25316B;
+    --border: #e5e7eb;
+    --row-sep: #eef0f3;
+    --win-fg: #059669;
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    margin: 0;
+    padding: 36px 20px 60px;
+    color: var(--fg);
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 6px; color: var(--brand-fg); }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 14px; line-height: 1.55; }
+  h2 {
+    font-size: 14px;
+    color: var(--brand-fg);
+    margin: 0 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px 6px;
+    margin-bottom: 28px;
+  }
+
+  /* Ported from app/globals.css (desktop) */
+  .ms-match {
+    display: grid;
+    grid-template-columns: 150px 250px 250px 250px;
+    grid-template-areas: "meta team1 score team2";
+    align-items: normal;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--row-sep);
+    color: var(--fg);
+  }
+  .ms-match:last-child { border-bottom: none; }
+  .ms-meta {
+    grid-area: meta;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-right: 8px;
+  }
+  .ms-event {
+    font-weight: 700;
+    color: var(--brand-fg);
+    white-space: nowrap;
+    font-size: 13px;
+  }
+  .ms-round {
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .ms-team--1 { grid-area: team1; line-height: 1.6; }
+  .ms-team--2 { grid-area: team2; line-height: 1.6; }
+  .ms-team--1 div + div, .ms-team--2 div + div { padding-top: 3px; }
+  .ms-team--1.winner,
+  .ms-team--2.winner {
+    font-weight: 700;
+    color: var(--win-fg);
+  }
+  .ms-medal { margin-right: 4px; }
+  .ms-score {
+    grid-area: score;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--fg);
+    font-size: 13px;
+    white-space: nowrap;
+    padding: 0 8px;
+    text-align: left;
+  }
+
+  /* Mobile card preview */
+  .mobile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .mcard {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 10px 12px;
+  }
+  .mcard .ms-meta {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 0 0 8px 0;
+    border-bottom: 1px solid var(--row-sep);
+    margin-bottom: 8px;
+  }
+  .mcard .ms-round {
+    font-size: 12px;
+    color: var(--brand-fg);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .ms-board-row {
+    display: flex;
+    align-items: normal;
+    gap: 0;
+    min-height: 28px;
+  }
+  .ms-board-row + .ms-board-row {
+    border-top: 1px solid var(--row-sep);
+    margin-top: 4px;
+    padding-top: 4px;
+  }
+  .ms-board-players {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.45;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .ms-board-players div + div { padding-top: 3px; }
+  .ms-board-set {
+    display: inline-block;
+    width: 26px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    font-size: 14px;
+    flex-shrink: 0;
+    color: var(--fg);
+  }
+  .ms-board-row.winner .ms-board-players {
+    font-weight: 700;
+    color: var(--win-fg);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Winner emoji — singles &amp; doubles</h1>
+  <p class="sub">
+    🏸 marks the winning side from first round through semi-final.
+    🥇 continues to mark the final. For doubles and mixed, the emoji attaches to
+    the first player only.
+  </p>
+
+  <!-- ============== DESKTOP: SINGLES ============== -->
+  <div class="panel">
+    <h2>Desktop — Singles</h2>
+    <div class="ms-match">
+      <div class="ms-meta">
+        <span class="ms-event">MS Open</span>
+        <span class="ms-round">Round of 32</span>
+      </div>
+      <div class="ms-team ms-team--1 winner">
+        <div><span class="ms-medal">🏸</span>Somchai Prasert</div>
+      </div>
+      <div class="ms-score">21-15, 21-18</div>
+      <div class="ms-team ms-team--2">
+        <div>Niran Wongsa</div>
+      </div>
+    </div>
+    <div class="ms-match">
+      <div class="ms-meta">
+        <span class="ms-event">WS U15</span>
+        <span class="ms-round">Round of 16</span>
+      </div>
+      <div class="ms-team ms-team--1">
+        <div>Malee Jaidee</div>
+      </div>
+      <div class="ms-score">18-21, 14-21</div>
+      <div class="ms-team ms-team--2 winner">
+        <div><span class="ms-medal">🏸</span>Kanokwan Sri</div>
+      </div>
+    </div>
+    <div class="ms-match">
+      <div class="ms-meta">
+        <span class="ms-event">MS Open</span>
+        <span class="ms-round">Quarter-final</span>
+      </div>
+      <div class="ms-team ms-team--1 winner">
+        <div><span class="ms-medal">🏸</span>Pongsak Chai</div>
+      </div>
+      <div class="ms-score">22-20, 19-21, 21-16</div>
+      <div class="ms-team ms-team--2">
+        <div>Teerapat Niwat</div>
+      </div>
+    </div>
+    <div class="ms-match">
+      <div class="ms-meta">
+        <span class="ms-event">MS Open</span>
+        <span class="ms-round">Semi-final</span>
+      </div>
+      <div class="ms-team ms-team--1">
+        <div>Arthit Saelim</div>
+      </div>
+      <div class="ms-score">17-21, 15-21</div>
+      <div class="ms-team ms-team--2 winner">
+        <div><span class="ms-medal">🏸</span>Kittisak Ruang</div>
+      </div>
+    </div>
+    <div class="ms-match">
+      <div class="ms-meta">
+        <span class="ms-event">MS Open</span>
+        <span class="ms-round">Final</span>
+      </div>
+      <div class="ms-team ms-team--1 winner">
+        <div><span class="ms-medal">🥇</span>Kittisak Ruang</div>
+      </div>
+      <div class="ms-score">21-18, 18-21, 21-16</div>
+      <div class="ms-team ms-team--2">
+        <div>Pongsak Chai</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== DESKTOP: DOUBLES ============== -->
+  <div class="panel">
+    <h2>Desktop — Doubles &amp; Mixed</h2>
+    <div class="ms-match">
+      <div class="ms-meta">
+        <span class="ms-event">MD U17</span>
+        <span class="ms-round">Round of 32</span>
+      </div>
+      <div class="ms-team ms-team--1 winner">
+        <div><span class="ms-medal">🏸</span>Arthit Saelim</div>
+        <div>Korn Boonmee</div>
+      </div>
+      <div class="ms-score">21-17, 21-14</div>
+      <div class="ms-team ms-team--2">
+        <div>Pongsak Chai</div>
+        <div>Teerapat Niwat</div>
+      </div>
+    </div>
+    <div class="ms-match">
+      <div class="ms-meta">
+        <span class="ms-event">WD Open</span>
+        <span class="ms-round">Round of 16</span>
+      </div>
+      <div class="ms-team ms-team--1">
+        <div>Kanokwan Sri</div>
+        <div>Napaporn Thong</div>
+      </div>
+      <div class="ms-score">19-21, 21-18, 17-21</div>
+      <div class="ms-team ms-team--2 winner">
+        <div><span class="ms-medal">🏸</span>Malee Jaidee</div>
+        <div>Suphansa Rak</div>
+      </div>
+    </div>
+    <div class="ms-match">
+      <div class="ms-meta">
+        <span class="ms-event">XD Open</span>
+        <span class="ms-round">Quarter-final</span>
+      </div>
+      <div class="ms-team ms-team--1 winner">
+        <div><span class="ms-medal">🏸</span>Chanon Prom</div>
+        <div>Kanokwan Sri</div>
+      </div>
+      <div class="ms-score">21-14, 19-21, 21-13</div>
+      <div class="ms-team ms-team--2">
+        <div>Suppakorn Thongdi</div>
+        <div>Malee Jaidee</div>
+      </div>
+    </div>
+    <div class="ms-match">
+      <div class="ms-meta">
+        <span class="ms-event">XD Open</span>
+        <span class="ms-round">Semi-final</span>
+      </div>
+      <div class="ms-team ms-team--1 winner">
+        <div><span class="ms-medal">🏸</span>Chanon Prom</div>
+        <div>Kanokwan Sri</div>
+      </div>
+      <div class="ms-score">21-19, 21-17</div>
+      <div class="ms-team ms-team--2">
+        <div>Nattawut Suk</div>
+        <div>Praewa Ying</div>
+      </div>
+    </div>
+    <div class="ms-match">
+      <div class="ms-meta">
+        <span class="ms-event">XD Open</span>
+        <span class="ms-round">Final</span>
+      </div>
+      <div class="ms-team ms-team--1 winner">
+        <div><span class="ms-medal">🥇</span>Chanon Prom</div>
+        <div>Kanokwan Sri</div>
+      </div>
+      <div class="ms-score">21-18, 18-21, 21-16</div>
+      <div class="ms-team ms-team--2">
+        <div>Apichart Boon</div>
+        <div>Praewa Ying</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== MOBILE: SINGLES ============== -->
+  <div class="panel">
+    <h2>Mobile — Singles</h2>
+    <div class="mobile-grid">
+      <div class="mcard">
+        <div class="ms-meta">
+          <span class="ms-event">MS Open</span>
+          <span class="ms-round">R32</span>
+        </div>
+        <div class="ms-board-row winner">
+          <div class="ms-board-players"><div><span class="ms-medal">🏸</span>Somchai Prasert</div></div>
+          <span class="ms-board-set">21</span><span class="ms-board-set">21</span>
+        </div>
+        <div class="ms-board-row">
+          <div class="ms-board-players"><div>Niran Wongsa</div></div>
+          <span class="ms-board-set">15</span><span class="ms-board-set">18</span>
+        </div>
+      </div>
+      <div class="mcard">
+        <div class="ms-meta">
+          <span class="ms-event">MS Open</span>
+          <span class="ms-round">QF</span>
+        </div>
+        <div class="ms-board-row winner">
+          <div class="ms-board-players"><div><span class="ms-medal">🏸</span>Pongsak Chai</div></div>
+          <span class="ms-board-set">22</span><span class="ms-board-set">19</span><span class="ms-board-set">21</span>
+        </div>
+        <div class="ms-board-row">
+          <div class="ms-board-players"><div>Teerapat Niwat</div></div>
+          <span class="ms-board-set">20</span><span class="ms-board-set">21</span><span class="ms-board-set">16</span>
+        </div>
+      </div>
+      <div class="mcard">
+        <div class="ms-meta">
+          <span class="ms-event">MS Open</span>
+          <span class="ms-round">SF</span>
+        </div>
+        <div class="ms-board-row">
+          <div class="ms-board-players"><div>Arthit Saelim</div></div>
+          <span class="ms-board-set">17</span><span class="ms-board-set">15</span>
+        </div>
+        <div class="ms-board-row winner">
+          <div class="ms-board-players"><div><span class="ms-medal">🏸</span>Kittisak Ruang</div></div>
+          <span class="ms-board-set">21</span><span class="ms-board-set">21</span>
+        </div>
+      </div>
+      <div class="mcard">
+        <div class="ms-meta">
+          <span class="ms-event">MS Open</span>
+          <span class="ms-round">Final</span>
+        </div>
+        <div class="ms-board-row winner">
+          <div class="ms-board-players"><div><span class="ms-medal">🥇</span>Kittisak Ruang</div></div>
+          <span class="ms-board-set">21</span><span class="ms-board-set">18</span><span class="ms-board-set">21</span>
+        </div>
+        <div class="ms-board-row">
+          <div class="ms-board-players"><div>Pongsak Chai</div></div>
+          <span class="ms-board-set">18</span><span class="ms-board-set">21</span><span class="ms-board-set">16</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== MOBILE: DOUBLES ============== -->
+  <div class="panel">
+    <h2>Mobile — Doubles &amp; Mixed</h2>
+    <div class="mobile-grid">
+      <div class="mcard">
+        <div class="ms-meta">
+          <span class="ms-event">MD U17</span>
+          <span class="ms-round">R32</span>
+        </div>
+        <div class="ms-board-row winner">
+          <div class="ms-board-players">
+            <div><span class="ms-medal">🏸</span>Arthit Saelim</div>
+            <div>Korn Boonmee</div>
+          </div>
+          <span class="ms-board-set">21</span><span class="ms-board-set">21</span>
+        </div>
+        <div class="ms-board-row">
+          <div class="ms-board-players">
+            <div>Pongsak Chai</div>
+            <div>Teerapat Niwat</div>
+          </div>
+          <span class="ms-board-set">17</span><span class="ms-board-set">14</span>
+        </div>
+      </div>
+      <div class="mcard">
+        <div class="ms-meta">
+          <span class="ms-event">WD Open</span>
+          <span class="ms-round">R16</span>
+        </div>
+        <div class="ms-board-row">
+          <div class="ms-board-players">
+            <div>Kanokwan Sri</div>
+            <div>Napaporn Thong</div>
+          </div>
+          <span class="ms-board-set">19</span><span class="ms-board-set">21</span><span class="ms-board-set">17</span>
+        </div>
+        <div class="ms-board-row winner">
+          <div class="ms-board-players">
+            <div><span class="ms-medal">🏸</span>Malee Jaidee</div>
+            <div>Suphansa Rak</div>
+          </div>
+          <span class="ms-board-set">21</span><span class="ms-board-set">18</span><span class="ms-board-set">21</span>
+        </div>
+      </div>
+      <div class="mcard">
+        <div class="ms-meta">
+          <span class="ms-event">XD Open</span>
+          <span class="ms-round">SF</span>
+        </div>
+        <div class="ms-board-row winner">
+          <div class="ms-board-players">
+            <div><span class="ms-medal">🏸</span>Chanon Prom</div>
+            <div>Kanokwan Sri</div>
+          </div>
+          <span class="ms-board-set">21</span><span class="ms-board-set">21</span>
+        </div>
+        <div class="ms-board-row">
+          <div class="ms-board-players">
+            <div>Nattawut Suk</div>
+            <div>Praewa Ying</div>
+          </div>
+          <span class="ms-board-set">19</span><span class="ms-board-set">17</span>
+        </div>
+      </div>
+      <div class="mcard">
+        <div class="ms-meta">
+          <span class="ms-event">XD Open</span>
+          <span class="ms-round">Final</span>
+        </div>
+        <div class="ms-board-row winner">
+          <div class="ms-board-players">
+            <div><span class="ms-medal">🥇</span>Chanon Prom</div>
+            <div>Kanokwan Sri</div>
+          </div>
+          <span class="ms-board-set">21</span><span class="ms-board-set">18</span><span class="ms-board-set">21</span>
+        </div>
+        <div class="ms-board-row">
+          <div class="ms-board-players">
+            <div>Apichart Boon</div>
+            <div>Praewa Ying</div>
+          </div>
+          <span class="ms-board-set">18</span><span class="ms-board-set">21</span><span class="ms-board-set">16</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

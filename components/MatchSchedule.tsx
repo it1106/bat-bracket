@@ -92,8 +92,11 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     const live = liveByCourt ? matchLiveCourt(m, liveByCourt) : null
     const isLive = live !== null
     const { done: doneScore, liveText } = scoreStr(m, scoreTr, live)
-    const medal = (team: 1 | 2) =>
-      finalMedal && m.winner === team ? <span className="ms-medal" aria-label="winner">🥇</span> : null
+    const medal = (team: 1 | 2) => {
+      if (m.winner !== team) return null
+      const icon = finalMedal ? '🥇' : '🏸'
+      return <span className="ms-medal" aria-label="winner">{icon}</span>
+    }
     const boardSets1 = (live?.setScores?.length
       ? live.setScores.map((s) => s.t1)
       : m.scores.map((s) => s.t1))
