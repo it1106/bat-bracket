@@ -262,3 +262,75 @@ describe('LiveScoreClient — negotiate + connect', () => {
     expect(MockSocket.last).toBeNull()
   })
 })
+
+describe('LiveScoreClient — messages', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+    MockSocket.last = null
+  })
+  afterEach(() => jest.useRealTimers())
+
+  async function subscribedClient() {
+    const { fetchMock } = installMocks()
+    fetchMock
+      .mockResolvedValueOnce(mockJsonOk({ ConnectionToken: 'TOK', ProtocolVersion: '1.5' }))
+      .mockResolvedValue(mockJsonOk({ Response: 'started' }))
+    const c = new LiveScoreClient()
+    c.connect('GUID-M')
+    await Promise.resolve(); await Promise.resolve()
+    MockSocket.last!.simulateOpen()
+    await Promise.resolve(); await Promise.resolve()
+    return c
+  }
+
+  it('fires "scoreboard" with normalized courts when sendScoreboard arrives', async () => {
+    const c = await subscribedClient()
+    const heard: CourtLive[][] = []
+    c.on('scoreboard', (cs) => heard.push(cs))
+    const payload = {
+      S: 1,
+      CS: [{
+        CID: 1, N: 'Court 1', MID: 7, E: 'WS', R: 'SF', W: 0, D: 120,
+        T1: { ID: 1, N: 'T1', F: 'THA', P: 1, P1ID: 11, P1N: 'x', P1F: '', P1ABR: '', P2ID: 0, P2N: '', P2F: '', P2ABR: '', P3ID: 0, P3N: '', P3F: '', P3ABR: '' },
+        T2: { ID: 2, N: 'T2', F: 'THA', P: 0, P1ID: 22, P1N: 'y', P1F: '', P1ABR: '', P2ID: 0, P2N: '', P2F: '', P2ABR: '', P3ID: 0, P3N: '', P3F: '', P3ABR: '' },
+        SCS: [], LSC: { GMNO: 1, STNO: 1, T1: 5, T2: 3 },
+        SW: false, SW1: false, SW2: false, MST: false,
+      }],
+    }
+    MockSocket.last!.simulateMessage({
+      C: 'x', M: [{ H: 'scoreboardHub', M: 'sendScoreboard', A: [payload] }],
+    })
+    expect(heard.length).toBe(1)
+    expect(heard[0][0].courtKey).toBe('court1')
+    expect(heard[0][0].current).toEqual({ gameNo: 1, setNo: 1, t1: 5, t2: 3 })
+  })
+
+  it('transitions subscribed → active after first non-empty scoreboard', async () => {
+    const c = await subscribedClient()
+    const states: string[] = []
+    c.on('state', (s) => states.push(s))
+    MockSocket.last!.simulateMessage({
+      C: 'x', M: [{ H: 'scoreboardHub', M: 'sendScoreboard', A: [{ S: 1, CS: [{ MID: 1, N: 'C1', T1: {}, T2: {}, SCS: [], LSC: null, D: 0, W: 0 }] }] }],
+    })
+    expect(states).toContain('active')
+  })
+
+  it('handles heartbeat message without emitting scoreboard', async () => {
+    const c = await subscribedClient()
+    const heard: CourtLive[][] = []
+    c.on('scoreboard', (cs) => heard.push(cs))
+    MockSocket.last!.simulateMessage({
+      C: 'x', M: [{ H: 'scoreboardHub', M: 'heartbeat', A: [] }],
+    })
+    expect(heard.length).toBe(0)
+  })
+
+  it('ignores keep-alive frames (empty M array)', async () => {
+    const c = await subscribedClient()
+    const heard: CourtLive[][] = []
+    c.on('scoreboard', (cs) => heard.push(cs))
+    MockSocket.last!.simulateMessage({ C: 'x', M: [] })
+    MockSocket.last!.simulateMessage({})
+    expect(heard.length).toBe(0)
+  })
+})

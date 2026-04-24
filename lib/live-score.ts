@@ -73,6 +73,7 @@ export class LiveScoreClient {
   private state: State = 'idle'
   private ws: WebSocket | null = null
   private connectionToken: string | null = null
+  private lastHeartbeat = 0
 
   on<K extends keyof Events>(ev: K, cb: Events[K]) {
     this.listeners[ev].push(cb)
@@ -166,7 +167,26 @@ export class LiveScoreClient {
     this.setState('subscribed')
   }
 
-  private onWsMessage(_e: MessageEvent) { /* Task 4 */ }
+  private onWsMessage(e: MessageEvent) {
+    let msg: unknown
+    try { msg = JSON.parse(e.data as string) } catch { return }
+    if (!msg || typeof msg !== 'object') return
+    const invocations = (msg as { M?: unknown }).M
+    if (!Array.isArray(invocations)) return
+    for (const inv of invocations as Array<{ H?: string; M?: string; A?: unknown[] }>) {
+      if (inv.M === 'heartbeat') {
+        this.lastHeartbeat = Date.now()
+        continue
+      }
+      if (inv.H === HUB_NAME && inv.M === 'sendScoreboard') {
+        const payload = Array.isArray(inv.A) ? inv.A[0] : null
+        const courts = normalizePayload(payload)
+        if (courts.length > 0 && this.state !== 'active') this.setState('active')
+        this.emit('scoreboard', courts)
+      }
+    }
+  }
+
   private onWsClose() { /* Task 5 */ }
 }
 
