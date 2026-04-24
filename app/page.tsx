@@ -9,6 +9,7 @@ import H2HModal from '@/components/H2HModal'
 import { useLanguage } from '@/lib/LanguageContext'
 import { useTheme } from '@/lib/ThemeContext'
 import { useLiveScore } from '@/lib/useLiveScore'
+import { matchLiveCourt } from '@/lib/live-score'
 import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
@@ -24,7 +25,7 @@ async function safeJson(res: Response): Promise<unknown> {
   }
 }
 
-type ViewMode = 'bracket' | 'matches'
+type ViewMode = 'bracket' | 'matches' | 'live'
 
 export default function Home() {
   const { lang, toggleLang, t } = useLanguage()
@@ -63,6 +64,20 @@ export default function Home() {
 
   const liveGate = matchGroups.some((g) => g.matches.some((m) => m.nowPlaying))
   const liveByCourt = useLiveScore(selectedTournament || null, liveGate)
+
+  const liveGroups: MatchScheduleGroup[] = matchGroups
+    .map((g) => {
+      const matches = g.matches.filter((m) => m.nowPlaying || matchLiveCourt(m, liveByCourt))
+      if (g.type === 'time') return { type: 'time' as const, time: g.time, matches }
+      return { type: 'court' as const, court: g.court, matches }
+    })
+    .filter((g) => g.matches.length > 0)
+  const liveMatchCount = liveGroups.reduce((n, g) => n + g.matches.length, 0)
+  const hasLiveData = liveMatchCount > 0
+
+  useEffect(() => {
+    if (viewMode === 'live' && !hasLiveData) setViewMode('matches')
+  }, [viewMode, hasLiveData])
 
   useEffect(() => {
     const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
@@ -486,6 +501,20 @@ export default function Home() {
             {t('matchSchedule')}
             {loadingMatches && <span className="ml-1 opacity-50">…</span>}
           </button>
+          {hasLiveData && (
+            <button
+              onClick={() => setViewMode('live')}
+              className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors inline-flex items-center gap-1.5 ${
+                viewMode === 'live'
+                  ? 'border-[var(--brand)] text-[var(--brand-fg)]'
+                  : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
+              }`}
+            >
+              <span className="ms-live-badge">{t('live')}</span>
+              {t('liveMatches')}
+              <span className="opacity-70">({liveMatchCount})</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -561,6 +590,23 @@ export default function Home() {
         <MatchSchedule
           groups={matchGroups}
           days={matchDays}
+          selectedDay={selectedDay}
+          onDayChange={handleDayChange}
+          loading={loadingMatches}
+          playerQuery={playerQuery}
+          onEventClick={handleOpenBracketAtRound}
+          playerClubMap={playerClubMap}
+          onPlayerClick={handlePlayerClick}
+          onH2HClick={handleH2HClick}
+          liveByCourt={liveByCourt}
+        />
+      )}
+
+      {/* Live matches view */}
+      {viewMode === 'live' && (
+        <MatchSchedule
+          groups={liveGroups}
+          days={[]}
           selectedDay={selectedDay}
           onDayChange={handleDayChange}
           loading={loadingMatches}
