@@ -1152,6 +1152,38 @@ html[lang="th"] .pm-section-title {
   50% { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); }
 }
 
+.ms-live-badge {
+  display: inline-block;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+html.dark .ms-live-badge {
+  background: #ff7b72;
+  color: #0d1117;
+}
+
+.ms-score .set-live {
+  color: #ef4444;
+  font-weight: 700;
+}
+html.dark .ms-score .set-live {
+  color: #ff7b72;
+}
+
+.ms-board-set.live {
+  color: #ef4444;
+}
+html.dark .ms-board-set.live {
+  color: #ff7b72;
+}
+
 .ms-event--link {
   cursor: pointer;
 }
