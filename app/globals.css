@@ -1365,3 +1365,50 @@ body.no-highlight .ms-player-highlight {
     color: var(--win-fg);
   }
 }
+
+/* ── Jump-to-next floating button ── */
+.ms-jump-next {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--brand-fg);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 180ms ease, opacity 180ms ease;
+  animation: ms-jump-next-in 180ms ease-out both;
+}
+
+.ms-jump-next:hover { opacity: 0.92; }
+.ms-jump-next:active { transform: translateY(1px); }
+
+@keyframes ms-jump-next-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+/* Brief highlight pulse on the target match after scroll-into-view */
+@keyframes ms-jump-flash {
+  0%   { background-color: rgba(253, 224, 71, 0.85); }
+  60%  { background-color: rgba(253, 224, 71, 0.45); }
+  100% { background-color: transparent; }
+}
+
+.ms-match.ms-jump-flash {
+  animation: ms-jump-flash 1.2s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-jump-next { transition: none; animation: none; }
+  .ms-match.ms-jump-flash { animation: none; }
+}
