@@ -502,7 +502,7 @@ html, body {
   background: linear-gradient(60deg, var(--brand) 0%, #0d1117 100%);
   color: #fff;
   border-radius: 8px;
-  padding: 14px;
+  padding: 14px 14px 12px;
 }
 .pm-stats-banner-label {
   font-size: 10px;
@@ -527,6 +527,33 @@ html, body {
   font-size: 16px;
   opacity: 0.85;
   font-weight: 600;
+}
+.pm-stats-banner-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+  margin-top: 10px;
+}
+.pm-stats-banner-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
+  border-radius: 999px;
+}
+.pm-stats-banner-bar-caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+.pm-stats-banner-bar-pct {
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 1;
 }
 .pm-stats-cells {
   display: grid;

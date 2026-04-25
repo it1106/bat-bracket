@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { PlayerProfile, MatchEntry } from '@/lib/types'
 import { useLanguage } from '@/lib/LanguageContext'
+import { pct } from '@/lib/playerStats'
 
 interface Props {
   profile: PlayerProfile | null
@@ -83,6 +84,21 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                         <span className="pm-stats-banner-career">{fmt(s.total.career)}</span>
                         <span className="pm-stats-banner-ytd">({fmt(s.total.ytd)})</span>
                       </div>
+                      {(() => {
+                        const p = pct(s.total.career)
+                        if (p === null) return null
+                        return (
+                          <>
+                            <div className="pm-stats-banner-bar">
+                              <div className="pm-stats-banner-bar-fill" style={{ width: `${p}%` }} />
+                            </div>
+                            <div className="pm-stats-banner-bar-caption">
+                              <span>{t('winRate')}</span>
+                              <span className="pm-stats-banner-bar-pct">{p}%</span>
+                            </div>
+                          </>
+                        )
+                      })()}
                     </div>
                     <div className="pm-stats-cells">
                       {(['singles','doubles','mixed'] as const).map((k) => (
