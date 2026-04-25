@@ -124,6 +124,7 @@ export type TKey =
   | 'statsMixed'
   | 'statsYearSuffix'
   | 'liveMatches'
+  | 'jumpToNext'
 
 const dict: Record<Lang, Record<TKey, string>> = {
   en: {
@@ -185,6 +186,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsMixed: 'Mixed',
     statsYearSuffix: 'YTD',
     liveMatches: 'Live Matches',
+    jumpToNext: 'Next match ↓',
   },
   th: {
     appTitle1: 'BAT',
@@ -245,6 +247,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsMixed: 'คู่ผสม',
     statsYearSuffix: 'ปีนี้',
     liveMatches: 'แมตช์สด',
+    jumpToNext: 'แมตช์ถัดไป ↓',
   },
 }
 
