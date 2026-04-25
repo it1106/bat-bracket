@@ -67,7 +67,7 @@ export default function Home() {
 
   const liveGroups: MatchScheduleGroup[] = matchGroups
     .map((g) => {
-      const matches = g.matches.filter((m) => m.nowPlaying || matchLiveCourt(m, liveByCourt))
+      const matches = g.matches.filter((m) => matchLiveCourt(m, liveByCourt) !== null)
       if (g.type === 'time') return { type: 'time' as const, time: g.time, matches }
       return { type: 'court' as const, court: g.court, matches }
     })
