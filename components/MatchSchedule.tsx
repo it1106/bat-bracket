@@ -20,21 +20,39 @@ interface Props {
   liveByCourt?: Map<string, CourtLive>
 }
 
+// Extracts the completed sets and the in-progress set from a live record.
+// Some tournament feeds put the in-progress set into `setScores` with
+// winner=0 instead of surfacing it via `current`; this helper unifies
+// both shapes so the in-progress score gets the .set-live cell + flash.
+function liveProgress(live: CourtLive | null): {
+  completedSets: { t1: number; t2: number }[]
+  currentT1: number | null
+  currentT2: number | null
+} {
+  if (!live) return { completedSets: [], currentT1: null, currentT2: null }
+  const completedSets = live.setScores.filter((s) => s.winner !== 0)
+  const inProgress = live.setScores.find((s) => s.winner === 0)
+  const currentT1 = live.current?.t1 ?? inProgress?.t1 ?? null
+  const currentT2 = live.current?.t2 ?? inProgress?.t2 ?? null
+  return { completedSets, currentT1, currentT2 }
+}
+
 function scoreStr(
   entry: MatchEntry,
   tr: { walkover: string; vsMatch: string; retired: string },
   live: CourtLive | null,
 ): { done: string; liveText: string | null } {
   if (entry.walkover) return { done: tr.walkover, liveText: null }
+  const { completedSets, currentT1, currentT2 } = liveProgress(live)
   const baseSets = live?.setScores?.length
-    ? live.setScores.map((s) => `${s.t1}-${s.t2}`)
+    ? completedSets.map((s) => `${s.t1}-${s.t2}`)
     : entry.scores.map((s) => `${s.t1}-${s.t2}`)
   const done = baseSets.length === 0 && !live
     ? tr.vsMatch
     : entry.retired
       ? `${baseSets.join(', ')} ${tr.retired}`
       : baseSets.join(', ')
-  const liveText = live?.current ? `${live.current.t1}-${live.current.t2}` : null
+  const liveText = currentT1 != null && currentT2 != null ? `${currentT1}-${currentT2}` : null
   return { done, liveText }
 }
 
@@ -86,12 +104,13 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       const icon = finalMedal ? '🥇' : '🏸'
       return <span className="ms-medal" aria-label="winner">{icon}</span>
     }
-    const boardSets1 = (live?.setScores?.length
-      ? live.setScores.map((s) => s.t1)
-      : m.scores.map((s) => s.t1))
-    const boardSets2 = (live?.setScores?.length
-      ? live.setScores.map((s) => s.t2)
-      : m.scores.map((s) => s.t2))
+    const { completedSets: liveCompleted, currentT1, currentT2 } = liveProgress(live)
+    const boardSets1 = live?.setScores?.length
+      ? liveCompleted.map((s) => s.t1)
+      : m.scores.map((s) => s.t1)
+    const boardSets2 = live?.setScores?.length
+      ? liveCompleted.map((s) => s.t2)
+      : m.scores.map((s) => s.t2)
     return (
     <div
       key={matchKey}
@@ -147,7 +166,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             : (
               <>
                 {boardSets1.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
-                {live?.current && <span key={live.current.t1} className="ms-board-set live">{live.current.t1}</span>}
+                {currentT1 != null && <span key={currentT1} className="ms-board-set live">{currentT1}</span>}
                 {m.retired && m.winner === 1 && <span className="ms-board-badge">{t('retired')}</span>}
               </>
             )
@@ -162,7 +181,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             : (
               <>
                 {boardSets2.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
-                {live?.current && <span key={live.current.t2} className="ms-board-set live">{live.current.t2}</span>}
+                {currentT2 != null && <span key={currentT2} className="ms-board-set live">{currentT2}</span>}
                 {m.retired && m.winner === 2 && <span className="ms-board-badge">{t('retired')}</span>}
               </>
             )
