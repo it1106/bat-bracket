@@ -1401,7 +1401,7 @@ body.no-highlight .ms-player-highlight {
   .ms-board-badge {
     font-size: 14px;
     font-weight: 700;
-    color: var(--win-fg);
+    color: var(--fg);
     padding-left: 6px;
     flex-shrink: 0;
   }
