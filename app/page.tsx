@@ -61,6 +61,11 @@ export default function Home() {
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
   const autoSelectedTournamentRef = useRef(false)
   const [headerVisible, setHeaderVisible] = useState(true)
+  // Tracks { courtKey: matchId } from the SignalR feed so we can detect
+  // when a previously-live match completes (court drops or matchId changes)
+  // and refetch the schedule — the scrape doesn't auto-refresh.
+  const prevLiveMatchIdsRef = useRef<Map<string, number>>(new Map())
+  const liveRefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const liveGate = matchGroups.some((g) => g.matches.some((m) => m.nowPlaying))
   const liveByCourt = useLiveScore(selectedTournament || null, liveGate)
@@ -78,6 +83,43 @@ export default function Home() {
   useEffect(() => {
     if (viewMode === 'live' && !hasLiveData) setViewMode('matches')
   }, [viewMode, hasLiveData])
+
+  // Refetch the day's matches whenever SignalR signals a match completion:
+  // either a court drops out of the feed, or a court's matchId changes
+  // (new match took the same court). Debounced so the scraper has time to
+  // see the new state on the source site.
+  useEffect(() => {
+    const prev = prevLiveMatchIdsRef.current
+    const next = new Map<string, number>()
+    let completion = false
+    liveByCourt.forEach((court, key) => {
+      next.set(key, court.matchId)
+      const prevId = prev.get(key)
+      if (prevId !== undefined && prevId !== court.matchId) completion = true
+    })
+    prev.forEach((_id, key) => {
+      if (!next.has(key)) completion = true
+    })
+    prevLiveMatchIdsRef.current = next
+    if (!completion || !selectedTournament || !selectedDay) return
+    if (liveRefetchTimerRef.current) clearTimeout(liveRefetchTimerRef.current)
+    liveRefetchTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/matches?tournament=${encodeURIComponent(selectedTournament)}&date=${selectedDay}`)
+        const data = await safeJson(res)
+        if (!isApiError(data)) {
+          const md = data as Pick<MatchesData, 'groups'>
+          setMatchGroups(md.groups)
+        }
+      } catch { /* ignore — next completion will retry */ }
+    }, 5000)
+    return () => {
+      if (liveRefetchTimerRef.current) {
+        clearTimeout(liveRefetchTimerRef.current)
+        liveRefetchTimerRef.current = null
+      }
+    }
+  }, [liveByCourt, selectedTournament, selectedDay])
 
   useEffect(() => {
     const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
