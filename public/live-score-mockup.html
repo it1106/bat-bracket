@@ -132,10 +132,9 @@
       <p class="note">
         The <code>.set-live</code> (desktop score cell) and
         <code>.ms-board-set.live</code> (mobile per-row point) flash yellow for
-        1.5s whenever the value changes. The mockup re-applies the
-        <code>.is-flashing</code> class with a forced reflow in between, which
-        is exactly what the updated <code>LiveScore</code> React component
-        does on every prop update.
+        1.5s whenever the value changes. This is a CSS-only visual reference —
+        the React <code>LiveScore</code> component drives the same keyframes
+        imperatively via the Web Animations API (<code>el.animate()</code>).
       </p>
 
       <div class="controls">

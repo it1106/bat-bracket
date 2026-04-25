@@ -7,20 +7,26 @@ import { useLanguage } from '@/lib/LanguageContext'
 import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
 import JumpToNextButton from '@/components/JumpToNextButton'
 
-// Replays the .is-flashing CSS animation every time `value` changes by
-// toggling the class and forcing a reflow. React key-based remounts are
-// unreliable here — siblings with stable keys (and browsers that cache
-// animation state on the reused DOM node) would otherwise skip replays.
+// Flashes the cell yellow on every value change. Uses the Web Animations
+// API rather than a CSS class toggle + reflow trick: real-world browsers
+// (mobile Safari especially) sometimes elide the reflow when the class
+// state before/after is identical, leaving the animation never replayed.
+const FLASH_KEYFRAMES: Keyframe[] = [
+  { backgroundColor: '#fde047', boxShadow: '0 0 0 4px rgba(253, 224, 71, 0.9)', offset: 0 },
+  { backgroundColor: '#fde047', boxShadow: '0 0 0 4px rgba(253, 224, 71, 0.9)', offset: 0.25 },
+  { backgroundColor: 'transparent', boxShadow: '0 0 0 0 rgba(253, 224, 71, 0)', offset: 1 },
+]
+const FLASH_OPTIONS: KeyframeAnimationOptions = { duration: 1500, easing: 'ease-out', fill: 'forwards' }
+
 function LiveScore({ value, className }: { value: string | number; className: string }) {
   const ref = useRef<HTMLSpanElement>(null)
   useEffect(() => {
     const el = ref.current
-    if (!el) return
-    el.classList.remove('is-flashing')
-    void el.offsetWidth
-    el.classList.add('is-flashing')
+    if (!el || typeof el.animate !== 'function') return
+    for (const a of el.getAnimations()) a.cancel()
+    el.animate(FLASH_KEYFRAMES, FLASH_OPTIONS)
   }, [value])
-  return <span ref={ref} className={`${className} is-flashing`}>{value}</span>
+  return <span ref={ref} className={className}>{value}</span>
 }
 
 interface Props {
