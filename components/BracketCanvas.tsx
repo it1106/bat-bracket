@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { expandSearchQuery } from '@/lib/searchAliases'
 
 interface BracketCanvasProps {
   bracketHtml: string
@@ -34,22 +35,27 @@ export default function BracketCanvas({
   // (including off-screen) are styled correctly from initial render.
   const displayHtml = useMemo(() => {
     if (!bracketHtml || typeof document === 'undefined') return bracketHtml
-    const query = playerQuery.trim().toLowerCase()
+    const queries = expandSearchQuery(playerQuery)
     const wrapper = document.createElement('div')
     wrapper.innerHTML = bracketHtml
 
-    if (query) {
+    if (queries.length > 0) {
+      const textMatches = (text: string | null | undefined) => {
+        if (!text) return false
+        const lc = text.toLowerCase()
+        return queries.some((q) => lc.includes(q))
+      }
       const clubMatches = (pid: string | null) => {
         if (!pid || !playerClubMap) return false
         const club = (playerClubMap[pid] ?? '').toLowerCase()
-        return !!club && club.includes(query)
+        return !!club && queries.some((q) => club.includes(q))
       }
 
       // bk-row format
       wrapper.querySelectorAll<HTMLElement>('.bk-row').forEach((row) => {
         const spans = row.querySelectorAll<HTMLElement>('.bk-player, span')
         const matches = Array.from(spans).some((s) =>
-          (s.textContent?.toLowerCase().includes(query)) ||
+          textMatches(s.textContent) ||
           clubMatches(s.getAttribute('data-player-id'))
         )
         row.classList.toggle('tracked', matches)
@@ -59,7 +65,7 @@ export default function BracketCanvas({
       wrapper.querySelectorAll<HTMLElement>('.match__row').forEach((row) => {
         const links = row.querySelectorAll<HTMLAnchorElement>('.match__row-title-value-content a')
         const matches = Array.from(links).some((link) =>
-          (link.textContent?.toLowerCase().includes(query)) ||
+          textMatches(link.textContent) ||
           clubMatches(link.getAttribute('data-player-id'))
         )
         row.classList.toggle('highlighted', matches)

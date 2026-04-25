@@ -4,6 +4,7 @@ import type { MatchScheduleGroup, MatchDay, MatchEntry } from '@/lib/types'
 import { matchLiveCourt, type CourtLive } from '@/lib/live-score'
 import { useLanguage } from '@/lib/LanguageContext'
 import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
+import { expandSearchQuery } from '@/lib/searchAliases'
 import JumpToNextButton from '@/components/JumpToNextButton'
 
 interface Props {
@@ -57,10 +58,10 @@ function scoreStr(
 }
 
 function matchesQuery(entry: MatchEntry, query: string, clubMap?: Record<string, string>): boolean {
-  if (!query) return true
-  const q = query.toLowerCase()
-  if (entry.draw.toLowerCase().includes(q)) return true
-  return [...entry.team1, ...entry.team2].some((p) => playerMatchesQuery(p, q, clubMap))
+  const qs = expandSearchQuery(query)
+  if (qs.length === 0) return true
+  if (qs.some((q) => entry.draw.toLowerCase().includes(q))) return true
+  return [...entry.team1, ...entry.team2].some((p) => playerMatchesQuery(p, qs, clubMap))
 }
 
 function isFinalRound(round: string): boolean {
@@ -70,13 +71,15 @@ function isFinalRound(round: string): boolean {
 
 function playerMatchesQuery(
   p: { name: string; playerId: string },
-  qLower: string,
+  queries: string[],
   clubMap?: Record<string, string>,
 ): boolean {
-  if (!qLower) return false
-  if (p.name.toLowerCase().includes(qLower)) return true
-  if (clubMap && p.playerId && (clubMap[p.playerId] ?? '').toLowerCase().includes(qLower)) return true
-  return false
+  if (queries.length === 0) return false
+  return queries.some((q) => {
+    if (p.name.toLowerCase().includes(q)) return true
+    if (clubMap && p.playerId && (clubMap[p.playerId] ?? '').toLowerCase().includes(q)) return true
+    return false
+  })
 }
 
 export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt }: Props) {
@@ -84,11 +87,11 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
     useFirstUnplayed(groups, playerQuery, playerClubMap)
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
-  const qLower = playerQuery.trim().toLowerCase()
+  const queries = expandSearchQuery(playerQuery)
   const nameCls = (p: { name: string; playerId: string }) => {
     const cls: string[] = []
     if (onPlayerClick && p.playerId) cls.push('pm-player-link')
-    if (qLower && playerMatchesQuery(p, qLower, playerClubMap)) cls.push('ms-player-highlight')
+    if (queries.length > 0 && playerMatchesQuery(p, queries, playerClubMap)) cls.push('ms-player-highlight')
     return cls.join(' ')
   }
 
