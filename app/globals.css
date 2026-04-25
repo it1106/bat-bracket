@@ -591,6 +591,27 @@ html[lang="th"] .pm-stats-cell-label {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
+.pm-stats-cell-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+  margin: 6px 4px 2px;
+}
+.pm-stats-cell-bar-fill {
+  height: 100%;
+  background: #22c55e;
+  border-radius: 999px;
+}
+html.dark .pm-stats-cell-bar-fill {
+  background: #4ade80;
+}
+.pm-stats-cell-pct {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 
 .pm-section {
   margin-top: 16px;

@@ -101,13 +101,24 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                       })()}
                     </div>
                     <div className="pm-stats-cells">
-                      {(['singles','doubles','mixed'] as const).map((k) => (
-                        <div key={k} className="pm-stats-cell">
-                          <div className="pm-stats-cell-label">{t(`stats${k.charAt(0).toUpperCase()+k.slice(1)}` as 'statsSingles'|'statsDoubles'|'statsMixed')}</div>
-                          <div className="pm-stats-cell-value">{fmt(s[k].career)}</div>
-                          <div className="pm-stats-cell-ytd">({fmt(s[k].ytd)})</div>
-                        </div>
-                      ))}
+                      {(['singles','doubles','mixed'] as const).map((k) => {
+                        const p = pct(s[k].career)
+                        return (
+                          <div key={k} className="pm-stats-cell">
+                            <div className="pm-stats-cell-label">{t(`stats${k.charAt(0).toUpperCase()+k.slice(1)}` as 'statsSingles'|'statsDoubles'|'statsMixed')}</div>
+                            <div className="pm-stats-cell-value">{fmt(s[k].career)}</div>
+                            <div className="pm-stats-cell-ytd">({fmt(s[k].ytd)})</div>
+                            {p !== null && (
+                              <>
+                                <div className="pm-stats-cell-bar">
+                                  <div className="pm-stats-cell-bar-fill" style={{ width: `${p}%` }} />
+                                </div>
+                                <div className="pm-stats-cell-pct">{p}%</div>
+                              </>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
