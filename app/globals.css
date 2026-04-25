@@ -1217,14 +1217,21 @@ html.dark .ms-live-badge {
   color: #0d1117;
 }
 
-/* The yellow flash on every score change is fired imperatively from
-   LiveScore via the Web Animations API — see components/MatchSchedule.tsx. */
+@keyframes ms-score-flash {
+  0%   { background-color: #fde047; box-shadow: 0 0 0 4px rgba(253, 224, 71, 0.9); }
+  25%  { background-color: #fde047; box-shadow: 0 0 0 4px rgba(253, 224, 71, 0.9); }
+  100% { background-color: transparent; box-shadow: 0 0 0 0 rgba(253, 224, 71, 0); }
+}
+
+/* The flash plays on every mount — components/MatchSchedule.tsx forces a
+   fresh DOM node via key={value} whenever the live score changes. */
 .ms-score .set-live {
   color: #ef4444;
   font-weight: 700;
   display: inline-block;
   padding: 0 4px;
   border-radius: 3px;
+  animation: ms-score-flash 1.5s ease-out both;
 }
 html.dark .ms-score .set-live {
   color: #ff7b72;
@@ -1232,7 +1239,9 @@ html.dark .ms-score .set-live {
 
 .ms-board-set.live {
   color: #ef4444;
+  display: inline-block;
   border-radius: 3px;
+  animation: ms-score-flash 1.5s ease-out both;
 }
 html.dark .ms-board-set.live {
   color: #ff7b72;

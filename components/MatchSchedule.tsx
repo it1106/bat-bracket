@@ -1,33 +1,10 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
 import type { MatchScheduleGroup, MatchDay, MatchEntry } from '@/lib/types'
 import { matchLiveCourt, type CourtLive } from '@/lib/live-score'
 import { useLanguage } from '@/lib/LanguageContext'
 import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
 import JumpToNextButton from '@/components/JumpToNextButton'
-
-// Flashes the cell yellow on every value change. Uses the Web Animations
-// API rather than a CSS class toggle + reflow trick: real-world browsers
-// (mobile Safari especially) sometimes elide the reflow when the class
-// state before/after is identical, leaving the animation never replayed.
-const FLASH_KEYFRAMES: Keyframe[] = [
-  { backgroundColor: '#fde047', boxShadow: '0 0 0 4px rgba(253, 224, 71, 0.9)', offset: 0 },
-  { backgroundColor: '#fde047', boxShadow: '0 0 0 4px rgba(253, 224, 71, 0.9)', offset: 0.25 },
-  { backgroundColor: 'transparent', boxShadow: '0 0 0 0 rgba(253, 224, 71, 0)', offset: 1 },
-]
-const FLASH_OPTIONS: KeyframeAnimationOptions = { duration: 1500, easing: 'ease-out', fill: 'forwards' }
-
-function LiveScore({ value, className }: { value: string | number; className: string }) {
-  const ref = useRef<HTMLSpanElement>(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el || typeof el.animate !== 'function') return
-    for (const a of el.getAnimations()) a.cancel()
-    el.animate(FLASH_KEYFRAMES, FLASH_OPTIONS)
-  }, [value])
-  return <span ref={ref} className={className}>{value}</span>
-}
 
 interface Props {
   groups: MatchScheduleGroup[]
@@ -150,7 +127,9 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       <div className="ms-score ms-d">
         {doneScore && <span>{doneScore}</span>}
         {liveText && doneScore && <span>, </span>}
-        {liveText && <LiveScore value={liveText} className="set-live" />}
+        {/* key={liveText} forces a fresh DOM node on every value change so
+            the CSS animation replays from scratch. */}
+        {liveText && <span key={liveText} className="set-live">{liveText}</span>}
       </div>
       <div className={`ms-team ms-team--2 ms-d${m.winner === 2 ? ' winner' : ''}`}>
         {m.team2.map((p, i) => (
@@ -168,7 +147,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             : (
               <>
                 {boardSets1.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
-                {live?.current && <LiveScore value={live.current.t1} className="ms-board-set live" />}
+                {live?.current && <span key={live.current.t1} className="ms-board-set live">{live.current.t1}</span>}
                 {m.retired && m.winner === 1 && <span className="ms-board-badge">{t('retired')}</span>}
               </>
             )
@@ -183,7 +162,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             : (
               <>
                 {boardSets2.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
-                {live?.current && <LiveScore value={live.current.t2} className="ms-board-set live" />}
+                {live?.current && <span key={live.current.t2} className="ms-board-set live">{live.current.t2}</span>}
                 {m.retired && m.winner === 2 && <span className="ms-board-badge">{t('retired')}</span>}
               </>
             )
