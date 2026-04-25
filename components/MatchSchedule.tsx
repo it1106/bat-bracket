@@ -165,12 +165,12 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             {m.team1.map((p, i) => <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{medal(1)}{p.name}</div>)}
           </div>
           {m.walkover
-            ? <span className="ms-board-badge">{m.winner === 1 ? t('walkover') : ''}</span>
+            ? <span className="ms-board-badge">{m.winner === 2 ? t('walkover') : ''}</span>
             : (
               <>
                 {boardSets1.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
                 {currentT1 != null && <span key={currentT1} className="ms-board-set live">{currentT1}</span>}
-                {m.retired && m.winner === 1 && <span className="ms-board-badge">{t('retired')}</span>}
+                {m.retired && m.winner === 2 && <span className="ms-board-badge">{t('retired')}</span>}
               </>
             )
           }
@@ -180,12 +180,12 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             {m.team2.map((p, i) => <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{medal(2)}{p.name}</div>)}
           </div>
           {m.walkover
-            ? <span className="ms-board-badge">{m.winner === 2 ? t('walkover') : ''}</span>
+            ? <span className="ms-board-badge">{m.winner === 1 ? t('walkover') : ''}</span>
             : (
               <>
                 {boardSets2.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
                 {currentT2 != null && <span key={currentT2} className="ms-board-set live">{currentT2}</span>}
-                {m.retired && m.winner === 2 && <span className="ms-board-badge">{t('retired')}</span>}
+                {m.retired && m.winner === 1 && <span className="ms-board-badge">{t('retired')}</span>}
               </>
             )
           }
