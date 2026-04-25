@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import MatchSchedule from '@/components/MatchSchedule'
 import { LanguageProvider } from '@/lib/LanguageContext'
 import type { MatchScheduleGroup, MatchEntry } from '@/lib/types'
@@ -80,5 +80,108 @@ describe('MatchSchedule — live overlay', () => {
       new Map([['3', live()]]),
     )
     expect(container.querySelector('.ms-court')?.textContent).toBe('Court 3')
+  })
+})
+
+// ── Jump-to-next tests ──────────────────────────────────────────────────
+
+type IoCtor = typeof IntersectionObserver
+type IoCallback = ConstructorParameters<IoCtor>[0]
+
+let ioInstances: Array<{ cb: IoCallback; el: Element | null; disconnect: jest.Mock }> = []
+
+function installIoMock() {
+  ioInstances = []
+  class MockIO {
+    cb: IoCallback
+    el: Element | null = null
+    disconnect = jest.fn()
+    constructor(cb: IoCallback) {
+      this.cb = cb
+      ioInstances.push(this)
+    }
+    observe(el: Element) { this.el = el }
+    unobserve() {}
+    takeRecords() { return [] }
+    root = null
+    rootMargin = ''
+    thresholds: number[] = []
+  }
+  ;(globalThis as unknown as { IntersectionObserver: IoCtor }).IntersectionObserver = MockIO as unknown as IoCtor
+}
+
+function emitIntersection(isIntersecting: boolean) {
+  for (const io of ioInstances) {
+    if (!io.el) continue
+    const entry = { isIntersecting, target: io.el } as unknown as IntersectionObserverEntry
+    io.cb([entry], io as unknown as IntersectionObserver)
+  }
+}
+
+function renderMany(matches: MatchEntry[], playerQuery = '') {
+  const groups: MatchScheduleGroup[] = [{ type: 'time', time: '10:00', matches }]
+  return render(
+    <LanguageProvider>
+      <MatchSchedule
+        groups={groups}
+        days={[]} selectedDay="" onDayChange={() => {}}
+        loading={false} playerQuery={playerQuery}
+      />
+    </LanguageProvider>,
+  )
+}
+
+describe('MatchSchedule — jump to next', () => {
+  beforeEach(() => {
+    installIoMock()
+  })
+
+  it('does not render the button when there are no unplayed matches', () => {
+    renderMany([entry({ winner: 1 }), entry({ winner: 2 })])
+    expect(screen.queryByRole('button', { name: /next match/i })).toBeNull()
+  })
+
+  it('renders the button when the unplayed target is reported off-screen', async () => {
+    renderMany([entry({ winner: 1 }), entry({ winner: null })])
+    await act(async () => { emitIntersection(false) })
+    expect(screen.getByRole('button', { name: /next match/i })).toBeInTheDocument()
+  })
+
+  it('hides the button when the target is reported on-screen', async () => {
+    renderMany([entry({ winner: 1 }), entry({ winner: null })])
+    await act(async () => { emitIntersection(false) })
+    expect(screen.getByRole('button', { name: /next match/i })).toBeInTheDocument()
+    await act(async () => { emitIntersection(true) })
+    expect(screen.queryByRole('button', { name: /next match/i })).toBeNull()
+  })
+
+  it('clicking the button calls scrollIntoView and adds ms-jump-flash to the target', async () => {
+    const scrollSpy = jest.fn()
+    const origProto = HTMLElement.prototype.scrollIntoView
+    HTMLElement.prototype.scrollIntoView = scrollSpy as unknown as typeof origProto
+
+    const { container } = renderMany([
+      entry({ winner: 1 }),
+      entry({ winner: null, team1: [{ name: 'Target', playerId: '9' }] }),
+    ])
+    await act(async () => { emitIntersection(false) })
+
+    const btn = screen.getByRole('button', { name: /next match/i })
+    await act(async () => { btn.click() })
+
+    expect(scrollSpy).toHaveBeenCalledTimes(1)
+    const flashed = container.querySelector('.ms-match.ms-jump-flash')
+    expect(flashed).not.toBeNull()
+
+    HTMLElement.prototype.scrollIntoView = origProto
+  })
+
+  it('hides the button when the player filter matches no unplayed match', async () => {
+    renderMany(
+      [entry({ winner: 1 }), entry({ winner: null, team1: [{ name: 'Alpha', playerId: '1' }] })],
+      'nobody-matches-this',
+    )
+    await act(async () => { emitIntersection(false) })
+    expect(screen.queryByRole('button', { name: /next match/i })).toBeNull()
   })
 })

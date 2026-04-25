@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react'
 import type { MatchScheduleGroup, MatchDay, MatchEntry } from '@/lib/types'
 import { matchLiveCourt, type CourtLive } from '@/lib/live-score'
 import { useLanguage } from '@/lib/LanguageContext'
+import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
+import JumpToNextButton from '@/components/JumpToNextButton'
 
 // Replays the .is-flashing CSS animation every time `value` changes by
 // toggling the class and forcing a reflow. React key-based remounts are
@@ -78,6 +80,8 @@ function playerMatchesQuery(
 
 export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt }: Props) {
   const { t, longRound } = useLanguage()
+  const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
+    useFirstUnplayed(groups, playerQuery, playerClubMap)
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const qLower = playerQuery.trim().toLowerCase()
   const nameCls = (p: { name: string; playerId: string }) => {
@@ -87,7 +91,9 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     return cls.join(' ')
   }
 
-  const renderMatch = (m: MatchEntry, mi: number, showCourt: boolean) => {
+  const renderMatch = (m: MatchEntry, gi: number, mi: number, showCourt: boolean) => {
+    const matchKey = `${gi}-${mi}`
+    const isTarget = matchKey === targetKey
     const finalMedal = isFinalRound(m.round)
     const live = liveByCourt ? matchLiveCourt(m, liveByCourt) : null
     const isLive = live !== null
@@ -104,7 +110,11 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       ? live.setScores.map((s) => s.t2)
       : m.scores.map((s) => s.t2))
     return (
-    <div key={mi} className="ms-match">
+    <div
+      key={matchKey}
+      ref={isTarget ? registerTargetRef : undefined}
+      className="ms-match"
+    >
       <div className="ms-meta">
         {isLive && <span className="ms-live-badge">{t('live')}</span>}
         <span
@@ -218,11 +228,15 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           <div key={gi} className="match-schedule__time-group">
             <div className="match-schedule__time-header">{headerText}</div>
             <div className="ms-list">
-              {filtered.map((m, mi) => renderMatch(m, mi, group.type === 'time'))}
+              {filtered.map((m, mi) => renderMatch(m, gi, mi, group.type === 'time'))}
             </div>
           </div>
         )
       })}
+      <JumpToNextButton
+        visible={targetKey !== null && !isTargetInView}
+        onClick={scrollToTarget}
+      />
     </div>
   )
 }
