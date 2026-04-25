@@ -2,6 +2,7 @@
 // a longer expanded term (typically a club name). Keys are lowercase.
 const ALIASES: Record<string, string> = {
   kba: 'เกษมศักดิ์ Badminton Academy',
+  bty: 'บ้านทองหยอด'
 }
 
 // Returns the lowercased query plus any alias expansion to also match against.
