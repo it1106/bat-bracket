@@ -1,9 +1,11 @@
 'use client'
 
+import { useMemo } from 'react'
 import type { MatchScheduleGroup, MatchDay, MatchEntry } from '@/lib/types'
 import { matchLiveCourt, type CourtLive } from '@/lib/live-score'
 import { useLanguage } from '@/lib/LanguageContext'
 import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
+import { computePlayingOrder } from '@/lib/playingOrder'
 import { expandSearchQuery } from '@/lib/searchAliases'
 import JumpToNextButton from '@/components/JumpToNextButton'
 
@@ -86,6 +88,10 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   const { t, longRound } = useLanguage()
   const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
     useFirstUnplayed(groups, playerQuery, playerClubMap)
+  const playingOrder = useMemo(
+    () => computePlayingOrder({ groups, liveByCourt: liveByCourt ?? null }),
+    [groups, liveByCourt],
+  )
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const queries = expandSearchQuery(playerQuery)
   const nameCls = (p: { name: string; playerId: string }) => {
@@ -98,6 +104,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   const renderMatch = (m: MatchEntry, gi: number, mi: number, showCourt: boolean) => {
     const matchKey = `${gi}-${mi}`
     const isTarget = matchKey === targetKey
+    const position = playingOrder.get(matchKey) ?? null
     const finalMedal = isFinalRound(m.round)
     const live = liveByCourt ? matchLiveCourt(m, liveByCourt) : null
     const isLive = live !== null
@@ -138,6 +145,15 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             onClick={() => onH2HClick(m.h2hUrl!)}
             title={t('h2hButton')}
           >{t('h2hButton')}</button>
+        )}
+        {position !== null && (
+          <span
+            className={`ms-order-pill${position === 1 ? ' ms-order-pill--next' : ''}`}
+          >
+            {position === 1
+              ? t('playingOrderNext')
+              : t('playingOrderAway').replace('{n}', String(position))}
+          </span>
         )}
       </div>
 
@@ -235,7 +251,10 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           <div key={gi} className="match-schedule__time-group">
             <div className="match-schedule__time-header">{headerText}</div>
             <div className="ms-list">
-              {filtered.map((m, mi) => renderMatch(m, gi, mi, group.type === 'time'))}
+              {filtered.map((m) => {
+                const absMi = group.matches.indexOf(m)
+                return renderMatch(m, gi, absMi, group.type === 'time')
+              })}
             </div>
           </div>
         )
