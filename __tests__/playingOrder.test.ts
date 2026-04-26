@@ -36,9 +36,12 @@ describe('computePlayingOrder', () => {
     expect(result.size).toBe(0)
   })
 
-  it('returns an empty map when no match is live and no match has a winner', () => {
+  it('numbers all matches from position 1 when nothing is live or completed yet', () => {
     const groups = [timeGroup('10:00', [entry(), entry(), entry()])]
-    expect(computePlayingOrder({ groups, liveByCourt: null }).size).toBe(0)
+    const result = computePlayingOrder({ groups, liveByCourt: null })
+    expect(result.get('0-0')).toBe(1)
+    expect(result.get('0-1')).toBe(2)
+    expect(result.get('0-2')).toBe(3)
   })
 
   it('anchors on the highest-index now-playing match and numbers the rest 1..N', () => {

@@ -261,7 +261,7 @@ describe('MatchSchedule — playing order', () => {
     expect(Array.from(pills).map((p) => p.textContent)).toEqual(['Up next', '2 away'])
   })
 
-  it('renders no pill anywhere when the day has no anchor', () => {
+  it('numbers from "Up next" when the day has no live or completed match yet', () => {
     const matches = [
       entry({ nowPlaying: false, scores: [] }),
       entry({ nowPlaying: false, scores: [] }),
@@ -275,7 +275,8 @@ describe('MatchSchedule — playing order', () => {
         />
       </LanguageProvider>,
     )
-    expect(container.querySelectorAll('.ms-order-pill').length).toBe(0)
+    const pills = container.querySelectorAll('.ms-order-pill')
+    expect(Array.from(pills).map((p) => p.textContent)).toEqual(['Up next', '2 away'])
   })
 
   it('keeps positions stable when a player filter hides earlier rows', () => {

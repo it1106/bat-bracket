@@ -38,8 +38,9 @@ function flatten(groups: MatchScheduleGroup[]): FlatRef[] {
  * is 1-based. Matches not in the map get no pill.
  *
  * Anchor: highest-index live match; else highest-index match with a winner;
- * else no anchor → empty map. Walk forward, skipping live, completed, and
- * walkover rows; each remaining match gets the next position starting at 1.
+ * else -1 (fresh day, walk starts at the first match). Walk forward, skipping
+ * live, completed, and walkover rows; each remaining match gets the next
+ * position starting at 1.
  */
 export function computePlayingOrder(
   inputs: PlayingOrderInputs,
@@ -63,7 +64,6 @@ export function computePlayingOrder(
       }
     }
   }
-  if (anchorIdx === -1) return new Map()
 
   const result = new Map<string, number>()
   let position = 0
