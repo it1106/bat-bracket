@@ -185,3 +185,123 @@ describe('MatchSchedule — jump to next', () => {
     expect(screen.queryByRole('button', { name: /next match/i })).toBeNull()
   })
 })
+
+// ── Playing-order tests ─────────────────────────────────────────────────
+
+describe('MatchSchedule — playing order', () => {
+  function multiGroup(matches: MatchEntry[]): MatchScheduleGroup[] {
+    return [{ type: 'time', time: '10:00', matches }]
+  }
+
+  it('renders "Up next" pill on the first eligible match after a live anchor', () => {
+    const matches = [
+      entry({ winner: 1, nowPlaying: false, scores: [{ t1: 21, t2: 15 }] }),
+      entry({ nowPlaying: true, scores: [] }),
+      entry({ nowPlaying: false, scores: [] }),
+      entry({ nowPlaying: false, scores: [] }),
+    ]
+    const { container } = render(
+      <LanguageProvider>
+        <MatchSchedule
+          groups={multiGroup(matches)}
+          days={[]} selectedDay="" onDayChange={() => {}}
+          loading={false} playerQuery=""
+        />
+      </LanguageProvider>,
+    )
+    const pills = container.querySelectorAll('.ms-order-pill')
+    expect(pills.length).toBe(2)
+    expect(pills[0]).toHaveClass('ms-order-pill--next')
+    expect(pills[0]?.textContent).toBe('Up next')
+    expect(pills[1]).not.toHaveClass('ms-order-pill--next')
+    expect(pills[1]?.textContent).toBe('2 away')
+  })
+
+  it('renders "N away" with the correct number on later positions', () => {
+    const matches = [
+      entry({ nowPlaying: true, scores: [] }),
+      entry({ nowPlaying: false, scores: [] }),
+      entry({ nowPlaying: false, scores: [] }),
+      entry({ nowPlaying: false, scores: [] }),
+    ]
+    const { container } = render(
+      <LanguageProvider>
+        <MatchSchedule
+          groups={multiGroup(matches)}
+          days={[]} selectedDay="" onDayChange={() => {}}
+          loading={false} playerQuery=""
+        />
+      </LanguageProvider>,
+    )
+    const texts = Array.from(container.querySelectorAll('.ms-order-pill')).map(
+      (el) => el.textContent,
+    )
+    expect(texts).toEqual(['Up next', '2 away', '3 away'])
+  })
+
+  it('renders no pill on live, completed, or walkover rows', () => {
+    const matches = [
+      entry({ nowPlaying: true, scores: [] }),
+      entry({ nowPlaying: false, scores: [] }),
+      entry({ winner: 1, nowPlaying: false, scores: [{ t1: 21, t2: 0 }] }),
+      entry({ walkover: true, nowPlaying: false, scores: [] }),
+      entry({ nowPlaying: false, scores: [] }),
+    ]
+    const { container } = render(
+      <LanguageProvider>
+        <MatchSchedule
+          groups={multiGroup(matches)}
+          days={[]} selectedDay="" onDayChange={() => {}}
+          loading={false} playerQuery=""
+        />
+      </LanguageProvider>,
+    )
+    const pills = container.querySelectorAll('.ms-order-pill')
+    expect(pills.length).toBe(2)
+    expect(Array.from(pills).map((p) => p.textContent)).toEqual(['Up next', '2 away'])
+  })
+
+  it('renders no pill anywhere when the day has no anchor', () => {
+    const matches = [
+      entry({ nowPlaying: false, scores: [] }),
+      entry({ nowPlaying: false, scores: [] }),
+    ]
+    const { container } = render(
+      <LanguageProvider>
+        <MatchSchedule
+          groups={multiGroup(matches)}
+          days={[]} selectedDay="" onDayChange={() => {}}
+          loading={false} playerQuery=""
+        />
+      </LanguageProvider>,
+    )
+    expect(container.querySelectorAll('.ms-order-pill').length).toBe(0)
+  })
+
+  it('keeps positions stable when a player filter hides earlier rows', () => {
+    const matches = [
+      entry({ nowPlaying: true, scores: [] }),
+      entry({ nowPlaying: false, team1: [{ name: 'Alpha', playerId: '1' }], scores: [] }),
+      entry({
+        nowPlaying: false,
+        team1: [{ name: 'Beta', playerId: '2' }],
+        team2: [{ name: 'Gamma', playerId: '3' }],
+        scores: [],
+      }),
+      entry({ nowPlaying: false, team1: [{ name: 'Alpha', playerId: '4' }], scores: [] }),
+    ]
+    const { container } = render(
+      <LanguageProvider>
+        <MatchSchedule
+          groups={multiGroup(matches)}
+          days={[]} selectedDay="" onDayChange={() => {}}
+          loading={false} playerQuery="alpha"
+        />
+      </LanguageProvider>,
+    )
+    const texts = Array.from(container.querySelectorAll('.ms-order-pill')).map(
+      (el) => el.textContent,
+    )
+    expect(texts).toEqual(['Up next', '3 away'])
+  })
+})
