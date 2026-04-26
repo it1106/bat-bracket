@@ -1210,7 +1210,7 @@ html[lang="th"] .pm-section-title {
 
 .ms-order-pill {
   display: inline-block;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 1px 6px;
   border-radius: 999px;
@@ -1221,7 +1221,7 @@ html[lang="th"] .pm-section-title {
   line-height: 1.5;
 }
 .ms-order-pill--next {
-  background: var(--order-pill-next-bg);
+  background: #4ade807d;
   color: var(--order-pill-next-fg);
 }
 
