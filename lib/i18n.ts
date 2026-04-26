@@ -255,7 +255,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     liveMatches: 'แมตช์สด',
     jumpToNext: 'แมตช์ถัดไป ↓',
     playingOrderNext: 'ถัดไป',
-    playingOrderAway: 'อีก {n} แมตช์',
+    playingOrderAway: 'อีก {n} คู่',
     winRate: 'อัตราการชนะ',
   },
 }
