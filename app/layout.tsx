@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { LanguageProvider } from '@/lib/LanguageContext'
 import { ThemeProvider } from '@/lib/ThemeContext'
+import { PostHogProvider } from '@/lib/PostHogProvider'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -23,7 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <LanguageProvider>
           <ThemeProvider>
-            {children}
+            <PostHogProvider>
+              {children}
+            </PostHogProvider>
           </ThemeProvider>
         </LanguageProvider>
         <Analytics />
