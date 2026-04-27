@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { parseTournaments, parseEvents, parseBracket, extractProfileUrl } from '@/lib/scraper'
+import { parseTournaments, parseEvents, parseBracket, extractProfileUrl, parseMatchesPartial } from '@/lib/scraper'
 
 const fixtureHtml = (name: string) =>
   fs.readFileSync(path.join(process.cwd(), 'fixtures', name), 'utf-8')
@@ -94,5 +94,51 @@ describe('extractProfileUrl', () => {
 
   it('returns empty string when no profile link is present', () => {
     expect(extractProfileUrl('<html><body></body></html>')).toBe('')
+  })
+})
+
+describe('parseMatchesPartial — court field', () => {
+  // BAT renders a now-playing match with two .match__header-aside-block
+  // siblings: the --primary "Now playing" badge first, then the actual
+  // location block. Earlier the parser read .attr('title') from the first
+  // match-block and ended up with "Now playing" instead of the court.
+  const wrap = (asideBlocks: string) => `
+    <div class="match-group__wrapper">
+      <h5 class="match-group__header">10:00</h5>
+      <ol class="match-group">
+        <li class="match-group__item">
+          <div class="match match--list">
+            <div class="match__header-title">
+              <div class="match__header-title-item">
+                <a href="/draw=7"><span class="nav-link__value">XD U13</span></a>
+              </div>
+              <div class="match__header-title-item">
+                <span class="nav-link__value">R32</span>
+              </div>
+            </div>
+            ${asideBlocks}
+            <div class="match__row"><span class="match__row-title-value"><a href="?player=1"><span class="nav-link__value">A</span></a></span></div>
+            <div class="match__row"><span class="match__row-title-value"><a href="?player=2"><span class="nav-link__value">B</span></a></span></div>
+          </div>
+        </li>
+      </ol>
+    </div>`
+
+  it('reads the location block (not the "Now playing" badge) on live matches', () => {
+    const html = wrap(`
+      <span class="match__header-aside-block match__header-aside-block--primary" title="Now playing"></span>
+      <span class="match__header-aside-block" title="Duration: 23m | Main Location - 5"></span>
+    `)
+    const { groups } = parseMatchesPartial(html)
+    expect(groups[0].matches[0].court).toBe('Main Location - 5')
+    expect(groups[0].matches[0].nowPlaying).toBe(false) // no icon-sport2 in fixture
+  })
+
+  it('reads the location block on non-live matches', () => {
+    const html = wrap(`
+      <span class="match__header-aside-block" title="Duration: 16m | Main Location - 1"></span>
+    `)
+    const { groups } = parseMatchesPartial(html)
+    expect(groups[0].matches[0].court).toBe('Main Location - 1')
   })
 })

@@ -309,7 +309,15 @@ function parseSingleMatch($: cheerio.CheerioAPI, matchEl: any): MatchEntry {
   const drawNum = drawNumMatch ? drawNumMatch[1] : ''
   const round = titleItems.eq(1).find('.nav-link__value').text().trim()
 
-  const tooltip = $(matchEl).find('.match__header-aside-block').attr('title') ?? ''
+  // Live matches prepend a `--primary` "Now playing" badge as a sibling
+  // .match__header-aside-block; skipping it here keeps the court read coming
+  // from the location block so m.court stays "Court - 5" instead of becoming
+  // the literal "Now playing" stub.
+  const tooltip = $(matchEl)
+    .find('.match__header-aside-block:not(.match__header-aside-block--primary)')
+    .filter((_, el) => !!$(el).attr('title'))
+    .first()
+    .attr('title') ?? ''
   const pipeIdx = tooltip.lastIndexOf('|')
   const court = (pipeIdx >= 0 ? tooltip.slice(pipeIdx + 1) : tooltip).trim()
 
