@@ -157,9 +157,14 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           onClick={onEventClick && m.drawNum ? () => { recordMatchView(m); onEventClick(m.drawNum, m.round) } : undefined}
         >{m.draw}</span>
         <span className="ms-round">{longRound(m.round)}</span>
-        {showCourt && (m.court || live?.courtName) && (
-          <span className="ms-court">{m.court || live?.courtName}</span>
-        )}
+        {showCourt && (() => {
+          // Prefer the scrape's friendly label ("Court - 5") over SignalR's bare
+          // "5", but the scrape sometimes ships the literal "Now playing" stub
+          // instead of a court — fall back to live.courtName in that case.
+          const scraped = m.court && !/^now\s*playing$/i.test(m.court) ? m.court : ''
+          const label = scraped || live?.courtName || ''
+          return label ? <span className="ms-court">{label}</span> : null
+        })()}
         {m.sequenceLabel && <span className="ms-seq">{m.sequenceLabel}</span>}
         {m.nowPlaying && !isLive && <span className="ms-now-playing" title={t('nowPlaying')} />}
         {m.h2hUrl && onH2HClick && (
