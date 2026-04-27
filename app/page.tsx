@@ -392,6 +392,10 @@ export default function Home() {
 
   const handlePlayerClick = useCallback(async (playerId: string) => {
     if (!selectedTournament) return
+    track('player_profile_viewed', {
+      player_id: playerId,
+      tournament_id: selectedTournament,
+    })
     setModalProfile(null)
     setModalLoading(true)
     try {
@@ -408,6 +412,10 @@ export default function Home() {
   }, [])
 
   const handleH2HClick = useCallback(async (h2hUrl: string) => {
+    track('h2h_viewed', {
+      tournament_id: selectedTournament,
+      match_id: h2hUrl,
+    })
     setH2hData(null)
     setH2hLoading(true)
     try {
@@ -416,7 +424,7 @@ export default function Home() {
       if (!isApiError(data)) setH2hData(data)
     } catch {}
     finally { setH2hLoading(false) }
-  }, [])
+  }, [selectedTournament])
 
   const handleH2HClose = useCallback(() => {
     setH2hData(null)
