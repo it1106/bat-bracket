@@ -1120,6 +1120,10 @@ html[lang="th"] .pm-section-title {
   font-weight: 700;
 }
 
+.match-schedule__day-tab.empty {
+  opacity: 0.45;
+}
+
 
 .match-schedule__time-group {
   margin-bottom: 20px;

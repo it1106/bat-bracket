@@ -25,6 +25,51 @@ async function safeJson(res: Response): Promise<unknown> {
   }
 }
 
+// Background-fetches each future-day schedule so the day-tab dim/lit state
+// reflects whether BAT has published matches for that date. Sequential to
+// avoid a parallel burst; runs after first paint via requestIdleCallback.
+// The /api/matches route caches future-day responses for 10 min, so across
+// many visitors this collapses to ~96 BAT hits per future date per day.
+function prefetchFutureDayHasMatches(
+  tournamentId: string,
+  days: MatchDay[],
+  setDays: React.Dispatch<React.SetStateAction<MatchDay[]>>,
+) {
+  if (typeof window === 'undefined') return
+  const todayIso = new Date().toISOString().split('T')[0]
+  const future = days.filter((d) => d.dateIso && d.dateIso > todayIso)
+  if (future.length === 0) return
+
+  const run = async () => {
+    for (const d of future) {
+      try {
+        const res = await fetch(
+          `/api/matches?tournament=${encodeURIComponent(tournamentId)}&date=${d.date}`,
+        )
+        const data = await safeJson(res)
+        if (!isApiError(data)) {
+          const dayData = data as Pick<MatchesData, 'groups'>
+          setDays((prev) =>
+            prev.map((x) =>
+              x.date === d.date ? { ...x, hasMatches: dayData.groups.length > 0 } : x,
+            ),
+          )
+        }
+      } catch {}
+    }
+  }
+
+  type IdleWindow = Window & {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number
+  }
+  const w = window as IdleWindow
+  if (typeof w.requestIdleCallback === 'function') {
+    w.requestIdleCallback(() => { void run() }, { timeout: 2000 })
+  } else {
+    window.setTimeout(() => { void run() }, 0)
+  }
+}
+
 type ViewMode = 'bracket' | 'matches' | 'live'
 
 export default function Home() {
@@ -235,6 +280,7 @@ export default function Home() {
       setMatchDays(md.days)
       setMatchGroups(md.groups)
       setSelectedDay(md.currentDate || md.days[0]?.date || '')
+      prefetchFutureDayHasMatches(id, md.days, setMatchDays)
     }
   }, [tournaments])
 

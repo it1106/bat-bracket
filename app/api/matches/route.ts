@@ -21,14 +21,23 @@ export async function GET(request: Request) {
   try {
     if (date) {
       const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/Matches/MatchesInDay?date=${date}`
+      // Tiered cache: past days are immutable (1 h), future days only change
+      // when BAT publishes a schedule (10 min so the dim/lit prefetch on every
+      // page load collapses to ~96 BAT hits per future date per active day).
+      // Today stays uncached so finalized winners, completed sets, and
+      // nowPlaying flag flips update without lag.
+      const todayIso = new Date().toISOString().split('T')[0]
+      const dateIso = date.slice(0, 10)
+      const ttl = dateIso > todayIso ? 600 : dateIso < todayIso ? 3600 : 0
       const res = await fetch(url, {
         headers: { ...HEADERS, 'Referer': `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches` },
+        ...(ttl > 0 ? { next: { revalidate: ttl } } : { cache: 'no-store' as RequestCache }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return NextResponse.json(parseMatchesPartial(await res.text()))
     } else {
       const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
-      const res = await fetch(url, { headers: HEADERS })
+      const res = await fetch(url, { headers: HEADERS, cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return NextResponse.json(parseMatchesFull(await res.text()))
     }
