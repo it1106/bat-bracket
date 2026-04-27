@@ -35,5 +35,15 @@ export async function GET(request: Request) {
     if (key.startsWith(prefix)) result[key.slice(prefix.length)] = club
   })
 
-  return NextResponse.json(result)
+  // CDN-cache the response so repeat requests don't re-walk every bracket.
+  // The full walk is the expensive part (20-40 cheerio parses on cold start);
+  // serving from edge cache means the function never runs on hits.
+  // Skip the cache header when the result is empty so transient upstream
+  // failures (e.g. draws fetch fell through to {}) don't lock in 1 h of zeros.
+  const isEmpty = Object.keys(result).length === 0
+  return NextResponse.json(result, {
+    headers: isEmpty
+      ? { 'Cache-Control': 'no-store' }
+      : { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' },
+  })
 }
