@@ -134,8 +134,8 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           onClick={onEventClick && m.drawNum ? () => onEventClick(m.drawNum, m.round) : undefined}
         >{m.draw}</span>
         <span className="ms-round">{longRound(m.round)}</span>
-        {showCourt && (live?.courtName || m.court) && (
-          <span className="ms-court">{live?.courtName || m.court}</span>
+        {showCourt && (m.court || live?.courtName) && (
+          <span className="ms-court">{m.court || live?.courtName}</span>
         )}
         {m.sequenceLabel && <span className="ms-seq">{m.sequenceLabel}</span>}
         {m.nowPlaying && !isLive && <span className="ms-now-playing" title={t('nowPlaying')} />}
