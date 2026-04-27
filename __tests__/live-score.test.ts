@@ -85,6 +85,15 @@ describe('matchLiveCourt', () => {
     expect(matchLiveCourt(entry({ draw: 'WS', nowPlaying: false }), map)).toBeNull()
   })
 
+  it('rejects a completed earlier-round match against the same player\'s live later round', () => {
+    // Player 100 won their R32 in the morning and is now playing R16 live on court 3.
+    // Without the winner guard, the completed R32 record would falsely pair with
+    // the live R16 record (same draw, overlapping player ID) and surface twice.
+    const map = new Map([['3', live()]])
+    const completed = entry({ round: 'R32', winner: 1, scores: [{ t1: 21, t2: 15 }, { t1: 21, t2: 18 }] })
+    expect(matchLiveCourt(completed, map)).toBeNull()
+  })
+
   it('tolerates missing event on either side and falls back to player overlap', () => {
     const map = new Map([['3', live({ event: '' })]])
     expect(matchLiveCourt(entry({ draw: 'WS' }), map)).toEqual(live({ event: '' }))

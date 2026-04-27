@@ -38,6 +38,10 @@ export function matchLiveCourt(
   // so a stale scrape can be rescued by the live feed. The draw/event join below
   // prevents cross-event collisions (e.g. a player's completed singles match
   // matching against their currently-live doubles court on player ID alone).
+  // A completed match still carries the player IDs that won it, so without
+  // this guard the same player's later-round live match would falsely pair
+  // with their already-finished earlier round (same draw code, overlapping IDs).
+  if (m.winner !== null) return null
   const schedIds = new Set(
     [...m.team1, ...m.team2].map((p) => p.playerId).filter(Boolean),
   )
