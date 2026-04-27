@@ -195,11 +195,13 @@ export default function Home() {
       const el = document.activeElement as HTMLElement | null
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
       e.preventDefault()
+      const next = theme === 'dark' ? 'light' : 'dark'
+      track('theme_changed', { from: theme, to: next })
       toggleTheme()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [toggleTheme])
+  }, [theme, toggleTheme])
 
   useEffect(() => {
     document.body.classList.toggle('no-highlight', !highlightResults)
@@ -573,7 +575,11 @@ export default function Home() {
               </button>
             )}
             <button
-              onClick={toggleTheme}
+              onClick={() => {
+                const next = theme === 'dark' ? 'light' : 'dark'
+                track('theme_changed', { from: theme, to: next })
+                toggleTheme()
+              }}
               aria-label={theme === 'dark' ? t('lightMode') : t('darkMode')}
               title={theme === 'dark' ? t('lightMode') : t('darkMode')}
               className="inline-flex items-center justify-center w-[30px] h-[28px] rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] text-sm"
@@ -582,7 +588,11 @@ export default function Home() {
               {theme === 'dark' ? '☀' : '🌙'}
             </button>
             <button
-              onClick={toggleLang}
+              onClick={() => {
+                const next = lang === 'en' ? 'th' : 'en'
+                track('language_changed', { from: lang, to: next })
+                toggleLang()
+              }}
               aria-label="Toggle language"
               title={lang === 'en' ? 'เปลี่ยนเป็นภาษาไทย' : 'Switch to English'}
               className="inline-flex items-center rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] text-xs font-semibold overflow-hidden"
