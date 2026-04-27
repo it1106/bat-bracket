@@ -93,7 +93,7 @@ Re-registered on language or theme change so subsequent events carry the new val
 | `tournament_opened` | `selectedTournament` changes to a non-empty value (every switch fires) | `tournament_id`, `tournament_name` |
 | `draw_opened` | `selectedDraw` changes to a non-empty value (every switch fires) | `tournament_id`, `tournament_name`, `draw_id`, `draw_name` |
 | `match_viewed` | First interaction (player click / H2H click / event badge click) with a specific match in `MatchSchedule`, deduped via a session-scoped `Set` of match IDs | `tournament_id`, `match_id`, `round_name`, `draw_id`, `is_live`, `is_completed` |
-| `player_profile_viewed` | `handlePlayerClick` fires (i.e., user clicks any player name) | `player_id`, `tournament_id` |
+| `player_profile_viewed` | `/api/player` resolves successfully after `handlePlayerClick` fires | `player_id`, `player_name`, `tournament_id` |
 | `h2h_viewed` | `handleH2HClick` fires (i.e., user clicks H2H button on a match) | `tournament_id`, `match_id` |
 | `language_changed` | Language toggled | `from`, `to` |
 | `theme_changed` | Theme toggled | `from`, `to` |

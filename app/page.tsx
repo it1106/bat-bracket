@@ -394,16 +394,19 @@ export default function Home() {
 
   const handlePlayerClick = useCallback(async (playerId: string) => {
     if (!selectedTournament) return
-    track('player_profile_viewed', {
-      player_id: playerId,
-      tournament_id: selectedTournament,
-    })
     setModalProfile(null)
     setModalLoading(true)
     try {
       const res = await fetch(`/api/player?tournament=${encodeURIComponent(selectedTournament)}&player=${encodeURIComponent(playerId)}`)
       const data = await safeJson(res) as PlayerProfile | ApiError
-      if (!isApiError(data)) setModalProfile(data)
+      if (!isApiError(data)) {
+        setModalProfile(data)
+        track('player_profile_viewed', {
+          player_id: playerId,
+          player_name: data.name,
+          tournament_id: selectedTournament,
+        })
+      }
     } catch {}
     finally { setModalLoading(false) }
   }, [selectedTournament])
