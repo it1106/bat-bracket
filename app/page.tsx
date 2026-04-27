@@ -10,6 +10,7 @@ import { useLanguage } from '@/lib/LanguageContext'
 import { useTheme } from '@/lib/ThemeContext'
 import { useLiveScore } from '@/lib/useLiveScore'
 import { matchLiveCourt } from '@/lib/live-score'
+import { track } from '@/lib/analytics'
 import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
@@ -295,6 +296,26 @@ export default function Home() {
       handleTournamentChange(saved)
     }
   }, [loadingTournaments, tournaments, handleTournamentChange])
+
+  useEffect(() => {
+    if (!selectedTournament) return
+    const t = tournaments.find((x) => x.id === selectedTournament)
+    track('tournament_opened', {
+      tournament_id: selectedTournament,
+      tournament_name: t?.name ?? '',
+    })
+  }, [selectedTournament, tournaments])
+
+  useEffect(() => {
+    if (!selectedDraw) return
+    const d = draws.find((x) => x.drawNum === selectedDraw)
+    track('draw_opened', {
+      tournament_id: selectedTournament,
+      tournament_name: tournamentName,
+      draw_id: selectedDraw,
+      draw_name: d?.name ?? '',
+    })
+  }, [selectedDraw, draws, selectedTournament, tournamentName])
 
   const fetchBracketFrom = useCallback(async (tournamentId: string, drawNum: string, round: number) => {
     setLoadingBracket(true)
