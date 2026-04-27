@@ -1,12 +1,13 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import type { MatchScheduleGroup, MatchDay, MatchEntry } from '@/lib/types'
 import { matchLiveCourt, type CourtLive } from '@/lib/live-score'
 import { useLanguage } from '@/lib/LanguageContext'
 import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
 import { computePlayingOrder } from '@/lib/playingOrder'
 import { expandSearchQuery } from '@/lib/searchAliases'
+import { track } from '@/lib/analytics'
 import JumpToNextButton from '@/components/JumpToNextButton'
 
 interface Props {
@@ -21,6 +22,7 @@ interface Props {
   onPlayerClick?: (playerId: string) => void
   onH2HClick?: (h2hUrl: string) => void
   liveByCourt?: Map<string, CourtLive>
+  tournamentId?: string
 }
 
 // Extracts the completed sets and the in-progress set from a live record.
@@ -84,7 +86,7 @@ function playerMatchesQuery(
   })
 }
 
-export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt }: Props) {
+export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId }: Props) {
   const { t, longRound } = useLanguage()
   const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
     useFirstUnplayed(groups, playerQuery, playerClubMap)
@@ -93,6 +95,27 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     [groups, liveByCourt],
   )
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
+  const seenMatchIds = useRef<Set<string>>(new Set())
+
+  const matchKey = (m: MatchEntry): string => {
+    const a = m.team1[0]?.playerId ?? ''
+    const b = m.team2[0]?.playerId ?? ''
+    return `${m.drawNum}|${m.round}|${a}|${b}`
+  }
+
+  const recordMatchView = (m: MatchEntry): void => {
+    const id = matchKey(m)
+    if (seenMatchIds.current.has(id)) return
+    seenMatchIds.current.add(id)
+    track('match_viewed', {
+      tournament_id: tournamentId,
+      match_id: id,
+      round_name: m.round,
+      draw_id: m.drawNum,
+      is_live: !!m.nowPlaying,
+      is_completed: m.winner !== null,
+    })
+  }
   const queries = expandSearchQuery(playerQuery)
   const nameCls = (p: { name: string; playerId: string }) => {
     const cls: string[] = []
@@ -131,7 +154,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         {isLive && <span className="ms-live-badge">{t('live')}</span>}
         <span
           className={`ms-event${onEventClick && m.drawNum ? ' ms-event--link' : ''}`}
-          onClick={onEventClick && m.drawNum ? () => onEventClick(m.drawNum, m.round) : undefined}
+          onClick={onEventClick && m.drawNum ? () => { recordMatchView(m); onEventClick(m.drawNum, m.round) } : undefined}
         >{m.draw}</span>
         <span className="ms-round">{longRound(m.round)}</span>
         {showCourt && (m.court || live?.courtName) && (
@@ -142,7 +165,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         {m.h2hUrl && onH2HClick && (
           <button
             className="ms-h2h-inline"
-            onClick={() => onH2HClick(m.h2hUrl!)}
+            onClick={() => { recordMatchView(m); onH2HClick(m.h2hUrl!) }}
             title={t('h2hButton')}
           >{t('h2hButton')}</button>
         )}
@@ -159,7 +182,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
 
       <div className={`ms-team ms-team--1 ms-d${m.winner === 1 ? ' winner' : ''}`}>
         {m.team1.map((p, i) => (
-          <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{medal(1)}{p.name}</div>
+          <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => { recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</div>
         ))}
       </div>
       <div className="ms-score ms-d">
@@ -171,14 +194,14 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       </div>
       <div className={`ms-team ms-team--2 ms-d${m.winner === 2 ? ' winner' : ''}`}>
         {m.team2.map((p, i) => (
-          <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{medal(2)}{p.name}</div>
+          <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => { recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</div>
         ))}
       </div>
 
       <div className="ms-board ms-m">
         <div className={`ms-board-row${m.winner === 1 ? ' winner' : ''}`}>
           <div className="ms-board-players">
-            {m.team1.map((p, i) => <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{medal(1)}{p.name}</div>)}
+            {m.team1.map((p, i) => <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => { recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</div>)}
           </div>
           {m.walkover
             ? <span className="ms-board-badge">{m.winner === 2 ? t('walkover') : ''}</span>
@@ -193,7 +216,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         </div>
         <div className={`ms-board-row${m.winner === 2 ? ' winner' : ''}`}>
           <div className="ms-board-players">
-            {m.team2.map((p, i) => <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => onPlayerClick(p.playerId) : undefined}>{medal(2)}{p.name}</div>)}
+            {m.team2.map((p, i) => <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => { recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</div>)}
           </div>
           {m.walkover
             ? <span className="ms-board-badge">{m.winner === 1 ? t('walkover') : ''}</span>

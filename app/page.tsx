@@ -716,6 +716,7 @@ export default function Home() {
           onPlayerClick={handlePlayerClick}
           onH2HClick={handleH2HClick}
           liveByCourt={liveByCourt}
+          tournamentId={selectedTournament}
         />
       )}
 
@@ -733,6 +734,7 @@ export default function Home() {
           onPlayerClick={handlePlayerClick}
           onH2HClick={handleH2HClick}
           liveByCourt={liveByCourt}
+          tournamentId={selectedTournament}
         />
       )}
 
