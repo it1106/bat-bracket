@@ -8,11 +8,13 @@ import { registerGlobals } from './analytics'
 
 const KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY
 const HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
-
-function detectDeployment(): 'vercel' | 'self-hosted' {
-  if (typeof window === 'undefined') return 'self-hosted'
-  return window.location.host.endsWith('.vercel.app') ? 'vercel' : 'self-hosted'
-}
+// Vercel injects NEXT_PUBLIC_VERCEL_ENV ("production" | "preview" | "development")
+// at build time. Empty on any non-Vercel build (LAN box, local dev). Hostname
+// sniffing was wrong: custom domains pointed at Vercel got tagged "self-hosted"
+// because they don't end in .vercel.app.
+const VERCEL_ENV = process.env.NEXT_PUBLIC_VERCEL_ENV || ''
+const APP_DEPLOYMENT = VERCEL_ENV ? 'vercel' : 'self-hosted'
+const APP_ENVIRONMENT = VERCEL_ENV || 'production'
 
 export function PostHogProvider({ children }: { children: ReactNode }) {
   const { lang } = useLanguage()
@@ -28,7 +30,10 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
       autocapture: false,
       persistence: 'localStorage',
       loaded: () => {
-        posthog.register({ app_deployment: detectDeployment() })
+        posthog.register({
+          app_deployment: APP_DEPLOYMENT,
+          app_environment: APP_ENVIRONMENT,
+        })
       },
     })
   }, [])
