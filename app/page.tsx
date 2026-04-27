@@ -150,7 +150,7 @@ export default function Home() {
     if (liveRefetchTimerRef.current) clearTimeout(liveRefetchTimerRef.current)
     liveRefetchTimerRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/matches?tournament=${encodeURIComponent(selectedTournament)}&date=${selectedDay}`)
+        const res = await fetch(`/api/matches?tournament=${encodeURIComponent(selectedTournament)}&date=${selectedDay}&fresh=1`)
         const data = await safeJson(res)
         if (!isApiError(data)) {
           const md = data as Pick<MatchesData, 'groups'>

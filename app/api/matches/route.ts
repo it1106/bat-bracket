@@ -31,18 +31,23 @@ export async function GET(request: Request) {
       //     invoking the function, eliminating Active CPU on cache hits.
       //   - next.revalidate on the BAT fetch → on the rare cache miss /
       //     SWR refresh, BAT isn't re-hit while warmed in the data cache.
+      //
+      // fresh=1 bypasses both layers. Used by the SignalR-driven refetch
+      // when a live match completes — without this, the post-completion
+      // refetch would hit the pre-completion cached snapshot.
+      const fresh = searchParams.get('fresh') === '1'
       const todayIso = new Date().toISOString().split('T')[0]
       const dateIso = date.slice(0, 10)
       const ttl = dateIso > todayIso ? 600 : dateIso < todayIso ? 3600 : 60
       const res = await fetch(url, {
         headers: { ...HEADERS, 'Referer': `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches` },
-        next: { revalidate: ttl },
+        ...(fresh ? { cache: 'no-store' as const } : { next: { revalidate: ttl } }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return NextResponse.json(parseMatchesPartial(await res.text()), {
-        headers: {
-          'Cache-Control': `public, s-maxage=${ttl}, stale-while-revalidate=${ttl}`,
-        },
+        headers: fresh
+          ? { 'Cache-Control': 'no-store' }
+          : { 'Cache-Control': `public, s-maxage=${ttl}, stale-while-revalidate=${ttl}` },
       })
     } else {
       const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
