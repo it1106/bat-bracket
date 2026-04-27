@@ -21,20 +21,29 @@ export async function GET(request: Request) {
   try {
     if (date) {
       const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/Matches/MatchesInDay?date=${date}`
-      // Tiered cache: past days are immutable (1 h), future days only change
-      // when BAT publishes a schedule (10 min so the dim/lit prefetch on every
-      // page load collapses to ~96 BAT hits per future date per active day).
-      // Today stays uncached so finalized winners, completed sets, and
-      // nowPlaying flag flips update without lag.
+      // Tiered TTL: past 1 h (immutable), future 10 min (schedule publication
+      // is the only thing that changes), today 60 s (final scores, winner
+      // badges, and nowPlaying flips lag <=60 s; live in-progress scoring is
+      // unaffected because it flows through SignalR, not this route).
+      //
+      // Two layers:
+      //   - Cache-Control on the response → Vercel CDN serves hits without
+      //     invoking the function, eliminating Active CPU on cache hits.
+      //   - next.revalidate on the BAT fetch → on the rare cache miss /
+      //     SWR refresh, BAT isn't re-hit while warmed in the data cache.
       const todayIso = new Date().toISOString().split('T')[0]
       const dateIso = date.slice(0, 10)
-      const ttl = dateIso > todayIso ? 600 : dateIso < todayIso ? 3600 : 0
+      const ttl = dateIso > todayIso ? 600 : dateIso < todayIso ? 3600 : 60
       const res = await fetch(url, {
         headers: { ...HEADERS, 'Referer': `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches` },
-        ...(ttl > 0 ? { next: { revalidate: ttl } } : { cache: 'no-store' as RequestCache }),
+        next: { revalidate: ttl },
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return NextResponse.json(parseMatchesPartial(await res.text()))
+      return NextResponse.json(parseMatchesPartial(await res.text()), {
+        headers: {
+          'Cache-Control': `public, s-maxage=${ttl}, stale-while-revalidate=${ttl}`,
+        },
+      })
     } else {
       const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
       const res = await fetch(url, { headers: HEADERS, cache: 'no-store' })
