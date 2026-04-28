@@ -204,6 +204,13 @@ export default function Home() {
   }, [theme, toggleTheme])
 
   useEffect(() => {
+    try {
+      const stored = localStorage.getItem('batbracket.highlightResults')
+      if (stored === 'true' || stored === 'false') setHighlightResults(stored === 'true')
+    } catch {}
+  }, [])
+
+  useEffect(() => {
     document.body.classList.toggle('no-highlight', !highlightResults)
     return () => { document.body.classList.remove('no-highlight') }
   }, [highlightResults])
@@ -558,7 +565,11 @@ export default function Home() {
                 <input
                   type="checkbox"
                   checked={highlightResults}
-                  onChange={(e) => setHighlightResults(e.target.checked)}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                    setHighlightResults(next)
+                    try { localStorage.setItem('batbracket.highlightResults', String(next)) } catch {}
+                  }}
                   className="accent-yellow-400"
                 />
                 {t('highlight')}
