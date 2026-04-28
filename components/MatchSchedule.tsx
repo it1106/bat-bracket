@@ -17,6 +17,7 @@ interface Props {
   onDayChange: (date: string) => void
   loading: boolean
   playerQuery: string
+  excludeCompleted?: boolean
   onEventClick?: (drawNum: string, round: string) => void
   playerClubMap?: Record<string, string>
   onPlayerClick?: (playerId: string) => void
@@ -86,7 +87,7 @@ function playerMatchesQuery(
   })
 }
 
-export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId }: Props) {
+export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId }: Props) {
   const { t, longRound } = useLanguage()
   const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
     useFirstUnplayed(groups, playerQuery, playerClubMap)
@@ -268,9 +269,12 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       )}
 
       {!loading && groups.map((group, gi) => {
-        const filtered = playerQuery
+        const queryFiltered = playerQuery
           ? group.matches.filter((m) => matchesQuery(m, playerQuery, playerClubMap))
           : group.matches
+        const filtered = playerQuery && excludeCompleted
+          ? queryFiltered.filter((m) => m.winner === null)
+          : queryFiltered
         if (filtered.length === 0) return null
 
         const headerText = group.type === 'court' ? group.court : group.time

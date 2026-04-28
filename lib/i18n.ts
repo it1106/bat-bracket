@@ -113,6 +113,7 @@ export type TKey =
   | 'vsMatch'
   | 'clearSearch'
   | 'highlight'
+  | 'excludeCompleted'
   | 'darkMode'
   | 'lightMode'
   | 'close'
@@ -178,6 +179,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     vsMatch: 'vs.',
     clearSearch: 'Clear search',
     highlight: 'Highlight',
+    excludeCompleted: 'Excl. Completed',
     darkMode: 'Dark mode',
     lightMode: 'Light mode',
     close: 'Close',
@@ -242,6 +244,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     vsMatch: 'พบ',
     clearSearch: 'ล้างคำค้น',
     highlight: 'ไฮไลท์',
+    excludeCompleted: 'ไม่รวมที่จบแล้ว',
     darkMode: 'โหมดมืด',
     lightMode: 'โหมดสว่าง',
     close: 'ปิด',

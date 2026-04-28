@@ -83,6 +83,7 @@ export default function Home() {
   const [bracketHtml, setBracketHtml] = useState('')
   const [playerQuery, setPlayerQuery] = useState('')
   const [highlightResults, setHighlightResults] = useState(true)
+  const [excludeCompleted, setExcludeCompleted] = useState(false)
   const [loadingTournaments, setLoadingTournaments] = useState(true)
   const [loadingDraws, setLoadingDraws] = useState(false)
   const [loadingBracket, setLoadingBracket] = useState(false)
@@ -207,6 +208,8 @@ export default function Home() {
     try {
       const stored = localStorage.getItem('batbracket.highlightResults')
       if (stored === 'true' || stored === 'false') setHighlightResults(stored === 'true')
+      const storedExcl = localStorage.getItem('batbracket.excludeCompleted')
+      if (storedExcl === 'true' || storedExcl === 'false') setExcludeCompleted(storedExcl === 'true')
     } catch {}
   }, [])
 
@@ -543,7 +546,7 @@ export default function Home() {
               {t('trackLabel')}
             </label>
             <div className="flex items-center gap-2">
-              <div className="relative min-w-[240px]">
+              <div className="relative min-w-[180px]">
                 <input
                   ref={playerSearchRef}
                   type="text"
@@ -573,6 +576,19 @@ export default function Home() {
                   className="accent-yellow-400"
                 />
                 {t('highlight')}
+              </label>
+              <label className="flex items-center gap-1 text-xs text-[var(--fg)] whitespace-nowrap cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={excludeCompleted}
+                  onChange={(e) => {
+                    const next = e.target.checked
+                    setExcludeCompleted(next)
+                    try { localStorage.setItem('batbracket.excludeCompleted', String(next)) } catch {}
+                  }}
+                  className="accent-yellow-400"
+                />
+                {t('excludeCompleted')}
               </label>
             </div>
           </div>
@@ -735,6 +751,7 @@ export default function Home() {
           onDayChange={handleDayChange}
           loading={loadingMatches}
           playerQuery={playerQuery}
+          excludeCompleted={excludeCompleted}
           onEventClick={handleOpenBracketAtRound}
           playerClubMap={playerClubMap}
           onPlayerClick={handlePlayerClick}
@@ -753,6 +770,7 @@ export default function Home() {
           onDayChange={handleDayChange}
           loading={loadingMatches}
           playerQuery={playerQuery}
+          excludeCompleted={excludeCompleted}
           onEventClick={handleOpenBracketAtRound}
           playerClubMap={playerClubMap}
           onPlayerClick={handlePlayerClick}
