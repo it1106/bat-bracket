@@ -105,7 +105,7 @@ const CLIENT_PROTOCOL = '1.5'
 const CONNECTION_DATA = JSON.stringify([{ name: HUB_NAME }])
 const VCLIENT_ID = 'NYrnY8LtCyasfDWQHf9KFBsdfgCwjpvWQ4JHTNtJg'
 
-type State =
+export type State =
   | 'idle' | 'negotiating' | 'subscribed' | 'active'
   | 'reconnecting' | 'disabled'
 

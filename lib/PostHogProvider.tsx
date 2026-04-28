@@ -35,6 +35,12 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
       ui_host: UI_HOST,
       capture_pageview: true,
       autocapture: false,
+      // Web Vitals (LCP/INP/CLS/...) reported per pageview — replaces the
+      // ad-blocker-prone @vercel/speed-insights script.
+      capture_performance: { web_vitals: true },
+      // Hooks window.onerror + unhandledrejection so JS errors flow to PostHog
+      // as $exception events. Critical for catching prod regressions early.
+      capture_exceptions: true,
       persistence: 'localStorage',
       loaded: () => {
         posthog.register({

@@ -4,6 +4,10 @@
 import { renderHook, act } from '@testing-library/react'
 import { useLiveScore } from '@/lib/useLiveScore'
 import type { CourtLive } from '@/lib/live-score'
+import { track } from '@/lib/analytics'
+
+jest.mock('../lib/analytics', () => ({ track: jest.fn() }))
+const trackMock = track as unknown as jest.Mock
 
 type ClientMock = {
   connect: jest.Mock
@@ -42,6 +46,7 @@ describe('useLiveScore', () => {
     mocked.__client.disconnect.mockClear()
     mocked.__client.on.mockClear()
     mocked.__client._reset()
+    trackMock.mockClear()
   })
 
   it('does not connect when tournamentId is null', () => {
@@ -107,6 +112,32 @@ describe('useLiveScore', () => {
     document.dispatchEvent(new Event('visibilitychange'))
     expect(mocked.__client.connect).toHaveBeenCalledTimes(2)
     jest.useRealTimers()
+  })
+
+  it('emits signalr_state_changed on every transition with prev/next states', () => {
+    renderHook(({ id, gate }) => useLiveScore(id, gate),
+      { initialProps: { id: 'T1' as string | null, gate: true } })
+    act(() => { mocked.__client.emit('state', 'negotiating') })
+    act(() => { mocked.__client.emit('state', 'subscribed') })
+    act(() => { mocked.__client.emit('state', 'active') })
+    const calls = trackMock.mock.calls.filter((c) => c[0] === 'signalr_state_changed')
+    expect(calls).toHaveLength(3)
+    expect(calls[0][1]).toEqual({ tournament_id: 'T1', from: 'init', to: 'negotiating' })
+    expect(calls[1][1]).toEqual({ tournament_id: 'T1', from: 'negotiating', to: 'subscribed' })
+    expect(calls[2][1]).toEqual({ tournament_id: 'T1', from: 'subscribed', to: 'active' })
+  })
+
+  it('emits live_view_active when transitioning into active, but only once per active streak', () => {
+    renderHook(({ id, gate }) => useLiveScore(id, gate),
+      { initialProps: { id: 'T1' as string | null, gate: true } })
+    act(() => { mocked.__client.emit('state', 'subscribed') })
+    act(() => { mocked.__client.emit('state', 'active') })
+    act(() => { mocked.__client.emit('state', 'active') }) // duplicate ignored
+    act(() => { mocked.__client.emit('state', 'reconnecting') })
+    act(() => { mocked.__client.emit('state', 'active') }) // re-fires after gap
+    const liveActiveCalls = trackMock.mock.calls.filter((c) => c[0] === 'live_view_active')
+    expect(liveActiveCalls).toHaveLength(2)
+    expect(liveActiveCalls[0][1]).toEqual({ tournament_id: 'T1' })
   })
 
   it('force-reconnects on foreground after a brief hide (under 60s)', () => {
