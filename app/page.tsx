@@ -6,6 +6,7 @@ import MatchSchedule from '@/components/MatchSchedule'
 import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
+import ScrollToTopButton from '@/components/ScrollToTopButton'
 import { useLanguage } from '@/lib/LanguageContext'
 import { useTheme } from '@/lib/ThemeContext'
 import { useLiveScore } from '@/lib/useLiveScore'
@@ -771,6 +772,7 @@ export default function Home() {
           loading={loadingMatches}
           playerQuery={playerQuery}
           excludeCompleted={excludeCompleted}
+          showJumpToNext={false}
           onEventClick={handleOpenBracketAtRound}
           playerClubMap={playerClubMap}
           onPlayerClick={handlePlayerClick}
@@ -799,6 +801,8 @@ export default function Home() {
           onClose={handleH2HClose}
         />
       )}
+
+      <ScrollToTopButton />
     </>
   )
 }

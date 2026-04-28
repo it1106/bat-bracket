@@ -18,6 +18,7 @@ interface Props {
   loading: boolean
   playerQuery: string
   excludeCompleted?: boolean
+  showJumpToNext?: boolean
   onEventClick?: (drawNum: string, round: string) => void
   playerClubMap?: Record<string, string>
   onPlayerClick?: (playerId: string) => void
@@ -87,7 +88,7 @@ function playerMatchesQuery(
   })
 }
 
-export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId }: Props) {
+export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, showJumpToNext = true, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId }: Props) {
   const { t, longRound } = useLanguage()
   const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
     useFirstUnplayed(groups, playerQuery, playerClubMap)
@@ -292,7 +293,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         )
       })}
       <JumpToNextButton
-        visible={targetKey !== null && !isTargetInView}
+        visible={showJumpToNext && targetKey !== null && !isTargetInView}
         onClick={scrollToTarget}
       />
     </div>

@@ -126,6 +126,7 @@ export type TKey =
   | 'statsYearSuffix'
   | 'liveMatches'
   | 'jumpToNext'
+  | 'scrollToTop'
   | 'playingOrderNext'
   | 'playingOrderAway'
   | 'winRate'
@@ -192,6 +193,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsYearSuffix: 'YTD',
     liveMatches: 'Live Matches',
     jumpToNext: 'Next match ↓',
+    scrollToTop: 'Top ↑',
     playingOrderNext: 'Up next',
     playingOrderAway: '{n} away',
     winRate: 'Win rate',
@@ -257,6 +259,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsYearSuffix: 'ปีนี้',
     liveMatches: 'แมตช์สด',
     jumpToNext: 'แมตช์ถัดไป ↓',
+    scrollToTop: 'ขึ้นบน ↑',
     playingOrderNext: 'ถัดไป',
     playingOrderAway: 'อีก {n} คู่',
     winRate: 'อัตราการชนะ',
