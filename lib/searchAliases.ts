@@ -3,7 +3,8 @@
 const ALIASES: Record<string, string> = {
   kba: 'เกษมศักดิ์ Badminton Academy',
   bty: 'บ้านทองหยอด',
-  ren: 'รวิณ'
+  ren: 'รวิณ',
+  aston: 'นริศ'
 }
 
 // Returns the lowercased query plus any alias expansion to also match against.
