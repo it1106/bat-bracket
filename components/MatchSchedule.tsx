@@ -273,7 +273,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         const queryFiltered = playerQuery
           ? group.matches.filter((m) => matchesQuery(m, playerQuery, playerClubMap))
           : group.matches
-        const filtered = playerQuery && excludeCompleted
+        const filtered = excludeCompleted
           ? queryFiltered.filter((m) => m.winner === null)
           : queryFiltered
         if (filtered.length === 0) return null
