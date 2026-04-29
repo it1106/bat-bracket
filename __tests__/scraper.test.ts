@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import { parseTournaments, parseEvents, parseBracket, extractProfileUrl, parseMatchesPartial } from '@/lib/scraper'
+import { parseTournaments, parseEvents, parseBracket, extractProfileUrl, parseMatchesPartial, sortGroupsByPlayTime } from '@/lib/scraper'
+import type { MatchScheduleGroup, MatchEntry } from '@/lib/types'
 
 const fixtureHtml = (name: string) =>
   fs.readFileSync(path.join(process.cwd(), 'fixtures', name), 'utf-8')
@@ -140,5 +141,55 @@ describe('parseMatchesPartial — court field', () => {
     `)
     const { groups } = parseMatchesPartial(html)
     expect(groups[0].matches[0].court).toBe('Main Location - 1')
+  })
+})
+
+describe('sortGroupsByPlayTime', () => {
+  const stubMatch = (scheduledTime?: string): MatchEntry => ({
+    draw: '', drawNum: '', round: '', team1: [], team2: [], winner: null,
+    scores: [], court: '', walkover: false, retired: false, nowPlaying: false,
+    scheduledTime,
+  })
+
+  it('orders mixed groups chronologically by time of play', () => {
+    const groups: MatchScheduleGroup[] = [
+      { type: 'time', time: '14:00', matches: [stubMatch()] },
+      { type: 'court', court: 'Court 1', matches: [stubMatch('09:30'), stubMatch('11:00')] },
+      { type: 'time', time: '09:00', matches: [stubMatch()] },
+    ]
+    const sorted = sortGroupsByPlayTime(groups)
+    expect(sorted.map((g) => g.type === 'time' ? g.time : g.court)).toEqual([
+      '09:00', 'Court 1', '14:00',
+    ])
+  })
+
+  it('uses the earliest scheduledTime within a court group', () => {
+    const groups: MatchScheduleGroup[] = [
+      { type: 'court', court: 'A', matches: [stubMatch('12:00'), stubMatch('08:30')] },
+      { type: 'time', time: '10:00', matches: [stubMatch()] },
+    ]
+    const sorted = sortGroupsByPlayTime(groups)
+    expect(sorted.map((g) => g.type === 'time' ? g.time : g.court)).toEqual(['A', '10:00'])
+  })
+
+  it('parses datetime-style scheduledTime values', () => {
+    const groups: MatchScheduleGroup[] = [
+      { type: 'time', time: '10:00', matches: [stubMatch()] },
+      { type: 'court', court: 'A', matches: [stubMatch('2026-04-29T08:00:00')] },
+    ]
+    const sorted = sortGroupsByPlayTime(groups)
+    expect(sorted.map((g) => g.type === 'time' ? g.time : g.court)).toEqual(['A', '10:00'])
+  })
+
+  it('places groups without parseable times last and is stable for ties', () => {
+    const groups: MatchScheduleGroup[] = [
+      { type: 'court', court: 'NoTime-1', matches: [stubMatch()] },
+      { type: 'time', time: '09:00', matches: [stubMatch()] },
+      { type: 'court', court: 'NoTime-2', matches: [stubMatch()] },
+    ]
+    const sorted = sortGroupsByPlayTime(groups)
+    expect(sorted.map((g) => g.type === 'time' ? g.time : g.court)).toEqual([
+      '09:00', 'NoTime-1', 'NoTime-2',
+    ])
   })
 })
