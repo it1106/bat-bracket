@@ -174,18 +174,31 @@ describe('computePlayingOrder', () => {
     expect(result.get('0-5')).toBe(2)
   })
 
-  it('walks across multiple groups in order (court-grouped layout)', () => {
+  it('emits no positions for court-only days; courts are sequenced by "followed by"', () => {
     const groups = [
       courtGroup('Court 1', [entry({ nowPlaying: true }), entry()]),
       courtGroup('Court 2', [entry({ nowPlaying: true }), entry()]),
       courtGroup('Court 3', [entry()]),
     ]
     const result = computePlayingOrder({ groups, liveByCourt: null })
-    expect(result.has('0-0')).toBe(false)
-    expect(result.has('0-1')).toBe(false)
+    expect(result.size).toBe(0)
+  })
+
+  it('on mixed days, only time-slot matches receive positions; court matches get none', () => {
+    const groups = [
+      timeGroup('10:00', [
+        entry({ winner: 1 }),                    // 0-0 done
+        entry({ nowPlaying: true }),             // 0-1 ANCHOR
+        entry(),                                 // 0-2 position 1
+        entry(),                                 // 0-3 position 2
+      ]),
+      courtGroup('Court 1', [entry(), entry()]),
+    ]
+    const result = computePlayingOrder({ groups, liveByCourt: null })
+    expect(result.get('0-2')).toBe(1)
+    expect(result.get('0-3')).toBe(2)
     expect(result.has('1-0')).toBe(false)
-    expect(result.get('1-1')).toBe(1)
-    expect(result.get('2-0')).toBe(2)
+    expect(result.has('1-1')).toBe(false)
   })
 
   it('returns empty when only group is empty', () => {
