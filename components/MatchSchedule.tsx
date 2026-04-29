@@ -169,7 +169,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         })()}
         {m.sequenceLabel && <span className="ms-seq">{m.sequenceLabel}</span>}
         {m.nowPlaying && !isLive && <span className="ms-now-playing" title={t('nowPlaying')} />}
-        {m.h2hUrl && onH2HClick && (
+        {m.h2hUrl && onH2HClick && m.team1.length > 0 && m.team2.length > 0 && (
           <button
             className="ms-h2h-inline"
             onClick={() => { recordMatchView(m); onH2HClick(m.h2hUrl!, m) }}
