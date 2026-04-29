@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import { parseTournaments, parseEvents, parseBracket, extractProfileUrl, parseMatchesPartial } from '@/lib/scraper'
+import { parseTournaments, parseEvents, parseBracket, extractProfileUrl, parseMatchesPartial, orderScheduleGroups } from '@/lib/scraper'
+import type { MatchScheduleGroup, MatchEntry } from '@/lib/types'
 
 const fixtureHtml = (name: string) =>
   fs.readFileSync(path.join(process.cwd(), 'fixtures', name), 'utf-8')
@@ -140,5 +141,65 @@ describe('parseMatchesPartial — court field', () => {
     `)
     const { groups } = parseMatchesPartial(html)
     expect(groups[0].matches[0].court).toBe('Main Location - 1')
+  })
+})
+
+describe('orderScheduleGroups', () => {
+  const stubMatch = (): MatchEntry => ({
+    draw: '', drawNum: '', round: '', team1: [], team2: [], winner: null,
+    scores: [], court: '', walkover: false, retired: false, nowPlaying: false,
+  })
+  const label = (g: MatchScheduleGroup) => g.type === 'time' ? g.time : g.court
+
+  it('places all time-slot groups before any court-based group', () => {
+    const groups: MatchScheduleGroup[] = [
+      { type: 'court', court: 'Main Location - 2', matches: [stubMatch()] },
+      { type: 'time', time: '14:00', matches: [stubMatch()] },
+      { type: 'court', court: 'Main Location - 1', matches: [stubMatch()] },
+      { type: 'time', time: '09:00', matches: [stubMatch()] },
+    ]
+    expect(orderScheduleGroups(groups).map(label)).toEqual([
+      '14:00', '09:00', 'Main Location - 1', 'Main Location - 2',
+    ])
+  })
+
+  it('preserves source order among time-slot groups', () => {
+    const groups: MatchScheduleGroup[] = [
+      { type: 'time', time: '14:00', matches: [stubMatch()] },
+      { type: 'time', time: '09:00', matches: [stubMatch()] },
+    ]
+    expect(orderScheduleGroups(groups).map(label)).toEqual(['14:00', '09:00'])
+  })
+
+  it('sorts court groups numerically (1, 2, 10) not lexicographically', () => {
+    const groups: MatchScheduleGroup[] = [
+      { type: 'court', court: 'Main Location - 10', matches: [stubMatch()] },
+      { type: 'court', court: 'Main Location - 2', matches: [stubMatch()] },
+      { type: 'court', court: 'Main Location - 1', matches: [stubMatch()] },
+    ]
+    expect(orderScheduleGroups(groups).map(label)).toEqual([
+      'Main Location - 1', 'Main Location - 2', 'Main Location - 10',
+    ])
+  })
+
+  it('groups by venue then court number', () => {
+    const groups: MatchScheduleGroup[] = [
+      { type: 'court', court: 'Hall B - 1', matches: [stubMatch()] },
+      { type: 'court', court: 'Hall A - 2', matches: [stubMatch()] },
+      { type: 'court', court: 'Hall A - 1', matches: [stubMatch()] },
+    ]
+    expect(orderScheduleGroups(groups).map(label)).toEqual([
+      'Hall A - 1', 'Hall A - 2', 'Hall B - 1',
+    ])
+  })
+
+  it('places courts without a parseable number after numbered courts', () => {
+    const groups: MatchScheduleGroup[] = [
+      { type: 'court', court: 'Practice Court', matches: [stubMatch()] },
+      { type: 'court', court: 'Practice Court - 1', matches: [stubMatch()] },
+    ]
+    expect(orderScheduleGroups(groups).map(label)).toEqual([
+      'Practice Court - 1', 'Practice Court',
+    ])
   })
 })

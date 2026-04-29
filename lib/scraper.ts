@@ -359,6 +359,29 @@ function parseSingleMatch($: cheerio.CheerioAPI, matchEl: any): MatchEntry {
   return { draw, drawNum, round, team1, team2, winner, scores, court, walkover, retired, nowPlaying, h2hUrl }
 }
 
+// Mixed-schedule days (time-slot groups + court-based groups) display
+// time-slot groups first (in source order), then court-based groups
+// ordered by court number ascending (Court 1, Court 2, ...). Court strings
+// look like "Main Location - 5"; the trailing integer is the sort key.
+export function orderScheduleGroups(groups: MatchScheduleGroup[]): MatchScheduleGroup[] {
+  const courtKey = (court: string): { venue: string; num: number } => {
+    const m = court.match(/^(.*?)\s*-\s*(\d+)\s*$/)
+    return m
+      ? { venue: m[1].trim(), num: parseInt(m[2], 10) }
+      : { venue: court, num: Number.POSITIVE_INFINITY }
+  }
+  const timeGroups = groups.filter((g) => g.type === 'time')
+  const courtGroups = groups.filter((g) => g.type === 'court')
+  courtGroups.sort((a, b) => {
+    if (a.type !== 'court' || b.type !== 'court') return 0
+    const ak = courtKey(a.court)
+    const bk = courtKey(b.court)
+    if (ak.venue !== bk.venue) return ak.venue < bk.venue ? -1 : 1
+    return ak.num - bk.num
+  })
+  return [...timeGroups, ...courtGroups]
+}
+
 function parseMatchGroups($: cheerio.CheerioAPI): MatchScheduleGroup[] {
   const groups: MatchScheduleGroup[] = []
 
@@ -401,7 +424,7 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchScheduleGroup[] {
     if (matches.length > 0) groups.push({ type: 'time', time, matches })
   })
 
-  return groups
+  return orderScheduleGroups(groups)
 }
 
 export function parseMatchesFull(html: string): MatchesData {
