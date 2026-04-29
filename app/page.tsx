@@ -428,8 +428,10 @@ export default function Home() {
   }, [])
 
   const handleH2HClick = useCallback(async (h2hUrl: string, m: MatchEntry) => {
+    const t = tournaments.find((x) => x.id === selectedTournament)
     track('h2h_viewed', {
       tournament_id: selectedTournament,
+      tournament_name: t?.name ?? '',
       match_id: h2hUrl,
       team1_names: m.team1.map((p) => p.name),
       team2_names: m.team2.map((p) => p.name),
@@ -448,7 +450,7 @@ export default function Home() {
       if (!isApiError(data)) setH2hData(data)
     } catch {}
     finally { setH2hLoading(false) }
-  }, [selectedTournament])
+  }, [selectedTournament, tournaments])
 
   const handleH2HClose = useCallback(() => {
     setH2hData(null)
