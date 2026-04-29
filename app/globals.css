@@ -1391,6 +1391,10 @@ body.no-highlight .ms-player-highlight {
     margin-left: auto;
   }
 
+  /* Right-justify the playing-order pill on mobile, even when there's no
+     H2H button before it to consume the auto-margin first. */
+  .ms-order-pill { margin-left: auto; }
+
   /* Scoreboard: each row = players + per-set score cells */
   .ms-board-row {
     display: flex;
