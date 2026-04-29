@@ -12,7 +12,7 @@ import { useTheme } from '@/lib/ThemeContext'
 import { useLiveScore } from '@/lib/useLiveScore'
 import { matchLiveCourt } from '@/lib/live-score'
 import { track } from '@/lib/analytics'
-import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData } from '@/lib/types'
+import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData, MatchEntry } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
   return typeof data === 'object' && data !== null && 'error' in data
@@ -427,10 +427,18 @@ export default function Home() {
     setModalLoading(false)
   }, [])
 
-  const handleH2HClick = useCallback(async (h2hUrl: string) => {
+  const handleH2HClick = useCallback(async (h2hUrl: string, m: MatchEntry) => {
     track('h2h_viewed', {
       tournament_id: selectedTournament,
       match_id: h2hUrl,
+      team1_names: m.team1.map((p) => p.name),
+      team2_names: m.team2.map((p) => p.name),
+      team1_ids: m.team1.map((p) => p.playerId).filter(Boolean),
+      team2_ids: m.team2.map((p) => p.playerId).filter(Boolean),
+      event_id: m.eventId,
+      draw: m.draw,
+      draw_id: m.drawNum,
+      round_name: m.round,
     })
     setH2hData(null)
     setH2hLoading(true)

@@ -9,7 +9,7 @@ interface Props {
   profile: PlayerProfile | null
   loading: boolean
   onClose: () => void
-  onH2HClick?: (h2hUrl: string) => void
+  onH2HClick?: (h2hUrl: string, m: MatchEntry) => void
   onPlayerClick?: (playerId: string) => void
 }
 
@@ -163,7 +163,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                         {m.h2hUrl && onH2HClick && (
                           <button
                             className="ms-h2h-inline"
-                            onClick={() => onH2HClick(m.h2hUrl!)}
+                            onClick={() => onH2HClick(m.h2hUrl!, m)}
                             title={t('h2hButton')}
                           >{t('h2hButton')}</button>
                         )}

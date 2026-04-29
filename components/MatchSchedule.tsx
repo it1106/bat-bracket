@@ -22,7 +22,7 @@ interface Props {
   onEventClick?: (drawNum: string, round: string) => void
   playerClubMap?: Record<string, string>
   onPlayerClick?: (playerId: string) => void
-  onH2HClick?: (h2hUrl: string) => void
+  onH2HClick?: (h2hUrl: string, m: MatchEntry) => void
   liveByCourt?: Map<string, CourtLive>
   tournamentId?: string
 }
@@ -172,7 +172,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         {m.h2hUrl && onH2HClick && (
           <button
             className="ms-h2h-inline"
-            onClick={() => { recordMatchView(m); onH2HClick(m.h2hUrl!) }}
+            onClick={() => { recordMatchView(m); onH2HClick(m.h2hUrl!, m) }}
             title={t('h2hButton')}
           >{t('h2hButton')}</button>
         )}
