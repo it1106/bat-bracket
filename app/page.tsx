@@ -209,8 +209,8 @@ export default function Home() {
     try {
       const stored = localStorage.getItem('batbracket.highlightResults')
       if (stored === 'true' || stored === 'false') setHighlightResults(stored === 'true')
-      const storedExcl = localStorage.getItem('batbracket.excludeCompleted')
-      if (storedExcl === 'true' || storedExcl === 'false') setExcludeCompleted(storedExcl === 'true')
+      // excludeCompleted intentionally does not persist; clear any legacy value
+      localStorage.removeItem('batbracket.excludeCompleted')
     } catch {}
   }, [])
 
@@ -590,11 +590,7 @@ export default function Home() {
                 <input
                   type="checkbox"
                   checked={excludeCompleted}
-                  onChange={(e) => {
-                    const next = e.target.checked
-                    setExcludeCompleted(next)
-                    try { localStorage.setItem('batbracket.excludeCompleted', String(next)) } catch {}
-                  }}
+                  onChange={(e) => setExcludeCompleted(e.target.checked)}
                   className="accent-yellow-400"
                 />
                 {t('excludeCompleted')}
