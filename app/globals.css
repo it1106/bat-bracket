@@ -1391,9 +1391,12 @@ body.no-highlight .ms-player-highlight {
     margin-left: auto;
   }
 
-  /* Right-justify the playing-order pill on mobile, even when there's no
-     H2H button before it to consume the auto-margin first. */
+  /* Right-justify the playing-order pill on mobile. When H2H sits to its
+     left, H2H's own auto-margin already pushes the cluster — drop the
+     pill's auto-margin so the two stick together on the right edge
+     instead of splitting the available space between them. */
   .ms-order-pill { margin-left: auto; }
+  .ms-h2h-inline + .ms-order-pill { margin-left: 0; }
 
   /* Scoreboard: each row = players + per-set score cells */
   .ms-board-row {
