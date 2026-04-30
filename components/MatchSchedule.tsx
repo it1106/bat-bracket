@@ -6,7 +6,7 @@ import { matchLiveCourt, type CourtLive } from '@/lib/live-score'
 import { useLanguage } from '@/lib/LanguageContext'
 import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
 import { computePlayingOrder } from '@/lib/playingOrder'
-import { expandSearchQuery } from '@/lib/searchAliases'
+import { expandSearchQuery, parseSearchQuery } from '@/lib/searchAliases'
 import { track } from '@/lib/analytics'
 import JumpToNextButton from '@/components/JumpToNextButton'
 
@@ -63,11 +63,16 @@ function scoreStr(
   return { done, liveText }
 }
 
+function entryMatchesGroup(entry: MatchEntry, group: string[], clubMap?: Record<string, string>): boolean {
+  const drawLc = entry.draw.toLowerCase()
+  if (group.some((q) => drawLc.includes(q))) return true
+  return [...entry.team1, ...entry.team2].some((p) => playerMatchesQuery(p, group, clubMap))
+}
+
 function matchesQuery(entry: MatchEntry, query: string, clubMap?: Record<string, string>): boolean {
-  const qs = expandSearchQuery(query)
-  if (qs.length === 0) return true
-  if (qs.some((q) => entry.draw.toLowerCase().includes(q))) return true
-  return [...entry.team1, ...entry.team2].some((p) => playerMatchesQuery(p, qs, clubMap))
+  const groups = parseSearchQuery(query)
+  if (groups.length === 0) return true
+  return groups.every((g) => entryMatchesGroup(entry, g, clubMap))
 }
 
 function isFinalRound(round: string): boolean {

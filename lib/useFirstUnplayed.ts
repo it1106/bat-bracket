@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { MatchScheduleGroup, MatchEntry, MatchPlayer } from './types'
-import { expandSearchQuery } from './searchAliases'
+import { parseSearchQuery } from './searchAliases'
 
 function playerMatches(p: MatchPlayer, queries: string[], clubMap?: Record<string, string>): boolean {
   return queries.some((q) => {
@@ -10,11 +10,16 @@ function playerMatches(p: MatchPlayer, queries: string[], clubMap?: Record<strin
   })
 }
 
+function entryMatchesGroup(entry: MatchEntry, group: string[], clubMap?: Record<string, string>): boolean {
+  const drawLc = entry.draw.toLowerCase()
+  if (group.some((q) => drawLc.includes(q))) return true
+  return [...entry.team1, ...entry.team2].some((p) => playerMatches(p, group, clubMap))
+}
+
 function matchesQuery(entry: MatchEntry, query: string, clubMap?: Record<string, string>): boolean {
-  const qs = expandSearchQuery(query)
-  if (qs.length === 0) return true
-  if (qs.some((q) => entry.draw.toLowerCase().includes(q))) return true
-  return [...entry.team1, ...entry.team2].some((p) => playerMatches(p, qs, clubMap))
+  const groups = parseSearchQuery(query)
+  if (groups.length === 0) return true
+  return groups.every((g) => entryMatchesGroup(entry, g, clubMap))
 }
 
 export function findFirstUnplayed(
