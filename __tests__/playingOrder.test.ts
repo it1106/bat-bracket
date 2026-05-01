@@ -128,6 +128,34 @@ describe('computePlayingOrder', () => {
     expect(result.get('0-4')).toBe(2)
   })
 
+  it('does not anchor on a walkover-completed match', () => {
+    const groups = [
+      timeGroup('10:00', [
+        entry(),                                  // 0-0  pending real → position 1
+        entry({ walkover: true, winner: 2 }),     // 0-1  walkover (winner set) — must NOT be anchor
+      ]),
+    ]
+    const result = computePlayingOrder({ groups, liveByCourt: null })
+    expect(result.get('0-0')).toBe(1)
+    expect(result.has('0-1')).toBe(false)
+  })
+
+  it('anchors on the highest-index non-walkover completed match', () => {
+    const groups = [
+      timeGroup('10:00', [
+        entry({ winner: 1 }),                     // 0-0  ANCHOR (latest non-walkover done)
+        entry({ walkover: true, winner: 2 }),     // 0-1  walkover after real done — must be skipped, not anchor
+        entry(),                                  // 0-2  position 1
+        entry(),                                  // 0-3  position 2
+      ]),
+    ]
+    const result = computePlayingOrder({ groups, liveByCourt: null })
+    expect(result.get('0-2')).toBe(1)
+    expect(result.get('0-3')).toBe(2)
+    expect(result.has('0-0')).toBe(false)
+    expect(result.has('0-1')).toBe(false)
+  })
+
   it('detects "live" via liveByCourt when nowPlaying is false', () => {
     const groups = [
       timeGroup('10:00', [

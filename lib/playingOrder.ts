@@ -41,10 +41,11 @@ function flatten(groups: MatchScheduleGroup[]): FlatRef[] {
  * Court-based groups are excluded entirely — those matches are sequenced by
  * "followed by" on the source page and don't participate in the time-slot queue.
  *
- * Anchor: highest-index live match; else highest-index match with a winner;
- * else -1 (fresh day, walk starts at the first match). Walk forward, skipping
- * live, completed, and walkover rows; each remaining match gets the next
- * position starting at 1.
+ * Anchor: highest-index live match; else highest-index non-walkover match
+ * with a winner; else -1 (fresh day, walk starts at the first match). Walk
+ * forward, skipping live, completed, and walkover rows; each remaining match
+ * gets the next position starting at 1. Walkovers never anchor because they
+ * don't represent actual play on a court.
  */
 export function computePlayingOrder(
   inputs: PlayingOrderInputs,
@@ -62,6 +63,7 @@ export function computePlayingOrder(
   }
   if (anchorIdx === -1) {
     for (let i = flat.length - 1; i >= 0; i--) {
+      if (flat[i].m.walkover) continue
       if (flat[i].m.winner !== null) {
         anchorIdx = i
         break
