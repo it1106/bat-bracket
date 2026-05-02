@@ -217,7 +217,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
 
       <div className={`ms-team ms-team--1 ms-d${m.winner === 1 ? ' winner' : ''}`}>
         {m.team1.map((p, i) => (
-          <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => { recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</div>
+          <div key={i}><span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</span></div>
         ))}
       </div>
       <div className="ms-score ms-d">
@@ -229,14 +229,14 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       </div>
       <div className={`ms-team ms-team--2 ms-d${m.winner === 2 ? ' winner' : ''}`}>
         {m.team2.map((p, i) => (
-          <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => { recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</div>
+          <div key={i}><span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</span></div>
         ))}
       </div>
 
       <div className="ms-board ms-m">
         <div className={`ms-board-row${m.winner === 1 ? ' winner' : ''}`}>
           <div className="ms-board-players">
-            {m.team1.map((p, i) => <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => { recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</div>)}
+            {m.team1.map((p, i) => <div key={i}><span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</span></div>)}
           </div>
           {m.walkover
             ? <span className="ms-board-badge">{m.winner === 2 ? t('walkover') : ''}</span>
@@ -251,7 +251,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         </div>
         <div className={`ms-board-row${m.winner === 2 ? ' winner' : ''}`}>
           <div className="ms-board-players">
-            {m.team2.map((p, i) => <div key={i} className={nameCls(p)} onClick={onPlayerClick && p.playerId ? () => { recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</div>)}
+            {m.team2.map((p, i) => <div key={i}><span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</span></div>)}
           </div>
           {m.walkover
             ? <span className="ms-board-badge">{m.winner === 1 ? t('walkover') : ''}</span>
