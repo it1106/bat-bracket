@@ -1345,7 +1345,7 @@ body.no-highlight .ms-player-highlight {
 }
 
 [data-theme="dark"] .ms-match--active {
-  background: #0d2040 !important;
+  background: rgba(31, 111, 235, 0.15) !important;
   border-left: 3px solid var(--brand);
 }
 
@@ -1356,7 +1356,7 @@ body.no-highlight .ms-player-highlight {
 }
 
 [data-theme="dark"] .ms-match--next-opp {
-  background: #1c1a0e !important;
+  background: rgba(245, 158, 11, 0.15) !important;
   border-left: 3px solid #d97706;
 }
 
