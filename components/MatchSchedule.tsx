@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState, useEffect } from 'react'
 import type { MatchScheduleGroup, MatchDay, MatchEntry } from '@/lib/types'
 import { matchLiveCourt, type CourtLive } from '@/lib/live-score'
 import { useLanguage } from '@/lib/LanguageContext'
@@ -8,6 +8,7 @@ import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
 import { computePlayingOrder } from '@/lib/playingOrder'
 import { expandSearchQuery, parseSearchQuery } from '@/lib/searchAliases'
 import { track } from '@/lib/analytics'
+import { buildNextOppMap } from '@/lib/nextOpp'
 import JumpToNextButton from '@/components/JumpToNextButton'
 
 interface Props {
@@ -103,6 +104,9 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   )
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const seenMatchIds = useRef<Set<string>>(new Set())
+  const nextOppMap = useMemo(() => buildNextOppMap(groups), [groups])
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null)
+  const [lockedKey, setLockedKey] = useState<string | null>(null)
 
   const matchKey = (m: MatchEntry): string => {
     const a = m.team1[0]?.playerId ?? ''
@@ -123,6 +127,14 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       is_completed: m.winner !== null,
     })
   }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLockedKey(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const queries = expandSearchQuery(playerQuery)
   const nameCls = (p: { name: string; playerId: string }) => {
     const cls: string[] = []
@@ -151,11 +163,22 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     const boardSets2 = live?.setScores?.length
       ? liveCompleted.map((s) => s.t2)
       : m.scores.map((s) => s.t2)
+    const activeKey = lockedKey ?? hoveredKey
+    const isActive = matchKey === activeKey
+    const isNextOpp = activeKey !== null && nextOppMap.get(activeKey) === matchKey
+    const matchCls = [
+      'ms-match',
+      isActive ? 'ms-match--active' : '',
+      isNextOpp ? 'ms-match--next-opp' : '',
+    ].filter(Boolean).join(' ')
     return (
     <div
       key={matchKey}
       ref={isTarget ? registerTargetRef : undefined}
-      className="ms-match"
+      className={matchCls}
+      onMouseEnter={() => setHoveredKey(matchKey)}
+      onMouseLeave={() => setHoveredKey(null)}
+      onClick={() => setLockedKey((prev: string | null) => prev === matchKey ? null : matchKey)}
     >
       <div className="ms-meta">
         {isLive && <span className="ms-live-badge">{t('live')}</span>}

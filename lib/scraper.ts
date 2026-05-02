@@ -294,6 +294,45 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
   }
 }
 
+// Walks each round's match-group-wrappers in the raw bracket HTML; each
+// wrapper contains the 2 matches whose winners feed into the same next-round
+// slot, so the matches inside a wrapper ARE bracket siblings. Returns one
+// entry per match, with `players` = sorted player IDs of that match and
+// `siblingPlayers` = sorted player IDs of its sibling.
+export function parseBracketSiblings(html: string): Array<{ players: string[]; siblingPlayers: string[] }> {
+  const $ = cheerio.load(html, { xmlMode: false })
+  const bracket = $('.bracket.js-bracket')
+  if (!bracket.length) return []
+
+  const result: Array<{ players: string[]; siblingPlayers: string[] }> = []
+
+  bracket.find('swiper-container > swiper-slide').each((_, slide) => {
+    $(slide).find('.bracket-round__match-group-wrapper').each((_, group) => {
+      const matches = $(group).find('.match')
+      if (matches.length !== 2) return
+
+      const matchPlayers: string[][] = []
+      matches.each((_, m) => {
+        const ids: string[] = []
+        $(m).find('.match__row a').each((_, a) => {
+          const hrefMatch = ($(a).attr('href') ?? '').match(/player=(\d+)/)
+          if (hrefMatch) ids.push(hrefMatch[1])
+        })
+        matchPlayers.push(ids.slice().sort())
+      })
+
+      // Skip the pair if either side has no players (TBD slots, byes, etc.) —
+      // we can't match those to a schedule entry.
+      if (matchPlayers[0].length === 0 || matchPlayers[1].length === 0) return
+
+      result.push({ players: matchPlayers[0], siblingPlayers: matchPlayers[1] })
+      result.push({ players: matchPlayers[1], siblingPlayers: matchPlayers[0] })
+    })
+  })
+
+  return result
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function footerText(el: cheerio.Cheerio<any>): string {
   return el.find('.match__footer-list').text().replace(/\s+/g, ' ').trim()
