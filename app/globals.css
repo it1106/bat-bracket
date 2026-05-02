@@ -1344,7 +1344,7 @@ body.no-highlight .ms-player-highlight {
   padding-left: 9px;
 }
 
-[data-theme="dark"] .ms-match--active {
+html.dark .ms-match--active {
   background: #3264ff6e !important;
   border-left: 3px solid var(--brand);
 }
@@ -1355,7 +1355,7 @@ body.no-highlight .ms-player-highlight {
   padding-left: 9px;
 }
 
-[data-theme="dark"] .ms-match--next-opp {
+html.dark .ms-match--next-opp {
   background: #ff7b726b !important;
   border-left: 3px solid #d97706;
 }
@@ -1390,7 +1390,7 @@ body.no-highlight .ms-player-highlight {
     padding-left: 9px;
   }
 
-  [data-theme="dark"] .ms-match--active {
+  html.dark .ms-match--active {
     background: #3264ff6e !important;
     border-left: 3px solid var(--brand);
   }
@@ -1401,7 +1401,7 @@ body.no-highlight .ms-player-highlight {
     padding-left: 9px;
   }
 
-  [data-theme="dark"] .ms-match--next-opp {
+  html.dark .ms-match--next-opp {
     background: #ff7b726b !important;
     border-left: 3px solid #d97706;
   }
