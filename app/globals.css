@@ -1345,18 +1345,18 @@ body.no-highlight .ms-player-highlight {
 }
 
 [data-theme="dark"] .ms-match--active {
-  background: rgba(31, 111, 235, 0.15) !important;
+  background: rgb(59 130 246 / 0.5) !important;
   border-left: 3px solid var(--brand);
 }
 
 .ms-match--next-opp {
-  background: #fffbeb !important;
+  background: #ff7b726b !important;
   border-left: 3px solid #f59e0b;
   padding-left: 9px;
 }
 
 [data-theme="dark"] .ms-match--next-opp {
-  background: rgba(245, 158, 11, 0.15) !important;
+  background: #ff7b726b !important;
   border-left: 3px solid #d97706;
 }
 
@@ -1391,18 +1391,18 @@ body.no-highlight .ms-player-highlight {
   }
 
   [data-theme="dark"] .ms-match--active {
-    background: #0d2040 !important;
+    background: rgb(59 130 246 / 0.5) !important;
     border-left: 3px solid var(--brand);
   }
 
   .ms-match--next-opp {
-    background: #fffbeb !important;
+    background: #ff7b726b !important;
     border-left: 3px solid #f59e0b;
     padding-left: 9px;
   }
 
   [data-theme="dark"] .ms-match--next-opp {
-    background: #1c1a0e !important;
+    background: #ff7b726b !important;
     border-left: 3px solid #d97706;
   }
 
