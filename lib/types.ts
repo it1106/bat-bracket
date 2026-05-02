@@ -59,6 +59,9 @@ export interface MatchEntry {
   sequenceLabel?: string
   h2hUrl?: string
   eventId?: string
+  // Comma-separated, sorted player IDs of the bracket sibling match (the
+  // match whose winner this match's winner would face if they advance).
+  siblingPlayerIds?: string
 }
 
 export interface H2HRecord {

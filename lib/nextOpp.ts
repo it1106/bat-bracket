@@ -1,49 +1,38 @@
-import type { MatchScheduleGroup } from './types'
+import type { MatchScheduleGroup, MatchEntry } from './types'
 
-interface MatchRef {
-  key: string
-  drawNum: string
-  round: string
+function playerKey(m: MatchEntry): string {
+  return [...m.team1, ...m.team2]
+    .map((p) => p.playerId)
+    .filter(Boolean)
+    .sort()
+    .join(',')
 }
 
 export function buildNextOppMap(groups: MatchScheduleGroup[]): Map<string, string> {
-  // Collect all match refs with their keys, preserving appearance order
-  const allRefs: MatchRef[] = []
+  // Build a per-draw lookup from a match's sorted-player-ids key to its render
+  // matchKey ("${gi}-${mi}"), so we can resolve the sibling reference each
+  // match carries (siblingPlayerIds, set by the API based on bracket data).
+  const keyByDrawAndPlayers = new Map<string, string>()
   for (let gi = 0; gi < groups.length; gi++) {
     const matches = groups[gi].matches
     for (let mi = 0; mi < matches.length; mi++) {
       const m = matches[mi]
       if (!m.drawNum) continue
-      allRefs.push({ key: `${gi}-${mi}`, drawNum: m.drawNum, round: m.round })
+      const pk = playerKey(m)
+      if (!pk) continue
+      keyByDrawAndPlayers.set(`${m.drawNum}|${pk}`, `${gi}-${mi}`)
     }
-  }
-
-  // Group refs by drawNum → roundName → ordered list
-  const byDraw = new Map<string, Map<string, MatchRef[]>>()
-  for (const ref of allRefs) {
-    if (!byDraw.has(ref.drawNum)) byDraw.set(ref.drawNum, new Map())
-    const byRound = byDraw.get(ref.drawNum)!
-    if (!byRound.has(ref.round)) byRound.set(ref.round, [])
-    byRound.get(ref.round)!.push(ref)
   }
 
   const result = new Map<string, string>()
-
-  for (const byRound of Array.from(byDraw.values())) {
-    // Sort rounds: most matches first (earliest round), fewest last (Final)
-    const rounds = Array.from(byRound.values()).sort((a, b) => b.length - a.length)
-
-    for (let ri = 0; ri < rounds.length - 1; ri++) {
-      const current = rounds[ri]
-      const next = rounds[ri + 1]
-      for (let p = 0; p < current.length; p++) {
-        const nextP = Math.floor(p / 2)
-        if (nextP < next.length) {
-          result.set(current[p].key, next[nextP].key)
-        }
-      }
+  for (let gi = 0; gi < groups.length; gi++) {
+    const matches = groups[gi].matches
+    for (let mi = 0; mi < matches.length; mi++) {
+      const m = matches[mi]
+      if (!m.drawNum || !m.siblingPlayerIds) continue
+      const siblingKey = keyByDrawAndPlayers.get(`${m.drawNum}|${m.siblingPlayerIds}`)
+      if (siblingKey) result.set(`${gi}-${mi}`, siblingKey)
     }
   }
-
   return result
 }

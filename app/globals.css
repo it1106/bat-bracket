@@ -1339,8 +1339,14 @@ body.no-highlight .ms-player-highlight {
 .ms-match--tracked { background: var(--track-bg) !important; }
 
 .ms-match--active {
+  background: #e8f0fe !important;
   border-left: 3px solid var(--brand);
   padding-left: 9px;
+}
+
+[data-theme="dark"] .ms-match--active {
+  background: #0d2040 !important;
+  border-left: 3px solid var(--brand);
 }
 
 .ms-match--next-opp {
@@ -1379,8 +1385,14 @@ body.no-highlight .ms-player-highlight {
   .ms-match:hover { background: var(--surface); }
 
   .ms-match--active {
+    background: #e8f0fe !important;
     border-left: 3px solid var(--brand);
     padding-left: 9px;
+  }
+
+  [data-theme="dark"] .ms-match--active {
+    background: #0d2040 !important;
+    border-left: 3px solid var(--brand);
   }
 
   .ms-match--next-opp {
