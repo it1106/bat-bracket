@@ -29,9 +29,9 @@ export function buildNextOppMap(groups: MatchScheduleGroup[]): Map<string, strin
 
   const result = new Map<string, string>()
 
-  for (const byRound of byDraw.values()) {
+  for (const byRound of Array.from(byDraw.values())) {
     // Sort rounds: most matches first (earliest round), fewest last (Final)
-    const rounds = [...byRound.values()].sort((a, b) => b.length - a.length)
+    const rounds = Array.from(byRound.values()).sort((a, b) => b.length - a.length)
 
     for (let ri = 0; ri < rounds.length - 1; ri++) {
       const current = rounds[ri]
