@@ -297,6 +297,20 @@ export default function Home() {
       setMatchGroups(md.groups)
       setSelectedDay(md.currentDate || md.days[0]?.date || '')
       prefetchFutureDayHasMatches(id, md.days, setMatchDays)
+      // The full-schedule endpoint skips sibling enrichment for speed. Refetch
+      // the current day in the background to populate siblingPlayerIds (used
+      // by the next-opponent highlight). No loading flicker.
+      const currentDate = md.currentDate || md.days[0]?.date || ''
+      if (currentDate) {
+        fetch(`/api/matches?tournament=${encodeURIComponent(id)}&date=${currentDate}`)
+          .then(safeJson)
+          .then((data) => {
+            if (!isApiError(data)) {
+              setMatchGroups((data as Pick<MatchesData, 'groups'>).groups)
+            }
+          })
+          .catch(() => {})
+      }
     }
   }, [tournaments])
 

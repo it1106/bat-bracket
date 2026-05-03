@@ -178,7 +178,10 @@ export async function GET(request: Request) {
       const res = await batFetch('matches-full', url, { headers: HEADERS, cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = parseMatchesFull(await res.text())
-      await enrichWithSiblings(tournamentId, data.groups)
+      // Sibling enrichment is skipped on the full-schedule path — it costs an
+      // extra BAT round-trip per draw (2-5 s on cold tournaments) and the
+      // client backfills siblings by immediately fetching the per-day endpoint
+      // for `currentDate`, which does run enrichWithSiblings.
       matchesFullCache.set(tournamentId, { data, ts: Date.now() })
 
       if (isAllPast(data, todayIso)) {
