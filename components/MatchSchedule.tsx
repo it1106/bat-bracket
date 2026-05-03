@@ -290,36 +290,49 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       )}
 
       {loading && (
-        <div className="p-8 text-center text-gray-400 text-sm">{t('loadingMatches')}</div>
+        <div className="p-8 text-center text-gray-400 text-sm">
+          <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin mr-2 align-[-2px]" />
+          {t('loadingMatches')}
+        </div>
       )}
 
       {!loading && groups.length === 0 && (
         <div className="p-8 text-center text-gray-400 text-sm">{t('noMatchesScheduled')}</div>
       )}
 
-      {!loading && groups.map((group, gi) => {
-        const queryFiltered = playerQuery
-          ? group.matches.filter((m) => matchesQuery(m, playerQuery, playerClubMap))
-          : group.matches
-        const filtered = excludeCompleted
-          ? queryFiltered.filter((m) => m.winner === null)
-          : queryFiltered
-        if (filtered.length === 0) return null
+      {!loading && (() => {
+        const rendered = groups.map((group, gi) => {
+          const queryFiltered = playerQuery
+            ? group.matches.filter((m) => matchesQuery(m, playerQuery, playerClubMap))
+            : group.matches
+          const filtered = excludeCompleted
+            ? queryFiltered.filter((m) => m.winner === null)
+            : queryFiltered
+          if (filtered.length === 0) return null
 
-        const headerText = group.type === 'court' ? group.court : group.time
+          const headerText = group.type === 'court' ? group.court : group.time
 
-        return (
-          <div key={gi} className="match-schedule__time-group">
-            <div className="match-schedule__time-header">{headerText}</div>
-            <div className="ms-list">
-              {filtered.map((m) => {
-                const absMi = group.matches.indexOf(m)
-                return renderMatch(m, gi, absMi, group.type === 'time')
-              })}
+          return (
+            <div key={gi} className="match-schedule__time-group">
+              <div className="match-schedule__time-header">{headerText}</div>
+              <div className="ms-list">
+                {filtered.map((m) => {
+                  const absMi = group.matches.indexOf(m)
+                  return renderMatch(m, gi, absMi, group.type === 'time')
+                })}
+              </div>
             </div>
-          </div>
-        )
-      })}
+          )
+        })
+
+        const hasVisible = rendered.some((r) => r !== null)
+        if (!hasVisible && groups.length > 0 && playerQuery.trim() !== '') {
+          return (
+            <div className="p-8 text-center text-gray-400 text-sm">{t('searchNotFound')}</div>
+          )
+        }
+        return rendered
+      })()}
       <JumpToNextButton
         visible={showJumpToNext && targetKey !== null && !isTargetInView}
         onClick={scrollToTarget}

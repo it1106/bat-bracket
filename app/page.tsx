@@ -110,6 +110,7 @@ export default function Home() {
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
   const autoSelectedTournamentRef = useRef(false)
   const [headerVisible, setHeaderVisible] = useState(true)
+  const [searchHelpOpen, setSearchHelpOpen] = useState(false)
   // Tracks { courtKey: matchId } from the SignalR feed so we can detect
   // when a previously-live match completes (court drops or matchId changes)
   // and refetch the schedule — the scrape doesn't auto-refresh.
@@ -556,11 +557,28 @@ export default function Home() {
 
           {/* Player search */}
           <div className="flex flex-col gap-1">
-            <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
-              {t('trackLabel')}
-            </label>
-            <div className="flex items-center gap-2">
-              <div className="relative min-w-[180px]">
+            <div className="flex items-center gap-1.5">
+              <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
+                {t('trackLabel')}
+              </label>
+              <span className="relative inline-block">
+                <button
+                  type="button"
+                  onClick={() => setSearchHelpOpen((o) => !o)}
+                  onMouseEnter={() => setSearchHelpOpen(true)}
+                  onMouseLeave={() => setSearchHelpOpen(false)}
+                  aria-label={t('searchHelp')}
+                  className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[var(--muted)] text-[9px] font-bold text-[var(--muted)] leading-none hover:bg-[var(--border)] hover:text-[var(--fg)] cursor-help"
+                >?</button>
+                {searchHelpOpen && (
+                  <div className="absolute left-0 top-full mt-1 z-[60] w-[320px] p-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] text-xs leading-relaxed shadow-lg normal-case tracking-normal font-normal">
+                    {t('searchHelp')}
+                  </div>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
+              <div className="relative min-w-[180px] shrink-0">
                 <input
                   ref={playerSearchRef}
                   type="text"

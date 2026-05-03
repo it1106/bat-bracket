@@ -131,6 +131,8 @@ export type TKey =
   | 'playingOrderAway'
   | 'winRate'
   | 'bracketRoundHint'
+  | 'searchNotFound'
+  | 'searchHelp'
 
 const dict: Record<Lang, Record<TKey, string>> = {
   en: {
@@ -141,7 +143,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     tournament: 'Tournament',
     draw: 'Draw',
     trackLabel: 'Search',
-    searchPlaceholder: 'Player, club, or event — combine with & or |',
+    searchPlaceholder: 'Player, club, or event',
     selectTournament: '— Select tournament —',
     selectDraw: '— Select draw —',
     noDraws: 'No draws',
@@ -199,6 +201,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     playingOrderAway: '{n} away',
     winRate: 'Win rate',
     bracketRoundHint: 'Tip: click a round header to collapse the bracket to that round.',
+    searchNotFound: 'Search not found',
+    searchHelp: 'Player name, club, or event. You can use & (and) or | (or) to search — e.g. kba & BS U15 will show only Kasemsak players in the U15 event.',
   },
   th: {
     appTitle1: 'BAT',
@@ -208,7 +212,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     tournament: 'รายการแข่งขัน',
     draw: 'ตารางแข่ง',
     trackLabel: 'ค้นหา',
-    searchPlaceholder: 'ชื่อนักกีฬา ทีม หรือประเภท ใช้ & หรือ | เช่น kba | bty',
+    searchPlaceholder: 'ชื่อนักกีฬา ทีม หรือประเภท',
     selectTournament: '— เลือกรายการแข่งขัน —',
     selectDraw: '— เลือกตารางแข่ง —',
     noDraws: 'ไม่มีตารางแข่ง',
@@ -266,6 +270,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     playingOrderAway: 'อีก {n} คู่',
     winRate: 'อัตราการชนะ',
     bracketRoundHint: 'กดที่รอบแข่งเพื่อกระชับตารางแข่ง',
+    searchNotFound: 'ไม่พบข้อมูลที่ค้นหา',
+    searchHelp: 'ชื่อนักกีฬา ทีม หรือประเภทแข่งขัน สามารถใช้ & (and) หรือ | (or) ในการค้นหาเช่น kba & BS U15 จะแสดงผลทีมเกษมศักดิ์ฯ ในรายการ U15 เท่านั้น',
   },
 }
 
