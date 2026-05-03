@@ -162,16 +162,27 @@ export async function GET(request: Request) {
       //      strictly before today (immutable schedule). Survives restarts.
       //   2. In-memory Map (60 s TTL) — absorbs bursts within one worker.
       //   3. BAT fetch — last resort. ~1.3 MB HTML, 3-5 s.
+      // The .cached flag on each MatchDay is stamped at response time so
+      // it reflects the current state of .cache/days/, not whatever was
+      // written into the full/in-memory cache earlier.
       const todayIso = new Date().toISOString().split('T')[0]
+
+      const stampCached = async (data: MatchesData): Promise<MatchesData> => {
+        const cachedDates = new Set(await listCachedDays(tournamentId))
+        for (const d of data.days) {
+          d.cached = cachedDates.has(d.dateIso) || undefined
+        }
+        return data
+      }
 
       const fullDisk = await readFullCache(tournamentId)
       if (fullDisk) {
-        return NextResponse.json(fullDisk)
+        return NextResponse.json(await stampCached(fullDisk))
       }
 
       const cached = matchesFullCache.get(tournamentId)
       if (cached && Date.now() - cached.ts < MATCHES_FULL_TTL_MS) {
-        return NextResponse.json(cached.data)
+        return NextResponse.json(await stampCached(cached.data))
       }
 
       const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
@@ -179,17 +190,13 @@ export async function GET(request: Request) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = parseMatchesFull(await res.text())
       await enrichWithSiblings(tournamentId, data.groups)
-      const cachedDates = new Set(await listCachedDays(tournamentId))
-      for (const d of data.days) {
-        if (cachedDates.has(d.dateIso)) d.cached = true
-      }
       matchesFullCache.set(tournamentId, { data, ts: Date.now() })
 
       if (isAllPast(data, todayIso)) {
         void writeFullCache(tournamentId, data)
       }
 
-      return NextResponse.json(data)
+      return NextResponse.json(await stampCached(data))
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
