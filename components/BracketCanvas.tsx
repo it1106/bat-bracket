@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { expandSearchQuery } from '@/lib/searchAliases'
+import { useLanguage } from '@/lib/LanguageContext'
+import { longRoundL } from '@/lib/i18n'
 
 interface BracketCanvasProps {
   bracketHtml: string
@@ -23,6 +25,7 @@ export default function BracketCanvas({
   onPlayerClick,
   playerClubMap,
 }: BracketCanvasProps) {
+  const { lang } = useLanguage()
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
   const scaleRef = useRef(1)
@@ -38,6 +41,11 @@ export default function BracketCanvas({
     const queries = expandSearchQuery(playerQuery)
     const wrapper = document.createElement('div')
     wrapper.innerHTML = bracketHtml
+
+    wrapper.querySelectorAll<HTMLElement>('.bk-round-label').forEach((el) => {
+      const raw = el.textContent ?? ''
+      el.textContent = longRoundL(raw, lang)
+    })
 
     if (queries.length > 0) {
       const textMatches = (text: string | null | undefined) => {
@@ -103,7 +111,7 @@ export default function BracketCanvas({
     }
 
     return wrapper.innerHTML
-  }, [bracketHtml, playerQuery, playerClubMap])
+  }, [bracketHtml, playerQuery, playerClubMap, lang])
 
   // Scroll to first match after DOM updates with new displayHtml
   useEffect(() => {

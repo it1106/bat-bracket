@@ -35,7 +35,7 @@ export function longRoundL(name: string, lang: Lang = 'en'): string {
     if (r.kind === 'final') return 'รอบชิงชนะเลิศ'
     if (r.kind === 'semi') return 'รอบรองชนะเลิศ'
     if (r.kind === 'quarter') return 'รอบก่อนรองชนะเลิศ'
-    if (r.kind === 'roundOf') return `รอบ ${r.n} คน`
+    if (r.kind === 'roundOf') return `รอบ ${r.n}`
     if (r.kind === 'round') return `รอบ ${r.n}`
     return r.raw
   }
@@ -130,6 +130,7 @@ export type TKey =
   | 'playingOrderNext'
   | 'playingOrderAway'
   | 'winRate'
+  | 'bracketRoundHint'
 
 const dict: Record<Lang, Record<TKey, string>> = {
   en: {
@@ -197,6 +198,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     playingOrderNext: 'Up next',
     playingOrderAway: '{n} away',
     winRate: 'Win rate',
+    bracketRoundHint: 'Tip: click a round header to collapse the bracket to that round.',
   },
   th: {
     appTitle1: 'BAT',
@@ -263,6 +265,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     playingOrderNext: 'ถัดไป',
     playingOrderAway: 'อีก {n} คู่',
     winRate: 'อัตราการชนะ',
+    bracketRoundHint: 'กดที่รอบแข่งเพื่อกระชับตารางแข่ง',
   },
 }
 

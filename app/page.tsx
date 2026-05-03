@@ -8,6 +8,7 @@ import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
 import ScrollToTopButton from '@/components/ScrollToTopButton'
 import { useLanguage } from '@/lib/LanguageContext'
+import { longRoundL } from '@/lib/i18n'
 import { useTheme } from '@/lib/ThemeContext'
 import { useLiveScore } from '@/lib/useLiveScore'
 import { matchLiveCourt } from '@/lib/live-score'
@@ -377,12 +378,14 @@ export default function Home() {
     pendingJumpRef.current = null
     const labels = bracketRef.current?.querySelectorAll<HTMLElement>('.bk-round-label')
     if (!labels) return
+    const targetEn = longRoundL(jump.roundName, 'en')
     for (const label of Array.from(labels)) {
-      if (label.textContent?.trim() === jump.roundName) {
+      const labelText = label.textContent?.trim() ?? ''
+      if (longRoundL(labelText, 'en') === targetEn) {
         const idx = parseInt(label.getAttribute('data-round-index') ?? '-1', 10)
         if (idx > 0) {
           setFromRound(idx)
-          setFromRoundName(jump.roundName)
+          setFromRoundName(labelText || jump.roundName)
           fetchBracketFrom(jump.tournamentId, jump.drawNum, idx)
         }
         return
@@ -679,6 +682,13 @@ export default function Home() {
               <span className="opacity-70">({liveMatchCount})</span>
             </button>
           )}
+        </div>
+      )}
+
+      {/* Hint banner (bracket view only) */}
+      {viewMode === 'bracket' && (
+        <div className="px-5 py-1.5 bg-[var(--info-bg)] border-b border-[var(--border)] text-xs text-[var(--info-fg)]">
+          {t('bracketRoundHint')}
         </div>
       )}
 
