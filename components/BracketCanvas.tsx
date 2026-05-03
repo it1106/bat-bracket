@@ -31,18 +31,12 @@ export default function BracketCanvas({
   const scaleRef = useRef(1)
   const [isPinching, setIsPinching] = useState(false)
   const lastTouchDistance = useRef<number | null>(null)
-  const [hintShown] = useState(() => {
+  const [hintAcknowledged, setHintAcknowledged] = useState(() => {
     if (typeof window === 'undefined') return true
-    try { return localStorage.getItem('batbracket.bracketHintShown') === '1' } catch { return true }
+    try { return localStorage.getItem('batbracket.bracketHintAck') === '1' } catch { return true }
   })
 
   useEffect(() => { scaleRef.current = scale }, [scale])
-
-  useEffect(() => {
-    if (!hintShown && typeof window !== 'undefined') {
-      try { localStorage.setItem('batbracket.bracketHintShown', '1') } catch {}
-    }
-  }, [hintShown])
 
   // Pre-compute HTML with tracked/highlighted classes embedded so all elements
   // (including off-screen) are styled correctly from initial render.
@@ -56,10 +50,6 @@ export default function BracketCanvas({
       const raw = el.textContent ?? ''
       el.textContent = longRoundL(raw, lang)
     })
-
-    if (!hintShown) {
-      wrapper.querySelector<HTMLElement>('.bk-round-label')?.classList.add('bk-round-label--hint')
-    }
 
     if (queries.length > 0) {
       const textMatches = (text: string | null | undefined) => {
@@ -125,7 +115,17 @@ export default function BracketCanvas({
     }
 
     return wrapper.innerHTML
-  }, [bracketHtml, playerQuery, playerClubMap, lang, hintShown])
+  }, [bracketHtml, playerQuery, playerClubMap, lang])
+
+  // Pulse the 2nd round header on every fresh bracket load to advertise the
+  // collapse-on-click affordance. Stops once the user has clicked any round
+  // header (acknowledgement persisted via localStorage).
+  useEffect(() => {
+    if (hintAcknowledged) return
+    if (!bracketHtml || !containerRef.current) return
+    const labels = containerRef.current.querySelectorAll<HTMLElement>('.bk-round-label')
+    labels[1]?.classList.add('bk-round-label--hint')
+  }, [bracketHtml, hintAcknowledged])
 
   // Scroll to first match after DOM updates with new displayHtml
   useEffect(() => {
@@ -185,6 +185,12 @@ export default function BracketCanvas({
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const label = (e.target as Element).closest('.bk-round-label')
     if (label) {
+      if (!hintAcknowledged) {
+        try { localStorage.setItem('batbracket.bracketHintAck', '1') } catch {}
+        setHintAcknowledged(true)
+        containerRef.current?.querySelectorAll<HTMLElement>('.bk-round-label--hint')
+          .forEach((el) => el.classList.remove('bk-round-label--hint'))
+      }
       const idx = parseInt(label.getAttribute('data-round-index') ?? '', 10)
       if (!isNaN(idx)) onRoundClick?.(idx)
       return
@@ -194,7 +200,7 @@ export default function BracketCanvas({
       const playerId = playerEl.getAttribute('data-player-id')
       if (playerId) onPlayerClick?.(playerId)
     }
-  }, [onRoundClick, onPlayerClick])
+  }, [onRoundClick, onPlayerClick, hintAcknowledged])
 
   if (!bracketHtml) return null
 
