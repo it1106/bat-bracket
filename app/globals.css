@@ -1155,6 +1155,23 @@ html[lang="th"] .pm-section-title {
   opacity: 0.45;
 }
 
+.match-schedule__day-tab.cached {
+  position: relative;
+}
+
+.match-schedule__day-tab.cached::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 8px 8px 0;
+  border-color: transparent #16a34a transparent transparent;
+  border-top-right-radius: 6px;
+}
+
 
 .match-schedule__time-group {
   margin-bottom: 20px;

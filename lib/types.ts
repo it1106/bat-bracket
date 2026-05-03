@@ -109,6 +109,7 @@ export interface MatchDay {
   label: string
   dateIso: string
   hasMatches?: boolean
+  cached?: boolean
 }
 
 export interface MatchesData {

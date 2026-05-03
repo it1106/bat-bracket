@@ -4,7 +4,8 @@ import type { MatchesData } from './types'
 
 export type DayCacheData = Pick<MatchesData, 'groups'>
 
-const CACHE_ROOT = path.join(process.cwd(), '.cache', 'days')
+const DAYS_ROOT = path.join(process.cwd(), '.cache', 'days')
+const FULL_ROOT = path.join(process.cwd(), '.cache', 'full')
 
 function safeSegment(s: string): string {
   return s.replace(/[^a-zA-Z0-9_-]/g, '_')
@@ -12,7 +13,11 @@ function safeSegment(s: string): string {
 
 function cachePath(tournamentId: string, date: string): string {
   const day = date.slice(0, 10)
-  return path.join(CACHE_ROOT, safeSegment(tournamentId), `${safeSegment(day)}.json`)
+  return path.join(DAYS_ROOT, safeSegment(tournamentId), `${safeSegment(day)}.json`)
+}
+
+function fullCachePath(tournamentId: string): string {
+  return path.join(FULL_ROOT, `${safeSegment(tournamentId)}.json`)
 }
 
 export async function readDayCache(
@@ -42,6 +47,54 @@ export async function writeDayCache(
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown'
     console.log(`[day-cache] write failed tournament=${tournamentId} date=${date.slice(0, 10)} err=${msg}`)
+  }
+}
+
+export async function readFullCache(tournamentId: string): Promise<MatchesData | null> {
+  try {
+    const buf = await fs.readFile(fullCachePath(tournamentId), 'utf8')
+    return JSON.parse(buf) as MatchesData
+  } catch {
+    return null
+  }
+}
+
+export async function writeFullCache(
+  tournamentId: string,
+  data: MatchesData,
+): Promise<void> {
+  const file = fullCachePath(tournamentId)
+  const tmp = `${file}.tmp`
+  try {
+    await fs.mkdir(path.dirname(file), { recursive: true })
+    await fs.writeFile(tmp, JSON.stringify(data), 'utf8')
+    await fs.rename(tmp, file)
+    console.log(`[day-cache] wrote full tournament=${tournamentId}`)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    console.log(`[day-cache] write full failed tournament=${tournamentId} err=${msg}`)
+  }
+}
+
+// True iff every day in the schedule is strictly before today (no live and
+// no future days). Such a tournament's full schedule is immutable and safe
+// to pin to disk forever.
+export function isAllPast(data: MatchesData, todayIso: string): boolean {
+  if (data.days.length === 0) return false
+  return data.days.every((d) => d.dateIso && d.dateIso < todayIso)
+}
+
+// Lists the ISO dates (YYYY-MM-DD) that have a cached file for this
+// tournament. Returns empty on any I/O error.
+export async function listCachedDays(tournamentId: string): Promise<string[]> {
+  const dir = path.join(DAYS_ROOT, safeSegment(tournamentId))
+  try {
+    const files = await fs.readdir(dir)
+    return files
+      .filter((f) => f.endsWith('.json'))
+      .map((f) => f.slice(0, -'.json'.length))
+  } catch {
+    return []
   }
 }
 

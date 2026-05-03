@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings } from '@/lib/scraper'
 import { cache as bracketCache, TTL_MS as BRACKET_TTL_MS, fetchAndCache, rawHtmlCache, makeBracketKey } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
-import { readDayCache, writeDayCache, isDayComplete } from '@/lib/day-cache'
+import { readDayCache, writeDayCache, isDayComplete, listCachedDays, readFullCache, writeFullCache, isAllPast } from '@/lib/day-cache'
 import type { MatchScheduleGroup, MatchEntry, MatchesData } from '@/lib/types'
 
 export const maxDuration = 30
@@ -157,21 +157,38 @@ export async function GET(request: Request) {
           : { 'Cache-Control': `public, s-maxage=${ttl}, stale-while-revalidate=${ttl}` },
       })
     } else {
-      // Used by the SPA's first paint to get the day list + current-day groups.
-      // 60 s in-memory TTL: day list is essentially static within a tournament,
-      // current-day scores are at most 60 s stale (and SignalR converges them
-      // live anyway). Without this, every page open hits BAT for ~1.3 MB of
-      // HTML — the dominant first-load cost.
-      const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
+      // Three-tier read for the day list + current-day groups:
+      //   1. Disk full-cache — written for tournaments where every day is
+      //      strictly before today (immutable schedule). Survives restarts.
+      //   2. In-memory Map (60 s TTL) — absorbs bursts within one worker.
+      //   3. BAT fetch — last resort. ~1.3 MB HTML, 3-5 s.
+      const todayIso = new Date().toISOString().split('T')[0]
+
+      const fullDisk = await readFullCache(tournamentId)
+      if (fullDisk) {
+        return NextResponse.json(fullDisk)
+      }
+
       const cached = matchesFullCache.get(tournamentId)
       if (cached && Date.now() - cached.ts < MATCHES_FULL_TTL_MS) {
         return NextResponse.json(cached.data)
       }
+
+      const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
       const res = await batFetch('matches-full', url, { headers: HEADERS, cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = parseMatchesFull(await res.text())
       await enrichWithSiblings(tournamentId, data.groups)
+      const cachedDates = new Set(await listCachedDays(tournamentId))
+      for (const d of data.days) {
+        if (cachedDates.has(d.dateIso)) d.cached = true
+      }
       matchesFullCache.set(tournamentId, { data, ts: Date.now() })
+
+      if (isAllPast(data, todayIso)) {
+        void writeFullCache(tournamentId, data)
+      }
+
       return NextResponse.json(data)
     }
   } catch (err) {

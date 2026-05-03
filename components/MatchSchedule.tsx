@@ -281,7 +281,9 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
                 'match-schedule__day-tab',
                 d.date === selectedDay ? 'active' : '',
                 d.hasMatches === false ? 'empty' : '',
+                d.cached ? 'cached' : '',
               ].filter(Boolean).join(' ')}
+              title={d.cached ? 'Served from disk cache (day complete)' : undefined}
             >
               {d.label}
             </button>
