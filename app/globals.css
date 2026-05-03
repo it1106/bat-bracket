@@ -133,7 +133,7 @@ html, body {
 
 @keyframes bk-round-hint-pulse {
   0%, 100% { background-color: transparent; }
-  50% { background-color: var(--info-bg); color: var(--info-fg); }
+  50% { background-color: var(--track-bg); color: var(--track-fg); }
 }
 
 .bk-round-label--hint {
