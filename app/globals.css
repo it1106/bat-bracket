@@ -107,6 +107,37 @@ html, body {
   margin-bottom: 4px;
   height: 32px;
   line-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-radius: 4px 4px 0 0;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.bk-round-label::after {
+  content: "▾";
+  font-size: 10px;
+  opacity: 0.45;
+  transition: opacity 0.15s;
+}
+
+.bk-round-label:hover {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.bk-round-label:hover::after {
+  opacity: 1;
+}
+
+@keyframes bk-round-hint-pulse {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: var(--info-bg); color: var(--info-fg); }
+}
+
+.bk-round-label--hint {
+  animation: bk-round-hint-pulse 1.4s ease-in-out 3;
 }
 
 .bk-match-slot {

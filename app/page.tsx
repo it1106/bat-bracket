@@ -578,7 +578,7 @@ export default function Home() {
               </span>
             </div>
             <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-              <div className="relative min-w-[180px] shrink-0">
+              <div className="relative min-w-[150px] shrink-0">
                 <input
                   ref={playerSearchRef}
                   type="text"
@@ -749,7 +749,10 @@ export default function Home() {
           )}
 
           {loadingBracket && (
-            <div className="p-10 text-center text-[var(--muted)] text-sm">{t('loadingBracket')}</div>
+            <div className="p-10 text-center text-[var(--muted)] text-sm">
+              <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin mr-2 align-[-2px]" />
+              {t('loadingBracket')}
+            </div>
           )}
 
           {fromRound > 0 && bracketHtml && (

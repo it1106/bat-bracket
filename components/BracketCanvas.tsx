@@ -31,8 +31,18 @@ export default function BracketCanvas({
   const scaleRef = useRef(1)
   const [isPinching, setIsPinching] = useState(false)
   const lastTouchDistance = useRef<number | null>(null)
+  const [hintShown] = useState(() => {
+    if (typeof window === 'undefined') return true
+    try { return localStorage.getItem('batbracket.bracketHintShown') === '1' } catch { return true }
+  })
 
   useEffect(() => { scaleRef.current = scale }, [scale])
+
+  useEffect(() => {
+    if (!hintShown && typeof window !== 'undefined') {
+      try { localStorage.setItem('batbracket.bracketHintShown', '1') } catch {}
+    }
+  }, [hintShown])
 
   // Pre-compute HTML with tracked/highlighted classes embedded so all elements
   // (including off-screen) are styled correctly from initial render.
@@ -46,6 +56,10 @@ export default function BracketCanvas({
       const raw = el.textContent ?? ''
       el.textContent = longRoundL(raw, lang)
     })
+
+    if (!hintShown) {
+      wrapper.querySelector<HTMLElement>('.bk-round-label')?.classList.add('bk-round-label--hint')
+    }
 
     if (queries.length > 0) {
       const textMatches = (text: string | null | undefined) => {
@@ -111,7 +125,7 @@ export default function BracketCanvas({
     }
 
     return wrapper.innerHTML
-  }, [bracketHtml, playerQuery, playerClubMap, lang])
+  }, [bracketHtml, playerQuery, playerClubMap, lang, hintShown])
 
   // Scroll to first match after DOM updates with new displayHtml
   useEffect(() => {
