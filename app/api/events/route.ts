@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { parseEvents } from '@/lib/scraper'
+import { batFetch } from '@/lib/bat-fetch'
 
 export const revalidate = 900
 
@@ -12,9 +13,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const res = await fetch(
+    const res = await batFetch(
+      'events',
       `https://bat.tournamentsoftware.com/tournament/${tournamentId}/schedule`,
-      { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BATBrackets/1.0)' } }
+      { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BATBrackets/1.0)' } },
     )
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const html = await res.text()

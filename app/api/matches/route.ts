@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings } from '@/lib/scraper'
 import { fetchAndCache, rawHtmlCache, makeBracketKey } from '@/lib/bracket-cache'
+import { batFetch } from '@/lib/bat-fetch'
 import type { MatchScheduleGroup, MatchEntry } from '@/lib/types'
 
 export const maxDuration = 30
@@ -100,7 +101,7 @@ export async function GET(request: Request) {
       const todayIso = new Date().toISOString().split('T')[0]
       const dateIso = date.slice(0, 10)
       const ttl = dateIso > todayIso ? 600 : dateIso < todayIso ? 3600 : 60
-      const res = await fetch(url, {
+      const res = await batFetch('matches-day', url, {
         headers: { ...HEADERS, 'Referer': `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches` },
         ...(fresh ? { cache: 'no-store' as const } : { next: { revalidate: ttl } }),
       })
@@ -114,7 +115,7 @@ export async function GET(request: Request) {
       })
     } else {
       const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
-      const res = await fetch(url, { headers: HEADERS, cache: 'no-store' })
+      const res = await batFetch('matches-full', url, { headers: HEADERS, cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = parseMatchesFull(await res.text())
       await enrichWithSiblings(tournamentId, data.groups)

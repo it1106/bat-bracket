@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio'
 import { parseBracket } from './scraper'
 import { cache as drawsCache } from './draws-cache'
+import { batFetch } from './bat-fetch'
 import type { BracketData } from './types'
 
 // playerId → clubName, scoped per tournament as "{tournamentId}:{playerId}"
@@ -44,7 +45,7 @@ export async function fetchBracket(guid: string, drawNum: string): Promise<Brack
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
     try {
-      const res = await fetch(apiUrl, { headers, signal: controller.signal })
+      const res = await batFetch('bracket', apiUrl, { headers, signal: controller.signal })
       if (res.ok) {
         const html = await res.text()
         rawHtmlCache.set(makeBracketKey(guid, drawNum), html)

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { parsePlayerProfile, extractProfileUrl, parseGlobalProfileDetails } from '@/lib/scraper'
 import { playerClubCache } from '@/lib/bracket-cache'
+import { batFetch } from '@/lib/bat-fetch'
 
 export const maxDuration = 30
 
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
 
   try {
     const tournamentUrl = `https://bat.tournamentsoftware.com/sport/player.aspx?id=${tournamentId}&player=${playerId}`
-    const res = await fetch(tournamentUrl, { headers: HEADERS })
+    const res = await batFetch('player-tournament', tournamentUrl, { headers: HEADERS })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const tournamentHtml = await res.text()
 
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     const globalPath = extractProfileUrl(tournamentHtml)
     if (globalPath) {
       try {
-        const globalRes = await fetch(`https://bat.tournamentsoftware.com${globalPath}`, { headers: HEADERS })
+        const globalRes = await batFetch('player-global', `https://bat.tournamentsoftware.com${globalPath}`, { headers: HEADERS })
         if (globalRes.ok) {
           const { club, yob, stats } = parseGlobalProfileDetails(await globalRes.text())
           profile.club = club || profile.club

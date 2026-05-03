@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { parseTournamentDraws } from './scraper'
+import { batFetch } from './bat-fetch'
 import type { DrawInfo } from './types'
 
 export const cache = new Map<string, { draws: DrawInfo[]; ts: number; done?: boolean }>()
@@ -17,7 +18,7 @@ export async function fetchDraws(id: string, timeoutMs = 45000): Promise<DrawInf
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
-      const res = await fetch(url, { signal: controller.signal, headers: HEADERS })
+      const res = await batFetch('draws', url, { signal: controller.signal, headers: HEADERS })
       if (res.ok) {
         const html = await res.text()
         return parseTournamentDraws(html)

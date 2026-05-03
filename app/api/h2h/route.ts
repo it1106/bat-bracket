@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { parseH2H } from '@/lib/scraper'
+import { batFetch } from '@/lib/bat-fetch'
 
 export const maxDuration = 30
 
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
 
   try {
     const url = path.startsWith('http') ? path : `https://bat.tournamentsoftware.com${path}`
-    const res = await fetch(url, { headers: HEADERS })
+    const res = await batFetch('h2h', url, { headers: HEADERS })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = parseH2H(await res.text())
     return NextResponse.json(data)
