@@ -84,20 +84,6 @@ export function isAllPast(data: MatchesData, todayIso: string): boolean {
   return data.days.every((d) => d.dateIso && d.dateIso < todayIso)
 }
 
-// Lists the ISO dates (YYYY-MM-DD) that have a cached file for this
-// tournament. Returns empty on any I/O error.
-export async function listCachedDays(tournamentId: string): Promise<string[]> {
-  const dir = path.join(DAYS_ROOT, safeSegment(tournamentId))
-  try {
-    const files = await fs.readdir(dir)
-    return files
-      .filter((f) => f.endsWith('.json'))
-      .map((f) => f.slice(0, -'.json'.length))
-  } catch {
-    return []
-  }
-}
-
 // A day is "complete" iff every scheduled match has a resolution: a winner,
 // a walkover, or a retirement. Days with zero matches return false so an
 // empty parse doesn't get persisted as canonical.

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings } from '@/lib/scraper'
 import { cache as bracketCache, TTL_MS as BRACKET_TTL_MS, fetchAndCache, rawHtmlCache, makeBracketKey } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
-import { readDayCache, writeDayCache, isDayComplete, listCachedDays, readFullCache, writeFullCache, isAllPast } from '@/lib/day-cache'
+import { readDayCache, writeDayCache, isDayComplete, readFullCache, writeFullCache, isAllPast } from '@/lib/day-cache'
 import type { MatchScheduleGroup, MatchEntry, MatchesData } from '@/lib/types'
 
 export const maxDuration = 30
@@ -162,27 +162,16 @@ export async function GET(request: Request) {
       //      strictly before today (immutable schedule). Survives restarts.
       //   2. In-memory Map (60 s TTL) — absorbs bursts within one worker.
       //   3. BAT fetch — last resort. ~1.3 MB HTML, 3-5 s.
-      // The .cached flag on each MatchDay is stamped at response time so
-      // it reflects the current state of .cache/days/, not whatever was
-      // written into the full/in-memory cache earlier.
       const todayIso = new Date().toISOString().split('T')[0]
-
-      const stampCached = async (data: MatchesData): Promise<MatchesData> => {
-        const cachedDates = new Set(await listCachedDays(tournamentId))
-        for (const d of data.days) {
-          d.cached = cachedDates.has(d.dateIso) || undefined
-        }
-        return data
-      }
 
       const fullDisk = await readFullCache(tournamentId)
       if (fullDisk) {
-        return NextResponse.json(await stampCached(fullDisk))
+        return NextResponse.json(fullDisk)
       }
 
       const cached = matchesFullCache.get(tournamentId)
       if (cached && Date.now() - cached.ts < MATCHES_FULL_TTL_MS) {
-        return NextResponse.json(await stampCached(cached.data))
+        return NextResponse.json(cached.data)
       }
 
       const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
@@ -196,7 +185,7 @@ export async function GET(request: Request) {
         void writeFullCache(tournamentId, data)
       }
 
-      return NextResponse.json(await stampCached(data))
+      return NextResponse.json(data)
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
