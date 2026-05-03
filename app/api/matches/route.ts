@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings } from '@/lib/scraper'
-import { fetchAndCache, rawHtmlCache, makeBracketKey } from '@/lib/bracket-cache'
+import { cache as bracketCache, TTL_MS as BRACKET_TTL_MS, fetchAndCache, rawHtmlCache, makeBracketKey } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
 import type { MatchScheduleGroup, MatchEntry } from '@/lib/types'
 
@@ -43,8 +43,11 @@ async function enrichWithSiblings(
   await Promise.all(
     Array.from(drawNums).map(async (drawNum) => {
       try {
-        await fetchAndCache(tournamentId, drawNum)
-        const html = rawHtmlCache.get(makeBracketKey(tournamentId, drawNum))
+        const key = makeBracketKey(tournamentId, drawNum)
+        const cached = bracketCache.get(key)
+        const fresh = cached && (cached.done || Date.now() - cached.ts < BRACKET_TTL_MS)
+        if (!fresh) await fetchAndCache(tournamentId, drawNum)
+        const html = rawHtmlCache.get(key)
         if (!html) return
         const pairs = parseBracketSiblings(html)
         const lookup = new Map<string, string>()
