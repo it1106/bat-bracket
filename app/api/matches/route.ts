@@ -2,12 +2,26 @@ import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings } from '@/lib/scraper'
 import { cache as bracketCache, TTL_MS as BRACKET_TTL_MS, fetchAndCache, rawHtmlCache, makeBracketKey } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
+import { readDayCache, writeDayCache, isDayComplete } from '@/lib/day-cache'
 import type { MatchScheduleGroup, MatchEntry, MatchesData } from '@/lib/types'
 
 export const maxDuration = 30
 
 const MATCHES_FULL_TTL_MS = 60_000
 const matchesFullCache = new Map<string, { data: MatchesData; ts: number }>()
+
+const MATCHES_DAY_TTL_MS = 60_000
+const matchesDayCache = new Map<string, { data: Pick<MatchesData, 'groups'>; ts: number }>()
+
+// BAT uses Buddhist-year YYYYMMDD ("25690504"). Some callers may pass ISO
+// ("2026-05-04"). Normalize to ISO so date comparisons are valid.
+function toIsoDate(raw: string): string {
+  if (/^\d{8}$/.test(raw)) {
+    const by = parseInt(raw.slice(0, 4), 10)
+    return `${by - 543}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`
+  }
+  return raw.slice(0, 10)
+}
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -88,24 +102,36 @@ export async function GET(request: Request) {
 
   try {
     if (date) {
-      const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/Matches/MatchesInDay?date=${date}`
-      // Tiered TTL: past 1 h (immutable), future 10 min (schedule publication
-      // is the only thing that changes), today 60 s (final scores, winner
-      // badges, and nowPlaying flips lag <=60 s; live in-progress scoring is
-      // unaffected because it flows through SignalR, not this route).
+      // Three-tier read on a per-day request:
+      //   1. Disk cache — written once a day's matches are all final, never
+      //      expires. Survives restarts and is shared across PM2 workers.
+      //   2. In-memory Map (60 s TTL) — absorbs bursts within a single worker.
+      //   3. BAT fetch — last resort, also primes both caches above.
       //
-      // Two layers:
-      //   - Cache-Control on the response → Vercel CDN serves hits without
-      //     invoking the function, eliminating Active CPU on cache hits.
-      //   - next.revalidate on the BAT fetch → on the rare cache miss /
-      //     SWR refresh, BAT isn't re-hit while warmed in the data cache.
-      //
-      // fresh=1 bypasses both layers. Used by the SignalR-driven refetch
-      // when a live match completes — without this, the post-completion
-      // refetch would hit the pre-completion cached snapshot.
+      // fresh=1 bypasses 1 & 2. Used by the SignalR refetch on live-match
+      // completion so the post-completion fetch doesn't see the pre-completion
+      // snapshot.
       const fresh = searchParams.get('fresh') === '1'
       const todayIso = new Date().toISOString().split('T')[0]
-      const dateIso = date.slice(0, 10)
+      const dateIso = toIsoDate(date)
+      const memKey = `${tournamentId}:${dateIso}`
+
+      if (!fresh) {
+        const disk = await readDayCache(tournamentId, dateIso)
+        if (disk) {
+          return NextResponse.json(disk, {
+            headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400' },
+          })
+        }
+        const cached = matchesDayCache.get(memKey)
+        if (cached && Date.now() - cached.ts < MATCHES_DAY_TTL_MS) {
+          return NextResponse.json(cached.data, {
+            headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=60' },
+          })
+        }
+      }
+
+      const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/Matches/MatchesInDay?date=${date}`
       const ttl = dateIso > todayIso ? 600 : dateIso < todayIso ? 3600 : 60
       const res = await batFetch('matches-day', url, {
         headers: { ...HEADERS, 'Referer': `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches` },
@@ -114,6 +140,17 @@ export async function GET(request: Request) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = parseMatchesPartial(await res.text())
       await enrichWithSiblings(tournamentId, data.groups)
+
+      matchesDayCache.set(memKey, { data, ts: Date.now() })
+
+      // Persist days that are fully resolved. Future days are excluded as
+      // defense in depth — even an empty future day with zero matches would
+      // pass isDayComplete=false, but a sparsely-published future day might
+      // briefly look "all played" and shouldn't get pinned to disk.
+      if (dateIso <= todayIso && isDayComplete(data)) {
+        void writeDayCache(tournamentId, dateIso, data)
+      }
+
       return NextResponse.json(data, {
         headers: fresh
           ? { 'Cache-Control': 'no-store' }

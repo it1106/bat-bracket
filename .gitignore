@@ -45,3 +45,6 @@ CoreUI/
 # local tooling
 .claude/
 CLAUDE.local.md
+
+# runtime cache
+/.cache/
