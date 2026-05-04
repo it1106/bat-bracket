@@ -133,6 +133,16 @@ export type TKey =
   | 'bracketRoundHint'
   | 'searchNotFound'
   | 'searchHelp'
+  | 'customTab'
+  | 'customTabCreate'
+  | 'customTabEdit'
+  | 'customTabName'
+  | 'customTabKeyword'
+  | 'customTabAddTooltip'
+  | 'customTabSave'
+  | 'customTabCancel'
+  | 'customTabDelete'
+  | 'customTabDeleteConfirm'
 
 const dict: Record<Lang, Record<TKey, string>> = {
   en: {
@@ -203,6 +213,16 @@ const dict: Record<Lang, Record<TKey, string>> = {
     bracketRoundHint: 'Tip: click a round header to collapse the bracket to that round.',
     searchNotFound: 'Search not found',
     searchHelp: 'Player name, club, or event. You can use & (and) or | (or) to search — e.g. kba & BS U15 will show only Kasemsak players in the U15 event.',
+    customTab: 'Custom',
+    customTabCreate: 'New Custom Tab',
+    customTabEdit: 'Edit Custom Tab',
+    customTabName: 'Tab name',
+    customTabKeyword: 'Search keywords',
+    customTabAddTooltip: 'Add custom tab',
+    customTabSave: 'Save',
+    customTabCancel: 'Cancel',
+    customTabDelete: 'Delete',
+    customTabDeleteConfirm: 'Confirm delete',
   },
   th: {
     appTitle1: 'BAT',
@@ -272,6 +292,16 @@ const dict: Record<Lang, Record<TKey, string>> = {
     bracketRoundHint: 'กดที่รอบแข่งเพื่อกระชับตารางแข่ง',
     searchNotFound: 'ไม่พบข้อมูลที่ค้นหา',
     searchHelp: 'ชื่อนักกีฬา ทีม หรือประเภทแข่งขัน สามารถใช้ & (and) หรือ | (or) ในการค้นหาเช่น kba & BS U15 จะแสดงผลทีมเกษมศักดิ์ฯ ในรายการ U15 เท่านั้น',
+    customTab: 'กำหนดเอง',
+    customTabCreate: 'สร้างแท็บกำหนดเอง',
+    customTabEdit: 'แก้ไขแท็บกำหนดเอง',
+    customTabName: 'ชื่อแท็บ',
+    customTabKeyword: 'คำค้นหา',
+    customTabAddTooltip: 'เพิ่มแท็บกำหนดเอง',
+    customTabSave: 'บันทึก',
+    customTabCancel: 'ยกเลิก',
+    customTabDelete: 'ลบ',
+    customTabDeleteConfirm: 'ยืนยันการลบ',
   },
 }
 
