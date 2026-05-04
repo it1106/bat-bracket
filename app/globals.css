@@ -1237,8 +1237,17 @@ html[lang="th"] .pm-section-title {
   transition: transform 480ms ease-out;
 }
 
+.ms-match--ready {
+  transform: scale(1);
+  outline: 2px solid #22c55e;
+  outline-offset: -2px;
+  background: #22c55e1f !important;
+  transition: transform 120ms ease-out, background-color 120ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ms-match--pressing { transform: none; }
+  .ms-match--ready { transform: none; }
 }
 
 .ms-meta {

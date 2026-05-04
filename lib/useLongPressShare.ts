@@ -9,13 +9,22 @@ interface UseLongPressShareOptions {
   holdMs?: number
   moveSlopPx?: number
   pressClass?: string
+  readyClass?: string
 }
 
 export function useLongPressShare(
   containerRef: RefObject<HTMLElement>,
   options: UseLongPressShareOptions,
 ): void {
-  const { matchSelector, onPressStart, onFire, holdMs = 500, moveSlopPx = 10, pressClass = 'ms-match--pressing' } = options
+  const {
+    matchSelector,
+    onPressStart,
+    onFire,
+    holdMs = 500,
+    moveSlopPx = 10,
+    pressClass = 'ms-match--pressing',
+    readyClass = 'ms-match--ready',
+  } = options
 
   useEffect(() => {
     const container = containerRef.current
@@ -28,7 +37,11 @@ export function useLongPressShare(
 
     const cancel = () => {
       if (readyTimer) { clearTimeout(readyTimer); readyTimer = null }
-      if (activeMatch) { activeMatch.classList.remove(pressClass); activeMatch = null }
+      if (activeMatch) {
+        activeMatch.classList.remove(pressClass)
+        activeMatch.classList.remove(readyClass)
+        activeMatch = null
+      }
       isReady = false
     }
 
@@ -46,6 +59,10 @@ export function useLongPressShare(
       readyTimer = setTimeout(() => {
         readyTimer = null
         isReady = true
+        if (activeMatch) {
+          activeMatch.classList.remove(pressClass)
+          activeMatch.classList.add(readyClass)
+        }
         navigator.vibrate?.(15)
       }, holdMs)
     }
@@ -100,7 +117,10 @@ export function useLongPressShare(
       container.removeEventListener('click', onClickCapture, true)
       container.removeEventListener('contextmenu', onContextMenu)
       if (readyTimer) clearTimeout(readyTimer)
-      if (activeMatch) activeMatch.classList.remove(pressClass)
+      if (activeMatch) {
+        activeMatch.classList.remove(pressClass)
+        activeMatch.classList.remove(readyClass)
+      }
     }
-  }, [containerRef, matchSelector, onPressStart, onFire, holdMs, moveSlopPx, pressClass])
+  }, [containerRef, matchSelector, onPressStart, onFire, holdMs, moveSlopPx, pressClass, readyClass])
 }

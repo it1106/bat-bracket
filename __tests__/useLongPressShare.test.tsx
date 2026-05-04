@@ -95,6 +95,19 @@ describe('useLongPressShare', () => {
     expect(row1.classList.contains('ms-match--pressing')).toBe(false)
   })
 
+  it('swaps pressClass for readyClass when the threshold is reached', () => {
+    const { getByTestId } = render(<Harness onFire={() => {}} />)
+    const row1 = getByTestId('row1')
+    act(() => { fireTouch(row1, 'touchstart') })
+    expect(row1.classList.contains('ms-match--pressing')).toBe(true)
+    expect(row1.classList.contains('ms-match--ready')).toBe(false)
+    act(() => { jest.advanceTimersByTime(500) })
+    expect(row1.classList.contains('ms-match--pressing')).toBe(false)
+    expect(row1.classList.contains('ms-match--ready')).toBe(true)
+    act(() => { fireTouch(row1, 'touchend') })
+    expect(row1.classList.contains('ms-match--ready')).toBe(false)
+  })
+
   it('cleans up timer and listeners on unmount', () => {
     const onFire = jest.fn()
     const { getByTestId, unmount } = render(<Harness onFire={onFire} />)
