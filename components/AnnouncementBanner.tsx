@@ -38,12 +38,17 @@ export default function AnnouncementBanner({ id, text, visible = true }: Props) 
 
   return (
     <div className="flex items-center gap-2 px-5 py-1.5 bg-[var(--info-bg)] border-b border-[var(--border)] text-xs text-[var(--info-fg)]">
-      <span lang="th" className="flex-1">{text}</span>
+      <div className="announcement-marquee" aria-live="polite">
+        <div className="announcement-marquee__track" lang="th">
+          <span>{text}</span>
+          <span aria-hidden="true">{text}</span>
+        </div>
+      </div>
       <button
         type="button"
         onClick={onClose}
         aria-label="ปิด"
-        className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--border)] text-[11px] leading-none"
+        className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--border)] text-[11px] leading-none shrink-0"
       >✕</button>
     </div>
   )
