@@ -295,7 +295,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     customTab: 'กำหนดเอง',
     customTabCreate: 'สร้างแท็บกำหนดเอง',
     customTabEdit: 'แก้ไขแท็บกำหนดเอง',
-    customTabName: 'ชื่อแท็บ',
+    customTabName: 'ชื่อหัวข้อ',
     customTabKeyword: 'คำค้นหา',
     customTabAddTooltip: 'เพิ่มแท็บกำหนดเอง',
     customTabSave: 'บันทึก',
