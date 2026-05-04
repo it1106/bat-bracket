@@ -32,6 +32,10 @@ beforeEach(() => {
   if (typeof global.requestAnimationFrame !== 'function') {
     global.requestAnimationFrame = ((cb: FrameRequestCallback) => setTimeout(() => cb(0), 0) as unknown as number) as typeof requestAnimationFrame
   }
+  if (typeof URL.createObjectURL !== 'function') {
+    Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:mock', configurable: true })
+    Object.defineProperty(URL, 'revokeObjectURL', { value: () => {}, configurable: true })
+  }
 })
 
 describe('shareMatchAsImage', () => {

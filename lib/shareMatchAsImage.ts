@@ -2,8 +2,15 @@
 
 import { toJpeg } from 'html-to-image'
 
-interface ShareMatchOptions {
+interface CaptureMatchImageOptions {
   matchEl: HTMLElement
+  tournamentName: string
+  filename: string
+}
+
+interface ShareOrDownloadOptions {
+  file: File
+  filename: string
   tournamentName: string
   eventName: string
 }
@@ -13,6 +20,11 @@ const FILENAME_MAX = 80
 
 function buildSlug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-')
+}
+
+export function buildFilename(tournamentName: string, eventName: string): string {
+  const base = `${buildSlug(tournamentName)}-${buildSlug(eventName)}-${Date.now()}.jpg`
+  return base.length > FILENAME_MAX ? base.slice(0, FILENAME_MAX - 4) + '.jpg' : base
 }
 
 function buildHeader(tournamentName: string): HTMLElement {
@@ -38,26 +50,13 @@ function cleanClone(matchEl: HTMLElement): HTMLElement {
   return clone
 }
 
-function buildFilename(tournamentName: string, eventName: string): string {
-  const base = `${buildSlug(tournamentName)}-${buildSlug(eventName)}-${Date.now()}.jpg`
-  return base.length > FILENAME_MAX ? base.slice(0, FILENAME_MAX - 4) + '.jpg' : base
-}
-
 async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
   const blob = await (await fetch(dataUrl)).blob()
   return new File([blob], filename, { type: 'image/jpeg' })
 }
 
-function downloadDataUrl(dataUrl: string, filename: string): void {
-  const link = document.createElement('a')
-  link.download = filename
-  link.href = dataUrl
-  link.click()
-}
-
-export async function shareMatchAsImage(opts: ShareMatchOptions): Promise<void> {
-  const { matchEl, tournamentName, eventName } = opts
-  void eventName // kept in API for filename + share sheet text
+export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Promise<File> {
+  const { matchEl, tournamentName, filename } = opts
 
   const root = document.documentElement
   const hadDark = root.classList.contains('dark')
@@ -83,39 +82,65 @@ export async function shareMatchAsImage(opts: ShareMatchOptions): Promise<void> 
   const fullWidth = wrapper.scrollWidth
   const fullHeight = wrapper.scrollHeight
 
-  let dataUrl: string | null = null
   try {
-    dataUrl = await toJpeg(wrapper, {
+    const dataUrl = await toJpeg(wrapper, {
       quality: 0.95,
       pixelRatio: 2,
       backgroundColor: '#ffffff',
       width: fullWidth,
       height: fullHeight,
     })
-  } catch (err) {
-    console.warn('shareMatchAsImage: capture failed', err)
+    return await dataUrlToFile(dataUrl, filename)
   } finally {
     document.body.removeChild(wrapper)
     if (hadDark) root.classList.add('dark')
   }
+}
 
-  if (!dataUrl) return
+function downloadFile(file: File, filename: string): void {
+  const url = URL.createObjectURL(file)
+  const link = document.createElement('a')
+  link.download = filename
+  link.href = url
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
 
-  const filename = buildFilename(tournamentName, eventName)
-  const file = await dataUrlToFile(dataUrl, filename)
+// Synchronous entry: must be called inside a user-gesture handler chain
+// (touchend / click) with no awaits between the gesture and this call.
+// iOS Safari otherwise drops transient activation and rejects share().
+export function shareOrDownloadFile(opts: ShareOrDownloadOptions): void {
+  const { file, filename, tournamentName, eventName } = opts
   const hasShare = typeof navigator.share === 'function'
   const canShareFiles = typeof navigator.canShare === 'function'
     ? navigator.canShare({ files: [file] })
     : hasShare
 
   if (hasShare && canShareFiles) {
-    try {
-      await navigator.share({ files: [file], title: tournamentName, text: `${tournamentName} — ${eventName}` })
-      return
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return
-    }
+    navigator
+      .share({ files: [file], title: tournamentName, text: `${tournamentName} — ${eventName}` })
+      .catch((err: Error) => {
+        if (err?.name === 'AbortError') return
+        downloadFile(file, filename)
+      })
+    return
   }
 
-  downloadDataUrl(dataUrl, filename)
+  downloadFile(file, filename)
+}
+
+// Backward-compatible wrapper: capture then share/download in one call.
+// Note: this awaits the capture before share(), which on iOS Safari loses
+// transient activation and forces the download path. Use the
+// captureMatchImageFile + shareOrDownloadFile pair for the gesture-aware flow.
+export async function shareMatchAsImage(opts: { matchEl: HTMLElement; tournamentName: string; eventName: string }): Promise<void> {
+  const filename = buildFilename(opts.tournamentName, opts.eventName)
+  let file: File
+  try {
+    file = await captureMatchImageFile({ matchEl: opts.matchEl, tournamentName: opts.tournamentName, filename })
+  } catch (err) {
+    console.warn('shareMatchAsImage: capture failed', err)
+    return
+  }
+  shareOrDownloadFile({ file, filename, tournamentName: opts.tournamentName, eventName: opts.eventName })
 }

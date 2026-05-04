@@ -4,6 +4,7 @@ import { useEffect, type RefObject } from 'react'
 
 interface UseLongPressShareOptions {
   matchSelector: string
+  onPressStart?: (matchEl: HTMLElement) => void
   onFire: (matchEl: HTMLElement) => void
   holdMs?: number
   moveSlopPx?: number
@@ -14,7 +15,7 @@ export function useLongPressShare(
   containerRef: RefObject<HTMLElement>,
   options: UseLongPressShareOptions,
 ): void {
-  const { matchSelector, onFire, holdMs = 500, moveSlopPx = 10, pressClass = 'ms-match--pressing' } = options
+  const { matchSelector, onPressStart, onFire, holdMs = 500, moveSlopPx = 10, pressClass = 'ms-match--pressing' } = options
 
   useEffect(() => {
     const container = containerRef.current
@@ -41,6 +42,7 @@ export function useLongPressShare(
       startY = t.clientY
       isReady = false
       match.classList.add(pressClass)
+      onPressStart?.(match)
       readyTimer = setTimeout(() => {
         readyTimer = null
         isReady = true
@@ -100,5 +102,5 @@ export function useLongPressShare(
       if (readyTimer) clearTimeout(readyTimer)
       if (activeMatch) activeMatch.classList.remove(pressClass)
     }
-  }, [containerRef, matchSelector, onFire, holdMs, moveSlopPx, pressClass])
+  }, [containerRef, matchSelector, onPressStart, onFire, holdMs, moveSlopPx, pressClass])
 }

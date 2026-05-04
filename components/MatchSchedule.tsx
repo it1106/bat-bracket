@@ -10,7 +10,7 @@ import { expandSearchQuery, parseSearchQuery } from '@/lib/searchAliases'
 import { track } from '@/lib/analytics'
 import { buildNextOppMap } from '@/lib/nextOpp'
 import { useLongPressShare } from '@/lib/useLongPressShare'
-import { shareMatchAsImage } from '@/lib/shareMatchAsImage'
+import { buildFilename, captureMatchImageFile, shareOrDownloadFile } from '@/lib/shareMatchAsImage'
 import JumpToNextButton from '@/components/JumpToNextButton'
 
 interface Props {
@@ -125,26 +125,57 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   }, [groups])
 
   const containerRef = useRef<HTMLDivElement>(null)
+  const preparedFileRef = useRef<File | null>(null)
+  const preparedFilenameRef = useRef<string>('')
+  const preparedEventNameRef = useRef<string>('')
+  const prepareInflightRef = useRef<Promise<void> | null>(null)
 
   useLongPressShare(containerRef, {
     matchSelector: '.ms-match',
     holdMs: 2000,
+    onPressStart: (el) => {
+      preparedFileRef.current = null
+      prepareInflightRef.current = null
+      if (!tournamentName) return
+      const key = el.dataset.matchKey
+      if (!key) return
+      const m = matchByKey.get(key)
+      if (!m) return
+      const filename = buildFilename(tournamentName, m.draw)
+      preparedFilenameRef.current = filename
+      preparedEventNameRef.current = m.draw
+      prepareInflightRef.current = captureMatchImageFile({
+        matchEl: el,
+        tournamentName,
+        filename,
+      })
+        .then((file) => { preparedFileRef.current = file })
+        .catch((err) => { console.warn('captureMatchImageFile failed', err) })
+    },
     onFire: (el) => {
       const key = el.dataset.matchKey
       if (!key || !tournamentName) return
       const m = matchByKey.get(key)
       if (!m) return
-      void shareMatchAsImage({
-        matchEl: el,
-        tournamentName,
-        eventName: m.draw,
-      })
       track('match_shared_as_image', {
         tournament_id: tournamentId,
         match_id: key,
         round_name: m.round,
         draw_id: m.drawNum,
       })
+      const file = preparedFileRef.current
+      const filename = preparedFilenameRef.current
+      const eventName = preparedEventNameRef.current
+      if (file) {
+        // Synchronous: preserve iOS Safari transient activation for navigator.share().
+        shareOrDownloadFile({ file, filename, tournamentName, eventName })
+      } else if (prepareInflightRef.current) {
+        // Capture still running — activation will be lost, so this falls back to download on iOS.
+        prepareInflightRef.current.then(() => {
+          const f = preparedFileRef.current
+          if (f) shareOrDownloadFile({ file: f, filename, tournamentName, eventName })
+        })
+      }
     },
   })
 
