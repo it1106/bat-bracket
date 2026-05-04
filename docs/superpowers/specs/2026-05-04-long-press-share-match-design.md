@@ -40,22 +40,25 @@ The capture flow mirrors the existing pattern in `components/ExportButton.tsx` (
 
 ```ts
 interface UseLongPressShareOptions {
-  onFire: () => void
-  holdMs?: number          // default 500
-  moveSlopPx?: number      // default 10
-  pressClass?: string      // default 'ms-match--pressing'
+  matchSelector: string                   // e.g. '.ms-match'
+  onFire: (matchEl: HTMLElement) => void
+  holdMs?: number                         // default 500
+  moveSlopPx?: number                     // default 10
+  pressClass?: string                     // default 'ms-match--pressing'
 }
 
 export function useLongPressShare(
-  ref: React.RefObject<HTMLElement>,
+  containerRef: React.RefObject<HTMLElement>,
   options: UseLongPressShareOptions,
 ): void
 ```
 
-**State machine:**
+The hook uses **event delegation**: listeners attach to the container once per render, regardless of how many match rows the container contains. This avoids per-row hook calls, which would violate React's Rules of Hooks when the rendered match list count changes (search filter, live updates, completed-filter toggle).
+
+**State machine** (per active touch):
 
 ```
-idle ──touchstart──▶ pressing ──holdMs──▶ fired
+idle ──touchstart on matchSelector descendant──▶ pressing ──holdMs──▶ fired
                        │ │ │
                        │ │ └─touchcancel──▶ idle
                        │ └───touchmove>slop─▶ idle
@@ -63,13 +66,13 @@ idle ──touchstart──▶ pressing ──holdMs──▶ fired
 ```
 
 **Behaviour:**
-- On `touchstart`: add `pressClass` to the element, start timer, record start Y coordinate.
+- On `touchstart`: find `e.target.closest(matchSelector)`. If none, ignore. Otherwise: add `pressClass` to that element, start timer, record start Y.
 - On `touchmove`: if `|currentY - startY| > moveSlopPx`, cancel.
-- On `touchend` / `touchcancel`: clear timer, remove `pressClass`. If timer fired, suppress the next `click` event on the element (capture phase, one-shot).
-- On timer fire: remove `pressClass`, `navigator.vibrate?.(15)`, call `onFire()`, arm click-suppression.
-- On `contextmenu`: `preventDefault()` (suppresses iOS Safari's native long-press menu).
+- On `touchend` / `touchcancel`: clear timer, remove `pressClass`. If timer fired, suppress the next `click` event on the matched element (capture phase, one-shot).
+- On timer fire: remove `pressClass`, `navigator.vibrate?.(15)`, call `onFire(matchEl)`, arm click-suppression.
+- On `contextmenu` (anywhere in container): `preventDefault()` (suppresses iOS Safari's native long-press menu over match rows).
 - Mouse events are not handled — no-op on desktop.
-- All listeners and timers cleaned up on unmount and on ref change.
+- All listeners and timers cleaned up on unmount and on container ref / dependency change.
 
 ### `lib/shareMatchAsImage.ts`
 
@@ -115,14 +118,17 @@ export async function shareMatchAsImage(opts: ShareMatchOptions): Promise<void>
 tournamentName?: string   // human-readable, for share image header
 ```
 
-**Inside `renderMatch`:**
-- Create a row-scoped `useRef<HTMLDivElement>(null)`.
-- Merge it with the existing conditional `registerTargetRef` via a small `mergeRefs` helper or callback ref.
-- Call `useLongPressShare(rowRef, { onFire: () => { ... } })`.
-- `onFire` calls `shareMatchAsImage` and emits `track('match_shared_as_image', {...})` analytics.
-- Existing `onClick`, `onMouseEnter`, `onMouseLeave` are unchanged.
+**At the top of the component:**
+- Create a `containerRef = useRef<HTMLDivElement>(null)` attached to the root `.match-schedule` div.
+- Build a `matchByKey` map: `Map<string, MatchEntry>` keyed by a stable per-match string (`${m.drawNum}|${m.round}|${team1.playerId}|${team2.playerId}`), rebuilt with `useMemo` from `groups`.
+- Call `useLongPressShare(containerRef, { matchSelector: '.ms-match', onFire })` once at the top level.
+- `onFire(el)` reads `el.dataset.matchKey`, looks up the entry in `matchByKey`, calls `shareMatchAsImage`, and emits `track('match_shared_as_image', {...})`.
 
-The hook is invoked inside `renderMatch`, which means one hook per rendered match. This is fine — `renderMatch` is called from a `.map` and the call order is stable per render. (Alternatively the hook could be lifted; this is simpler and the row component is short enough.)
+**Inside `renderMatch`:**
+- Add `data-match-key={matchKeyFor(m)}` to the `.ms-match` div so the delegated handler can identify it.
+- Existing `onClick`, `onMouseEnter`, `onMouseLeave`, and `registerTargetRef` are unchanged.
+
+This keeps `renderMatch` free of any hook calls — all hooks live at the component top level, where their order is stable across re-renders.
 
 ### CSS additions (`app/globals.css`)
 
