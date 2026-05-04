@@ -63,17 +63,20 @@ describe('shareMatchAsImage', () => {
     expect(cloned.querySelector('.ms-player-highlight')).toBeNull()
   })
 
-  it('forces light mode during capture and restores dark afterwards', async () => {
+  it('does not toggle html.dark, applies ms-share-capture class on the wrapper', async () => {
     document.documentElement.classList.add('dark')
     const row = makeRow()
     document.body.appendChild(row)
     let darkDuringCapture: boolean | null = null
-    ;(toJpeg as jest.Mock).mockImplementation(async () => {
+    let wrapperHadShareCaptureClass: boolean | null = null
+    ;(toJpeg as jest.Mock).mockImplementation(async (el: HTMLElement) => {
       darkDuringCapture = document.documentElement.classList.contains('dark')
+      wrapperHadShareCaptureClass = el.classList.contains('ms-share-capture')
       return 'data:image/jpeg;base64,AAAA'
     })
     await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' })
-    expect(darkDuringCapture).toBe(false)
+    expect(darkDuringCapture).toBe(true)
+    expect(wrapperHadShareCaptureClass).toBe(true)
     expect(document.documentElement.classList.contains('dark')).toBe(true)
   })
 

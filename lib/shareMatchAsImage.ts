@@ -58,14 +58,13 @@ async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
 export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Promise<File> {
   const { matchEl, tournamentName, filename } = opts
 
-  const root = document.documentElement
-  const hadDark = root.classList.contains('dark')
-  if (hadDark) root.classList.remove('dark')
-
   const wrapper = document.createElement('div')
   // The wrapper has to be in the DOM at a real on-screen position for iOS
   // Safari to rasterize it (off-screen produces a blank canvas), but we put
   // it behind the page with z-index:-1 so the user never sees it flash.
+  // The .ms-share-capture class redefines CSS variables to light-mode
+  // values in its subtree so we don't have to toggle html.dark globally.
+  wrapper.className = 'ms-share-capture'
   wrapper.style.cssText = `
     position: fixed; left: 0; top: 0; width: 380px;
     background: #ffffff; font-family: 'Segoe UI', system-ui, sans-serif;
@@ -96,7 +95,6 @@ export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Pro
     return await dataUrlToFile(dataUrl, filename)
   } finally {
     document.body.removeChild(wrapper)
-    if (hadDark) root.classList.add('dark')
   }
 }
 

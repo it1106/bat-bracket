@@ -60,6 +60,39 @@ html, body {
   color: var(--fg);
 }
 
+/* Long-press share capture wrapper: re-pin all theme tokens to their light
+   values so the captured JPG looks identical regardless of html.dark. We
+   intentionally don't toggle html.dark itself — that flashes the live page. */
+.ms-share-capture {
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #888888;
+  --border: #e5e7eb;
+  --brand: #25316B;
+  --brand-fg: #25316B;
+  --red: #BE1D2E;
+  --win-bg: #e8f5e9;
+  --win-fg: #166534;
+  --track-bg: #fff3cd;
+  --track-fg: #856404;
+  --score-bg: #f8f9fa;
+  --row-sep: #f0f0f0;
+  --match-border: #696969;
+  --info-bg: #eff6ff;
+  --info-fg: #1d4ed8;
+  --order-pill-bg: #eef2f6;
+  --order-pill-fg: #1a1a1a;
+  --order-pill-next-bg: #f59e0b;
+  --order-pill-next-fg: #1a1a1a;
+}
+
+/* The dark-mode selectors below hardcode colors directly instead of going
+   through CSS variables, so the wrapper subtree needs explicit overrides. */
+html.dark .ms-share-capture .ms-live-badge { background: #ef4444; color: #fff; }
+html.dark .ms-share-capture .ms-score .set-live { color: #ef4444; }
+html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
+
 /* ── Bracket canvas ── */
 .bracket-canvas {
   overflow-x: auto;
