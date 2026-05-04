@@ -63,10 +63,13 @@ export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Pro
   if (hadDark) root.classList.remove('dark')
 
   const wrapper = document.createElement('div')
+  // The wrapper has to be in the DOM at a real on-screen position for iOS
+  // Safari to rasterize it (off-screen produces a blank canvas), but we put
+  // it behind the page with z-index:-1 so the user never sees it flash.
   wrapper.style.cssText = `
     position: fixed; left: 0; top: 0; width: 380px;
     background: #ffffff; font-family: 'Segoe UI', system-ui, sans-serif;
-    z-index: 2147483647; pointer-events: none;
+    z-index: -1; pointer-events: none;
   `
   wrapper.appendChild(buildHeader(tournamentName))
   wrapper.appendChild(cleanClone(matchEl))
