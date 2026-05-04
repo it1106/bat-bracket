@@ -144,6 +144,8 @@ export type TKey =
   | 'customTabCancel'
   | 'customTabDelete'
   | 'customTabDeleteConfirm'
+  | 'customTabEditTabs'
+  | 'customTabEditDone'
 
 const dict: Record<Lang, Record<TKey, string>> = {
   en: {
@@ -225,6 +227,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     customTabCancel: 'Cancel',
     customTabDelete: 'Delete',
     customTabDeleteConfirm: 'Confirm delete',
+    customTabEditTabs: 'Edit tabs',
+    customTabEditDone: 'Done',
   },
   th: {
     appTitle1: 'BAT',
@@ -305,6 +309,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     customTabCancel: 'ยกเลิก',
     customTabDelete: 'ลบ',
     customTabDeleteConfirm: 'ยืนยันการลบ',
+    customTabEditTabs: 'แก้ไขแท็บ',
+    customTabEditDone: 'เสร็จ',
   },
 }
 

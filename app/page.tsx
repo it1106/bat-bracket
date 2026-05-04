@@ -8,6 +8,7 @@ import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
 import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
+import { useLongPress } from '@/lib/useLongPress'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import {
   ANN_CUSTOM_TABS_MULTI,
@@ -117,6 +118,7 @@ export default function Home() {
   const [customModalOpen, setCustomModalOpen] = useState(false)
   const [customModalMode, setCustomModalMode] = useState<'create' | 'edit'>('create')
   const [customModalEditId, setCustomModalEditId] = useState<string | null>(null)
+  const [customTabsEditMode, setCustomTabsEditMode] = useState(false)
   const [matchDays, setMatchDays] = useState<MatchDay[]>([])
   const [selectedDay, setSelectedDay] = useState('')
   const [matchGroups, setMatchGroups] = useState<MatchScheduleGroup[]>([])
@@ -541,6 +543,23 @@ export default function Home() {
 
   const loading = loadingBracket || loadingDraws
 
+  const customTabStripRef = useRef<HTMLDivElement>(null)
+  const openCustomTabEdit = (tabId: string) => {
+    setCustomModalMode('edit')
+    setCustomModalEditId(tabId)
+    setCustomModalOpen(true)
+  }
+  useLongPress(customTabStripRef, {
+    targetSelector: '.custom-tab-button',
+    holdMs: 600,
+    pressClass: 'custom-tab-button--pressing',
+    readyClass: 'custom-tab-button--ready',
+    onFire: (el) => {
+      const id = el.dataset.customTabId
+      if (id) openCustomTabEdit(id)
+    },
+  })
+
   return (
     <>
       {/* Top bar */}
@@ -723,7 +742,7 @@ export default function Home() {
 
       {/* View mode tabs */}
       {selectedTournament && (
-        <div className="flex items-center gap-0 px-5 py-0 bg-[var(--surface)] border-b border-[var(--border)]">
+        <div ref={customTabStripRef} className="flex items-center gap-0 px-5 py-0 bg-[var(--surface)] border-b border-[var(--border)]">
           <button
             onClick={() => setViewMode('bracket')}
             className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
@@ -764,15 +783,12 @@ export default function Home() {
               key={tab.id}
               tab={tab}
               active={viewMode === 'custom' && activeCustomTabId === tab.id}
+              editMode={customTabsEditMode}
               onActivate={() => {
                 setViewMode('custom')
                 setActiveCustomTabId(tab.id)
               }}
-              onEdit={() => {
-                setCustomModalMode('edit')
-                setCustomModalEditId(tab.id)
-                setCustomModalOpen(true)
-              }}
+              onEdit={() => openCustomTabEdit(tab.id)}
               onDropTab={(draggedId) => {
                 if (draggedId === tab.id) return
                 const filtered = customTabs.filter((t) => t.id !== draggedId)
@@ -796,6 +812,18 @@ export default function Home() {
               title={t('customTabAddTooltip')}
               className="px-3 py-2.5 text-xs font-semibold border-b-2 border-transparent text-[var(--muted)] hover:text-[var(--fg)] transition-colors"
             >+</button>
+          )}
+          {customTabs.length > 0 && (
+            <button
+              onClick={() => setCustomTabsEditMode((v) => !v)}
+              aria-label={customTabsEditMode ? t('customTabEditDone') : t('customTabEditTabs')}
+              title={customTabsEditMode ? t('customTabEditDone') : t('customTabEditTabs')}
+              className={`px-3 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+                customTabsEditMode
+                  ? 'border-[var(--brand)] text-[var(--brand-fg)]'
+                  : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
+              }`}
+            >{customTabsEditMode ? '✓' : '✎'}</button>
           )}
         </div>
       )}

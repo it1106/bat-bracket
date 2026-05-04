@@ -93,6 +93,39 @@ html.dark .ms-share-capture .ms-live-badge { background: #ef4444; color: #fff; }
 html.dark .ms-share-capture .ms-score .set-live { color: #ef4444; }
 html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
 
+/* ── Custom tab buttons ── */
+.custom-tab-button {
+  transition: transform 180ms ease-out, outline-color 120ms;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.custom-tab-button--pressing {
+  transform: scale(0.96);
+  transition: transform 580ms ease-out;
+}
+
+.custom-tab-button--ready {
+  transform: scale(1);
+  outline: 2px solid #22c55e;
+  outline-offset: -2px;
+  transition: transform 120ms ease-out;
+}
+
+/* Edit-mode hint: dashed inset border on each custom tab. Not animated —
+   pulsing/jiggling drains battery and gets old fast on a phone. */
+.custom-tab-button--edit-mode {
+  outline: 1px dashed var(--muted);
+  outline-offset: -3px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .custom-tab-button--pressing,
+  .custom-tab-button--ready { transform: none; }
+}
+
 /* ── Bracket canvas ── */
 .bracket-canvas {
   overflow-x: auto;
