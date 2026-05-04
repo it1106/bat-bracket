@@ -138,6 +138,7 @@ export type TKey =
   | 'customTabEdit'
   | 'customTabName'
   | 'customTabKeyword'
+  | 'customTabKeywordPlaceholder'
   | 'customTabAddTooltip'
   | 'customTabSave'
   | 'customTabCancel'
@@ -218,6 +219,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     customTabEdit: 'Edit Custom Tab',
     customTabName: 'Tab name',
     customTabKeyword: 'Search keywords',
+    customTabKeywordPlaceholder: 'Name, club, or event e.g. BD U15',
     customTabAddTooltip: 'Add custom tab',
     customTabSave: 'Save',
     customTabCancel: 'Cancel',
@@ -297,6 +299,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     customTabEdit: 'แก้ไขการค้นหา',
     customTabName: 'ชื่อหัวข้อ',
     customTabKeyword: 'คำค้นหา',
+    customTabKeywordPlaceholder: 'ชื่อนักกีฬา ทีม หรือรายการแข่งขัน เช่น BD U15',
     customTabAddTooltip: 'เพิ่มแท็บกำหนดเอง',
     customTabSave: 'บันทึก',
     customTabCancel: 'ยกเลิก',
