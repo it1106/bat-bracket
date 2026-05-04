@@ -132,7 +132,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
 
   useLongPressShare(containerRef, {
     matchSelector: '.ms-match',
-    holdMs: 2000,
+    holdMs: 1000,
     onPressStart: (el) => {
       preparedFileRef.current = null
       prepareInflightRef.current = null
