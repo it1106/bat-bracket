@@ -214,7 +214,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     searchNotFound: 'Search not found',
     searchHelp: 'Player name, club, or event. You can use & (and) or | (or) to search — e.g. kba & BS U15 will show only Kasemsak players in the U15 event.',
     customTab: 'Custom',
-    customTabCreate: 'New Custom Tab',
+    customTabCreate: 'New Custom Search',
     customTabEdit: 'Edit Custom Tab',
     customTabName: 'Tab name',
     customTabKeyword: 'Search keywords',
