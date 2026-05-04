@@ -1223,10 +1223,23 @@ html[lang="th"] .pm-section-title {
   padding: 8px 12px;
   border-bottom: 1px solid var(--row-sep);
   color: var(--fg);
+  transition: transform 180ms ease-out;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .ms-match:last-child { border-bottom: none; }
 .ms-match:hover { background: var(--bg); }
+
+.ms-match--pressing {
+  transform: scale(0.98);
+  transition: transform 480ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-match--pressing { transform: none; }
+}
 
 .ms-meta {
   grid-area: meta;
