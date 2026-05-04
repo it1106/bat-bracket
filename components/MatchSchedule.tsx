@@ -9,6 +9,8 @@ import { computePlayingOrder } from '@/lib/playingOrder'
 import { expandSearchQuery, parseSearchQuery } from '@/lib/searchAliases'
 import { track } from '@/lib/analytics'
 import { buildNextOppMap } from '@/lib/nextOpp'
+import { useLongPressShare } from '@/lib/useLongPressShare'
+import { buildFilename, captureMatchImageFile, shareOrDownloadFile } from '@/lib/shareMatchAsImage'
 import JumpToNextButton from '@/components/JumpToNextButton'
 
 interface Props {
@@ -27,6 +29,7 @@ interface Props {
   onH2HClick?: (h2hUrl: string, m: MatchEntry) => void
   liveByCourt?: Map<string, CourtLive>
   tournamentId?: string
+  tournamentName?: string
 }
 
 // Extracts the completed sets and the in-progress set from a live record.
@@ -95,7 +98,7 @@ function playerMatchesQuery(
   })
 }
 
-export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, highlightMatches = true, showJumpToNext = true, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId }: Props) {
+export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, highlightMatches = true, showJumpToNext = true, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId, tournamentName }: Props) {
   const { t, longRound } = useLanguage()
   const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
     useFirstUnplayed(groups, playerQuery, playerClubMap)
@@ -109,14 +112,75 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
   const [lockedKey, setLockedKey] = useState<string | null>(null)
 
-  const matchKey = (m: MatchEntry): string => {
+  const matchKeyFor = (m: MatchEntry): string => {
     const a = m.team1[0]?.playerId ?? ''
     const b = m.team2[0]?.playerId ?? ''
     return `${m.drawNum}|${m.round}|${a}|${b}`
   }
 
+  const matchByKey = useMemo(() => {
+    const map = new Map<string, MatchEntry>()
+    for (const g of groups) for (const m of g.matches) map.set(matchKeyFor(m), m)
+    return map
+  }, [groups])
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const preparedFileRef = useRef<File | null>(null)
+  const preparedFilenameRef = useRef<string>('')
+  const preparedEventNameRef = useRef<string>('')
+  const prepareInflightRef = useRef<Promise<void> | null>(null)
+
+  useLongPressShare(containerRef, {
+    matchSelector: '.ms-match',
+    holdMs: 1000,
+    onPressStart: (el) => {
+      preparedFileRef.current = null
+      prepareInflightRef.current = null
+      if (!tournamentName) return
+      const key = el.dataset.matchKey
+      if (!key) return
+      const m = matchByKey.get(key)
+      if (!m) return
+      const filename = buildFilename(tournamentName, m.draw)
+      preparedFilenameRef.current = filename
+      preparedEventNameRef.current = m.draw
+      prepareInflightRef.current = captureMatchImageFile({
+        matchEl: el,
+        tournamentName,
+        filename,
+      })
+        .then((file) => { preparedFileRef.current = file })
+        .catch((err) => { console.warn('captureMatchImageFile failed', err) })
+    },
+    onFire: (el) => {
+      const key = el.dataset.matchKey
+      if (!key || !tournamentName) return
+      const m = matchByKey.get(key)
+      if (!m) return
+      track('match_shared_as_image', {
+        tournament_id: tournamentId,
+        match_id: key,
+        round_name: m.round,
+        draw_id: m.drawNum,
+      })
+      const file = preparedFileRef.current
+      const filename = preparedFilenameRef.current
+      const eventName = preparedEventNameRef.current
+      if (file) {
+        // Synchronous: preserve iOS Safari transient activation for navigator.share().
+        shareOrDownloadFile({ file, filename, tournamentName, eventName })
+      } else if (prepareInflightRef.current) {
+        // Capture still running — activation will be lost, so this falls back to download on iOS.
+        prepareInflightRef.current.then(() => {
+          const f = preparedFileRef.current
+          if (f) shareOrDownloadFile({ file: f, filename, tournamentName, eventName })
+        })
+      }
+    },
+  })
+
   const recordMatchView = (m: MatchEntry): void => {
-    const id = matchKey(m)
+    const id = matchKeyFor(m)
     if (seenMatchIds.current.has(id)) return
     seenMatchIds.current.add(id)
     track('match_viewed', {
@@ -177,6 +241,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       key={matchKey}
       ref={isTarget ? registerTargetRef : undefined}
       className={matchCls}
+      data-match-key={matchKeyFor(m)}
       onMouseEnter={() => setHoveredKey(matchKey)}
       onMouseLeave={() => setHoveredKey(null)}
       onClick={() => setLockedKey((prev: string | null) => prev === matchKey ? null : matchKey)}
@@ -271,7 +336,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   }
 
   return (
-    <div className="match-schedule">
+    <div className="match-schedule" ref={containerRef}>
       {days.length > 0 && (
         <div className="match-schedule__day-tabs">
           {days.map((d) => (

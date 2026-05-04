@@ -893,6 +893,7 @@ export default function Home() {
           onH2HClick={handleH2HClick}
           liveByCourt={liveByCourt}
           tournamentId={selectedTournament}
+          tournamentName={tournamentName}
         />
       )}
 
@@ -916,6 +917,7 @@ export default function Home() {
             onH2HClick={handleH2HClick}
             liveByCourt={liveByCourt}
             tournamentId={selectedTournament}
+            tournamentName={tournamentName}
           />
         )
       })()}
@@ -937,6 +939,7 @@ export default function Home() {
           onH2HClick={handleH2HClick}
           liveByCourt={liveByCourt}
           tournamentId={selectedTournament}
+          tournamentName={tournamentName}
         />
       )}
 
