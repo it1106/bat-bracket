@@ -294,7 +294,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     searchHelp: 'ชื่อนักกีฬา ทีม หรือประเภทแข่งขัน สามารถใช้ & (and) หรือ | (or) ในการค้นหาเช่น kba & BS U15 จะแสดงผลทีมเกษมศักดิ์ฯ ในรายการ U15 เท่านั้น',
     customTab: 'กำหนดเอง',
     customTabCreate: 'สร้างแท็บกำหนดเอง',
-    customTabEdit: 'แก้ไขแท็บกำหนดเอง',
+    customTabEdit: 'แก้ไขการค้นหา',
     customTabName: 'ชื่อหัวข้อ',
     customTabKeyword: 'คำค้นหา',
     customTabAddTooltip: 'เพิ่มแท็บกำหนดเอง',
