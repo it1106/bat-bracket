@@ -9,7 +9,7 @@ import { computePlayingOrder } from '@/lib/playingOrder'
 import { expandSearchQuery, parseSearchQuery } from '@/lib/searchAliases'
 import { track } from '@/lib/analytics'
 import { buildNextOppMap } from '@/lib/nextOpp'
-import { useLongPressShare } from '@/lib/useLongPressShare'
+import { useLongPress } from '@/lib/useLongPress'
 import { buildFilename, captureMatchImageFile, shareOrDownloadFile } from '@/lib/shareMatchAsImage'
 import JumpToNextButton from '@/components/JumpToNextButton'
 
@@ -130,9 +130,11 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   const preparedEventNameRef = useRef<string>('')
   const prepareInflightRef = useRef<Promise<void> | null>(null)
 
-  useLongPressShare(containerRef, {
-    matchSelector: '.ms-match',
+  useLongPress(containerRef, {
+    targetSelector: '.ms-match',
     holdMs: 1000,
+    pressClass: 'ms-match--pressing',
+    readyClass: 'ms-match--ready',
     onPressStart: (el) => {
       preparedFileRef.current = null
       prepareInflightRef.current = null

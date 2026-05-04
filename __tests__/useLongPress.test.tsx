@@ -3,7 +3,7 @@
  */
 import { act, render } from '@testing-library/react'
 import { useRef } from 'react'
-import { useLongPressShare } from '@/lib/useLongPressShare'
+import { useLongPress } from '@/lib/useLongPress'
 
 function makeTouch(target: Element, clientY = 100): Touch {
   return { identifier: 0, target, clientX: 0, clientY, pageX: 0, pageY: 0, screenX: 0, screenY: 0, radiusX: 0, radiusY: 0, rotationAngle: 0, force: 0 } as Touch
@@ -19,7 +19,7 @@ function fireTouch(target: Element, type: 'touchstart' | 'touchmove' | 'touchend
 
 function Harness({ onFire }: { onFire: (el: HTMLElement) => void }) {
   const ref = useRef<HTMLDivElement>(null)
-  useLongPressShare(ref, { matchSelector: '.row', onFire, holdMs: 500 })
+  useLongPress(ref, { targetSelector: '.row', onFire, holdMs: 500, pressClass: 'ms-match--pressing', readyClass: 'ms-match--ready' })
   return (
     <div ref={ref} data-testid="container">
       <div className="row" data-testid="row1" />
@@ -29,7 +29,7 @@ function Harness({ onFire }: { onFire: (el: HTMLElement) => void }) {
   )
 }
 
-describe('useLongPressShare', () => {
+describe('useLongPress', () => {
   beforeEach(() => { jest.useFakeTimers() })
   afterEach(() => { jest.useRealTimers() })
 
@@ -123,7 +123,7 @@ describe('useLongPressShare', () => {
     const onRowClick = jest.fn()
     function H() {
       const ref = useRef<HTMLDivElement>(null)
-      useLongPressShare(ref, { matchSelector: '.row', onFire })
+      useLongPress(ref, { targetSelector: '.row', onFire, pressClass: 'ms-match--pressing', readyClass: 'ms-match--ready' })
       return (
         <div ref={ref}>
           <div className="row" data-testid="row1" onClick={onRowClick} />
