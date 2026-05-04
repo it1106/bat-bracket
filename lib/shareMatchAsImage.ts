@@ -15,30 +15,18 @@ function buildSlug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-')
 }
 
-function formatDate(date: Date): string {
-  return date.toLocaleString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
-}
-
-function buildHeader(tournamentName: string, eventName: string): HTMLElement {
+function buildHeader(tournamentName: string): HTMLElement {
   const header = document.createElement('div')
   header.style.cssText = `
-    padding: 14px 14px 10px 14px;
+    padding: 12px 14px;
     border-bottom: 2px solid #dee2e6;
     font-family: 'Segoe UI', system-ui, sans-serif;
     background: white;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
   `
-  header.innerHTML = `
-    <div style="font-size:16px;font-weight:700;margin-bottom:2px;">
-      <span style="color:#25316B;">BAT</span> <span style="color:#BE1D2E;">Unofficial</span> Scores
-    </div>
-    <div style="font-size:10px;color:#888;margin-bottom:6px;">Check BAT official website for accuracy</div>
-    <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:2px;">${tournamentName}</div>
-    <div style="font-size:12px;color:#555;margin-bottom:4px;">${eventName}</div>
-    <div style="font-size:10px;color:#999;">Exported: ${formatDate(new Date())}</div>
-  `
+  header.textContent = tournamentName
   return header
 }
 
@@ -46,6 +34,7 @@ function cleanClone(matchEl: HTMLElement): HTMLElement {
   const clone = matchEl.cloneNode(true) as HTMLElement
   for (const cls of HIGHLIGHT_CLASSES) clone.classList.remove(cls)
   clone.querySelectorAll('.ms-player-highlight').forEach((el) => el.classList.remove('ms-player-highlight'))
+  clone.querySelectorAll('.ms-h2h-inline').forEach((el) => el.remove())
   return clone
 }
 
@@ -68,6 +57,7 @@ function downloadDataUrl(dataUrl: string, filename: string): void {
 
 export async function shareMatchAsImage(opts: ShareMatchOptions): Promise<void> {
   const { matchEl, tournamentName, eventName } = opts
+  void eventName // kept in API for filename + share sheet text
 
   const root = document.documentElement
   const hadDark = root.classList.contains('dark')
@@ -75,20 +65,33 @@ export async function shareMatchAsImage(opts: ShareMatchOptions): Promise<void> 
 
   const wrapper = document.createElement('div')
   wrapper.style.cssText = `
-    position: fixed; left: -9999px; top: 0; width: 380px;
+    position: fixed; left: 0; top: 0; width: 380px;
     background: #ffffff; font-family: 'Segoe UI', system-ui, sans-serif;
+    z-index: 2147483647; pointer-events: none;
   `
-  wrapper.appendChild(buildHeader(tournamentName, eventName))
+  wrapper.appendChild(buildHeader(tournamentName))
   wrapper.appendChild(cleanClone(matchEl))
   document.body.appendChild(wrapper)
 
+  if (document.fonts?.ready) {
+    try { await document.fonts.ready } catch { /* ignore */ }
+  }
   await new Promise<void>((resolve) =>
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   )
 
+  const fullWidth = wrapper.scrollWidth
+  const fullHeight = wrapper.scrollHeight
+
   let dataUrl: string | null = null
   try {
-    dataUrl = await toJpeg(wrapper, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff' })
+    dataUrl = await toJpeg(wrapper, {
+      quality: 0.95,
+      pixelRatio: 2,
+      backgroundColor: '#ffffff',
+      width: fullWidth,
+      height: fullHeight,
+    })
   } catch (err) {
     console.warn('shareMatchAsImage: capture failed', err)
   } finally {
@@ -100,9 +103,12 @@ export async function shareMatchAsImage(opts: ShareMatchOptions): Promise<void> 
 
   const filename = buildFilename(tournamentName, eventName)
   const file = await dataUrlToFile(dataUrl, filename)
-  const canShare = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })
+  const hasShare = typeof navigator.share === 'function'
+  const canShareFiles = typeof navigator.canShare === 'function'
+    ? navigator.canShare({ files: [file] })
+    : hasShare
 
-  if (canShare) {
+  if (hasShare && canShareFiles) {
     try {
       await navigator.share({ files: [file], title: tournamentName, text: `${tournamentName} — ${eventName}` })
       return

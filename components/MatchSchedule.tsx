@@ -128,6 +128,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
 
   useLongPressShare(containerRef, {
     matchSelector: '.ms-match',
+    holdMs: 2000,
     onFire: (el) => {
       const key = el.dataset.matchKey
       if (!key || !tournamentName) return
