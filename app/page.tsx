@@ -9,6 +9,7 @@ import H2HModal from '@/components/H2HModal'
 import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
 import { useLongPress } from '@/lib/useLongPress'
+import { usePointerReorder } from '@/lib/usePointerReorder'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import {
   ANN_CUSTOM_TABS_MULTI,
@@ -560,6 +561,22 @@ export default function Home() {
     },
   })
 
+  usePointerReorder(customTabStripRef, {
+    enabled: customTabsEditMode,
+    targetSelector: '.custom-tab-button',
+    getId: (el) => el.dataset.customTabId ?? null,
+    onReorder: (fromId, toId) => {
+      if (fromId === toId) return
+      const filtered = customTabs.filter((tab) => tab.id !== fromId)
+      const insertAt = filtered.findIndex((tab) => tab.id === toId)
+      const dragged = customTabs.find((tab) => tab.id === fromId)
+      if (!dragged || insertAt < 0) return
+      const next = [...filtered.slice(0, insertAt), dragged, ...filtered.slice(insertAt)]
+      reorderCustomTabs(next.map((tab) => tab.id))
+      setCustomTabs(loadCustomTabs())
+    },
+  })
+
   return (
     <>
       {/* Top bar */}
@@ -789,16 +806,6 @@ export default function Home() {
                 setActiveCustomTabId(tab.id)
               }}
               onEdit={() => openCustomTabEdit(tab.id)}
-              onDropTab={(draggedId) => {
-                if (draggedId === tab.id) return
-                const filtered = customTabs.filter((t) => t.id !== draggedId)
-                const insertAt = filtered.findIndex((t) => t.id === tab.id)
-                const dragged = customTabs.find((t) => t.id === draggedId)
-                if (!dragged || insertAt < 0) return
-                const next = [...filtered.slice(0, insertAt), dragged, ...filtered.slice(insertAt)]
-                reorderCustomTabs(next.map((t) => t.id))
-                setCustomTabs(loadCustomTabs())
-              }}
             />
           ))}
           {customTabs.length < MAX_CUSTOM_TABS && (
