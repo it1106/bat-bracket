@@ -52,4 +52,54 @@ describe('useLongPressShare', () => {
     act(() => { jest.advanceTimersByTime(500) })
     expect(onFire).not.toHaveBeenCalled()
   })
+
+  it('does not fire when touch ends before holdMs', () => {
+    const onFire = jest.fn()
+    const { getByTestId } = render(<Harness onFire={onFire} />)
+    const row1 = getByTestId('row1')
+    act(() => { fireTouch(row1, 'touchstart') })
+    act(() => { jest.advanceTimersByTime(300) })
+    act(() => { fireTouch(row1, 'touchend') })
+    act(() => { jest.advanceTimersByTime(500) })
+    expect(onFire).not.toHaveBeenCalled()
+  })
+
+  it('does not fire when touch moves more than slop', () => {
+    const onFire = jest.fn()
+    const { getByTestId } = render(<Harness onFire={onFire} />)
+    const row1 = getByTestId('row1')
+    act(() => { fireTouch(row1, 'touchstart', 100) })
+    act(() => { fireTouch(row1, 'touchmove', 130) })
+    act(() => { jest.advanceTimersByTime(500) })
+    expect(onFire).not.toHaveBeenCalled()
+  })
+
+  it('does not fire on touchcancel', () => {
+    const onFire = jest.fn()
+    const { getByTestId } = render(<Harness onFire={onFire} />)
+    const row1 = getByTestId('row1')
+    act(() => { fireTouch(row1, 'touchstart') })
+    act(() => { fireTouch(row1, 'touchcancel') })
+    act(() => { jest.advanceTimersByTime(500) })
+    expect(onFire).not.toHaveBeenCalled()
+  })
+
+  it('toggles pressClass on the matched element during the hold', () => {
+    const { getByTestId } = render(<Harness onFire={() => {}} />)
+    const row1 = getByTestId('row1')
+    act(() => { fireTouch(row1, 'touchstart') })
+    expect(row1.classList.contains('ms-match--pressing')).toBe(true)
+    act(() => { fireTouch(row1, 'touchend') })
+    expect(row1.classList.contains('ms-match--pressing')).toBe(false)
+  })
+
+  it('cleans up timer and listeners on unmount', () => {
+    const onFire = jest.fn()
+    const { getByTestId, unmount } = render(<Harness onFire={onFire} />)
+    const row1 = getByTestId('row1')
+    act(() => { fireTouch(row1, 'touchstart') })
+    unmount()
+    act(() => { jest.advanceTimersByTime(500) })
+    expect(onFire).not.toHaveBeenCalled()
+  })
 })
