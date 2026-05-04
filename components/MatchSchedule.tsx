@@ -19,6 +19,7 @@ interface Props {
   loading: boolean
   playerQuery: string
   excludeCompleted?: boolean
+  highlightMatches?: boolean
   showJumpToNext?: boolean
   onEventClick?: (drawNum: string, round: string) => void
   playerClubMap?: Record<string, string>
@@ -94,7 +95,7 @@ function playerMatchesQuery(
   })
 }
 
-export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, showJumpToNext = true, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId }: Props) {
+export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, highlightMatches = true, showJumpToNext = true, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId }: Props) {
   const { t, longRound } = useLanguage()
   const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
     useFirstUnplayed(groups, playerQuery, playerClubMap)
@@ -139,7 +140,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   const nameCls = (p: { name: string; playerId: string }) => {
     const cls: string[] = []
     if (onPlayerClick && p.playerId) cls.push('pm-player-link')
-    if (queries.length > 0 && playerMatchesQuery(p, queries, playerClubMap)) cls.push('ms-player-highlight')
+    if (highlightMatches && queries.length > 0 && playerMatchesQuery(p, queries, playerClubMap)) cls.push('ms-player-highlight')
     return cls.join(' ')
   }
 
