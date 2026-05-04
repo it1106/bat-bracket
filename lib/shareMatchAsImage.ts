@@ -10,8 +10,6 @@ interface CaptureMatchImageOptions {
 
 interface ShareFileOptions {
   file: File
-  tournamentName: string
-  eventName: string
 }
 
 const HIGHLIGHT_CLASSES = ['ms-match--active', 'ms-match--next-opp', 'ms-match--tracked', 'ms-match--pressing']
@@ -100,15 +98,17 @@ export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Pro
 // Synchronous entry: must be called inside a user-gesture handler chain
 // (touchend / click) with no awaits between the gesture and this call.
 // iOS Safari otherwise drops transient activation and rejects share().
+// Files-only payload: title/text get prefilled as a message in iOS LINE,
+// which we don't want — image-only matches Android behavior.
 export function shareFile(opts: ShareFileOptions): void {
-  const { file, tournamentName, eventName } = opts
+  const { file } = opts
   const hasShare = typeof navigator.share === 'function'
   const canShareFiles = typeof navigator.canShare === 'function'
     ? navigator.canShare({ files: [file] })
     : hasShare
   if (!hasShare || !canShareFiles) return
   navigator
-    .share({ files: [file], title: tournamentName, text: `${tournamentName} — ${eventName}` })
+    .share({ files: [file] })
     .catch(() => { /* swallow — no fallback */ })
 }
 
@@ -121,5 +121,5 @@ export async function shareMatchAsImage(opts: { matchEl: HTMLElement; tournament
     console.warn('shareMatchAsImage: capture failed', err)
     return
   }
-  shareFile({ file, tournamentName: opts.tournamentName, eventName: opts.eventName })
+  shareFile({ file })
 }

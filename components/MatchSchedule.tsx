@@ -126,7 +126,6 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
 
   const containerRef = useRef<HTMLDivElement>(null)
   const preparedFileRef = useRef<File | null>(null)
-  const preparedEventNameRef = useRef<string>('')
 
   useLongPress(containerRef, {
     targetSelector: '.ms-match',
@@ -141,7 +140,6 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       const m = matchByKey.get(key)
       if (!m) return
       const filename = buildFilename(tournamentName, m.draw)
-      preparedEventNameRef.current = m.draw
       captureMatchImageFile({ matchEl: el, tournamentName, filename })
         .then((file) => { preparedFileRef.current = file })
         .catch((err) => { console.warn('captureMatchImageFile failed', err) })
@@ -160,7 +158,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       const file = preparedFileRef.current
       if (!file) return
       // Synchronous: preserve iOS Safari transient activation for navigator.share().
-      shareFile({ file, tournamentName, eventName: preparedEventNameRef.current })
+      shareFile({ file })
     },
   })
 
