@@ -89,4 +89,50 @@ describe('shareMatchAsImage', () => {
     await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' })
     expect(document.body.children.length).toBe(before)
   })
+
+  it('calls navigator.share when canShare returns true', async () => {
+    const share = jest.fn(async () => {})
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true })
+    const row = makeRow()
+    document.body.appendChild(row)
+    await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' })
+    expect(share).toHaveBeenCalledTimes(1)
+    const arg = share.mock.calls[0][0] as { files: File[] }
+    expect(arg.files[0]).toBeInstanceOf(File)
+    expect(arg.files[0].type).toBe('image/jpeg')
+  })
+
+  it('falls back to download when canShare returns false', async () => {
+    Object.defineProperty(navigator, 'canShare', { value: () => false, configurable: true })
+    const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const row = makeRow()
+    document.body.appendChild(row)
+    await shareMatchAsImage({ matchEl: row, tournamentName: 'BAT Open', eventName: 'WS U19' })
+    expect(click).toHaveBeenCalled()
+    click.mockRestore()
+  })
+
+  it('swallows AbortError from navigator.share', async () => {
+    const abort = new Error('cancelled') as Error & { name: string }
+    abort.name = 'AbortError'
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
+    Object.defineProperty(navigator, 'share', { value: jest.fn(async () => { throw abort }), configurable: true })
+    const row = makeRow()
+    document.body.appendChild(row)
+    await expect(
+      shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('falls back to download when navigator.share rejects with non-Abort', async () => {
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
+    Object.defineProperty(navigator, 'share', { value: jest.fn(async () => { throw new Error('nope') }), configurable: true })
+    const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const row = makeRow()
+    document.body.appendChild(row)
+    await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' })
+    expect(click).toHaveBeenCalled()
+    click.mockRestore()
+  })
 })

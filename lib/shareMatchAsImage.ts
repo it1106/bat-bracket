@@ -9,6 +9,11 @@ interface ShareMatchOptions {
 }
 
 const HIGHLIGHT_CLASSES = ['ms-match--active', 'ms-match--next-opp', 'ms-match--tracked', 'ms-match--pressing']
+const FILENAME_MAX = 80
+
+function buildSlug(text: string): string {
+  return text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-')
+}
 
 function formatDate(date: Date): string {
   return date.toLocaleString('en-GB', {
@@ -44,6 +49,23 @@ function cleanClone(matchEl: HTMLElement): HTMLElement {
   return clone
 }
 
+function buildFilename(tournamentName: string, eventName: string): string {
+  const base = `${buildSlug(tournamentName)}-${buildSlug(eventName)}-${Date.now()}.jpg`
+  return base.length > FILENAME_MAX ? base.slice(0, FILENAME_MAX - 4) + '.jpg' : base
+}
+
+async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
+  const blob = await (await fetch(dataUrl)).blob()
+  return new File([blob], filename, { type: 'image/jpeg' })
+}
+
+function downloadDataUrl(dataUrl: string, filename: string): void {
+  const link = document.createElement('a')
+  link.download = filename
+  link.href = dataUrl
+  link.click()
+}
+
 export async function shareMatchAsImage(opts: ShareMatchOptions): Promise<void> {
   const { matchEl, tournamentName, eventName } = opts
 
@@ -64,12 +86,30 @@ export async function shareMatchAsImage(opts: ShareMatchOptions): Promise<void> 
     requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
   )
 
+  let dataUrl: string | null = null
   try {
-    await toJpeg(wrapper, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff' })
+    dataUrl = await toJpeg(wrapper, { quality: 0.95, pixelRatio: 2, backgroundColor: '#ffffff' })
   } catch (err) {
     console.warn('shareMatchAsImage: capture failed', err)
   } finally {
     document.body.removeChild(wrapper)
     if (hadDark) root.classList.add('dark')
   }
+
+  if (!dataUrl) return
+
+  const filename = buildFilename(tournamentName, eventName)
+  const file = await dataUrlToFile(dataUrl, filename)
+  const canShare = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })
+
+  if (canShare) {
+    try {
+      await navigator.share({ files: [file], title: tournamentName, text: `${tournamentName} — ${eventName}` })
+      return
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+    }
+  }
+
+  downloadDataUrl(dataUrl, filename)
 }
