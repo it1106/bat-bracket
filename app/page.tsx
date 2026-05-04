@@ -8,6 +8,11 @@ import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
 import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
+import AnnouncementBanner from '@/components/AnnouncementBanner'
+import {
+  ANN_CUSTOM_TABS_MULTI,
+  ANN_CUSTOM_TABS_MULTI_TEXT_TH,
+} from '@/lib/announcements'
 import ScrollToTopButton from '@/components/ScrollToTopButton'
 import {
   loadCustomTabs,
@@ -709,6 +714,12 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <AnnouncementBanner
+        id={ANN_CUSTOM_TABS_MULTI}
+        text={ANN_CUSTOM_TABS_MULTI_TEXT_TH}
+        visible={!!selectedTournament}
+      />
 
       {/* View mode tabs */}
       {selectedTournament && (

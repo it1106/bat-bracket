@@ -140,6 +140,33 @@ html, body {
   animation: bk-round-hint-pulse 1.4s ease-in-out 3;
 }
 
+.announcement-marquee {
+  display: flex;
+  overflow: hidden;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.announcement-marquee__track {
+  display: inline-flex;
+  gap: 4rem;
+  padding-left: 100%;
+  animation: announcement-marquee 35s linear infinite;
+}
+.announcement-marquee:hover .announcement-marquee__track {
+  animation-play-state: paused;
+}
+@keyframes announcement-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .announcement-marquee__track {
+    animation: none;
+    padding-left: 0;
+  }
+}
+
 .bk-match-slot {
   position: absolute;
   left: 8px;
