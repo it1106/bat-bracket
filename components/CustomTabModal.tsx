@@ -104,7 +104,6 @@ export default function CustomTabModal({ open, mode, initial, onClose, onSave, o
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="kba & BS U15"
             className="w-full border border-[var(--border)] rounded-md px-2.5 py-1.5 text-sm bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:border-[var(--brand)]"
           />
         </div>
