@@ -6,7 +6,9 @@ import MatchSchedule from '@/components/MatchSchedule'
 import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
+import CustomTabModal from '@/components/CustomTabModal'
 import ScrollToTopButton from '@/components/ScrollToTopButton'
+import { loadCustomTab, saveCustomTab, clearCustomTab, type CustomTab } from '@/lib/customTab'
 import { useLanguage } from '@/lib/LanguageContext'
 import { longRoundL } from '@/lib/i18n'
 import { useTheme } from '@/lib/ThemeContext'
@@ -73,7 +75,7 @@ function prefetchFutureDayHasMatches(
   }
 }
 
-type ViewMode = 'bracket' | 'matches' | 'live'
+type ViewMode = 'bracket' | 'matches' | 'live' | 'custom'
 
 export default function Home() {
   const { lang, toggleLang, t } = useLanguage()
@@ -96,6 +98,9 @@ export default function Home() {
   const [fromRound, setFromRound] = useState(0)
   const [fromRoundName, setFromRoundName] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('matches')
+  const [customTab, setCustomTab] = useState<CustomTab | null>(null)
+  const [customModalOpen, setCustomModalOpen] = useState(false)
+  const [customModalMode, setCustomModalMode] = useState<'create' | 'edit'>('create')
   const [matchDays, setMatchDays] = useState<MatchDay[]>([])
   const [selectedDay, setSelectedDay] = useState('')
   const [matchGroups, setMatchGroups] = useState<MatchScheduleGroup[]>([])
@@ -214,7 +219,13 @@ export default function Home() {
       // excludeCompleted intentionally does not persist; clear any legacy value
       localStorage.removeItem('batbracket.excludeCompleted')
     } catch {}
+    setCustomTab(loadCustomTab())
   }, [])
+
+  useEffect(() => {
+    if (viewMode !== 'custom') return
+    track('custom_tab_viewed', { tournament_id: selectedTournament })
+  }, [viewMode, selectedTournament])
 
   useEffect(() => {
     document.body.classList.toggle('no-highlight', !highlightResults)
@@ -570,6 +581,7 @@ export default function Home() {
           )}
 
           {/* Player search */}
+          {viewMode !== 'custom' && (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5">
               <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
@@ -634,6 +646,7 @@ export default function Home() {
               </label>
             </div>
           </div>
+          )}
 
           {/* Right-side controls: export (bracket only) + language toggle */}
           <div className="ml-auto flex items-center gap-2">
@@ -713,6 +726,48 @@ export default function Home() {
               {t('liveMatches')}
               <span className="opacity-70">({liveMatchCount})</span>
             </button>
+          )}
+          {customTab ? (
+            <button
+              onClick={() => setViewMode('custom')}
+              className={`group inline-flex items-center gap-1 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+                viewMode === 'custom'
+                  ? 'border-[var(--brand)] text-[var(--brand-fg)]'
+                  : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
+              }`}
+            >
+              <span className="truncate max-w-[160px]">{customTab.nickname}</span>
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label={t('customTabEdit')}
+                title={t('customTabEdit')}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setCustomModalMode('edit')
+                  setCustomModalOpen(true)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.stopPropagation()
+                    e.preventDefault()
+                    setCustomModalMode('edit')
+                    setCustomModalOpen(true)
+                  }
+                }}
+                className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--border)] text-[11px] leading-none cursor-pointer"
+              >✎</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                setCustomModalMode('create')
+                setCustomModalOpen(true)
+              }}
+              aria-label={t('customTabAddTooltip')}
+              title={t('customTabAddTooltip')}
+              className="px-3 py-2.5 text-xs font-semibold border-b-2 border-transparent text-[var(--muted)] hover:text-[var(--fg)] transition-colors"
+            >+</button>
           )}
         </div>
       )}
@@ -813,6 +868,26 @@ export default function Home() {
         />
       )}
 
+      {/* Custom view */}
+      {viewMode === 'custom' && customTab && (
+        <MatchSchedule
+          groups={matchGroups}
+          days={matchDays}
+          selectedDay={selectedDay}
+          onDayChange={handleDayChange}
+          loading={loadingMatches}
+          playerQuery={customTab.keyword}
+          excludeCompleted={false}
+          highlightMatches={false}
+          onEventClick={handleOpenBracketAtRound}
+          playerClubMap={playerClubMap}
+          onPlayerClick={handlePlayerClick}
+          onH2HClick={handleH2HClick}
+          liveByCourt={liveByCourt}
+          tournamentId={selectedTournament}
+        />
+      )}
+
       {/* Live matches view */}
       {viewMode === 'live' && (
         <MatchSchedule
@@ -852,6 +927,40 @@ export default function Home() {
           onClose={handleH2HClose}
         />
       )}
+
+      <CustomTabModal
+        open={customModalOpen}
+        mode={customModalMode}
+        initial={customModalMode === 'edit' ? customTab : null}
+        onClose={() => setCustomModalOpen(false)}
+        onSave={(tab) => {
+          const isCreate = customTab === null
+          saveCustomTab(tab)
+          setCustomTab(tab)
+          setCustomModalOpen(false)
+          if (isCreate) {
+            setViewMode('custom')
+            track('custom_tab_created', {
+              keyword_len: tab.keyword.length,
+              has_and: tab.keyword.includes('&'),
+              has_or: tab.keyword.includes('|'),
+            })
+          } else {
+            track('custom_tab_edited', {
+              keyword_len: tab.keyword.length,
+              has_and: tab.keyword.includes('&'),
+              has_or: tab.keyword.includes('|'),
+            })
+          }
+        }}
+        onDelete={() => {
+          clearCustomTab()
+          setCustomTab(null)
+          setCustomModalOpen(false)
+          if (viewMode === 'custom') setViewMode('matches')
+          track('custom_tab_deleted', {})
+        }}
+      />
 
       <ScrollToTopButton />
     </>
