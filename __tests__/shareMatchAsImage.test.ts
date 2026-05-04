@@ -5,6 +5,7 @@ import { shareMatchAsImage } from '@/lib/shareMatchAsImage'
 
 jest.mock('html-to-image', () => ({
   toJpeg: jest.fn(async () => 'data:image/jpeg;base64,AAAA'),
+  getFontEmbedCSS: jest.fn(async () => ''),
 }))
 
 import { toJpeg } from 'html-to-image'

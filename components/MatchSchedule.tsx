@@ -10,7 +10,7 @@ import { expandSearchQuery, parseSearchQuery } from '@/lib/searchAliases'
 import { track } from '@/lib/analytics'
 import { buildNextOppMap } from '@/lib/nextOpp'
 import { useLongPress } from '@/lib/useLongPress'
-import { buildFilename, captureMatchImageFile, shareFile } from '@/lib/shareMatchAsImage'
+import { buildFilename, captureMatchImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
 import JumpToNextButton from '@/components/JumpToNextButton'
 
 interface Props {
@@ -126,26 +126,14 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
 
   const containerRef = useRef<HTMLDivElement>(null)
   const preparedFileRef = useRef<File | null>(null)
-  const prewarmedShareRef = useRef(false)
 
-  // Pre-warm the off-screen capture pipeline once per session. html-to-image
-  // fetches and embeds page fonts on first run (~1.5s), which is too slow to
-  // beat the 1s long-press hold; without this, the first share on a cold
-  // page silently fails because the file isn't ready when onFire runs.
+  // Resolve the page's font embed CSS once on mount. This is the slow part
+  // of html-to-image (~1s on iOS Safari first time), so doing it ahead of
+  // time means the first long-press capture finishes inside the 1s hold
+  // window — without this, the first share on a cold page silently fails.
   useEffect(() => {
-    if (prewarmedShareRef.current) return
-    if (!tournamentName) return
-    const container = containerRef.current
-    if (!container) return
-    const firstMatch = container.querySelector<HTMLElement>('.ms-match')
-    if (!firstMatch) return
-    const handle = window.setTimeout(() => {
-      prewarmedShareRef.current = true
-      captureMatchImageFile({ matchEl: firstMatch, tournamentName, filename: 'prewarm.jpg' })
-        .catch(() => { /* discard */ })
-    }, 500)
-    return () => window.clearTimeout(handle)
-  }, [groups, tournamentName])
+    prewarmFontEmbedCSS()
+  }, [])
 
   useLongPress(containerRef, {
     targetSelector: '.ms-match',

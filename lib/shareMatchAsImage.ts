@@ -1,6 +1,23 @@
 'use client'
 
-import { toJpeg } from 'html-to-image'
+import { toJpeg, getFontEmbedCSS } from 'html-to-image'
+
+// html-to-image fetches and base64-encodes every page font on each toJpeg
+// call (~1s on iOS Safari first time, cached after). We resolve it once
+// per session and pass the result via the `fontEmbedCSS` option so each
+// capture skips the fetch — critical for fitting capture inside the 1s
+// long-press hold window on a cold page load.
+let fontEmbedCSSPromise: Promise<string> | null = null
+
+export function prewarmFontEmbedCSS(): Promise<string> {
+  if (fontEmbedCSSPromise) return fontEmbedCSSPromise
+  fontEmbedCSSPromise = getFontEmbedCSS(document.body).catch((err) => {
+    console.warn('prewarmFontEmbedCSS failed', err)
+    fontEmbedCSSPromise = null
+    return ''
+  })
+  return fontEmbedCSSPromise
+}
 
 interface CaptureMatchImageOptions {
   matchEl: HTMLElement
@@ -80,6 +97,7 @@ export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Pro
 
   const fullWidth = wrapper.scrollWidth
   const fullHeight = wrapper.scrollHeight
+  const fontEmbedCSS = await prewarmFontEmbedCSS()
 
   try {
     const dataUrl = await toJpeg(wrapper, {
@@ -88,6 +106,7 @@ export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Pro
       backgroundColor: '#ffffff',
       width: fullWidth,
       height: fullHeight,
+      fontEmbedCSS,
     })
     return await dataUrlToFile(dataUrl, filename)
   } finally {
