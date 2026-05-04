@@ -4,7 +4,8 @@ const ALIASES: Record<string, string> = {
   kba: 'เกษมศักดิ์ Badminton Academy',
   bty: 'บ้านทองหยอด',
   ren: 'รวิณ',
-  aston: 'นริศ'
+  aston: 'นริศ',
+  trilert: 'ตรีเลิศ'
 }
 
 function expandTerm(term: string): string[] {
