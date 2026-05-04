@@ -110,13 +110,13 @@ describe('shareMatchAsImage', () => {
     expect(arg.files[0].type).toBe('image/jpeg')
   })
 
-  it('falls back to download when canShare returns false', async () => {
+  it('does nothing when canShare returns false (no download fallback)', async () => {
     Object.defineProperty(navigator, 'canShare', { value: () => false, configurable: true })
     const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     const row = makeRow()
     document.body.appendChild(row)
     await shareMatchAsImage({ matchEl: row, tournamentName: 'BAT Open', eventName: 'WS U19' })
-    expect(click).toHaveBeenCalled()
+    expect(click).not.toHaveBeenCalled()
     click.mockRestore()
   })
 
@@ -132,14 +132,16 @@ describe('shareMatchAsImage', () => {
     ).resolves.toBeUndefined()
   })
 
-  it('falls back to download when navigator.share rejects with non-Abort', async () => {
+  it('swallows non-Abort rejection from navigator.share without downloading', async () => {
     Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
     Object.defineProperty(navigator, 'share', { value: jest.fn(async () => { throw new Error('nope') }), configurable: true })
     const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     const row = makeRow()
     document.body.appendChild(row)
-    await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' })
-    expect(click).toHaveBeenCalled()
+    await expect(
+      shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' }),
+    ).resolves.toBeUndefined()
+    expect(click).not.toHaveBeenCalled()
     click.mockRestore()
   })
 })

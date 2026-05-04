@@ -8,9 +8,8 @@ interface CaptureMatchImageOptions {
   filename: string
 }
 
-interface ShareOrDownloadOptions {
+interface ShareFileOptions {
   file: File
-  filename: string
   tournamentName: string
   eventName: string
 }
@@ -98,42 +97,21 @@ export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Pro
   }
 }
 
-function downloadFile(file: File, filename: string): void {
-  const url = URL.createObjectURL(file)
-  const link = document.createElement('a')
-  link.download = filename
-  link.href = url
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
-
 // Synchronous entry: must be called inside a user-gesture handler chain
 // (touchend / click) with no awaits between the gesture and this call.
 // iOS Safari otherwise drops transient activation and rejects share().
-export function shareOrDownloadFile(opts: ShareOrDownloadOptions): void {
-  const { file, filename, tournamentName, eventName } = opts
+export function shareFile(opts: ShareFileOptions): void {
+  const { file, tournamentName, eventName } = opts
   const hasShare = typeof navigator.share === 'function'
   const canShareFiles = typeof navigator.canShare === 'function'
     ? navigator.canShare({ files: [file] })
     : hasShare
-
-  if (hasShare && canShareFiles) {
-    navigator
-      .share({ files: [file], title: tournamentName, text: `${tournamentName} — ${eventName}` })
-      .catch((err: Error) => {
-        if (err?.name === 'AbortError') return
-        downloadFile(file, filename)
-      })
-    return
-  }
-
-  downloadFile(file, filename)
+  if (!hasShare || !canShareFiles) return
+  navigator
+    .share({ files: [file], title: tournamentName, text: `${tournamentName} — ${eventName}` })
+    .catch(() => { /* swallow — no fallback */ })
 }
 
-// Backward-compatible wrapper: capture then share/download in one call.
-// Note: this awaits the capture before share(), which on iOS Safari loses
-// transient activation and forces the download path. Use the
-// captureMatchImageFile + shareOrDownloadFile pair for the gesture-aware flow.
 export async function shareMatchAsImage(opts: { matchEl: HTMLElement; tournamentName: string; eventName: string }): Promise<void> {
   const filename = buildFilename(opts.tournamentName, opts.eventName)
   let file: File
@@ -143,5 +121,5 @@ export async function shareMatchAsImage(opts: { matchEl: HTMLElement; tournament
     console.warn('shareMatchAsImage: capture failed', err)
     return
   }
-  shareOrDownloadFile({ file, filename, tournamentName: opts.tournamentName, eventName: opts.eventName })
+  shareFile({ file, tournamentName: opts.tournamentName, eventName: opts.eventName })
 }
