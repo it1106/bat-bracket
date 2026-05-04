@@ -114,11 +114,15 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
 }
 
 /* Edit-mode hint: dashed inset border on each custom tab. Not animated —
-   pulsing/jiggling drains battery and gets old fast on a phone. */
+   pulsing/jiggling drains battery and gets old fast on a phone.
+   touch-action releases horizontal pan to JS so pointer events reach our
+   reorder hook on Android (Chrome/Edge default to pan-x | pan-y, which
+   lets the browser claim horizontal touches before pointermove fires). */
 .custom-tab-button--edit-mode {
   outline: 1px dashed var(--muted);
   outline-offset: -3px;
   border-radius: 4px;
+  touch-action: pan-y pinch-zoom;
 }
 
 @media (prefers-reduced-motion: reduce) {
