@@ -22,6 +22,7 @@ export function useLongPressShare(
     let timer: ReturnType<typeof setTimeout> | null = null
     let activeMatch: HTMLElement | null = null
     let startY = 0
+    let suppressClickFor: HTMLElement | null = null
 
     const cancel = () => {
       if (timer) { clearTimeout(timer); timer = null }
@@ -43,6 +44,8 @@ export function useLongPressShare(
         if (fired) {
           fired.classList.remove(pressClass)
           activeMatch = null
+          suppressClickFor = fired
+          navigator.vibrate?.(15)
           onFire(fired)
         }
       }, holdMs)
@@ -55,15 +58,36 @@ export function useLongPressShare(
       if (Math.abs(t.clientY - startY) > moveSlopPx) cancel()
     }
 
+    const onClickCapture = (e: MouseEvent) => {
+      if (!suppressClickFor) return
+      const target = e.target as Element | null
+      const match = target?.closest(matchSelector) as HTMLElement | null
+      if (match === suppressClickFor) {
+        e.stopPropagation()
+        e.preventDefault()
+        suppressClickFor = null
+      }
+    }
+
+    const onContextMenu = (e: Event) => {
+      const target = e.target as Element | null
+      const match = target?.closest(matchSelector) as HTMLElement | null
+      if (match && container.contains(match)) e.preventDefault()
+    }
+
     container.addEventListener('touchstart', onTouchStart, { passive: true })
     container.addEventListener('touchmove', onTouchMove, { passive: true })
     container.addEventListener('touchend', cancel)
     container.addEventListener('touchcancel', cancel)
+    container.addEventListener('click', onClickCapture, true)
+    container.addEventListener('contextmenu', onContextMenu)
     return () => {
       container.removeEventListener('touchstart', onTouchStart)
       container.removeEventListener('touchmove', onTouchMove)
       container.removeEventListener('touchend', cancel)
       container.removeEventListener('touchcancel', cancel)
+      container.removeEventListener('click', onClickCapture, true)
+      container.removeEventListener('contextmenu', onContextMenu)
       if (timer) clearTimeout(timer)
       if (activeMatch) activeMatch.classList.remove(pressClass)
     }

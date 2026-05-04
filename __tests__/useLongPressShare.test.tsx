@@ -102,4 +102,46 @@ describe('useLongPressShare', () => {
     act(() => { jest.advanceTimersByTime(500) })
     expect(onFire).not.toHaveBeenCalled()
   })
+
+  it('suppresses the next click after firing', () => {
+    const onFire = jest.fn()
+    const onRowClick = jest.fn()
+    function H() {
+      const ref = useRef<HTMLDivElement>(null)
+      useLongPressShare(ref, { matchSelector: '.row', onFire })
+      return (
+        <div ref={ref}>
+          <div className="row" data-testid="row1" onClick={onRowClick} />
+        </div>
+      )
+    }
+    const { getByTestId } = render(<H />)
+    const row1 = getByTestId('row1')
+    act(() => { fireTouch(row1, 'touchstart') })
+    act(() => { jest.advanceTimersByTime(500) })
+    expect(onFire).toHaveBeenCalledTimes(1)
+    act(() => { row1.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })) })
+    expect(onRowClick).not.toHaveBeenCalled()
+    act(() => { row1.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })) })
+    expect(onRowClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('prevents the contextmenu event on a matched element', () => {
+    const { getByTestId } = render(<Harness onFire={() => {}} />)
+    const row1 = getByTestId('row1')
+    const ev = new Event('contextmenu', { bubbles: true, cancelable: true })
+    Object.defineProperty(ev, 'target', { value: row1, configurable: true })
+    row1.dispatchEvent(ev)
+    expect(ev.defaultPrevented).toBe(true)
+  })
+
+  it('calls navigator.vibrate when firing', () => {
+    const vibrate = jest.fn()
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true })
+    const { getByTestId } = render(<Harness onFire={() => {}} />)
+    const row1 = getByTestId('row1')
+    act(() => { fireTouch(row1, 'touchstart') })
+    act(() => { jest.advanceTimersByTime(500) })
+    expect(vibrate).toHaveBeenCalledWith(15)
+  })
 })
