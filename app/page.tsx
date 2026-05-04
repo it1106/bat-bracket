@@ -7,8 +7,17 @@ import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
 import CustomTabModal from '@/components/CustomTabModal'
+import CustomTabButton from '@/components/CustomTabButton'
 import ScrollToTopButton from '@/components/ScrollToTopButton'
-import { loadCustomTab, saveCustomTab, clearCustomTab, type CustomTab } from '@/lib/customTab'
+import {
+  loadCustomTabs,
+  addCustomTab,
+  updateCustomTab,
+  deleteCustomTab,
+  reorderCustomTabs,
+  MAX_CUSTOM_TABS,
+  type CustomTab,
+} from '@/lib/customTab'
 import { useLanguage } from '@/lib/LanguageContext'
 import { longRoundL } from '@/lib/i18n'
 import { useTheme } from '@/lib/ThemeContext'
@@ -98,9 +107,11 @@ export default function Home() {
   const [fromRound, setFromRound] = useState(0)
   const [fromRoundName, setFromRoundName] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('matches')
-  const [customTab, setCustomTab] = useState<CustomTab | null>(null)
+  const [customTabs, setCustomTabs] = useState<CustomTab[]>([])
+  const [activeCustomTabId, setActiveCustomTabId] = useState<string | null>(null)
   const [customModalOpen, setCustomModalOpen] = useState(false)
   const [customModalMode, setCustomModalMode] = useState<'create' | 'edit'>('create')
+  const [customModalEditId, setCustomModalEditId] = useState<string | null>(null)
   const [matchDays, setMatchDays] = useState<MatchDay[]>([])
   const [selectedDay, setSelectedDay] = useState('')
   const [matchGroups, setMatchGroups] = useState<MatchScheduleGroup[]>([])
@@ -219,13 +230,23 @@ export default function Home() {
       // excludeCompleted intentionally does not persist; clear any legacy value
       localStorage.removeItem('batbracket.excludeCompleted')
     } catch {}
-    setCustomTab(loadCustomTab())
+    setCustomTabs(loadCustomTabs())
   }, [])
+
+  // If the active custom tab is deleted out from under us, fall back to Matches.
+  useEffect(() => {
+    if (viewMode !== 'custom') return
+    if (!activeCustomTabId) return
+    if (customTabs.some((t) => t.id === activeCustomTabId)) return
+    setViewMode('matches')
+    setActiveCustomTabId(null)
+  }, [viewMode, activeCustomTabId, customTabs])
 
   useEffect(() => {
     if (viewMode !== 'custom') return
-    track('custom_tab_viewed', { tournament_id: selectedTournament })
-  }, [viewMode, selectedTournament])
+    if (!activeCustomTabId) return
+    track('custom_tab_viewed', { tournament_id: selectedTournament, tab_id: activeCustomTabId })
+  }, [viewMode, selectedTournament, activeCustomTabId])
 
   useEffect(() => {
     document.body.classList.toggle('no-highlight', !highlightResults)
@@ -727,41 +748,37 @@ export default function Home() {
               <span className="opacity-70">({liveMatchCount})</span>
             </button>
           )}
-          {customTab ? (
-            <button
-              onClick={() => setViewMode('custom')}
-              className={`group inline-flex items-center gap-1 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
-                viewMode === 'custom'
-                  ? 'border-[var(--brand)] text-[var(--brand-fg)]'
-                  : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
-              }`}
-            >
-              <span className="truncate max-w-[160px]">{customTab.nickname}</span>
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label={t('customTabEdit')}
-                title={t('customTabEdit')}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setCustomModalMode('edit')
-                  setCustomModalOpen(true)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.stopPropagation()
-                    e.preventDefault()
-                    setCustomModalMode('edit')
-                    setCustomModalOpen(true)
-                  }
-                }}
-                className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--border)] text-[11px] leading-none cursor-pointer"
-              >✎</span>
-            </button>
-          ) : (
+          {customTabs.map((tab) => (
+            <CustomTabButton
+              key={tab.id}
+              tab={tab}
+              active={viewMode === 'custom' && activeCustomTabId === tab.id}
+              onActivate={() => {
+                setViewMode('custom')
+                setActiveCustomTabId(tab.id)
+              }}
+              onEdit={() => {
+                setCustomModalMode('edit')
+                setCustomModalEditId(tab.id)
+                setCustomModalOpen(true)
+              }}
+              onDropTab={(draggedId) => {
+                if (draggedId === tab.id) return
+                const filtered = customTabs.filter((t) => t.id !== draggedId)
+                const insertAt = filtered.findIndex((t) => t.id === tab.id)
+                const dragged = customTabs.find((t) => t.id === draggedId)
+                if (!dragged || insertAt < 0) return
+                const next = [...filtered.slice(0, insertAt), dragged, ...filtered.slice(insertAt)]
+                reorderCustomTabs(next.map((t) => t.id))
+                setCustomTabs(loadCustomTabs())
+              }}
+            />
+          ))}
+          {customTabs.length < MAX_CUSTOM_TABS && (
             <button
               onClick={() => {
                 setCustomModalMode('create')
+                setCustomModalEditId(null)
                 setCustomModalOpen(true)
               }}
               aria-label={t('customTabAddTooltip')}
@@ -869,24 +886,28 @@ export default function Home() {
       )}
 
       {/* Custom view */}
-      {viewMode === 'custom' && customTab && (
-        <MatchSchedule
-          groups={matchGroups}
-          days={matchDays}
-          selectedDay={selectedDay}
-          onDayChange={handleDayChange}
-          loading={loadingMatches}
-          playerQuery={customTab.keyword}
-          excludeCompleted={false}
-          highlightMatches={false}
-          onEventClick={handleOpenBracketAtRound}
-          playerClubMap={playerClubMap}
-          onPlayerClick={handlePlayerClick}
-          onH2HClick={handleH2HClick}
-          liveByCourt={liveByCourt}
-          tournamentId={selectedTournament}
-        />
-      )}
+      {viewMode === 'custom' && activeCustomTabId && (() => {
+        const active = customTabs.find((t) => t.id === activeCustomTabId)
+        if (!active) return null
+        return (
+          <MatchSchedule
+            groups={matchGroups}
+            days={matchDays}
+            selectedDay={selectedDay}
+            onDayChange={handleDayChange}
+            loading={loadingMatches}
+            playerQuery={active.keyword}
+            excludeCompleted={false}
+            highlightMatches={false}
+            onEventClick={handleOpenBracketAtRound}
+            playerClubMap={playerClubMap}
+            onPlayerClick={handlePlayerClick}
+            onH2HClick={handleH2HClick}
+            liveByCourt={liveByCourt}
+            tournamentId={selectedTournament}
+          />
+        )
+      })()}
 
       {/* Live matches view */}
       {viewMode === 'live' && (
@@ -931,35 +952,54 @@ export default function Home() {
       <CustomTabModal
         open={customModalOpen}
         mode={customModalMode}
-        initial={customModalMode === 'edit' ? customTab : null}
+        initial={
+          customModalMode === 'edit' && customModalEditId
+            ? customTabs.find((t) => t.id === customModalEditId) ?? null
+            : null
+        }
         onClose={() => setCustomModalOpen(false)}
-        onSave={(tab) => {
-          const isCreate = customTab === null
-          saveCustomTab(tab)
-          setCustomTab(tab)
-          setCustomModalOpen(false)
-          if (isCreate) {
-            setViewMode('custom')
-            track('custom_tab_created', {
-              keyword_len: tab.keyword.length,
-              has_and: tab.keyword.includes('&'),
-              has_or: tab.keyword.includes('|'),
-            })
-          } else {
+        onSave={(input) => {
+          if (customModalMode === 'create') {
+            const created = addCustomTab(input)
+            if (created) {
+              const next = loadCustomTabs()
+              setCustomTabs(next)
+              setActiveCustomTabId(created.id)
+              setViewMode('custom')
+              track('custom_tab_created', {
+                count: next.length,
+                keyword_len: input.keyword.length,
+                has_and: input.keyword.includes('&'),
+                has_or: input.keyword.includes('|'),
+              })
+            }
+          } else if (customModalEditId) {
+            updateCustomTab(customModalEditId, input)
+            setCustomTabs(loadCustomTabs())
             track('custom_tab_edited', {
-              keyword_len: tab.keyword.length,
-              has_and: tab.keyword.includes('&'),
-              has_or: tab.keyword.includes('|'),
+              keyword_len: input.keyword.length,
+              has_and: input.keyword.includes('&'),
+              has_or: input.keyword.includes('|'),
             })
           }
-        }}
-        onDelete={() => {
-          clearCustomTab()
-          setCustomTab(null)
           setCustomModalOpen(false)
-          if (viewMode === 'custom') setViewMode('matches')
-          track('custom_tab_deleted', {})
         }}
+        onDelete={
+          customModalMode === 'edit' && customModalEditId
+            ? () => {
+                const idToDelete = customModalEditId
+                deleteCustomTab(idToDelete)
+                const remaining = loadCustomTabs()
+                setCustomTabs(remaining)
+                if (activeCustomTabId === idToDelete) {
+                  setActiveCustomTabId(null)
+                  setViewMode('matches')
+                }
+                setCustomModalOpen(false)
+                track('custom_tab_deleted', { remaining: remaining.length })
+              }
+            : undefined
+        }
       />
 
       <ScrollToTopButton />

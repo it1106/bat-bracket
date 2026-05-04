@@ -9,7 +9,7 @@ interface Props {
   mode: 'create' | 'edit'
   initial: CustomTab | null
   onClose: () => void
-  onSave: (tab: CustomTab) => void
+  onSave: (input: { nickname: string; keyword: string }) => void
   onDelete?: () => void
 }
 
