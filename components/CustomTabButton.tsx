@@ -28,17 +28,19 @@ export default function CustomTabButton({ tab, active, editMode, onActivate, onE
   return (
     <button
       onClick={editMode ? onEdit : onActivate}
-      draggable
+      draggable={editMode}
       onDragStart={(e) => {
+        if (!editMode) return
         e.dataTransfer.setData('text/plain', tab.id)
         e.dataTransfer.effectAllowed = 'move'
         setDragging(true)
       }}
       onDragEnd={() => setDragging(false)}
-      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
-      onDragEnter={() => setDragOver(true)}
+      onDragOver={(e) => { if (editMode) { e.preventDefault(); e.dataTransfer.dropEffect = 'move' } }}
+      onDragEnter={() => editMode && setDragOver(true)}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
+        if (!editMode) return
         e.preventDefault()
         setDragOver(false)
         const draggedId = e.dataTransfer.getData('text/plain')
@@ -46,7 +48,9 @@ export default function CustomTabButton({ tab, active, editMode, onActivate, onE
       }}
       data-custom-tab-id={tab.id}
       title={editMode ? t('customTabEdit') : tab.nickname}
-      className={`custom-tab-button inline-flex items-center px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-grab ${
+      className={`custom-tab-button inline-flex items-center px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+        editMode ? 'cursor-grab' : 'cursor-pointer'
+      } ${
         active
           ? 'border-[var(--brand)] text-[var(--brand-fg)]'
           : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
