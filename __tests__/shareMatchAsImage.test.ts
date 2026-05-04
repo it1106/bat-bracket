@@ -44,4 +44,49 @@ describe('shareMatchAsImage', () => {
     expect(arg).toBeInstanceOf(HTMLElement)
     expect(arg.querySelector('.ms-match')).not.toBeNull()
   })
+
+  it('strips highlight classes from the cloned row but not the original', async () => {
+    const row = makeRow()
+    document.body.appendChild(row)
+    await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' })
+    expect(row.classList.contains('ms-match--active')).toBe(true)
+    expect(row.classList.contains('ms-match--next-opp')).toBe(true)
+    expect(row.querySelector('.ms-player-highlight')).not.toBeNull()
+    const captured = (toJpeg as jest.Mock).mock.calls[0][0] as HTMLElement
+    const cloned = captured.querySelector('.ms-match') as HTMLElement
+    expect(cloned.classList.contains('ms-match--active')).toBe(false)
+    expect(cloned.classList.contains('ms-match--next-opp')).toBe(false)
+    expect(cloned.querySelector('.ms-player-highlight')).toBeNull()
+  })
+
+  it('forces light mode during capture and restores dark afterwards', async () => {
+    document.documentElement.classList.add('dark')
+    const row = makeRow()
+    document.body.appendChild(row)
+    let darkDuringCapture: boolean | null = null
+    ;(toJpeg as jest.Mock).mockImplementation(async () => {
+      darkDuringCapture = document.documentElement.classList.contains('dark')
+      return 'data:image/jpeg;base64,AAAA'
+    })
+    await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' })
+    expect(darkDuringCapture).toBe(false)
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+  })
+
+  it('removes the wrapper from document.body after capture', async () => {
+    const row = makeRow()
+    document.body.appendChild(row)
+    const before = document.body.children.length
+    await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' })
+    expect(document.body.children.length).toBe(before)
+  })
+
+  it('removes the wrapper even when toJpeg throws', async () => {
+    ;(toJpeg as jest.Mock).mockRejectedValueOnce(new Error('boom'))
+    const row = makeRow()
+    document.body.appendChild(row)
+    const before = document.body.children.length
+    await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' })
+    expect(document.body.children.length).toBe(before)
+  })
 })
