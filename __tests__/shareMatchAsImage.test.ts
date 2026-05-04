@@ -30,7 +30,7 @@ beforeEach(() => {
   Object.defineProperty(navigator, 'canShare', { value: () => false, configurable: true })
   Object.defineProperty(navigator, 'share', { value: jest.fn(), configurable: true })
   if (typeof global.requestAnimationFrame !== 'function') {
-    global.requestAnimationFrame = ((cb: FrameRequestCallback) => setTimeout(() => cb(0), 0)) as typeof requestAnimationFrame
+    global.requestAnimationFrame = ((cb: FrameRequestCallback) => setTimeout(() => cb(0), 0) as unknown as number) as typeof requestAnimationFrame
   }
 })
 
@@ -91,14 +91,14 @@ describe('shareMatchAsImage', () => {
   })
 
   it('calls navigator.share when canShare returns true', async () => {
-    const share = jest.fn(async () => {})
+    const share = jest.fn(async (_data?: unknown) => {})
     Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
     Object.defineProperty(navigator, 'share', { value: share, configurable: true })
     const row = makeRow()
     document.body.appendChild(row)
     await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' })
     expect(share).toHaveBeenCalledTimes(1)
-    const arg = share.mock.calls[0][0] as { files: File[] }
+    const arg = share.mock.calls[0][0] as unknown as { files: File[] }
     expect(arg.files[0]).toBeInstanceOf(File)
     expect(arg.files[0].type).toBe('image/jpeg')
   })
