@@ -33,13 +33,14 @@ describe('useLongPressShare', () => {
   beforeEach(() => { jest.useFakeTimers() })
   afterEach(() => { jest.useRealTimers() })
 
-  it('fires onFire with the matched element after holdMs', () => {
+  it('fires onFire on touchend after holdMs has elapsed', () => {
     const onFire = jest.fn()
     const { getByTestId } = render(<Harness onFire={onFire} />)
     const row1 = getByTestId('row1')
     act(() => { fireTouch(row1, 'touchstart') })
-    expect(onFire).not.toHaveBeenCalled()
     act(() => { jest.advanceTimersByTime(500) })
+    expect(onFire).not.toHaveBeenCalled() // not yet — must release
+    act(() => { fireTouch(row1, 'touchend') })
     expect(onFire).toHaveBeenCalledTimes(1)
     expect(onFire).toHaveBeenCalledWith(row1)
   })
@@ -50,6 +51,7 @@ describe('useLongPressShare', () => {
     const notRow = getByTestId('not-a-row')
     act(() => { fireTouch(notRow, 'touchstart') })
     act(() => { jest.advanceTimersByTime(500) })
+    act(() => { fireTouch(notRow, 'touchend') })
     expect(onFire).not.toHaveBeenCalled()
   })
 
@@ -60,7 +62,6 @@ describe('useLongPressShare', () => {
     act(() => { fireTouch(row1, 'touchstart') })
     act(() => { jest.advanceTimersByTime(300) })
     act(() => { fireTouch(row1, 'touchend') })
-    act(() => { jest.advanceTimersByTime(500) })
     expect(onFire).not.toHaveBeenCalled()
   })
 
@@ -71,16 +72,17 @@ describe('useLongPressShare', () => {
     act(() => { fireTouch(row1, 'touchstart', 100) })
     act(() => { fireTouch(row1, 'touchmove', 130) })
     act(() => { jest.advanceTimersByTime(500) })
+    act(() => { fireTouch(row1, 'touchend') })
     expect(onFire).not.toHaveBeenCalled()
   })
 
-  it('does not fire on touchcancel', () => {
+  it('does not fire on touchcancel even after holdMs', () => {
     const onFire = jest.fn()
     const { getByTestId } = render(<Harness onFire={onFire} />)
     const row1 = getByTestId('row1')
     act(() => { fireTouch(row1, 'touchstart') })
-    act(() => { fireTouch(row1, 'touchcancel') })
     act(() => { jest.advanceTimersByTime(500) })
+    act(() => { fireTouch(row1, 'touchcancel') })
     expect(onFire).not.toHaveBeenCalled()
   })
 
@@ -119,6 +121,7 @@ describe('useLongPressShare', () => {
     const row1 = getByTestId('row1')
     act(() => { fireTouch(row1, 'touchstart') })
     act(() => { jest.advanceTimersByTime(500) })
+    act(() => { fireTouch(row1, 'touchend') })
     expect(onFire).toHaveBeenCalledTimes(1)
     act(() => { row1.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })) })
     expect(onRowClick).not.toHaveBeenCalled()
@@ -135,7 +138,7 @@ describe('useLongPressShare', () => {
     expect(ev.defaultPrevented).toBe(true)
   })
 
-  it('calls navigator.vibrate when firing', () => {
+  it('calls navigator.vibrate when the hold threshold is reached', () => {
     const vibrate = jest.fn()
     Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true })
     const { getByTestId } = render(<Harness onFire={() => {}} />)

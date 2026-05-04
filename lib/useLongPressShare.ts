@@ -19,14 +19,16 @@ export function useLongPressShare(
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-    let timer: ReturnType<typeof setTimeout> | null = null
+    let readyTimer: ReturnType<typeof setTimeout> | null = null
     let activeMatch: HTMLElement | null = null
     let startY = 0
+    let isReady = false
     let suppressClickFor: HTMLElement | null = null
 
     const cancel = () => {
-      if (timer) { clearTimeout(timer); timer = null }
+      if (readyTimer) { clearTimeout(readyTimer); readyTimer = null }
       if (activeMatch) { activeMatch.classList.remove(pressClass); activeMatch = null }
+      isReady = false
     }
 
     const onTouchStart = (e: TouchEvent) => {
@@ -37,17 +39,12 @@ export function useLongPressShare(
       if (!t) return
       activeMatch = match
       startY = t.clientY
+      isReady = false
       match.classList.add(pressClass)
-      timer = setTimeout(() => {
-        timer = null
-        const fired = activeMatch
-        if (fired) {
-          fired.classList.remove(pressClass)
-          activeMatch = null
-          suppressClickFor = fired
-          navigator.vibrate?.(15)
-          onFire(fired)
-        }
+      readyTimer = setTimeout(() => {
+        readyTimer = null
+        isReady = true
+        navigator.vibrate?.(15)
       }, holdMs)
     }
 
@@ -56,6 +53,18 @@ export function useLongPressShare(
       const t = e.touches[0]
       if (!t) return
       if (Math.abs(t.clientY - startY) > moveSlopPx) cancel()
+    }
+
+    const onTouchEnd = () => {
+      const fired = activeMatch
+      const wasReady = isReady
+      cancel()
+      // Fire onFire synchronously from the touchend handler so iOS Safari
+      // preserves transient activation for navigator.share inside onFire.
+      if (wasReady && fired) {
+        suppressClickFor = fired
+        onFire(fired)
+      }
     }
 
     const onClickCapture = (e: MouseEvent) => {
@@ -77,18 +86,18 @@ export function useLongPressShare(
 
     container.addEventListener('touchstart', onTouchStart, { passive: true })
     container.addEventListener('touchmove', onTouchMove, { passive: true })
-    container.addEventListener('touchend', cancel)
+    container.addEventListener('touchend', onTouchEnd)
     container.addEventListener('touchcancel', cancel)
     container.addEventListener('click', onClickCapture, true)
     container.addEventListener('contextmenu', onContextMenu)
     return () => {
       container.removeEventListener('touchstart', onTouchStart)
       container.removeEventListener('touchmove', onTouchMove)
-      container.removeEventListener('touchend', cancel)
+      container.removeEventListener('touchend', onTouchEnd)
       container.removeEventListener('touchcancel', cancel)
       container.removeEventListener('click', onClickCapture, true)
       container.removeEventListener('contextmenu', onContextMenu)
-      if (timer) clearTimeout(timer)
+      if (readyTimer) clearTimeout(readyTimer)
       if (activeMatch) activeMatch.classList.remove(pressClass)
     }
   }, [containerRef, matchSelector, onFire, holdMs, moveSlopPx, pressClass])
