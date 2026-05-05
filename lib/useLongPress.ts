@@ -39,7 +39,7 @@ export function useLongPress(
     let startX = 0
     let startY = 0
     let isReady = false
-    let pendingFireFor: HTMLElement | null = null
+    let suppressClickFor: HTMLElement | null = null
 
     const cancel = () => {
       if (readyTimer) { clearTimeout(readyTimer); readyTimer = null }
@@ -57,9 +57,6 @@ export function useLongPress(
       if (!found || !container.contains(found)) return
       const t = e.touches[0]
       if (!t) return
-      // Drop any stale pending fire from a prior long-press whose click
-      // never arrived — otherwise it would trigger on this tap instead.
-      pendingFireFor = null
       activeTarget = found
       startX = t.clientX
       startY = t.clientY
@@ -96,29 +93,21 @@ export function useLongPress(
       const wasReady = isReady
       cancel()
       shareDebug(`touchend wasReady=${wasReady ? 'Y' : 'N'} target=${fired ? 'Y' : 'N'}`)
-      // Defer onFire to the synthetic click that follows touchend. iOS
-      // Safari does NOT grant transient activation from a long-hold
-      // touchend, so calling navigator.share() here yields NotAllowedError.
-      // The synthetic click does grant activation, so we fire from there.
       if (wasReady && fired) {
-        pendingFireFor = fired
+        suppressClickFor = fired
+        optsRef.current.onFire(fired)
       }
     }
 
     const onClickCapture = (e: MouseEvent) => {
-      if (!pendingFireFor) return
+      if (!suppressClickFor) return
       const target = e.target as Element | null
       const found = target?.closest(optsRef.current.targetSelector) as HTMLElement | null
-      const fired = pendingFireFor
-      pendingFireFor = null
-      if (found !== fired) return
-      // Suppress sibling onClick handlers (e.g. setLockedKey toggle) — this
-      // click is the long-press fire, not a regular tap. preventDefault
-      // also blocks any default click semantics.
-      e.stopPropagation()
-      e.preventDefault()
-      shareDebug('click → onFire')
-      optsRef.current.onFire(fired)
+      if (found === suppressClickFor) {
+        e.stopPropagation()
+        e.preventDefault()
+        suppressClickFor = null
+      }
     }
 
     const onContextMenu = (e: Event) => {
