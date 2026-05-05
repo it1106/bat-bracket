@@ -105,26 +105,21 @@ export function useLongPress(
       }
     }
 
-    const fireFromActivation = (e: Event, source: string) => {
+    const onClickCapture = (e: MouseEvent) => {
       if (!pendingFireFor) return
       const target = e.target as Element | null
       const found = target?.closest(optsRef.current.targetSelector) as HTMLElement | null
       const fired = pendingFireFor
       pendingFireFor = null
       if (found !== fired) return
+      // Suppress sibling onClick handlers (e.g. setLockedKey toggle) — this
+      // click is the long-press fire, not a regular tap. preventDefault
+      // also blocks any default click semantics.
       e.stopPropagation()
       e.preventDefault()
-      shareDebug(`${source} → onFire`)
+      shareDebug('click → onFire')
       optsRef.current.onFire(fired)
     }
-
-    // iOS Safari suppresses synthetic click/mouseup after a long-press, so
-    // we can't rely on click for activation. pointerup still fires and per
-    // spec grants user activation — share() works from there.
-    const onPointerUpCapture = (e: PointerEvent) => fireFromActivation(e, 'pointerup')
-    // Click is kept as a fallback for non-iOS browsers that DO fire click
-    // after long-press (Android Chrome, desktop).
-    const onClickCapture = (e: MouseEvent) => fireFromActivation(e, 'click')
 
     const onContextMenu = (e: Event) => {
       const target = e.target as Element | null
@@ -136,17 +131,31 @@ export function useLongPress(
     container.addEventListener('touchmove', onTouchMove, { passive: true })
     container.addEventListener('touchend', onTouchEnd)
     container.addEventListener('touchcancel', cancel)
-    container.addEventListener('pointerup', onPointerUpCapture, true)
     container.addEventListener('click', onClickCapture, true)
     container.addEventListener('contextmenu', onContextMenu)
+
+    // Diagnostic: log every post-touch event iOS fires so we can see which
+    // (if any) grants user activation after a long-press.
+    const probe = (name: string) => (e: Event) => {
+      const tgt = (e.target as Element | null)?.closest(optsRef.current.targetSelector) as HTMLElement | null
+      if (tgt && container.contains(tgt)) shareDebug(`evt:${name}`)
+    }
+    const probeMouseDown = probe('mousedown')
+    const probeMouseUp = probe('mouseup')
+    const probePointerUp = probe('pointerup')
+    container.addEventListener('mousedown', probeMouseDown, true)
+    container.addEventListener('mouseup', probeMouseUp, true)
+    container.addEventListener('pointerup', probePointerUp, true)
     return () => {
       container.removeEventListener('touchstart', onTouchStart)
       container.removeEventListener('touchmove', onTouchMove)
       container.removeEventListener('touchend', onTouchEnd)
       container.removeEventListener('touchcancel', cancel)
-      container.removeEventListener('pointerup', onPointerUpCapture, true)
       container.removeEventListener('click', onClickCapture, true)
       container.removeEventListener('contextmenu', onContextMenu)
+      container.removeEventListener('mousedown', probeMouseDown, true)
+      container.removeEventListener('mouseup', probeMouseUp, true)
+      container.removeEventListener('pointerup', probePointerUp, true)
       if (readyTimer) clearTimeout(readyTimer)
       if (activeTarget) {
         activeTarget.classList.remove(optsRef.current.pressClass)
