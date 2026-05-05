@@ -132,6 +132,7 @@ describe('parseMatchesPartial — court field', () => {
     `)
     const { groups } = parseMatchesPartial(html)
     expect(groups[0].matches[0].court).toBe('Main Location - 5')
+    expect(groups[0].matches[0].duration).toBe('23m')
     expect(groups[0].matches[0].nowPlaying).toBe(false) // no icon-sport2 in fixture
   })
 
@@ -141,6 +142,16 @@ describe('parseMatchesPartial — court field', () => {
     `)
     const { groups } = parseMatchesPartial(html)
     expect(groups[0].matches[0].court).toBe('Main Location - 1')
+    expect(groups[0].matches[0].duration).toBe('16m')
+  })
+
+  it('handles tooltips without a duration segment', () => {
+    const html = wrap(`
+      <span class="match__header-aside-block" title="Main Location - 2"></span>
+    `)
+    const { groups } = parseMatchesPartial(html)
+    expect(groups[0].matches[0].court).toBe('Main Location - 2')
+    expect(groups[0].matches[0].duration).toBeUndefined()
   })
 })
 

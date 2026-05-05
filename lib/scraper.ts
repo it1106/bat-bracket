@@ -357,8 +357,12 @@ function parseSingleMatch($: cheerio.CheerioAPI, matchEl: any): MatchEntry {
     .filter((_, el) => !!$(el).attr('title'))
     .first()
     .attr('title') ?? ''
-  const pipeIdx = tooltip.lastIndexOf('|')
-  const court = (pipeIdx >= 0 ? tooltip.slice(pipeIdx + 1) : tooltip).trim()
+  let duration: string | undefined
+  let court = ''
+  for (const part of tooltip.split('|').map((s) => s.trim()).filter(Boolean)) {
+    if (/^duration\s*:/i.test(part)) duration = part.replace(/^duration\s*:\s*/i, '')
+    else court = part
+  }
 
   const msgText = $(matchEl).find('.match__message').text().trim()
   const nowPlaying = ($(matchEl).html() ?? '').includes('icon-sport2')
@@ -395,7 +399,7 @@ function parseSingleMatch($: cheerio.CheerioAPI, matchEl: any): MatchEntry {
   const h2hHref = $(matchEl).find('a.match__btn-h2h').attr('href') ?? ''
   const h2hUrl = h2hHref || undefined
 
-  return { draw, drawNum, round, team1, team2, winner, scores, court, walkover, retired, nowPlaying, h2hUrl }
+  return { draw, drawNum, round, team1, team2, winner, scores, court, duration, walkover, retired, nowPlaying, h2hUrl }
 }
 
 // Mixed-schedule days (time-slot groups + court-based groups) display
