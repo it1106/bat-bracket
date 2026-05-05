@@ -338,6 +338,19 @@ function footerText(el: cheerio.Cheerio<any>): string {
   return el.find('.match__footer-list').text().replace(/\s+/g, ' ').trim()
 }
 
+// Splits a "Duration: 23m | Main Location - 5" tooltip into its parts.
+// Either segment may be missing; venue-address-only tooltips fall through
+// as `court` (caller decides whether to keep that or discard it).
+function parseLocationTooltip(tooltip: string): { court: string; duration?: string } {
+  let duration: string | undefined
+  let court = ''
+  for (const part of tooltip.split('|').map((s) => s.trim()).filter(Boolean)) {
+    if (/^duration\s*:/i.test(part)) duration = part.replace(/^duration\s*:\s*/i, '')
+    else court = part
+  }
+  return { court, duration }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseSingleMatch($: cheerio.CheerioAPI, matchEl: any): MatchEntry {
   const titleItems = $(matchEl).find('.match__header-title-item')
@@ -357,12 +370,7 @@ function parseSingleMatch($: cheerio.CheerioAPI, matchEl: any): MatchEntry {
     .filter((_, el) => !!$(el).attr('title'))
     .first()
     .attr('title') ?? ''
-  let duration: string | undefined
-  let court = ''
-  for (const part of tooltip.split('|').map((s) => s.trim()).filter(Boolean)) {
-    if (/^duration\s*:/i.test(part)) duration = part.replace(/^duration\s*:\s*/i, '')
-    else court = part
-  }
+  const { court, duration } = parseLocationTooltip(tooltip)
 
   const msgText = $(matchEl).find('.match__message').text().trim()
   const nowPlaying = ($(matchEl).html() ?? '').includes('icon-sport2')
@@ -575,6 +583,15 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
 
     const msgText = $(matchEl).find('.match__message').text().trim()
     const nowPlaying = ($(matchEl).html() ?? '').includes('icon-sport2')
+    // Player profile tooltips include venue-address strings on upcoming matches
+    // (e.g. "ณ สนามแบดมินตัน..."), which would leak into court if we kept it.
+    // Only the duration half is used here; court is intentionally discarded.
+    const tooltip = $(matchEl)
+      .find('.match__header-aside-block:not(.match__header-aside-block--primary)')
+      .filter((_, el) => !!$(el).attr('title'))
+      .first()
+      .attr('title') ?? ''
+    const { duration } = parseLocationTooltip(tooltip)
     const rows = $(matchEl).find('.match__row')
     let team1: import('./types').MatchPlayer[] = []
     let team2: import('./types').MatchPlayer[] = []
@@ -623,7 +640,7 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
     })
 
     if (draw || team1.length) {
-      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', walkover, retired, nowPlaying, scheduledTime, h2hUrl, eventId })
+      matches.push({ draw, drawNum, round, team1, team2, winner, scores, court: '', duration, walkover, retired, nowPlaying, scheduledTime, h2hUrl, eventId })
     }
   })
 

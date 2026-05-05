@@ -847,6 +847,11 @@ html[lang="th"] .pm-section-title {
   color: var(--muted);
 }
 
+.pm-match-duration {
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .pm-match-team {
   color: var(--fg);
   white-space: nowrap;
