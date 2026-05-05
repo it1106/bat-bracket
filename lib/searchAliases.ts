@@ -10,11 +10,18 @@ const ALIASES: Record<string, string> = {
   rlc: 'รีแลกซ์คอร์ทหนองคาย'
 }
 
+const MIN_PREFIX = 2
+
 function expandTerm(term: string): string[] {
   const t = term.trim().toLowerCase()
   if (!t) return []
-  const expansion = ALIASES[t]
-  return expansion ? [t, expansion.toLowerCase()] : [t]
+  const expansions =
+    t.length >= MIN_PREFIX
+      ? Object.entries(ALIASES)
+          .filter(([key]) => key.startsWith(t))
+          .map(([, value]) => value.toLowerCase())
+      : []
+  return [t, ...expansions]
 }
 
 // Parse a query into AND-groups separated by '&'. Within each group, '|'
