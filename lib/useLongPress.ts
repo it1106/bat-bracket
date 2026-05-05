@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useRef, type RefObject } from 'react'
-import { shareDebug } from '@/lib/shareDebug'
+import { useEffect, type RefObject } from 'react'
 
 interface UseLongPressOptions {
   /** CSS selector identifying which descendant elements respond to the gesture. */
@@ -22,14 +21,15 @@ export function useLongPress(
   containerRef: RefObject<HTMLElement>,
   options: UseLongPressOptions,
 ): void {
-  // Keep callbacks in a ref so the useEffect below stays stable across
-  // re-renders. Without this, every parent render recreates onPressStart /
-  // onFire, the effect tears down listeners and resets activeTarget /
-  // readyTimer mid-press, and the long-press silently fails when a sibling
-  // re-renders during the hold (e.g. an iOS-synthesized mouseenter setting
-  // hovered/active state, which mutates a next-opp sibling's className).
-  const optsRef = useRef(options)
-  optsRef.current = options
+  const {
+    targetSelector,
+    onPressStart,
+    onFire,
+    holdMs = 500,
+    moveSlopPx = 10,
+    pressClass,
+    readyClass,
+  } = options
 
   useEffect(() => {
     const container = containerRef.current
@@ -44,8 +44,8 @@ export function useLongPress(
     const cancel = () => {
       if (readyTimer) { clearTimeout(readyTimer); readyTimer = null }
       if (activeTarget) {
-        activeTarget.classList.remove(optsRef.current.pressClass)
-        activeTarget.classList.remove(optsRef.current.readyClass)
+        activeTarget.classList.remove(pressClass)
+        activeTarget.classList.remove(readyClass)
         activeTarget = null
       }
       isReady = false
@@ -53,7 +53,7 @@ export function useLongPress(
 
     const onTouchStart = (e: TouchEvent) => {
       const target = e.target as Element | null
-      const found = target?.closest(optsRef.current.targetSelector) as HTMLElement | null
+      const found = target?.closest(targetSelector) as HTMLElement | null
       if (!found || !container.contains(found)) return
       const t = e.touches[0]
       if (!t) return
@@ -61,19 +61,17 @@ export function useLongPress(
       startX = t.clientX
       startY = t.clientY
       isReady = false
-      found.classList.add(optsRef.current.pressClass)
-      shareDebug(`touchstart key=${found.dataset.matchKey?.slice(0, 20) ?? '?'}`)
-      optsRef.current.onPressStart?.(found)
+      found.classList.add(pressClass)
+      onPressStart?.(found)
       readyTimer = setTimeout(() => {
         readyTimer = null
         isReady = true
         if (activeTarget) {
-          activeTarget.classList.remove(optsRef.current.pressClass)
-          activeTarget.classList.add(optsRef.current.readyClass)
+          activeTarget.classList.remove(pressClass)
+          activeTarget.classList.add(readyClass)
         }
-        shareDebug('ready (timer fired)')
         navigator.vibrate?.(15)
-      }, optsRef.current.holdMs ?? 500)
+      }, holdMs)
     }
 
     const onTouchMove = (e: TouchEvent) => {
@@ -82,27 +80,25 @@ export function useLongPress(
       if (!t) return
       const dx = t.clientX - startX
       const dy = t.clientY - startY
-      if (Math.hypot(dx, dy) > (optsRef.current.moveSlopPx ?? 10)) {
-        shareDebug('cancel (move)')
-        cancel()
-      }
+      if (Math.hypot(dx, dy) > moveSlopPx) cancel()
     }
 
     const onTouchEnd = () => {
       const fired = activeTarget
       const wasReady = isReady
       cancel()
-      shareDebug(`touchend wasReady=${wasReady ? 'Y' : 'N'} target=${fired ? 'Y' : 'N'}`)
+      // Fire onFire synchronously from the touchend handler so iOS Safari
+      // preserves transient activation for any navigator.share() call inside.
       if (wasReady && fired) {
         suppressClickFor = fired
-        optsRef.current.onFire(fired)
+        onFire(fired)
       }
     }
 
     const onClickCapture = (e: MouseEvent) => {
       if (!suppressClickFor) return
       const target = e.target as Element | null
-      const found = target?.closest(optsRef.current.targetSelector) as HTMLElement | null
+      const found = target?.closest(targetSelector) as HTMLElement | null
       if (found === suppressClickFor) {
         e.stopPropagation()
         e.preventDefault()
@@ -112,7 +108,7 @@ export function useLongPress(
 
     const onContextMenu = (e: Event) => {
       const target = e.target as Element | null
-      const found = target?.closest(optsRef.current.targetSelector) as HTMLElement | null
+      const found = target?.closest(targetSelector) as HTMLElement | null
       if (found && container.contains(found)) e.preventDefault()
     }
 
@@ -131,9 +127,9 @@ export function useLongPress(
       container.removeEventListener('contextmenu', onContextMenu)
       if (readyTimer) clearTimeout(readyTimer)
       if (activeTarget) {
-        activeTarget.classList.remove(optsRef.current.pressClass)
-        activeTarget.classList.remove(optsRef.current.readyClass)
+        activeTarget.classList.remove(pressClass)
+        activeTarget.classList.remove(readyClass)
       }
     }
-  }, [containerRef])
+  }, [containerRef, targetSelector, onPressStart, onFire, holdMs, moveSlopPx, pressClass, readyClass])
 }

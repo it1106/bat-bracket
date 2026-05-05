@@ -29,7 +29,7 @@ beforeEach(() => {
   document.documentElement.classList.remove('dark')
   ;(global as { fetch: unknown }).fetch = jest.fn(async () => ({ blob: async () => new Blob(['x'], { type: 'image/jpeg' }) }))
   Object.defineProperty(navigator, 'canShare', { value: () => false, configurable: true })
-  Object.defineProperty(navigator, 'share', { value: jest.fn(async () => {}), configurable: true })
+  Object.defineProperty(navigator, 'share', { value: jest.fn(), configurable: true })
   if (typeof global.requestAnimationFrame !== 'function') {
     global.requestAnimationFrame = ((cb: FrameRequestCallback) => setTimeout(() => cb(0), 0) as unknown as number) as typeof requestAnimationFrame
   }

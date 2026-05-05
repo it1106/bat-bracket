@@ -1,7 +1,6 @@
 'use client'
 
 import { toJpeg, getFontEmbedCSS } from 'html-to-image'
-import { shareDebug } from '@/lib/shareDebug'
 
 // html-to-image fetches and base64-encodes every page font on each toJpeg
 // call (~1s on iOS Safari first time, cached after). We resolve it once
@@ -126,17 +125,10 @@ export function shareFile(opts: ShareFileOptions): void {
   const canShareFiles = typeof navigator.canShare === 'function'
     ? navigator.canShare({ files: [file] })
     : hasShare
-  shareDebug(`shareFile hasShare=${hasShare ? 'Y' : 'N'} canShare=${canShareFiles ? 'Y' : 'N'} size=${file.size}`)
-  if (!hasShare) return
-  // We don't gate on canShare — on iOS it has been seen to return false
-  // for legitimate File payloads. If share() fails we surface the error.
+  if (!hasShare || !canShareFiles) return
   navigator
     .share({ files: [file] })
-    .then(() => shareDebug('share OK'))
-    .catch((err: unknown) => {
-      const e = err as { name?: string; message?: string }
-      shareDebug(`share FAIL ${e?.name ?? 'Err'}: ${(e?.message ?? String(err)).slice(0, 50)}`)
-    })
+    .catch(() => { /* swallow — no fallback */ })
 }
 
 export async function shareMatchAsImage(opts: { matchEl: HTMLElement; tournamentName: string; eventName: string }): Promise<void> {

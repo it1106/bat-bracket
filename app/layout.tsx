@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { LanguageProvider } from '@/lib/LanguageContext'
 import { ThemeProvider } from '@/lib/ThemeContext'
 import { PostHogProvider } from '@/lib/PostHogProvider'
-import ShareDebugOverlay from '@/components/ShareDebugOverlay'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -25,7 +24,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ThemeProvider>
             <PostHogProvider>
               {children}
-              <ShareDebugOverlay />
             </PostHogProvider>
           </ThemeProvider>
         </LanguageProvider>
