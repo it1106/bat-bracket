@@ -133,19 +133,6 @@ export function useLongPress(
     container.addEventListener('touchcancel', cancel)
     container.addEventListener('click', onClickCapture, true)
     container.addEventListener('contextmenu', onContextMenu)
-
-    // Diagnostic: log every post-touch event iOS fires so we can see which
-    // (if any) grants user activation after a long-press.
-    const probe = (name: string) => (e: Event) => {
-      const tgt = (e.target as Element | null)?.closest(optsRef.current.targetSelector) as HTMLElement | null
-      if (tgt && container.contains(tgt)) shareDebug(`evt:${name}`)
-    }
-    const probeMouseDown = probe('mousedown')
-    const probeMouseUp = probe('mouseup')
-    const probePointerUp = probe('pointerup')
-    container.addEventListener('mousedown', probeMouseDown, true)
-    container.addEventListener('mouseup', probeMouseUp, true)
-    container.addEventListener('pointerup', probePointerUp, true)
     return () => {
       container.removeEventListener('touchstart', onTouchStart)
       container.removeEventListener('touchmove', onTouchMove)
@@ -153,9 +140,6 @@ export function useLongPress(
       container.removeEventListener('touchcancel', cancel)
       container.removeEventListener('click', onClickCapture, true)
       container.removeEventListener('contextmenu', onContextMenu)
-      container.removeEventListener('mousedown', probeMouseDown, true)
-      container.removeEventListener('mouseup', probeMouseUp, true)
-      container.removeEventListener('pointerup', probePointerUp, true)
       if (readyTimer) clearTimeout(readyTimer)
       if (activeTarget) {
         activeTarget.classList.remove(optsRef.current.pressClass)
