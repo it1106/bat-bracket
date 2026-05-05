@@ -11,6 +11,7 @@ import { track } from '@/lib/analytics'
 import { buildNextOppMap } from '@/lib/nextOpp'
 import { useLongPress } from '@/lib/useLongPress'
 import { buildFilename, captureMatchImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
+import { shareDebug } from '@/lib/shareDebug'
 import JumpToNextButton from '@/components/JumpToNextButton'
 
 interface Props {
@@ -142,21 +143,28 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     readyClass: 'ms-match--ready',
     onPressStart: (el) => {
       preparedFileRef.current = null
-      if (!tournamentName) return
+      if (!tournamentName) { shareDebug('press: no tournamentName'); return }
       const key = el.dataset.matchKey
-      if (!key) return
+      if (!key) { shareDebug('press: no matchKey'); return }
       const m = matchByKey.get(key)
-      if (!m) return
+      if (!m) { shareDebug('press: matchByKey miss'); return }
       const filename = buildFilename(tournamentName, m.draw)
+      const t0 = performance.now()
+      shareDebug('capture start')
       captureMatchImageFile({ matchEl: el, tournamentName, filename })
-        .then((file) => { preparedFileRef.current = file })
-        .catch((err) => { console.warn('captureMatchImageFile failed', err) })
+        .then((file) => {
+          preparedFileRef.current = file
+          shareDebug(`capture done ${Math.round(performance.now() - t0)}ms ${Math.round(file.size / 1024)}KB`)
+        })
+        .catch((err) => {
+          shareDebug(`capture FAIL: ${(err as Error)?.message?.slice(0, 60) ?? 'unknown'}`)
+        })
     },
     onFire: (el) => {
       const key = el.dataset.matchKey
-      if (!key || !tournamentName) return
+      if (!key || !tournamentName) { shareDebug('fire: no key/tournament'); return }
       const m = matchByKey.get(key)
-      if (!m) return
+      if (!m) { shareDebug('fire: matchByKey miss'); return }
       track('match_shared_as_image', {
         tournament_id: tournamentId,
         match_id: key,
@@ -164,7 +172,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         draw_id: m.drawNum,
       })
       const file = preparedFileRef.current
-      if (!file) return
+      if (!file) { shareDebug('fire: file NOT READY'); return }
       // Synchronous: preserve iOS Safari transient activation for navigator.share().
       shareFile({ file })
     },
