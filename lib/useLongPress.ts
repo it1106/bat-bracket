@@ -106,17 +106,14 @@ export function useLongPress(
     }
 
     const fireFromActivation = (e: Event, source: string) => {
-      if (!pendingFireFor) {
-        shareDebug(`${source}: no pending`)
-        return
-      }
+      if (!pendingFireFor) return
+      const target = e.target as Element | null
+      const found = target?.closest(optsRef.current.targetSelector) as HTMLElement | null
       const fired = pendingFireFor
       pendingFireFor = null
-      // Don't validate e.target against fired — React may have re-rendered
-      // and replaced the row's DOM node between touchend and pointerup, so
-      // the target check produces false-negatives. touchend already verified
-      // we have a real long-press fire, so trust it and dispatch.
+      if (found !== fired) return
       e.stopPropagation()
+      e.preventDefault()
       shareDebug(`${source} → onFire`)
       optsRef.current.onFire(fired)
     }
