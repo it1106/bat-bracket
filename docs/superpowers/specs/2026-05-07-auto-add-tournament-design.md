@@ -33,7 +33,8 @@ Tournaments showing "Online Entry" never have a bracket published yet, so we fil
 | Decision | Choice |
 |---|---|
 | Storage location | Separate writable JSON file at `.cache/discovered-tournaments.json`, merged with `tournaments.txt` at API time. |
-| Polling cadence | 15 minutes. |
+| Polling cadence | 15 minutes during active hours. |
+| Quiet window | Skip cycles between 00:00 and 08:00 Asia/Bangkok. The interval still ticks; the runner returns immediately during the quiet window with a single log line per skipped tick. Active window is 16 h/day → 64 cycles/day. |
 | Where the cron runs | `setInterval` inside `instrumentation.ts`, leader-guarded by `NODE_APP_INSTANCE === '0'`. |
 | Bracket gate criterion | At least one draw has seeded (non-TBD) players. |
 | Lifecycle / removal | Auto-cleanup if absent from upcoming AND `hasBracket: false`. Once `hasBracket: true`, never removed. Denylist via `# deny <GUID>` lines in `tournaments.txt`. |
@@ -110,6 +111,7 @@ The existing parser already skips `#`-prefixed lines. We additionally scan `#`-p
 
 ```
 1. setInterval tick (15 min, worker 0 only)
+   If Asia/Bangkok hour ∈ [0, 8) → log "[discovery] quiet window, skipping" and return.
    Skip if previous cycle still in flight (mutex flag).
 
 2. GET https://bat.tournamentsoftware.com/
@@ -220,4 +222,6 @@ Not automated. After first deploy:
 - Selectors for `parseUpcoming` and `bracketHasSeededPlayers` are unknown at design time; they will be reverse-engineered from a captured fixture during implementation. Fixture capture itself is part of the implementation plan.
 - "First-tick" delay: `setInterval` waits one full interval before firing. Implementation should call `runDiscoveryCycle()` once immediately (after a small delay so it doesn't compete with the prewarm chain), then start the interval.
 - Network setup: the existing `dns.setDefaultResultOrder('ipv4first')` in `instrumentation.ts` already covers the upcoming-page fetch — no additional config needed.
+- Quiet-window check uses the same `Intl.DateTimeFormat` / `Asia/Bangkok` pattern as `lib/today.ts`. A small helper `getBangkokHour() → 0–23` may live in `lib/today.ts` for symmetry with `getTodayIso()`.
+- BAT hit budget. Steady state: ~64 upcoming-page fetches/day (1 per active-hour cycle) + ~3–6 conditional draws/draw-content fetches when something actually changes → **~65–75 hits/day total** from this loop. First cycle after a fresh deploy / wiped store is a one-time spike of `1 + 2 × |upcoming|` hits as every entry triggers the bracket gate; for ~10 upcoming tournaments that's roughly 21 hits.
 - The runner stays scheduler-agnostic: `runDiscoveryCycle()` is a plain async function. The `setInterval` wrapper lives in `instrumentation.ts`. Ad-hoc invocation (e.g. for debugging) is just a one-liner script.
