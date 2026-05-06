@@ -215,3 +215,24 @@ describe('runDiscoveryCycle — cleanup', () => {
     expect(warns.some((w) => /empty snapshot/i.test(w))).toBe(true)
   })
 })
+
+describe('runDiscoveryCycle — mutex', () => {
+  it('skips overlapping invocations within the same process', async () => {
+    let upcomingCalls = 0
+    let release: () => void = () => {}
+    const blocker = new Promise<string>((resolve) => {
+      release = () => resolve('<html></html>')
+    })
+    const deps = makeDeps({
+      fetchUpcomingHtml: () => {
+        upcomingCalls++
+        return blocker
+      },
+    })
+    const first = runDiscoveryCycle(deps)
+    const second = runDiscoveryCycle(deps)
+    release()
+    await Promise.all([first, second])
+    expect(upcomingCalls).toBe(1)
+  })
+})

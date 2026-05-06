@@ -17,7 +17,22 @@ export interface DiscoveryDeps {
   now: () => Date
 }
 
+let cycleInFlight = false
+
 export async function runDiscoveryCycle(deps: DiscoveryDeps): Promise<void> {
+  if (cycleInFlight) {
+    deps.log('[discovery] cycle still in flight, skipping')
+    return
+  }
+  cycleInFlight = true
+  try {
+    await runDiscoveryCycleInner(deps)
+  } finally {
+    cycleInFlight = false
+  }
+}
+
+async function runDiscoveryCycleInner(deps: DiscoveryDeps): Promise<void> {
   const html = await deps.fetchUpcomingHtml()
   const upcomingAll = deps.parseUpcoming(html)
   const upcoming = upcomingAll.filter((u) => !u.hasOnlineEntry)
