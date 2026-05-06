@@ -48,6 +48,22 @@ export async function runDiscoveryCycle(deps: DiscoveryDeps): Promise<void> {
     }
   }
 
+  // Cleanup pass. Skip entirely if the upcoming snapshot looks suspicious
+  // (zero entries when we previously had some) — likely a parser regression
+  // or a transient BAT hiccup, and we don't want to mass-remove on it.
+  const upcomingIds = new Set(upcoming.map((u) => u.id))
+  const suspicious = upcoming.length === 0 && store.entries.length > 0
+  if (suspicious) {
+    deps.warn('[discovery] empty snapshot vs non-empty store — skipping cleanup')
+  } else {
+    for (const id of Array.from(nextById.keys())) {
+      const e = nextById.get(id)!
+      if (upcomingIds.has(id)) continue
+      if (e.hasBracket) continue
+      nextById.delete(id)
+    }
+  }
+
   const nextEntries = Array.from(nextById.values())
   const newStore: DiscoveryStore = { version: 1, entries: nextEntries }
   await deps.saveDiscovered(newStore)
@@ -60,6 +76,12 @@ export async function runDiscoveryCycle(deps: DiscoveryDeps): Promise<void> {
         id: e.id,
         name: e.name,
       })
+    }
+  }
+  for (const [id, prev] of existingById) {
+    if (!nextById.has(id)) {
+      deps.log(`[discovery] removed ${id} ${prev.name}`)
+      await deps.captureServerEvent('tournament_auto_removed', { id, name: prev.name })
     }
   }
 }

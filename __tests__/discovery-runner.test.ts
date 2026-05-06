@@ -1,6 +1,6 @@
 import { runDiscoveryCycle, type DiscoveryDeps } from '@/lib/discovery-runner'
 import type { UpcomingEntry } from '@/lib/upcoming-scraper'
-import type { DiscoveryStore } from '@/lib/discovery-store'
+import type { DiscoveredEntry, DiscoveryStore } from '@/lib/discovery-store'
 
 function makeDeps(overrides: Partial<DiscoveryDeps>): DiscoveryDeps {
   return {
@@ -132,5 +132,86 @@ describe('runDiscoveryCycle — happy path and basic skips', () => {
       }),
     )
     expect(drawsFetched).toBe(0)
+  })
+})
+
+describe('runDiscoveryCycle — cleanup', () => {
+  const ABSENT_UNPROMOTED: DiscoveredEntry = {
+    id: 'BBBBBBBB-2222-3333-4444-555555555555',
+    name: 'Disappeared',
+    hasBracket: false,
+    discoveredAt: '2026-04-01T00:00:00Z',
+    lastSeenOnUpcomingAt: '2026-05-01T00:00:00Z',
+  }
+  const ABSENT_PROMOTED: DiscoveredEntry = {
+    ...ABSENT_UNPROMOTED,
+    id: 'CCCCCCCC-2222-3333-4444-555555555555',
+    name: 'Already Started',
+    hasBracket: true,
+  }
+
+  it('removes entries absent from upcoming with hasBracket=false', async () => {
+    const saved: DiscoveryStore[] = []
+    const events: { event: string; props: unknown }[] = []
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        loadDiscovered: async () => ({
+          version: 1,
+          entries: [ABSENT_UNPROMOTED],
+        }),
+        parseTournamentDraws: () => [{ drawNum: '1', name: 'X', size: '32', type: 's' }],
+        bracketHasSeededPlayers: () => true,
+        saveDiscovered: async (s) => {
+          saved.push(s)
+        },
+        captureServerEvent: async (event, props) => {
+          events.push({ event, props })
+        },
+      }),
+    )
+    const ids = saved[0].entries.map((e) => e.id)
+    expect(ids).not.toContain(ABSENT_UNPROMOTED.id)
+    expect(events).toContainEqual({
+      event: 'tournament_auto_removed',
+      props: { id: ABSENT_UNPROMOTED.id, name: ABSENT_UNPROMOTED.name },
+    })
+  })
+
+  it('keeps entries absent from upcoming with hasBracket=true', async () => {
+    const saved: DiscoveryStore[] = []
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [],
+        loadDiscovered: async () => ({
+          version: 1,
+          entries: [ABSENT_PROMOTED],
+        }),
+        saveDiscovered: async (s) => {
+          saved.push(s)
+        },
+      }),
+    )
+    expect(saved[0].entries.map((e) => e.id)).toContain(ABSENT_PROMOTED.id)
+  })
+
+  it('skips cleanup when upcoming snapshot is empty but store had entries', async () => {
+    const saved: DiscoveryStore[] = []
+    const warns: string[] = []
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [],
+        loadDiscovered: async () => ({
+          version: 1,
+          entries: [ABSENT_UNPROMOTED],
+        }),
+        saveDiscovered: async (s) => {
+          saved.push(s)
+        },
+        warn: (msg) => warns.push(msg),
+      }),
+    )
+    expect(saved[0].entries.map((e) => e.id)).toContain(ABSENT_UNPROMOTED.id)
+    expect(warns.some((w) => /empty snapshot/i.test(w))).toBe(true)
   })
 })
