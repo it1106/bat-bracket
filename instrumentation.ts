@@ -10,9 +10,12 @@ export async function register() {
 
     const { prewarmDrawsCache } = await import('./lib/draws-cache')
     const { prewarmBracketCache } = await import('./lib/bracket-cache')
+    const { prewarmMatchesFullCache } = await import('./lib/matches-full-cache')
 
-    // Fire-and-forget: pre-warm draws first, then all brackets
+    // Fire-and-forget: matches-full first so /api/tournaments can auto-detect
+    // "done" tournaments on the next request, then draws, then all brackets.
     ;(async () => {
+      await prewarmMatchesFullCache()
       await prewarmDrawsCache()
       await prewarmBracketCache()
     })().catch((err) => console.warn('[instrumentation] prewarm error:', err))
