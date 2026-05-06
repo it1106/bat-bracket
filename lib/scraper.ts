@@ -737,3 +737,20 @@ export function parseH2H(html: string): H2HData {
 
   return { player1, player2, records, matches }
 }
+// True iff the bracket HTML contains at least one entrant with a real
+// data-player-id (i.e. the draw has been seeded with actual people, not
+// just TBD placeholders). Used by the discovery runner's bracket gate.
+export function bracketHasSeededPlayers(html: string): boolean {
+  if (!html) return false
+  try {
+    const $ = cheerio.load(html)
+    let count = 0
+    $('a[data-player-id], [data-player-id]').each((_, el) => {
+      const id = $(el).attr('data-player-id') ?? ''
+      if (id.trim().length > 0) count++
+    })
+    return count > 0
+  } catch {
+    return false
+  }
+}
