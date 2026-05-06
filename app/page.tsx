@@ -31,6 +31,7 @@ import { useTheme } from '@/lib/ThemeContext'
 import { useLiveScore } from '@/lib/useLiveScore'
 import { matchLiveCourt } from '@/lib/live-score'
 import { setPersonProps, track } from '@/lib/analytics'
+import { getTodayIso } from '@/lib/today'
 import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData, MatchEntry } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
@@ -57,7 +58,7 @@ function prefetchFutureDayHasMatches(
   setDays: React.Dispatch<React.SetStateAction<MatchDay[]>>,
 ) {
   if (typeof window === 'undefined') return
-  const todayIso = new Date().toISOString().split('T')[0]
+  const todayIso = getTodayIso()
   const future = days.filter((d) => d.dateIso && d.dateIso > todayIso)
   if (future.length === 0) return
 

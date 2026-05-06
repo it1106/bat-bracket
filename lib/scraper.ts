@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio'
+import { getTodayIso } from './today'
 import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch } from './types'
 
 function extractId(url: string): string {
@@ -481,7 +482,7 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchScheduleGroup[] {
 export function parseMatchesFull(html: string): MatchesData {
   const $ = cheerio.load(html)
 
-  const todayIso = new Date().toISOString().split('T')[0]
+  const todayIso = getTodayIso()
   const days: MatchDay[] = []
   $('.js-date-selection-tab').each((_, el) => {
     const date = $(el).attr('data-value') ?? ''

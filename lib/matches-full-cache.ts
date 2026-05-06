@@ -3,6 +3,7 @@ import { join } from 'path'
 import { batFetch } from './bat-fetch'
 import { parseMatchesFull } from './scraper'
 import { readFullCache, writeFullCache, isAllPast } from './day-cache'
+import { getTodayIso } from './today'
 
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -45,7 +46,7 @@ export async function ensureFullCachePersisted(
 // one BAT round-trip but produce no disk write.
 export async function prewarmMatchesFullCache(): Promise<void> {
   const ids = readTournamentIds()
-  const todayIso = new Date().toISOString().split('T')[0]
+  const todayIso = getTodayIso()
   for (const id of ids) {
     try {
       const persisted = await ensureFullCachePersisted(id, todayIso)

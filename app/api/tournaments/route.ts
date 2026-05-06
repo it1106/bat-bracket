@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { readFullCache, isAllPast } from '@/lib/day-cache'
+import { getTodayIso } from '@/lib/today'
 import type { TournamentInfo } from '@/lib/types'
 
 export const revalidate = 3600
@@ -10,7 +11,7 @@ async function readTournaments(): Promise<TournamentInfo[]> {
   try {
     const filePath = join(process.cwd(), 'public', 'tournaments.txt')
     const content = readFileSync(filePath, 'utf-8')
-    const todayIso = new Date().toISOString().split('T')[0]
+    const todayIso = getTodayIso()
     const lines = content
       .split('\n')
       .map((l) => l.trim())

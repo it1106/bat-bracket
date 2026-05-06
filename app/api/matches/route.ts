@@ -3,6 +3,7 @@ import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings } from '@/l
 import { cache as bracketCache, TTL_MS as BRACKET_TTL_MS, fetchAndCache, rawHtmlCache, makeBracketKey } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
 import { readDayCache, writeDayCache, isDayComplete, readFullCache, writeFullCache, isAllPast } from '@/lib/day-cache'
+import { getTodayIso } from '@/lib/today'
 import type { MatchScheduleGroup, MatchEntry, MatchesData } from '@/lib/types'
 
 export const maxDuration = 30
@@ -112,7 +113,7 @@ export async function GET(request: Request) {
       // completion so the post-completion fetch doesn't see the pre-completion
       // snapshot.
       const fresh = searchParams.get('fresh') === '1'
-      const todayIso = new Date().toISOString().split('T')[0]
+      const todayIso = getTodayIso()
       const dateIso = toIsoDate(date)
       const memKey = `${tournamentId}:${dateIso}`
 
@@ -162,7 +163,7 @@ export async function GET(request: Request) {
       //      strictly before today (immutable schedule). Survives restarts.
       //   2. In-memory Map (60 s TTL) — absorbs bursts within one worker.
       //   3. BAT fetch — last resort. ~1.3 MB HTML, 3-5 s.
-      const todayIso = new Date().toISOString().split('T')[0]
+      const todayIso = getTodayIso()
 
       const fullDisk = await readFullCache(tournamentId)
       if (fullDisk) {
