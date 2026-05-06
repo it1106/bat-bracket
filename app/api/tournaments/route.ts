@@ -5,7 +5,10 @@ import { readFullCache, isAllPast } from '@/lib/day-cache'
 import { getTodayIso } from '@/lib/today'
 import type { TournamentInfo } from '@/lib/types'
 
-export const revalidate = 3600
+// Force dynamic so auto-done flips (disk cache appearing for a tournament
+// whose last day has just passed) are reflected on the very next request.
+// Cost is ~4 file reads per call (one stat per tournament), which is trivial.
+export const dynamic = 'force-dynamic'
 
 async function readTournaments(): Promise<TournamentInfo[]> {
   try {
