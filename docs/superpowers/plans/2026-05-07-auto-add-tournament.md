@@ -4,7 +4,7 @@
 
 **Goal:** Periodically discover new tournaments from the BAT upcoming page and auto-add any with a published bracket to the dropdown, with no manual `tournaments.txt` edits.
 
-**Architecture:** A 15-minute `setInterval` in `instrumentation.ts` (worker 0 only, paused 00:00–08:00 Asia/Bangkok) calls a pure orchestrator `runDiscoveryCycle()`. The orchestrator scrapes the upcoming page, filters out Online-Entry rows, gates each candidate on a "seeded players in at least one draw" check, and persists results to `.cache/discovered-tournaments.json`. `/api/tournaments` merges that store with `tournaments.txt`, with a `# deny <GUID>` syntax acting as a denylist over both.
+**Architecture:** A 15-minute `setInterval` in `instrumentation.ts` (worker 0 only, paused 00:00–08:00 Asia/Bangkok) calls a pure orchestrator `runDiscoveryCycle()`. The orchestrator scrapes the upcoming list (`/Home/DoTournamentSearch?Page=1&SelectedTab=Upcoming`), filters out Online-Entry rows, then for each candidate that isn't yet promoted (`hasBracket: false`) probes the draws page directly. When at least one draw has seeded players, the entry is latched to `hasBracket: true` and skipped on subsequent cycles. State persists to `.cache/discovered-tournaments.json`. `/api/tournaments` merges that store with `tournaments.txt`, with a `# deny <GUID>` syntax acting as a denylist over both.
 
 **Tech Stack:** Next.js 14 App Router, TypeScript, cheerio (HTML parsing), Jest (testing), `posthog-node` (server-side telemetry), PM2 (process manager — `NODE_APP_INSTANCE` env var identifies the cluster worker).
 
@@ -34,28 +34,36 @@ The parser tests in later tasks need real BAT HTML to assert against. We capture
 
 - [ ] **Step 1: Capture the upcoming-tournaments page**
 
+The list is served via an XHR endpoint, NOT the homepage HTML. Use the AJAX URL:
+
 ```bash
-curl -sL 'https://bat.tournamentsoftware.com/' \
+curl -sL 'https://bat.tournamentsoftware.com/Home/DoTournamentSearch?Page=1&SelectedTab=Upcoming' \
   -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' \
+  -H 'Accept: text/html,application/xhtml+xml' \
+  -H 'X-Requested-With: XMLHttpRequest' \
   > fixtures/upcoming.html
 ```
 
-Verify it's substantial (BAT serves the upcoming list inline):
+Verify it has the expected markers:
 
 ```bash
 wc -c fixtures/upcoming.html
+grep -c '<li class="list__item"' fixtures/upcoming.html
+grep -c 'Online Entry' fixtures/upcoming.html
 ```
 
-Expected: > 30000 bytes. If the file is tiny or empty, BAT may have served a JS-only shell — open the URL in a real browser, save the rendered HTML via View Source.
+Expected: file > 25 KB, ≥1 `list__item`, ≥0 `Online Entry` strings (typically several).
 
-- [ ] **Step 2: Inspect the capture and write down what you see**
+- [ ] **Step 2: Confirm the structure matches what Task 3 expects**
 
-Open `fixtures/upcoming.html` in an editor. Find the upcoming-tournaments list (search for "TabUpcoming" or the literal text "Online Entry" / "Last Changed"). Note:
-- One example tournament with the **"Online Entry"** badge (write down its GUID and name).
-- One example tournament **without** the Online Entry badge (write down GUID, name, and Last Changed value).
-- The CSS selectors for: row container, name link, GUID (usually in the link `href`), Last Changed cell, Online Entry badge.
+The structure (verified during planning) is:
+- Each tournament is in a `<li class="list__item">`.
+- The first `<a>` inside has `href="/sport/tournament?id=<GUID>"` — that's where we extract the GUID.
+- The link text (or a `<span class="nav-link__value">` inside) holds the tournament name.
+- The "Online Entry" badge appears as text inside an `<a>` button in the row's `media__aside` section, whose href is `/onlineentry/onlineentry.aspx?id=<GUID>`.
+- There is NO "Last Changed" field on this page.
 
-You'll need these for the assertions in Task 3. Keep notes in a scratch file or comment.
+Task 3's parser extracts only `{ id, name, hasOnlineEntry }`. No timestamp.
 
 - [ ] **Step 3: Capture a seeded bracket fixture from your existing cache**
 
@@ -230,13 +238,12 @@ describe('parseUpcoming', () => {
     expect(parseUpcoming('<html></html>')).toEqual([])
   })
 
-  it('extracts upcoming tournaments with id, name, lastChanged', () => {
+  it('extracts upcoming tournaments with id, name, hasOnlineEntry', () => {
     const result = parseUpcoming(fixture('upcoming.html'))
     expect(result.length).toBeGreaterThan(0)
     for (const entry of result) {
       expect(entry.id).toMatch(/^[A-F0-9-]{36}$/)
       expect(entry.name.length).toBeGreaterThan(0)
-      expect(typeof entry.lastChanged).toBe('string')
       expect(typeof entry.hasOnlineEntry).toBe('boolean')
     }
   })
@@ -273,41 +280,39 @@ import * as cheerio from 'cheerio'
 export interface UpcomingEntry {
   id: string
   name: string
-  lastChanged: string
   hasOnlineEntry: boolean
 }
 
-const GUID_RE = /\/tournament\/([A-Fa-f0-9-]{36})/
+// Tournament link format on this AJAX endpoint: /sport/tournament?id=<GUID>
+const GUID_RE = /\/sport\/tournament\?id=([A-Fa-f0-9-]{36})/i
 
 export function parseUpcoming(html: string): UpcomingEntry[] {
   if (!html) return []
   const $ = cheerio.load(html)
   const out: UpcomingEntry[] = []
+  const seen = new Set<string>()
 
-  // The upcoming list lives inside the #TabUpcoming pane. Each row links
-  // to /tournament/<guid>/. Last-Changed and Online-Entry markers are
-  // adjacent to the link in the same row.
-  $('#TabUpcoming a[href*="/tournament/"]').each((_, el) => {
-    const href = $(el).attr('href') ?? ''
+  $('li.list__item').each((_, li) => {
+    const link = $(li).find('a[href*="/sport/tournament?id="]').first()
+    const href = link.attr('href') ?? ''
     const m = GUID_RE.exec(href)
     if (!m) return
     const id = m[1].toUpperCase()
-    if (out.some((e) => e.id === id)) return // de-dupe multiple links on same row
+    if (seen.has(id)) return
+    seen.add(id)
 
-    const row = $(el).closest('tr, li, .tournament-item')
-    const rowText = row.text()
-    const name = $(el).text().trim() || row.find('.tournament-name').first().text().trim()
+    const name =
+      $(li).find('.media__title .nav-link__value').first().text().trim() ||
+      link.attr('title')?.trim() ||
+      link.text().trim()
     if (!name) return
 
-    const hasOnlineEntry = /Online\s*Entry/i.test(rowText)
+    // The Online Entry badge is an aside button linking to onlineentry.aspx
+    // for the same tournament GUID.
+    const hasOnlineEntry =
+      $(li).find('a[href*="/onlineentry/onlineentry.aspx"]').length > 0
 
-    // Last Changed is typically a date string adjacent to the row.
-    const lastChanged =
-      row.find('[data-last-changed]').attr('data-last-changed') ??
-      row.find('.last-changed, td.lastchanged').first().text().trim() ??
-      ''
-
-    out.push({ id, name, lastChanged, hasOnlineEntry })
+    out.push({ id, name, hasOnlineEntry })
   })
 
   return out
@@ -464,7 +469,6 @@ describe('discovery-store', () => {
         {
           id: 'AAAAAAAA-1111-2222-3333-444444444444',
           name: 'Test Open',
-          lastChanged: '2026-05-07T01:00:00Z',
           hasBracket: true,
           discoveredAt: '2026-05-01T00:00:00Z',
           lastSeenOnUpcomingAt: '2026-05-07T03:00:00Z',
@@ -513,7 +517,6 @@ import path from 'path'
 export interface DiscoveredEntry {
   id: string
   name: string
-  lastChanged: string
   hasBracket: boolean
   discoveredAt: string
   lastSeenOnUpcomingAt: string
@@ -731,7 +734,6 @@ function makeDeps(overrides: Partial<DiscoveryDeps>): DiscoveryDeps {
 const MOCK_ENTRY: UpcomingEntry = {
   id: 'AAAAAAAA-1111-2222-3333-444444444444',
   name: 'New Open 2026',
-  lastChanged: '2026-05-07T01:00:00Z',
   hasOnlineEntry: false,
 }
 
@@ -758,7 +760,6 @@ describe('runDiscoveryCycle — happy path and basic skips', () => {
       id: MOCK_ENTRY.id,
       name: MOCK_ENTRY.name,
       hasBracket: true,
-      lastChanged: MOCK_ENTRY.lastChanged,
     })
     expect(events).toEqual([
       { event: 'tournament_auto_added', props: { id: MOCK_ENTRY.id, name: MOCK_ENTRY.name } },
@@ -784,14 +785,13 @@ describe('runDiscoveryCycle — happy path and basic skips', () => {
     expect(saved[0].entries).toEqual([])
   })
 
-  it('does not refetch draws when lastChanged is unchanged', async () => {
+  it('keeps an unpromoted entry tracked when bracket gate still fails', async () => {
     const existing: DiscoveryStore = {
       version: 1,
       entries: [
         {
           id: MOCK_ENTRY.id,
           name: MOCK_ENTRY.name,
-          lastChanged: MOCK_ENTRY.lastChanged,
           hasBracket: false,
           discoveredAt: '2026-05-06T00:00:00Z',
           lastSeenOnUpcomingAt: '2026-05-06T00:00:00Z',
@@ -799,17 +799,24 @@ describe('runDiscoveryCycle — happy path and basic skips', () => {
       ],
     }
     let drawsFetched = 0
+    const saved: DiscoveryStore[] = []
     await runDiscoveryCycle(
       makeDeps({
         parseUpcoming: () => [MOCK_ENTRY],
         loadDiscovered: async () => existing,
+        parseTournamentDraws: () => [],
         fetchDrawsHtml: async () => {
           drawsFetched++
           return ''
         },
+        saveDiscovered: async (s) => {
+          saved.push(s)
+        },
       }),
     )
-    expect(drawsFetched).toBe(0)
+    // Probe ran (gate failed because no draws), entry remains unpromoted.
+    expect(drawsFetched).toBe(1)
+    expect(saved[0].entries[0].hasBracket).toBe(false)
   })
 
   it('does not refetch draws for already-promoted entries', async () => {
@@ -819,7 +826,6 @@ describe('runDiscoveryCycle — happy path and basic skips', () => {
         {
           id: MOCK_ENTRY.id,
           name: MOCK_ENTRY.name,
-          lastChanged: '2025-01-01T00:00:00Z',
           hasBracket: true,
           discoveredAt: '2025-01-01T00:00:00Z',
           lastSeenOnUpcomingAt: '2025-01-01T00:00:00Z',
@@ -881,7 +887,6 @@ export async function runDiscoveryCycle(deps: DiscoveryDeps): Promise<void> {
   const store = await deps.loadDiscovered()
   const nowIso = deps.now().toISOString()
 
-  // Index existing entries by id for O(1) lookup.
   const existingById = new Map(store.entries.map((e) => [e.id, e]))
   const nextById = new Map(existingById)
 
@@ -889,31 +894,22 @@ export async function runDiscoveryCycle(deps: DiscoveryDeps): Promise<void> {
     const existing = nextById.get(u.id)
     if (existing) {
       existing.lastSeenOnUpcomingAt = nowIso
-      if (existing.hasBracket) continue // committed; nothing to do
-      if (existing.lastChanged === u.lastChanged) continue // unchanged
-      // lastChanged moved → re-run the gate
-      const promoted = await runBracketGate(deps, u.id)
-      if (promoted) {
-        existing.hasBracket = true
-      }
-      existing.lastChanged = u.lastChanged
       existing.name = u.name
-    } else {
-      // Brand new tournament
+      if (existing.hasBracket) continue // already promoted; skip probe
       const promoted = await runBracketGate(deps, u.id)
-      const entry: DiscoveredEntry = {
+      if (promoted) existing.hasBracket = true
+    } else {
+      const promoted = await runBracketGate(deps, u.id)
+      nextById.set(u.id, {
         id: u.id,
         name: u.name,
-        lastChanged: u.lastChanged,
         hasBracket: promoted,
         discoveredAt: nowIso,
         lastSeenOnUpcomingAt: nowIso,
-      }
-      nextById.set(u.id, entry)
+      })
     }
   }
 
-  // Persist + diff for telemetry.
   const nextEntries = Array.from(nextById.values())
   const newStore: DiscoveryStore = { version: 1, entries: nextEntries }
   await deps.saveDiscovered(newStore)
@@ -975,7 +971,6 @@ describe('runDiscoveryCycle — cleanup', () => {
   const ABSENT_UNPROMOTED: DiscoveredEntry = {
     id: 'BBBBBBBB-2222-3333-4444-555555555555',
     name: 'Disappeared',
-    lastChanged: '2026-05-01T00:00:00Z',
     hasBracket: false,
     discoveredAt: '2026-04-01T00:00:00Z',
     lastSeenOnUpcomingAt: '2026-05-01T00:00:00Z',
@@ -1087,18 +1082,15 @@ export async function runDiscoveryCycle(deps: DiscoveryDeps): Promise<void> {
     const existing = nextById.get(u.id)
     if (existing) {
       existing.lastSeenOnUpcomingAt = nowIso
+      existing.name = u.name
       if (existing.hasBracket) continue
-      if (existing.lastChanged === u.lastChanged) continue
       const promoted = await runBracketGate(deps, u.id)
       if (promoted) existing.hasBracket = true
-      existing.lastChanged = u.lastChanged
-      existing.name = u.name
     } else {
       const promoted = await runBracketGate(deps, u.id)
       nextById.set(u.id, {
         id: u.id,
         name: u.name,
-        lastChanged: u.lastChanged,
         hasBracket: promoted,
         discoveredAt: nowIso,
         lastSeenOnUpcomingAt: nowIso,
@@ -1454,7 +1446,6 @@ describe('mergeForApi', () => {
         {
           id: 'BBBB2222-2222-3333-4444-555555555555',
           name: 'Discovered',
-          lastChanged: 'x',
           hasBracket: true,
           discoveredAt: 'x',
           lastSeenOnUpcomingAt: 'x',
@@ -1472,7 +1463,6 @@ describe('mergeForApi', () => {
         {
           id: 'CCCC3333-2222-3333-4444-555555555555',
           name: 'Not yet',
-          lastChanged: 'x',
           hasBracket: false,
           discoveredAt: 'x',
           lastSeenOnUpcomingAt: 'x',
@@ -1490,7 +1480,6 @@ describe('mergeForApi', () => {
         {
           id: 'DDDD4444-2222-3333-4444-555555555555',
           name: 'BAT name',
-          lastChanged: 'x',
           hasBracket: true,
           discoveredAt: 'x',
           lastSeenOnUpcomingAt: 'x',
@@ -1515,7 +1504,6 @@ describe('mergeForApi', () => {
         {
           id: denied,
           name: 'Discovered',
-          lastChanged: 'x',
           hasBracket: true,
           discoveredAt: 'x',
           lastSeenOnUpcomingAt: 'x',

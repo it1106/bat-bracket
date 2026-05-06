@@ -6,12 +6,13 @@ A periodic in-process job that watches the BAT upcoming-tournaments page and aut
 
 `public/tournaments.txt` is hand-curated and committed to git. Every new tournament currently requires an admin to ssh in, edit the file, redeploy, and remove the `[done]` flag once it ends. Auto-done detection (shipped 2026-05-07) eliminated half of that workflow; this spec eliminates the other half.
 
-The BAT site exposes `/#TabUpcoming` listing every accepting / upcoming tournament. Each row carries:
+The BAT site exposes `/Home/DoTournamentSearch?Page=1&SelectedTab=Upcoming` listing every accepting / upcoming tournament. Each row carries:
 - a tournament name and GUID,
-- a "Last Changed" timestamp,
 - an "Online Entry" badge for tournaments still accepting registrations.
 
-Tournaments showing "Online Entry" never have a bracket published yet, so we filter them out. The remaining rows are candidates: when their `Last Changed` moves, we re-check the draws page; when at least one draw has seeded (non-TBD) players, we promote the tournament into our dropdown.
+Tournaments showing "Online Entry" never have a bracket published yet, so we filter them out. For each remaining candidate that isn't already promoted (`hasBracket: false`), we directly probe the draws page each cycle. When at least one draw has seeded (non-TBD) players, we flip `hasBracket: true` and stop probing it.
+
+(An earlier draft of this spec proposed gating the draws probe on a "Last Changed" timestamp from the upcoming list. Investigation during implementation showed that field doesn't exist on the upcoming list — it's only on per-tournament detail pages — and adding a detail-page fetch to read it was net-equal in cost to just probing the draws page directly. We dropped the optimization.)
 
 ## Goals
 
@@ -37,6 +38,7 @@ Tournaments showing "Online Entry" never have a bracket published yet, so we fil
 | Quiet window | Skip cycles between 00:00 and 08:00 Asia/Bangkok. The interval still ticks; the runner returns immediately during the quiet window with a single log line per skipped tick. Active window is 16 h/day → 64 cycles/day. |
 | Where the cron runs | `setInterval` inside `instrumentation.ts`, leader-guarded by `NODE_APP_INSTANCE === '0'`. |
 | Bracket gate criterion | At least one draw has seeded (non-TBD) players. |
+| Probe strategy | Probe the draws page directly each cycle for any candidate where `hasBracket: false`. Skip already-promoted tournaments entirely. (The Last-Changed timestamp originally proposed as a gate isn't on the upcoming list — it's only on per-tournament detail pages, so the indirection saved nothing.) |
 | Lifecycle / removal | Auto-cleanup if absent from upcoming AND `hasBracket: false`. Once `hasBracket: true`, never removed. Denylist via `# deny <GUID>` lines in `tournaments.txt`. |
 | Notifications | Server log line + PostHog server-side event for every add/remove. |
 
@@ -74,7 +76,6 @@ Tournaments showing "Online Entry" never have a bracket published yet, so we fil
     {
       "id": "C0FFEE12-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
       "name": "Some Open 2026",
-      "lastChanged": "2026-05-07T01:23:45Z",
       "hasBracket": true,
       "discoveredAt": "2026-05-01T03:00:00Z",
       "lastSeenOnUpcomingAt": "2026-05-07T03:00:00Z"
@@ -84,8 +85,7 @@ Tournaments showing "Online Entry" never have a bracket published yet, so we fil
 ```
 
 - `id`: Uppercase GUID. Same casing as `tournaments.txt` and `safeSegment` of `lib/day-cache.ts`.
-- `lastChanged`: Raw string from BAT, treated opaquely. Used for inequality compare to detect changes.
-- `hasBracket`: Monotonic latch. Once `true`, never flips back to `false`.
+- `hasBracket`: Monotonic latch. Once `true`, never flips back to `false`. Once set, the runner skips re-probing this entry every cycle.
 - `discoveredAt`: First-seen timestamp. Forensic only.
 - `lastSeenOnUpcomingAt`: Updated every cycle the GUID appears on the upcoming snapshot. Used by cleanup to distinguish "new" from "absent".
 - `version: 1`: Wrapper for future migrations.
@@ -114,7 +114,7 @@ The existing parser already skips `#`-prefixed lines. We additionally scan `#`-p
    If Asia/Bangkok hour ∈ [0, 8) → log "[discovery] quiet window, skipping" and return.
    Skip if previous cycle still in flight (mutex flag).
 
-2. GET https://bat.tournamentsoftware.com/
+2. GET https://bat.tournamentsoftware.com/Home/DoTournamentSearch?Page=1&SelectedTab=Upcoming
    parseUpcoming(html) → UpcomingEntry[]
    Filter: drop entries where hasOnlineEntry === true.
 
@@ -123,20 +123,17 @@ The existing parser already skips `#`-prefixed lines. We additionally scan `#`-p
 4. For each filtered upcoming entry:
    a. Find existing record by id.
    b. Update lastSeenOnUpcomingAt = now.
-   c. If existing.hasBracket === true → continue (committed).
-   d. If new OR lastChanged differs → run bracket gate (step 5).
-   e. Else (lastChanged unchanged) → continue.
+   c. If existing.hasBracket === true → continue (committed; skip probe).
+   d. Otherwise (new entry OR existing with hasBracket=false) → run bracket gate.
+   e. New record? Set discoveredAt = now.
 
-5. Bracket gate (only fires when 4d triggered):
+5. Bracket gate (step 4d):
    GET /sport/draws.aspx?id=<guid>
-   If 0 draws returned → "not yet", but the fetch succeeded.
+   If 0 draws returned → "not yet"; record stays with hasBracket=false.
    Else: GET first draw's GetDrawContent. If bracketHasSeededPlayers(html) →
    promote: hasBracket = true.
-   On any HTTP failure during this step → leave the record's lastChanged
-   untouched so the next cycle retries the gate. On success (whether the
-   gate passed or not) → update lastChanged to the value seen on the
-   upcoming page in step 2.
-   New record? Set discoveredAt = now.
+   On any HTTP failure during this step → leave the record state unchanged;
+   the next cycle retries.
 
 6. Cleanup pass:
    For each entry in store NOT in this cycle's upcoming snapshot:
@@ -223,5 +220,5 @@ Not automated. After first deploy:
 - "First-tick" delay: `setInterval` waits one full interval before firing. Implementation should call `runDiscoveryCycle()` once immediately (after a small delay so it doesn't compete with the prewarm chain), then start the interval.
 - Network setup: the existing `dns.setDefaultResultOrder('ipv4first')` in `instrumentation.ts` already covers the upcoming-page fetch — no additional config needed.
 - Quiet-window check uses the same `Intl.DateTimeFormat` / `Asia/Bangkok` pattern as `lib/today.ts`. A small helper `getBangkokHour() → 0–23` may live in `lib/today.ts` for symmetry with `getTodayIso()`.
-- BAT hit budget. Steady state: ~64 upcoming-page fetches/day (1 per active-hour cycle) + ~3–6 conditional draws/draw-content fetches when something actually changes → **~65–75 hits/day total** from this loop. First cycle after a fresh deploy / wiped store is a one-time spike of `1 + 2 × |upcoming|` hits as every entry triggers the bracket gate; for ~10 upcoming tournaments that's roughly 21 hits.
+- BAT hit budget. Per cycle: 1 upcoming-list fetch + (≤ 2 × |unpromoted candidates|) draws/draw-content fetches. With today's 3 non-Online-Entry candidates, all unpromoted, that's `1 + 6 = 7` hits/cycle worst case. As candidates promote (hasBracket=true), they're skipped → eventual steady state is 1 hit/cycle plus burst when new candidates appear. Active window is 64 cycles/day → **~64–448 hits/day total** depending on how many unpromoted candidates exist. Once everything is promoted, ~64/day floor.
 - The runner stays scheduler-agnostic: `runDiscoveryCycle()` is a plain async function. The `setInterval` wrapper lives in `instrumentation.ts`. Ad-hoc invocation (e.g. for debugging) is just a one-liner script.
