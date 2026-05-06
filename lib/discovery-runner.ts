@@ -1,6 +1,11 @@
 import type { UpcomingEntry } from './upcoming-scraper'
 import type { DiscoveredEntry, DiscoveryStore } from './discovery-store'
 import type { DrawInfo } from './types'
+import { batFetch } from './bat-fetch'
+import { parseUpcoming } from './upcoming-scraper'
+import { parseTournamentDraws, bracketHasSeededPlayers } from './scraper'
+import { loadDiscovered, saveDiscovered } from './discovery-store'
+import { captureServerEvent } from './posthog-server'
 
 export interface DiscoveryDeps {
   fetchUpcomingHtml: () => Promise<string>
@@ -93,7 +98,7 @@ async function runDiscoveryCycleInner(deps: DiscoveryDeps): Promise<void> {
       })
     }
   }
-  for (const [id, prev] of existingById) {
+  for (const [id, prev] of Array.from(existingById)) {
     if (!nextById.has(id)) {
       deps.log(`[discovery] removed ${id} ${prev.name}`)
       await deps.captureServerEvent('tournament_auto_removed', { id, name: prev.name })
@@ -110,5 +115,60 @@ async function runBracketGate(deps: DiscoveryDeps, id: string): Promise<boolean>
     return deps.bracketHasSeededPlayers(contentHtml)
   } catch {
     return false
+  }
+}
+
+const HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml',
+}
+
+export function buildDefaultDeps(): DiscoveryDeps {
+  return {
+    fetchUpcomingHtml: async () => {
+      const res = await batFetch(
+        'discovery-upcoming',
+        'https://bat.tournamentsoftware.com/Home/DoTournamentSearch?Page=1&SelectedTab=Upcoming',
+        {
+          headers: { ...HEADERS, 'X-Requested-With': 'XMLHttpRequest' },
+          cache: 'no-store',
+        },
+      )
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.text()
+    },
+    parseUpcoming,
+    fetchDrawsHtml: async (id) => {
+      const res = await batFetch(
+        'discovery-draws',
+        `https://bat.tournamentsoftware.com/sport/draws.aspx?id=${id}`,
+        { headers: HEADERS, cache: 'no-store' },
+      )
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.text()
+    },
+    parseTournamentDraws,
+    fetchDrawContentHtml: async (id, drawNum) => {
+      const url = `https://bat.tournamentsoftware.com/tournament/${id}/Draw/${drawNum}/GetDrawContent?tabindex=1&X-Requested-With=XMLHttpRequest`
+      const res = await batFetch('discovery-draw-content', url, {
+        headers: {
+          ...HEADERS,
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'text/html, */*; q=0.01',
+          Referer: `https://bat.tournamentsoftware.com/tournament/${id}/draw/${drawNum}`,
+        },
+        cache: 'no-store',
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.text()
+    },
+    bracketHasSeededPlayers,
+    loadDiscovered,
+    saveDiscovered,
+    captureServerEvent,
+    log: (msg) => console.log(msg),
+    warn: (msg) => console.warn(msg),
+    now: () => new Date(),
   }
 }
