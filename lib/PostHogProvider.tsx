@@ -4,7 +4,7 @@ import { useEffect, type ReactNode } from 'react'
 import posthog from 'posthog-js'
 import { useLanguage } from './LanguageContext'
 import { useTheme } from './ThemeContext'
-import { registerGlobals } from './analytics'
+import { identifyDevice, registerGlobals } from './analytics'
 
 const KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY
 // Default to the same-origin reverse proxy defined in next.config.js so
@@ -47,6 +47,7 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
           app_deployment: APP_DEPLOYMENT,
           app_environment: APP_ENVIRONMENT,
         })
+        identifyDevice()
       },
     })
   }, [])

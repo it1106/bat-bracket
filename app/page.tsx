@@ -30,7 +30,7 @@ import { longRoundL } from '@/lib/i18n'
 import { useTheme } from '@/lib/ThemeContext'
 import { useLiveScore } from '@/lib/useLiveScore'
 import { matchLiveCourt } from '@/lib/live-score'
-import { track } from '@/lib/analytics'
+import { setPersonProps, track } from '@/lib/analytics'
 import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData, MatchEntry } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
@@ -255,6 +255,15 @@ export default function Home() {
     if (!activeCustomTabId) return
     track('custom_tab_viewed', { tournament_id: selectedTournament, tab_id: activeCustomTabId })
   }, [viewMode, selectedTournament, activeCustomTabId])
+
+  // Upgrade the device-level PostHog person profile with a human-readable name
+  // (the first custom tab's nickname) so the persons list shows the nickname
+  // instead of the device UUID. Fires on initial load and on any tab mutation.
+  useEffect(() => {
+    if (customTabs.length === 0) return
+    const top = customTabs[0]
+    setPersonProps({ name: top.nickname, follows: top.keyword })
+  }, [customTabs])
 
   useEffect(() => {
     document.body.classList.toggle('no-highlight', !highlightResults)
