@@ -15,7 +15,12 @@ export async function register() {
       await prewarmBracketCache()
     })().catch((err) => console.warn('[instrumentation] prewarm error:', err))
 
-    const isLeader = (process.env.NODE_APP_INSTANCE ?? '0') === '0'
+    // Leader-only across PM2 workers. Today this is a 1-worker cluster, so
+    // we run unconditionally on the worker (NODE_APP_INSTANCE may be 0, 1, or
+    // undefined depending on how PM2 was started — none of which signals
+    // "not the leader" when there's only one worker). If we ever scale to N>1,
+    // change this to gate on "lowest NODE_APP_INSTANCE".
+    const isLeader = true
     if (isLeader) {
       const deps = buildDefaultDeps()
       const tick = async () => {
