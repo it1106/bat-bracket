@@ -75,6 +75,7 @@ export type TKey =
   | 'trackLabel'
   | 'searchPlaceholder'
   | 'selectTournament'
+  | 'pastEvents'
   | 'selectDraw'
   | 'noDraws'
   | 'loading'
@@ -158,6 +159,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     trackLabel: 'Search',
     searchPlaceholder: 'Player, club, or event',
     selectTournament: '— Select tournament —',
+    pastEvents: 'Past Events',
     selectDraw: '— Select draw —',
     noDraws: 'No draws',
     loading: 'Loading…',
@@ -240,6 +242,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     trackLabel: 'ค้นหา',
     searchPlaceholder: 'ชื่อนักกีฬา ทีม หรือประเภท',
     selectTournament: '— เลือกรายการแข่งขัน —',
+    pastEvents: 'รายการที่จบแล้ว',
     selectDraw: '— เลือกตารางแข่ง —',
     noDraws: 'ไม่มีตารางแข่ง',
     loading: 'กำลังโหลด…',

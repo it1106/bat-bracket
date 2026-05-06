@@ -618,12 +618,13 @@ export default function Home() {
               {tournaments.filter((tn) => !tn.done).map((tn) => (
                 <option key={tn.id} value={tn.id}>{tn.name}</option>
               ))}
-              {tournaments.some((tn) => tn.done) && tournaments.some((tn) => !tn.done) && (
-                <option disabled>───────── Past Events ─────────</option>
+              {tournaments.some((tn) => tn.done) && (
+                <optgroup label={t('pastEvents')}>
+                  {tournaments.filter((tn) => tn.done).map((tn) => (
+                    <option key={tn.id} value={tn.id}>{tn.name}</option>
+                  ))}
+                </optgroup>
               )}
-              {tournaments.filter((tn) => tn.done).map((tn) => (
-                <option key={tn.id} value={tn.id}>{tn.name}</option>
-              ))}
             </select>
           </div>
 
