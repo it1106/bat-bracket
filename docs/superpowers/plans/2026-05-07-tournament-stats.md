@@ -1432,7 +1432,7 @@ In the `en` translations block, append:
 ```ts
   tournamentStats: 'Tournament stats',
   statsKpiMatches: 'Matches',
-  statsKpiPlayers: 'Players',
+  statsKpiPlayers: 'Unique players',
   statsKpiCourtTime: 'Court time',
   statsKpiAvgMatch: 'Avg match',
   statsKpiThreeSetters: '3-setters',
@@ -1459,7 +1459,7 @@ In the `th` translations block, append:
 ```ts
   tournamentStats: 'สถิติการแข่งขัน',
   statsKpiMatches: 'แมตช์',
-  statsKpiPlayers: 'ผู้เล่น',
+  statsKpiPlayers: 'ผู้เล่นไม่ซ้ำ',
   statsKpiCourtTime: 'เวลาในสนาม',
   statsKpiAvgMatch: 'เฉลี่ย/แมตช์',
   statsKpiThreeSetters: '3 เกม',

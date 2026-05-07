@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>สถิติการแข่งขัน — SPRC 2026 Mockup</title>
+<style>
+  :root {
+    --bg: #f3f4f6;
+    --surface: #fff;
+    --surface-2: #f9fafb;
+    --ink: #25316B;
+    --ink-soft: #475569;
+    --muted: #94a3b8;
+    --rule: #e5e7eb;
+    --accent: #25316B;
+    --accent-2: #5e5ccf;
+    --gold: #d97706;
+    --warn: #b45309;
+    --win: #166534;
+    --loss: #b91c1c;
+    --bar: #25316B;
+    --bar-soft: #c7cce0;
+  }
+  body.dark {
+    --bg: #1a1f2c;
+    --surface: #2a2f3d;
+    --surface-2: #232836;
+    --ink: #f1f5f9;
+    --ink-soft: #cbd5e1;
+    --muted: #94a3b8;
+    --rule: #323a49;
+    --accent: #818cf8;
+    --accent-2: #5e5ccf;
+    --gold: #fbbf24;
+    --warn: #fcd34d;
+    --win: #4ade80;
+    --loss: #f87171;
+    --bar: #818cf8;
+    --bar-soft: #3f4860;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Sukhumvit Set", "IBM Plex Sans Thai", "Noto Sans Thai", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    margin: 0;
+    padding: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+
+  .toolbar {
+    display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 16px;
+  }
+  .toolbar button {
+    background: var(--surface); border: 1px solid var(--rule); color: var(--ink);
+    padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 16px;
+    padding: 22px 26px; margin-bottom: 20px;
+  }
+  .hero-eyebrow { font-size: 11px; letter-spacing: 0.16em; color: var(--muted); text-transform: uppercase; }
+  .hero h1 { margin: 4px 0 6px; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .hero .meta { color: var(--ink-soft); font-size: 14px; }
+  .kpis {
+    margin-top: 18px;
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;
+  }
+  .kpi {
+    background: var(--surface-2); border: 1px solid var(--rule); border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .kpi .num { font-size: 22px; font-weight: 700; line-height: 1.1; }
+  .kpi .num .sub { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+  .kpi .lbl { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; margin-top: 4px; }
+  @media (max-width: 760px) {
+    .kpis { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* ---------- Section ---------- */
+  section.card {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 16px;
+  }
+  section.card h2 {
+    margin: 0 0 14px; font-size: 14px; font-weight: 700; letter-spacing: 0.04em;
+    color: var(--ink-soft);
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ---------- Daily volume ---------- */
+  .day-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
+  .day-row .label { width: 80px; color: var(--ink-soft); flex-shrink: 0; }
+  .day-row .barwrap { flex: 1; background: var(--bar-soft); border-radius: 6px; height: 22px; overflow: hidden; }
+  .day-row .bar { background: var(--bar); height: 100%; border-radius: 6px 0 0 6px; }
+  .day-row .val { width: 130px; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .day-row .val .secondary { color: var(--muted); font-size: 12px; margin-left: 6px; font-weight: 500; }
+
+  /* ---------- Marathon / closest cards ---------- */
+  .feature {
+    border-left: 3px solid var(--gold);
+    padding: 8px 12px; margin: 10px 0; background: var(--surface-2);
+    border-radius: 0 8px 8px 0;
+  }
+  .feature.cool { border-left-color: var(--accent-2); }
+  .feature .badge { font-size: 12px; color: var(--gold); font-weight: 700; letter-spacing: 0.02em; }
+  .feature.cool .badge { color: var(--accent-2); }
+  .feature .head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .feature .where { font-size: 12px; color: var(--muted); }
+  .feature .teams { font-weight: 600; margin: 4px 0 2px; font-size: 14px; }
+  .feature .scoreline { font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Tables ---------- */
+  table.list { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.list th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px;
+    letter-spacing: 0.02em; padding: 4px 8px; border-bottom: 1px solid var(--rule); }
+  table.list td { padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+  table.list tr:last-child td { border-bottom: none; }
+  table.list .num { font-variant-numeric: tabular-nums; text-align: right; }
+  table.list .rank { color: var(--muted); width: 24px; }
+  .seed { color: var(--muted); font-size: 11px; margin-left: 4px; }
+  .wl { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .wl b { color: var(--win); }
+  .wl i { color: var(--loss); font-style: normal; }
+
+  /* ---------- Court utilization ---------- */
+  .court-row { display: grid; grid-template-columns: 90px 1fr 90px; gap: 10px; align-items: center; font-size: 13px; padding: 5px 0; }
+  .court-row .nm { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .court-row .barwrap { background: var(--bar-soft); border-radius: 5px; height: 14px; overflow: hidden; }
+  .court-row .bar { background: var(--bar); height: 100%; }
+  .court-row .v { text-align: right; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Event breakdown ---------- */
+  .event-tbl td.evname { font-weight: 600; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; background: var(--surface-2); border: 1px solid var(--rule); color: var(--ink-soft); }
+  .pill.warn { background: rgba(217,119,6,.1); border-color: rgba(217,119,6,.3); color: var(--gold); }
+
+  .footnote { color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+  /* ---------- Mobile (≤ 480 px) ---------- */
+  @media (max-width: 480px) {
+    body { padding: 10px; }
+    .hero { padding: 14px 16px; border-radius: 12px; margin-bottom: 12px; }
+    .hero h1 { font-size: 18px; }
+    .hero .meta { font-size: 12px; }
+    .kpis { grid-template-columns: repeat(2, 1fr) !important; gap: 6px; margin-top: 12px; }
+    .kpi { padding: 8px 10px; border-radius: 9px; }
+    .kpi .num { font-size: 17px; }
+    .kpi .num .sub { font-size: 11px; margin-left: 3px; }
+    .kpi .lbl { font-size: 10px; margin-top: 2px; }
+
+    section.card { padding: 12px 14px; border-radius: 10px; margin-bottom: 10px; }
+    section.card h2 { font-size: 13px; margin-bottom: 10px; }
+
+    .day-row .label { width: 80px; font-size: 12px; }
+    .day-row .val { width: auto; min-width: 56px; line-height: 1.15; }
+    .day-row .val .secondary { display: block; margin-left: 0; font-size: 11px; }
+
+    .feature { padding: 8px 10px; }
+    .feature .head { flex-direction: column; align-items: flex-start; gap: 2px; }
+    .feature .badge { font-size: 11px; }
+    .feature .where { font-size: 11px; }
+    .feature .teams { font-size: 13px; line-height: 1.4; }
+    .feature .scoreline { font-size: 12px; }
+
+    /* All events table → event/matches inline, winner stacked, hide secondary cols */
+    table.list.event-list { display: block; }
+    table.list.event-list thead { display: none; }
+    table.list.event-list tbody { display: block; }
+    table.list.event-list tr {
+      display: flex; flex-wrap: wrap; align-items: baseline;
+      border-bottom: 1px solid var(--rule);
+      padding: 8px 0; gap: 4px 8px;
+    }
+    table.list.event-list tr:last-child { border-bottom: none; }
+    table.list.event-list td { border: none; padding: 0; }
+    table.list.event-list td.evname { font-weight: 700; font-size: 13px; flex: 0 0 auto; }
+    table.list.event-list td:nth-child(2) {
+      font-size: 12px; color: var(--muted); flex: 0 0 auto;
+    }
+    table.list.event-list td:nth-child(2)::before { content: '· '; opacity: 0.5; }
+    table.list.event-list td:nth-child(2)::after { content: ' แมตช์'; opacity: 0.7; }
+    table.list.event-list td:nth-child(3),
+    table.list.event-list td:nth-child(4) {
+      font-size: 12px; color: var(--muted); flex: 0 0 auto;
+    }
+    table.list.event-list td:nth-child(3)::before { content: '· '; opacity: 0.5; }
+    table.list.event-list td:nth-child(3)::after { content: ' 3 เกม'; opacity: 0.7; }
+    table.list.event-list td:nth-child(4)::before { content: '· '; opacity: 0.5; }
+    table.list.event-list td.winner-cell {
+      flex: 1 0 100%;
+      color: var(--ink-soft); font-size: 12px; line-height: 1.4;
+    }
+    table.list.event-list td.winner-cell:not(:empty)::before {
+      content: '🏆 '; opacity: 0.7;
+    }
+
+    .court-row { grid-template-columns: 50px 1fr 70px; gap: 8px; font-size: 12px; }
+    .court-row .v { font-size: 11px; }
+
+    .grid-2 { gap: 10px; }
+  }
+
+  /* very narrow (≤ 360 px) */
+  @media (max-width: 360px) {
+    .hero h1 { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="toolbar">
+  <button onclick="document.body.classList.toggle('dark')">สลับธีม</button>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">สถิติการแข่งขัน</div>
+  <h1>SPRC – Caltex Badminton Championship 2026</h1>
+  <div class="meta">1 – 6 พ.ค. 2569 · 33 รายการ · ยิมส์ 1 และ ยิมส์ 2 (14 สนาม)</div>
+  <div class="kpis">
+    <div class="kpi"><div class="num">33</div><div class="lbl">รายการ</div></div>
+    <div class="kpi"><div class="num">1,384</div><div class="lbl">แมตช์ทั้งหมด</div></div>
+    <div class="kpi"><div class="num">1,102 / 839<span class="sub">(76%)</span></div><div class="lbl">ผู้เล่น · หลายรายการ</div></div>
+    <div class="kpi"><div class="num">651 ชม.</div><div class="lbl">เวลาสนามรวม</div></div>
+    <div class="kpi"><div class="num">29 นาที</div><div class="lbl">แมตช์เฉลี่ย</div></div>
+    <div class="kpi"><div class="num">14%</div><div class="lbl">3 เกม</div></div>
+  </div>
+</div>
+
+<!-- DAILY VOLUME -->
+<section class="card">
+  <h2>แมตช์ต่อวัน / เวลาสนาม</h2>
+    <div class="day-row"><div class="label">พฤ 1 พ.ค.</div><div class="barwrap"><div class="bar" style="width:100%"></div></div><div class="val">397<span class="secondary">160 ชม.</span></div></div>
+    <div class="day-row"><div class="label">ศ 2 พ.ค.</div><div class="barwrap"><div class="bar" style="width:89%"></div></div><div class="val">354<span class="secondary">153 ชม.</span></div></div>
+    <div class="day-row"><div class="label">ส 3 พ.ค.</div><div class="barwrap"><div class="bar" style="width:79%"></div></div><div class="val">314<span class="secondary">145 ชม.</span></div></div>
+    <div class="day-row"><div class="label">อา 4 พ.ค.</div><div class="barwrap"><div class="bar" style="width:55%"></div></div><div class="val">220<span class="secondary">126 ชม.</span></div></div>
+    <div class="day-row"><div class="label">จ 5 พ.ค.</div><div class="barwrap"><div class="bar" style="width:17%"></div></div><div class="val">66<span class="secondary">41 ชม.</span></div></div>
+    <div class="day-row"><div class="label">อ 6 พ.ค.</div><div class="barwrap"><div class="bar" style="width:8%"></div></div><div class="val">33<span class="secondary">25 ชม.</span></div></div>
+  <div class="footnote">วันที่แมตช์มากที่สุด: พฤ 1 พ.ค. ใช้สนามรวม 160 ชม. ใน 14 สนาม</div>
+</section>
+
+<!-- DRAMA -->
+<section class="card">
+  <h2>แมตช์น่าจดจำ</h2>
+
+  <div class="feature">
+    <div class="head"><span class="badge">★ แมตช์มาราธอน — 2 ชม. 9 นาที</span><span class="where">GD U19 · รอบก่อนรองชนะเลิศ</span></div>
+    <div class="teams">อนัญญา นภาลัย / พิมพ์ชนก สุทธิวิริยะกุล &nbsp;ชนะ&nbsp; จันทรัสม์ มารดากุล [2] / แพรพลอย สุทธิวรยานนท์</div>
+    <div class="scoreline">19–21, 21–17, 21–19</div>
+  </div>
+
+  <div class="feature">
+    <div class="head"><span class="badge">★ เกมคะแนนสูงสุด — 28–26</span><span class="where">BS U13 · รอบ 32</span></div>
+    <div class="teams">วิรัญพล โพธิ์หิรัญภพ &nbsp;ชนะ&nbsp; ชลนที หลิว [9]</div>
+    <div class="scoreline">28–26, …</div>
+  </div>
+
+  <div class="feature cool">
+    <div class="head"><span class="badge">ชนะพลิกกลับ 102 แมตช์ (8% ของแมตช์ที่ตัดสินผล)</span><span class="where">เสียเกมแรก แต่กลับมาชนะ</span></div>
+    <div class="teams">ไฮไลต์: WS รอบชิงชนะเลิศ · ธิดาพร กลีบยี่สุ่น [6] &nbsp;ชนะ&nbsp; ต้นรัก แซ่เฮ้ง</div>
+    <div class="scoreline">16–21, 21–17, 21–18  &nbsp;·&nbsp; 1 ชม. 23 นาที</div>
+  </div>
+
+  <div class="feature">
+    <div class="head"><span class="badge">★ ใช้สนามมากที่สุด — 7 ชม. 33 นาที</span><span class="where">GD U19 + GS U19 · 9 แมตช์</span></div>
+    <div class="teams">พิมพ์ชนก สุทธิวิริยะกุล [1]</div>
+    <div class="scoreline">เฉลี่ย 50 นาที/แมตช์</div>
+  </div>
+</section>
+
+<!-- ALL EVENTS -->
+<section class="card">
+  <h2>รายการ</h2>
+    <table class="list event-list">
+      <thead><tr><th>รายการ</th><th class="num">แมตช์</th><th class="num">3 เกม %</th><th class="num">เฉลี่ย</th><th>ผู้ชนะ</th></tr></thead>
+      <tbody>
+        <tr><td class="evname">MS</td><td class="num">51</td><td class="num">17%</td><td class="num">34 นาที</td><td class="winner-cell">วรท อุไรวงค์</td></tr>
+        <tr><td class="evname">WS</td><td class="num">18</td><td class="num">14%</td><td class="num">39 นาที</td><td class="winner-cell">ธิดาพร กลีบยี่สุ่น <span class="seed">[6]</span></td></tr>
+        <tr><td class="evname">MD</td><td class="num">38</td><td class="num">14%</td><td class="num">31 นาที</td><td class="winner-cell">วีรภัทร ภาคจรุง / ตนุภัทร วิริยางกูร</td></tr>
+        <tr><td class="evname">WD</td><td class="num">14</td><td class="num">15%</td><td class="num">31 นาที</td><td class="winner-cell">ภัทราพร รุ่งเรืองประมง / สิรภัทร์ เทพณรงค์</td></tr>
+        <tr><td class="evname">XD <span class="pill warn">3 เกม 36%</span></td><td class="num">23</td><td class="num">36%</td><td class="num">43 นาที</td><td class="winner-cell">รัชพล มรรคศศิธร / นัทธมน ไล้สวน</td></tr>
+        <tr><td class="evname">BS U19</td><td class="num">63</td><td class="num">22%</td><td class="num">33 นาที</td><td class="winner-cell">ปัณณทัต เปรมพันธ์พงษ์ <span class="seed">[1]</span></td></tr>
+        <tr><td class="evname">GS U19</td><td class="num">31</td><td class="num">29%</td><td class="num">34 นาที</td><td class="winner-cell">ณธิดา บุระมาศ <span class="seed">[3]</span></td></tr>
+        <tr><td class="evname">BD U19</td><td class="num">31</td><td class="num">23%</td><td class="num">31 นาที</td><td class="winner-cell">เตชินท์ วิริยชัยฤกษ์ / กุลพัทธ์ โล่ห์ทอง</td></tr>
+        <tr><td class="evname">GD U19</td><td class="num">11</td><td class="num">22%</td><td class="num">38 นาที</td><td class="winner-cell">อนัญญา นภาลัย / พิมพ์ชนก สุทธิวิริยะกุล</td></tr>
+        <tr><td class="evname">XD U19</td><td class="num">14</td><td class="num">15%</td><td class="num">36 นาที</td><td class="winner-cell">ปัณณทัต เปรมพันธ์พงษ์ / สุนิสา เล็กจุฬา</td></tr>
+        <tr><td class="evname">BS U17</td><td class="num">96</td><td class="num">14%</td><td class="num">29 นาที</td><td class="winner-cell">กุลธารินทร์ สมท่า <span class="seed">[4]</span></td></tr>
+        <tr><td class="evname">GS U17</td><td class="num">51</td><td class="num">12%</td><td class="num">28 นาที</td><td class="winner-cell">ณัฏฐภร แสงไทย <span class="seed">[9]</span></td></tr>
+        <tr><td class="evname">BD U17</td><td class="num">41</td><td class="num">10%</td><td class="num">28 นาที</td><td class="winner-cell">ยุทธศักดิ์ นาดี / ณัฐศิษฏ์ ราษฎรศักดิ์</td></tr>
+        <tr><td class="evname">GD U17</td><td class="num">20</td><td class="num">21%</td><td class="num">41 นาที</td><td class="winner-cell">ชัชชนัน บัวจันทร์ / ณัฏฐภร แสงไทย</td></tr>
+        <tr><td class="evname">XD U17</td><td class="num">34</td><td class="num">12%</td><td class="num">29 นาที</td><td class="winner-cell">ปริญญา พุฒิไพรสกุล / พิมพ์ณภา ธนัทอนันตพงศ์</td></tr>
+        <tr><td class="evname">BS U15</td><td class="num">111</td><td class="num">23%</td><td class="num">29 นาที</td><td class="winner-cell">จิรภัทร คุมพล <span class="seed">[1]</span></td></tr>
+        <tr><td class="evname">GS U15</td><td class="num">72</td><td class="num">14%</td><td class="num">28 นาที</td><td class="winner-cell">ณัฐฎา เกริกกฤตยา <span class="seed">[8]</span></td></tr>
+        <tr><td class="evname">BD U15</td><td class="num">43</td><td class="num">12%</td><td class="num">28 นาที</td><td class="winner-cell">รับชัย ว่องไว / นพพร ไชยปา</td></tr>
+        <tr><td class="evname">GD U15</td><td class="num">31</td><td class="num">10%</td><td class="num">28 นาที</td><td class="winner-cell">ณัฐฎา เกริกกฤตยา / ชณิฏภ์ษฎาฌ์ แหวนทองคำ</td></tr>
+        <tr><td class="evname">XD U15</td><td class="num">38</td><td class="num">11%</td><td class="num">29 นาที</td><td class="winner-cell">รับชัย ว่องไว / กานดา หลุยยะพงศ์</td></tr>
+        <tr><td class="evname">BS U13</td><td class="num">98</td><td class="num">15%</td><td class="num">28 นาที</td><td class="winner-cell">ณัฐพัฒน์ ภูมิผักแว่น <span class="seed">[2]</span></td></tr>
+        <tr><td class="evname">GS U13</td><td class="num">78</td><td class="num">9%</td><td class="num">26 นาที</td><td class="winner-cell">จิรัชยา วัฒนแสนสุข <span class="seed">[1]</span></td></tr>
+        <tr><td class="evname">BD U13</td><td class="num">34</td><td class="num">21%</td><td class="num">29 นาที</td><td class="winner-cell">พุฒิพัฒน์ ดุรงค์วิชัยโชค / ณัฐพัฒน์ ภูมิผักแว่น</td></tr>
+        <tr><td class="evname">GD U13</td><td class="num">30</td><td class="num">7%</td><td class="num">26 นาที</td><td class="winner-cell">กรรณิการ์ ตันมณี / พรปวีณ์ สุขอินทร์</td></tr>
+        <tr><td class="evname">XD U13</td><td class="num">28</td><td class="num">11%</td><td class="num">29 นาที</td><td class="winner-cell">พุฒิพัฒน์ ดุรงค์วิชัยโชค / นันท์นภัส กานต์นิธิวัฒน์</td></tr>
+        <tr><td class="evname">BS U11</td><td class="num">89</td><td class="num">14%</td><td class="num">26 นาที</td><td class="winner-cell">นราวิศว์ ทรัพย์สินบูรณะ <span class="seed">[1]</span></td></tr>
+        <tr><td class="evname">GS U11</td><td class="num">70</td><td class="num">13%</td><td class="num">26 นาที</td><td class="winner-cell">ปรีณาภา วงศ์พิมายคราม <span class="seed">[4]</span></td></tr>
+        <tr><td class="evname">BD U11</td><td class="num">30</td><td class="num">17%</td><td class="num">26 นาที</td><td class="winner-cell">พิชยพล พิพัฒธนบดี / ณัฐฐวัฒน์ ไชยฐิติเมธา</td></tr>
+        <tr><td class="evname">GD U11</td><td class="num">30</td><td class="num">10%</td><td class="num">25 นาที</td><td class="winner-cell">วาววา เจนจิตรานนท์ / ธีร์วารา เฟื่องวิบูลย์</td></tr>
+        <tr><td class="evname">BS U9</td><td class="num">27</td><td class="num">11%</td><td class="num">23 นาที</td><td class="winner-cell">ธนภณ นานาธนอมร <span class="seed">[2]</span></td></tr>
+        <tr><td class="evname">GS U9</td><td class="num">24</td><td class="num">17%</td><td class="num">23 นาที</td><td class="winner-cell">ภัครดา ปัญจมูล <span class="seed">[2]</span></td></tr>
+        <tr><td class="evname">BD U9</td><td class="num">7</td><td class="num">14%</td><td class="num">21 นาที</td><td class="winner-cell">ภูมิ ศิวชาติ / เกรียงไกร อรุณจิตต์</td></tr>
+        <tr><td class="evname">GD U9</td><td class="num">8</td><td class="num">14%</td><td class="num">22 นาที</td><td class="winner-cell">ภัครดา ปัญจมูล / สิริกานดา วงษ์กิตติไกรวัล</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+
+<!-- LEADERBOARD + COURTS -->
+<div class="grid-2">
+  <section class="card">
+    <h2>ผู้เล่นยอดเยี่ยม (ตามชัยชนะในรายการนี้)</h2>
+    <table class="list">
+      <thead><tr><th></th><th>ผู้เล่น</th><th class="num">ชนะ–แพ้</th></tr></thead>
+      <tbody>
+        <tr><td class="rank">1</td><td>ชณิฏภ์ษฎาฌ์ แหวนทองคำ</td><td class="num wl"><b>11</b>–<i>1</i></td></tr>
+        <tr><td class="rank">2</td><td>ชัชชนัน บัวจันทร์</td><td class="num wl"><b>9</b>–<i>1</i></td></tr>
+        <tr><td class="rank">3</td><td>พุฒิพัฒน์ ดุรงค์วิชัยโชค <span class="seed">[1]</span></td><td class="num wl"><b>9</b>–<i>0</i></td></tr>
+        <tr><td class="rank">4</td><td>พัสกรณ์ วัชระประไพพันธ์ <span class="seed">[2]</span></td><td class="num wl"><b>8</b>–<i>2</i></td></tr>
+        <tr><td class="rank">5</td><td>ณมีรินทร์ พรหมเชยธีระ</td><td class="num wl"><b>7</b>–<i>2</i></td></tr>
+        <tr><td class="rank">6</td><td>สาริสา แสงบรรจง</td><td class="num wl"><b>7</b>–<i>2</i></td></tr>
+        <tr><td class="rank">7</td><td>พงศกร เจริญรัมย์</td><td class="num wl"><b>7</b>–<i>2</i></td></tr>
+        <tr><td class="rank">8</td><td>ภัทราพร รุ่งเรืองประมง</td><td class="num wl"><b>7</b>–<i>1</i></td></tr>
+        <tr><td class="rank">9</td><td>นวพล มุกดารัศมี</td><td class="num wl"><b>6</b>–<i>2</i></td></tr>
+        <tr><td class="rank">10</td><td>นราวิศว์ ทรัพย์สินบูรณะ <span class="seed">[1]</span></td><td class="num wl"><b>6</b>–<i>0</i></td></tr>
+      </tbody>
+    </table>
+    <div class="footnote">มีผู้เล่น 839 คนลงเล่น 2 รายการ · แมตช์ในวันเดียวมากที่สุด: 4 แมตช์ (เสมอกัน 4 คน)</div>
+  </section>
+
+  <section class="card">
+    <h2>การใช้งานสนาม</h2>
+    <div class="court-row"><div class="nm">A05</div><div class="barwrap"><div class="bar" style="width:100%"></div></div><div class="v">53.9 ชม.</div></div>
+    <div class="court-row"><div class="nm">A02</div><div class="barwrap"><div class="bar" style="width:100%"></div></div><div class="v">53.9 ชม.</div></div>
+    <div class="court-row"><div class="nm">A04</div><div class="barwrap"><div class="bar" style="width:99%"></div></div><div class="v">53.4 ชม.</div></div>
+    <div class="court-row"><div class="nm">A06</div><div class="barwrap"><div class="bar" style="width:98%"></div></div><div class="v">52.7 ชม.</div></div>
+    <div class="court-row"><div class="nm">A08</div><div class="barwrap"><div class="bar" style="width:98%"></div></div><div class="v">52.7 ชม.</div></div>
+    <div class="court-row"><div class="nm">A01</div><div class="barwrap"><div class="bar" style="width:95%"></div></div><div class="v">51.3 ชม.</div></div>
+    <div class="court-row"><div class="nm">A03</div><div class="barwrap"><div class="bar" style="width:79%"></div></div><div class="v">42.6 ชม.</div></div>
+    <div class="court-row"><div class="nm">A07</div><div class="barwrap"><div class="bar" style="width:77%"></div></div><div class="v">41.6 ชม.</div></div>
+    <div class="court-row"><div class="nm">B13</div><div class="barwrap"><div class="bar" style="width:78%"></div></div><div class="v">42.0 ชม.</div></div>
+    <div class="court-row"><div class="nm">B10</div><div class="barwrap"><div class="bar" style="width:78%"></div></div><div class="v">41.9 ชม.</div></div>
+    <div class="court-row"><div class="nm">B11</div><div class="barwrap"><div class="bar" style="width:78%"></div></div><div class="v">41.8 ชม.</div></div>
+    <div class="court-row"><div class="nm">B12</div><div class="barwrap"><div class="bar" style="width:77%"></div></div><div class="v">41.6 ชม.</div></div>
+    <div class="court-row"><div class="nm">B09</div><div class="barwrap"><div class="bar" style="width:76%"></div></div><div class="v">41.0 ชม.</div></div>
+    <div class="court-row"><div class="nm">B14</div><div class="barwrap"><div class="bar" style="width:75%"></div></div><div class="v">40.2 ชม.</div></div>
+    <div class="footnote">ยิมส์ 1 (สนาม A) ใช้งานมากกว่ายิมส์ 2 (สนาม B) ประมาณ 30%</div>
+  </section>
+</div>
+
+
+<!-- MEDALS BY CLUB -->
+<section class="card">
+  <h2>สโมสรยอดเยี่ยม (เรียงตามเหรียญรางวัล)</h2>
+  <table class="list medal-list">
+    <thead><tr><th></th><th>สโมสร</th><th class="num">🥇</th><th class="num">🥈</th><th class="num">🥉</th></tr></thead>
+    <tbody>
+      <tr><td class="rank">1</td><td>บ้านทองหยอด</td><td class="num"><b>27</b></td><td class="num">19</td><td class="num">24</td></tr>
+      <tr><td class="rank">2</td><td>พลสนะแบดมินตัน</td><td class="num"><b>4</b></td><td class="num">2</td><td class="num">5</td></tr>
+      <tr><td class="rank">3</td><td>สมาคมกีฬาแบดมินตันจังหวัดปทุมธานี</td><td class="num"><b>3</b></td><td class="num">5</td><td class="num">5</td></tr>
+      <tr><td class="rank">4</td><td>JP ACADEMY</td><td class="num"><b>2</b></td><td class="num">3</td><td class="num">3</td></tr>
+      <tr><td class="rank">5</td><td>Trinity Fusion Club</td><td class="num"><b>2</b></td><td class="num">0</td><td class="num">1</td></tr>
+      <tr><td class="rank">6</td><td>Taksakorn Badminton Academy</td><td class="num"><b>2</b></td><td class="num">0</td><td class="num">0</td></tr>
+      <tr><td class="rank">7</td><td>PUTI CLUB</td><td class="num"><b>1</b></td><td class="num">2</td><td class="num">3</td></tr>
+      <tr><td class="rank">8</td><td>กองทัพอากาศ</td><td class="num"><b>1</b></td><td class="num">2</td><td class="num">1</td></tr>
+      <tr><td class="rank">9</td><td>The legend nong khai</td><td class="num"><b>1</b></td><td class="num">1</td><td class="num">1</td></tr>
+      <tr><td class="rank">10</td><td>JELE SBU</td><td class="num"><b>1</b></td><td class="num">0</td><td class="num">3</td></tr>
+    </tbody>
+  </table>
+  <div class="footnote">🥇 ผู้ชนะเลิศ · 🥈 รองชนะเลิศ · 🥉 รองชนะเลิศอันดับ 3 (ผู้แพ้ในรอบรองฯ ทั้ง 2 คู่) · ประเภทคู่นับเหรียญละ 1 ต่อผู้เล่น · ตัดสินเสมอด้วยจำนวนเหรียญเงิน แล้วทองแดง</div>
+</section>
+
+<!-- MULTI-GOLD PLAYERS -->
+<section class="card">
+  <h2>ผู้เล่นที่ได้เหรียญทองหลายเหรียญ</h2>
+  <table class="list">
+    <thead><tr><th class="num">🥇</th><th>ผู้เล่น</th><th>สโมสร</th><th>รายการ</th></tr></thead>
+    <tbody>
+      <tr><td class="num"><b>2</b></td><td>ณัฏฐภร แสงไทย <span class="seed">[9]</span></td><td>บ้านทองหยอด</td><td>GS U17 + GD U17</td></tr>
+      <tr><td class="num"><b>2</b></td><td>ณัฐฎา เกริกกฤตยา <span class="seed">[4]</span></td><td>พลสนะแบดมินตัน</td><td>GS U15 + GD U15</td></tr>
+      <tr><td class="num"><b>2</b></td><td>ณัฐพัฒน์ ภูมิผักแว่น</td><td>Taksakorn Badminton Academy</td><td>BS U13 + BD U13</td></tr>
+      <tr><td class="num"><b>2</b></td><td>ปัณณทัต เปรมพันธ์พงษ์ <span class="seed">[2]</span></td><td>บ้านทองหยอด</td><td>BS U19 + XD U19</td></tr>
+      <tr><td class="num"><b>2</b></td><td>พุฒิพัฒน์ ดุรงค์วิชัยโชค <span class="seed">[1]</span></td><td>Trinity Fusion Club</td><td>BD U13 + XD U13</td></tr>
+      <tr><td class="num"><b>2</b></td><td>ภัครดา ปัญจมูล <span class="seed">[1]</span></td><td>พลสนะแบดมินตัน</td><td>GS U9 + GD U9</td></tr>
+      <tr><td class="num"><b>2</b></td><td>รับชัย ว่องไว <span class="seed">[5]</span></td><td>บ้านทองหยอด</td><td>BD U15 + XD U15</td></tr>
+    </tbody>
+  </table>
+  <div class="footnote">มีผู้เล่น 7 คนได้เหรียญทอง 2 เหรียญในรายการนี้ · ไม่มีผู้เล่นที่ได้ 3 เหรียญทองขึ้นไป</div>
+</section>
+
+<!-- INTEGRITY -->
+<section class="card">
+  <h2>คุณภาพการแข่ง</h2>
+  <div class="grid-2">
+    <div>
+      <div style="font-size: 13px; color: var(--ink-soft); line-height: 1.7;">
+        <div>เดินผ่าน (W.O.) <b>41</b> แมตช์ · อัตรารวม <b>3.0%</b></div>
+        <div>ถอนตัวกลางเกม <b>6</b> แมตช์</div>
+        <div><b>WS</b> มีอัตรา W.O. สูงสุดที่ <span class="pill warn">22%</span> (4 ใน 18)</div>
+        <div><b>MS</b>: W.O. 5 / 51 แมตช์ (10%)</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size: 13px; color: var(--ink-soft); line-height: 1.7;">
+        <div>3 เกม แยกตามรายการ:</div>
+        <div>XD &nbsp;<span class="pill warn">36%</span> · GS U19 <span class="pill">29%</span></div>
+        <div>BD U19 <span class="pill">23%</span> · BS U15 <span class="pill">23%</span></div>
+        <div>เฉลี่ยทั้งรายการ: <b>14%</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="footnote" style="text-align:center;margin: 22px 0;">
+  Mockup · ตัวเลขทั้งหมดเป็นข้อมูลจริงจากแคชที่ /api/matches ใช้อยู่แล้ว
+</div>
+
+</div>
+</body>
+</html>
