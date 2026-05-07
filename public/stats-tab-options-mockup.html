@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stats tab — placement options</title>
+<style>
+  :root {
+    --bg: #f3f4f6;
+    --surface: #ffffff;
+    --surface-2: #f9fafb;
+    --fg: #25316B;
+    --fg-soft: #475569;
+    --muted: #94a3b8;
+    --border: #e5e7eb;
+    --brand: #25316B;
+    --accent: #5e5ccf;
+    --gold: #d97706;
+  }
+  body.dark {
+    --bg: #1a1f2c;
+    --surface: #2a2f3d;
+    --surface-2: #232836;
+    --fg: #f1f5f9;
+    --fg-soft: #cbd5e1;
+    --muted: #94a3b8;
+    --border: #323a49;
+    --brand: #818cf8;
+    --accent: #5e5ccf;
+    --gold: #fbbf24;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Sukhumvit Set", sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    margin: 0;
+    padding: 24px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+
+  .toolbar { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 20px; }
+  .toolbar button {
+    background: var(--surface); border: 1px solid var(--border); color: var(--fg);
+    padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  }
+
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--fg-soft); font-size: 13px; margin-bottom: 24px; }
+
+  /* Frame mimicking app */
+  .frame {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 24px; margin-bottom: 22px;
+  }
+  .frame-title {
+    display: flex; align-items: baseline; gap: 10px;
+    font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .frame-title b { color: var(--accent); font-size: 12px; letter-spacing: 0.04em; text-transform: none; font-weight: 700; }
+
+  /* Existing day-tabs (replicated from globals.css) */
+  .day-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .day-tab {
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fg);
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .day-tab:hover { background: var(--bg); }
+  .day-tab.active {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+    font-weight: 700;
+  }
+  .day-tab.empty { opacity: 0.45; }
+
+  /* OPTION 1: filled accent pill with icon */
+  .stats-tab-1 {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+    font-weight: 700;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .stats-tab-1.outline {
+    background: var(--surface);
+    color: var(--brand);
+    border: 1.5px solid var(--brand);
+    font-weight: 600;
+  }
+
+  /* OPTION 2: outline + divider */
+  .stats-tab-2 {
+    display: inline-flex; align-items: center; gap: 5px;
+    color: var(--fg);
+  }
+  .stats-divider {
+    width: 1px;
+    align-self: stretch;
+    background: var(--border);
+    margin: 0 4px;
+  }
+
+  /* OPTION 3: icon-only square */
+  .stats-tab-3 {
+    width: 28px; height: 28px;
+    padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  /* Faux match list below the strip */
+  .faux-body {
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .faux-time-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--brand);
+    padding: 6px 10px;
+    background: var(--surface-2);
+    border-radius: 6px 6px 0 0;
+    border-bottom: 2px solid var(--brand);
+    letter-spacing: 0.3px;
+    margin-bottom: 6px;
+  }
+  .faux-row {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 12px; margin-bottom: 5px; font-size: 12px; color: var(--fg-soft);
+    display: flex; justify-content: space-between;
+  }
+
+  /* Stats body when active */
+  .stats-body {
+    border-top: 1px dashed var(--border);
+    padding-top: 14px;
+  }
+  .stats-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .stats-kpi { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .stats-kpi .num { font-size: 18px; font-weight: 700; }
+  .stats-kpi .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+  @media (max-width: 720px) { .stats-kpis { grid-template-columns: repeat(2, 1fr); } }
+
+  .caption {
+    font-size: 12px; color: var(--fg-soft); margin-top: 10px; line-height: 1.5;
+  }
+  .caption b { color: var(--fg); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="toolbar"><button onclick="document.body.classList.toggle('dark')">Toggle theme</button></div>
+
+<h1>Day-strip placement: 3 visual treatments for "Stats"</h1>
+<div class="sub">SPRC – Caltex Badminton Championship 2026 · day strip with Stats inserted at the front</div>
+
+<!-- OPTION 1: BOLD / FILLED -->
+<div class="frame">
+  <div class="frame-title"><b>Option 1 — Filled accent pill with icon</b> · most distinctive</div>
+  <div class="day-tabs">
+    <button class="day-tab stats-tab-1 outline">📊 Stats</button>
+    <button class="day-tab">1 พ.ค.</button>
+    <button class="day-tab">2 พ.ค.</button>
+    <button class="day-tab">3 พ.ค.</button>
+    <button class="day-tab">4 พ.ค.</button>
+    <button class="day-tab">5 พ.ค.</button>
+    <button class="day-tab active">6 พ.ค.</button>
+  </div>
+  <div class="faux-body">
+    <div class="faux-time-header">9:00</div>
+    <div class="faux-row"><span>BS U15 R32 · พุฒิพัฒน์ vs ภูริ</span><span>Court A05</span></div>
+    <div class="faux-row"><span>GS U13 R32 · จิรัชยา vs กรรณิการ์</span><span>Court A02</span></div>
+  </div>
+  <div class="caption">Stats pill is <b>outlined in brand color</b> while inactive, becomes <b>solid brand</b> when selected (matching how day pills behave). Reads as "different category, same family."</div>
+</div>
+
+<!-- OPTION 1 active state -->
+<div class="frame">
+  <div class="frame-title"><b>Option 1 — when Stats is the active selection</b></div>
+  <div class="day-tabs">
+    <button class="day-tab stats-tab-1">📊 Stats</button>
+    <button class="day-tab">1 พ.ค.</button>
+    <button class="day-tab">2 พ.ค.</button>
+    <button class="day-tab">3 พ.ค.</button>
+    <button class="day-tab">4 พ.ค.</button>
+    <button class="day-tab">5 พ.ค.</button>
+    <button class="day-tab">6 พ.ค.</button>
+  </div>
+  <div class="stats-body">
+    <div class="stats-kpis">
+      <div class="stats-kpi"><div class="num">1,384</div><div class="lbl">Matches</div></div>
+      <div class="stats-kpi"><div class="num">1,102</div><div class="lbl">Players</div></div>
+      <div class="stats-kpi"><div class="num">651h</div><div class="lbl">Court time</div></div>
+      <div class="stats-kpi"><div class="num">29 min</div><div class="lbl">Avg match</div></div>
+    </div>
+  </div>
+  <div class="caption">Body of <code>MatchSchedule</code> swaps for <code>&lt;TournamentStatsPanel&gt;</code>. Day pills remain clickable — one tap returns to a date.</div>
+</div>
+
+<!-- OPTION 2: SUBTLE DIVIDER -->
+<div class="frame">
+  <div class="frame-title"><b>Option 2 — Outline pill with divider</b> · subtle, blends</div>
+  <div class="day-tabs">
+    <button class="day-tab stats-tab-2">📊 Stats</button>
+    <div class="stats-divider"></div>
+    <button class="day-tab">1 พ.ค.</button>
+    <button class="day-tab">2 พ.ค.</button>
+    <button class="day-tab">3 พ.ค.</button>
+    <button class="day-tab">4 พ.ค.</button>
+    <button class="day-tab">5 พ.ค.</button>
+    <button class="day-tab active">6 พ.ค.</button>
+  </div>
+  <div class="faux-body">
+    <div class="faux-time-header">9:00</div>
+    <div class="faux-row"><span>BS U15 R32 · พุฒิพัฒน์ vs ภูริ</span><span>Court A05</span></div>
+    <div class="faux-row"><span>GS U13 R32 · จิรัชยา vs กรรณิการ์</span><span>Court A02</span></div>
+  </div>
+  <div class="caption">Same pill style as days, an <b>icon</b> hints it's different, a <b>1px divider</b> visually separates "tournament-wide" from "by date." Lowest visual weight — but easiest to miss.</div>
+</div>
+
+<!-- OPTION 3: ICON-ONLY -->
+<div class="frame">
+  <div class="frame-title"><b>Option 3 — Icon-only square</b> · language-neutral, compact</div>
+  <div class="day-tabs">
+    <button class="day-tab stats-tab-3" title="Tournament stats">📊</button>
+    <button class="day-tab">1 พ.ค.</button>
+    <button class="day-tab">2 พ.ค.</button>
+    <button class="day-tab">3 พ.ค.</button>
+    <button class="day-tab">4 พ.ค.</button>
+    <button class="day-tab">5 พ.ค.</button>
+    <button class="day-tab active">6 พ.ค.</button>
+  </div>
+  <div class="faux-body">
+    <div class="faux-time-header">9:00</div>
+    <div class="faux-row"><span>BS U15 R32 · พุฒิพัฒน์ vs ภูริ</span><span>Court A05</span></div>
+    <div class="faux-row"><span>GS U13 R32 · จิรัชยา vs กรรณิการ์</span><span>Court A02</span></div>
+  </div>
+  <div class="caption">Smallest footprint, no language to localize. Discoverability via tooltip + chart icon. Best on narrow mobile screens, weakest discoverability for new users.</div>
+</div>
+
+<!-- Side-by-side mobile comparison -->
+<div class="frame">
+  <div class="frame-title"><b>Mobile width comparison</b> · 360 px viewport</div>
+  <div style="display: grid; grid-template-columns: 1fr; gap: 14px;">
+    <div style="max-width: 360px; border: 1px dashed var(--border); border-radius: 8px; padding: 10px;">
+      <div style="font-size: 10px; color: var(--muted); margin-bottom: 4px;">OPTION 1</div>
+      <div class="day-tabs" style="margin: 0;">
+        <button class="day-tab stats-tab-1 outline">📊 Stats</button>
+        <button class="day-tab">1 พ.ค.</button>
+        <button class="day-tab">2 พ.ค.</button>
+        <button class="day-tab">3 พ.ค.</button>
+        <button class="day-tab">4 พ.ค.</button>
+        <button class="day-tab">5 พ.ค.</button>
+        <button class="day-tab active">6 พ.ค.</button>
+      </div>
+    </div>
+    <div style="max-width: 360px; border: 1px dashed var(--border); border-radius: 8px; padding: 10px;">
+      <div style="font-size: 10px; color: var(--muted); margin-bottom: 4px;">OPTION 2</div>
+      <div class="day-tabs" style="margin: 0;">
+        <button class="day-tab stats-tab-2">📊 Stats</button>
+        <div class="stats-divider"></div>
+        <button class="day-tab">1 พ.ค.</button>
+        <button class="day-tab">2 พ.ค.</button>
+        <button class="day-tab">3 พ.ค.</button>
+        <button class="day-tab">4 พ.ค.</button>
+        <button class="day-tab">5 พ.ค.</button>
+        <button class="day-tab active">6 พ.ค.</button>
+      </div>
+    </div>
+    <div style="max-width: 360px; border: 1px dashed var(--border); border-radius: 8px; padding: 10px;">
+      <div style="font-size: 10px; color: var(--muted); margin-bottom: 4px;">OPTION 3</div>
+      <div class="day-tabs" style="margin: 0;">
+        <button class="day-tab stats-tab-3" title="Stats">📊</button>
+        <button class="day-tab">1 พ.ค.</button>
+        <button class="day-tab">2 พ.ค.</button>
+        <button class="day-tab">3 พ.ค.</button>
+        <button class="day-tab">4 พ.ค.</button>
+        <button class="day-tab">5 พ.ค.</button>
+        <button class="day-tab active">6 พ.ค.</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tournament Stats — SPRC 2026 Mockup</title>
+<style>
+  :root {
+    --bg: #f3f4f6;
+    --surface: #fff;
+    --surface-2: #f9fafb;
+    --ink: #25316B;
+    --ink-soft: #475569;
+    --muted: #94a3b8;
+    --rule: #e5e7eb;
+    --accent: #25316B;
+    --accent-2: #5e5ccf;
+    --gold: #d97706;
+    --warn: #b45309;
+    --win: #166534;
+    --loss: #b91c1c;
+    --bar: #25316B;
+    --bar-soft: #c7cce0;
+  }
+  body.dark {
+    --bg: #1a1f2c;
+    --surface: #2a2f3d;
+    --surface-2: #232836;
+    --ink: #f1f5f9;
+    --ink-soft: #cbd5e1;
+    --muted: #94a3b8;
+    --rule: #323a49;
+    --accent: #818cf8;
+    --accent-2: #5e5ccf;
+    --gold: #fbbf24;
+    --warn: #fcd34d;
+    --win: #4ade80;
+    --loss: #f87171;
+    --bar: #818cf8;
+    --bar-soft: #3f4860;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Sukhumvit Set", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    margin: 0;
+    padding: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+
+  .toolbar {
+    display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 16px;
+  }
+  .toolbar button {
+    background: var(--surface); border: 1px solid var(--rule); color: var(--ink);
+    padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 16px;
+    padding: 22px 26px; margin-bottom: 20px;
+  }
+  .hero-eyebrow { font-size: 11px; letter-spacing: 0.16em; color: var(--muted); text-transform: uppercase; }
+  .hero h1 { margin: 4px 0 6px; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+  .hero .meta { color: var(--ink-soft); font-size: 14px; }
+  .kpis {
+    margin-top: 18px;
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;
+  }
+  .kpi {
+    background: var(--surface-2); border: 1px solid var(--rule); border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .kpi .num { font-size: 22px; font-weight: 700; line-height: 1.1; }
+  .kpi .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+  @media (max-width: 760px) {
+    .kpis { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* ---------- Section ---------- */
+  section.card {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 16px;
+  }
+  section.card h2 {
+    margin: 0 0 14px; font-size: 14px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ---------- Daily volume ---------- */
+  .day-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
+  .day-row .label { width: 70px; color: var(--ink-soft); flex-shrink: 0; }
+  .day-row .barwrap { flex: 1; background: var(--bar-soft); border-radius: 6px; height: 22px; overflow: hidden; }
+  .day-row .bar { background: var(--bar); height: 100%; border-radius: 6px 0 0 6px; }
+  .day-row .val { width: 70px; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Marathon / closest cards ---------- */
+  .feature {
+    border-left: 3px solid var(--gold);
+    padding: 8px 12px; margin: 10px 0; background: var(--surface-2);
+    border-radius: 0 8px 8px 0;
+  }
+  .feature.cool { border-left-color: var(--accent-2); }
+  .feature .badge { font-size: 11px; color: var(--gold); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+  .feature.cool .badge { color: var(--accent-2); }
+  .feature .head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .feature .where { font-size: 12px; color: var(--muted); }
+  .feature .teams { font-weight: 600; margin: 4px 0 2px; font-size: 14px; }
+  .feature .scoreline { font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Tables ---------- */
+  table.list { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.list th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px;
+    letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 8px; border-bottom: 1px solid var(--rule); }
+  table.list td { padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+  table.list tr:last-child td { border-bottom: none; }
+  table.list .num { font-variant-numeric: tabular-nums; text-align: right; }
+  table.list .rank { color: var(--muted); width: 24px; }
+  .seed { color: var(--muted); font-size: 11px; margin-left: 4px; }
+  .wl { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .wl b { color: var(--win); }
+  .wl i { color: var(--loss); font-style: normal; }
+
+  /* ---------- Champions strip ---------- */
+  .champ-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .champ {
+    border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px;
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+  }
+  .champ .ev { font-size: 11px; color: var(--gold); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; }
+  .champ .who { font-weight: 600; margin-top: 3px; font-size: 13px; line-height: 1.3; }
+  .champ .vs { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .champ .sc { font-size: 11px; color: var(--ink-soft); margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Court utilization ---------- */
+  .court-row { display: grid; grid-template-columns: 90px 1fr 80px; gap: 10px; align-items: center; font-size: 13px; padding: 5px 0; }
+  .court-row .nm { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .court-row .barwrap { background: var(--bar-soft); border-radius: 5px; height: 14px; overflow: hidden; }
+  .court-row .bar { background: var(--bar); height: 100%; }
+  .court-row .v { text-align: right; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Event breakdown ---------- */
+  .event-tbl td.evname { font-weight: 600; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; background: var(--surface-2); border: 1px solid var(--rule); color: var(--ink-soft); }
+  .pill.warn { background: rgba(217,119,6,.1); border-color: rgba(217,119,6,.3); color: var(--gold); }
+
+  .footnote { color: var(--muted); font-size: 11px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="toolbar">
+  <button onclick="document.body.classList.toggle('dark')">Toggle theme</button>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">Tournament stats</div>
+  <h1>SPRC – Caltex Badminton Championship 2026</h1>
+  <div class="meta">1 – 6 May 2026 · 33 events · ยิมส์ 1 &amp; ยิมส์ 2 (14 courts)</div>
+  <div class="kpis">
+    <div class="kpi"><div class="num">1,384</div><div class="lbl">Matches</div></div>
+    <div class="kpi"><div class="num">1,102</div><div class="lbl">Players</div></div>
+    <div class="kpi"><div class="num">651h</div><div class="lbl">Court time</div></div>
+    <div class="kpi"><div class="num">29 min</div><div class="lbl">Avg match</div></div>
+    <div class="kpi"><div class="num">14%</div><div class="lbl">3-setters</div></div>
+    <div class="kpi"><div class="num">3.0%</div><div class="lbl">Walkover rate</div></div>
+  </div>
+</div>
+
+<!-- DAILY VOLUME + TOP EVENTS -->
+<div class="grid-2">
+  <section class="card">
+    <h2>Matches per day</h2>
+    <div class="day-row"><div class="label">Thu 1 May</div><div class="barwrap"><div class="bar" style="width:100%"></div></div><div class="val">397</div></div>
+    <div class="day-row"><div class="label">Fri 2 May</div><div class="barwrap"><div class="bar" style="width:89%"></div></div><div class="val">354</div></div>
+    <div class="day-row"><div class="label">Sat 3 May</div><div class="barwrap"><div class="bar" style="width:79%"></div></div><div class="val">314</div></div>
+    <div class="day-row"><div class="label">Sun 4 May</div><div class="barwrap"><div class="bar" style="width:55%"></div></div><div class="val">220</div></div>
+    <div class="day-row"><div class="label">Mon 5 May</div><div class="barwrap"><div class="bar" style="width:17%"></div></div><div class="val">66</div></div>
+    <div class="day-row"><div class="label">Tue 6 May</div><div class="barwrap"><div class="bar" style="width:8%"></div></div><div class="val">33</div></div>
+    <div class="footnote">Peak day: Thu 1 May, 160 hrs of court time across 14 courts.</div>
+  </section>
+
+  <section class="card">
+    <h2>Biggest events by match count</h2>
+    <table class="list">
+      <thead><tr><th>Event</th><th class="num">Matches</th><th class="num">3-set %</th><th class="num">Avg</th></tr></thead>
+      <tbody>
+        <tr><td class="evname">BS U15</td><td class="num">111</td><td class="num">23%</td><td class="num">29 min</td></tr>
+        <tr><td class="evname">BS U13</td><td class="num">98</td><td class="num">15%</td><td class="num">28 min</td></tr>
+        <tr><td class="evname">BS U17</td><td class="num">96</td><td class="num">14%</td><td class="num">29 min</td></tr>
+        <tr><td class="evname">BS U11</td><td class="num">89</td><td class="num">14%</td><td class="num">26 min</td></tr>
+        <tr><td class="evname">GS U13</td><td class="num">78</td><td class="num">9%</td><td class="num">26 min</td></tr>
+        <tr><td class="evname">GS U15</td><td class="num">72</td><td class="num">14%</td><td class="num">28 min</td></tr>
+        <tr><td class="evname">GS U11</td><td class="num">70</td><td class="num">13%</td><td class="num">26 min</td></tr>
+        <tr><td class="evname">XD <span class="pill warn">36% 3-set</span></td><td class="num">23</td><td class="num">36%</td><td class="num">43 min</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<!-- DRAMA -->
+<section class="card">
+  <h2>Match drama</h2>
+
+  <div class="feature">
+    <div class="head"><span class="badge">★ Marathon of the tournament — 2h 9m</span><span class="where">GD U19 · Quarter-final</span></div>
+    <div class="teams">อนัญญา นภาลัย / พิมพ์ชนก สุทธิวิริยะกุล &nbsp;def.&nbsp; จันทรัสม์ มารดากุล [2] / แพรพลอย สุทธิวรยานนท์</div>
+    <div class="scoreline">19–21, 21–17, 21–19</div>
+  </div>
+
+  <div class="feature">
+    <div class="head"><span class="badge">★ Highest-scoring set — 28–26</span><span class="where">BS U13 · Round of 32</span></div>
+    <div class="teams">วิรัญพล โพธิ์หิรัญภพ &nbsp;def.&nbsp; ชลนที หลิว [9]</div>
+    <div class="scoreline">28–26, …</div>
+  </div>
+
+  <div class="feature cool">
+    <div class="head"><span class="badge">Closest match — 4-point margin</span><span class="where">GS U13 · Round of 32</span></div>
+    <div class="teams">รติพร พัฒนสงค์ [11] &nbsp;def.&nbsp; ณัฐริยา สะตรอง</div>
+    <div class="scoreline">22–20, 21–19</div>
+  </div>
+
+  <div class="feature cool">
+    <div class="head"><span class="badge">102 comeback wins (8% of decided)</span><span class="where">Lost set 1, won the match</span></div>
+    <div class="teams">Highlight: WS Final · ธิดาพร กลีบยี่สุ่น [6] &nbsp;def.&nbsp; ต้นรัก แซ่เฮ้ง</div>
+    <div class="scoreline">16–21, 21–17, 21–18  &nbsp;·&nbsp; 1h 23m</div>
+  </div>
+</section>
+
+<!-- LEADERBOARD + COURTS -->
+<div class="grid-2">
+  <section class="card">
+    <h2>Top players (by tournament wins)</h2>
+    <table class="list">
+      <thead><tr><th></th><th>Player</th><th class="num">W–L</th></tr></thead>
+      <tbody>
+        <tr><td class="rank">1</td><td>ชณิฏภ์ษฎาฌ์ แหวนทองคำ</td><td class="num wl"><b>11</b>–<i>1</i></td></tr>
+        <tr><td class="rank">2</td><td>ชัชชนัน บัวจันทร์</td><td class="num wl"><b>9</b>–<i>1</i></td></tr>
+        <tr><td class="rank">3</td><td>พุฒิพัฒน์ ดุรงค์วิชัยโชค <span class="seed">[1]</span></td><td class="num wl"><b>9</b>–<i>0</i></td></tr>
+        <tr><td class="rank">4</td><td>พัสกรณ์ วัชระประไพพันธ์ <span class="seed">[2]</span></td><td class="num wl"><b>8</b>–<i>2</i></td></tr>
+        <tr><td class="rank">5</td><td>ณมีรินทร์ พรหมเชยธีระ</td><td class="num wl"><b>7</b>–<i>2</i></td></tr>
+        <tr><td class="rank">6</td><td>สาริสา แสงบรรจง</td><td class="num wl"><b>7</b>–<i>2</i></td></tr>
+        <tr><td class="rank">7</td><td>พงศกร เจริญรัมย์</td><td class="num wl"><b>7</b>–<i>2</i></td></tr>
+        <tr><td class="rank">8</td><td>ภัทราพร รุ่งเรืองประมง</td><td class="num wl"><b>7</b>–<i>1</i></td></tr>
+        <tr><td class="rank">9</td><td>นวพล มุกดารัศมี</td><td class="num wl"><b>6</b>–<i>2</i></td></tr>
+        <tr><td class="rank">10</td><td>นราวิศว์ ทรัพย์สินบูรณะ <span class="seed">[1]</span></td><td class="num wl"><b>6</b>–<i>0</i></td></tr>
+      </tbody>
+    </table>
+    <div class="footnote">585 players entered 2 events. Most matches in a single day: 4 (4 players tied).</div>
+  </section>
+
+  <section class="card">
+    <h2>Court utilization</h2>
+    <div class="court-row"><div class="nm">A05</div><div class="barwrap"><div class="bar" style="width:100%"></div></div><div class="v">53.9 h</div></div>
+    <div class="court-row"><div class="nm">A02</div><div class="barwrap"><div class="bar" style="width:100%"></div></div><div class="v">53.9 h</div></div>
+    <div class="court-row"><div class="nm">A04</div><div class="barwrap"><div class="bar" style="width:99%"></div></div><div class="v">53.4 h</div></div>
+    <div class="court-row"><div class="nm">A06</div><div class="barwrap"><div class="bar" style="width:98%"></div></div><div class="v">52.7 h</div></div>
+    <div class="court-row"><div class="nm">A08</div><div class="barwrap"><div class="bar" style="width:98%"></div></div><div class="v">52.7 h</div></div>
+    <div class="court-row"><div class="nm">A01</div><div class="barwrap"><div class="bar" style="width:95%"></div></div><div class="v">51.3 h</div></div>
+    <div class="court-row"><div class="nm">A03</div><div class="barwrap"><div class="bar" style="width:79%"></div></div><div class="v">42.6 h</div></div>
+    <div class="court-row"><div class="nm">A07</div><div class="barwrap"><div class="bar" style="width:77%"></div></div><div class="v">41.6 h</div></div>
+    <div class="court-row"><div class="nm">B13</div><div class="barwrap"><div class="bar" style="width:78%"></div></div><div class="v">42.0 h</div></div>
+    <div class="court-row"><div class="nm">B10</div><div class="barwrap"><div class="bar" style="width:78%"></div></div><div class="v">41.9 h</div></div>
+    <div class="court-row"><div class="nm">B11</div><div class="barwrap"><div class="bar" style="width:78%"></div></div><div class="v">41.8 h</div></div>
+    <div class="court-row"><div class="nm">B12</div><div class="barwrap"><div class="bar" style="width:77%"></div></div><div class="v">41.6 h</div></div>
+    <div class="court-row"><div class="nm">B09</div><div class="barwrap"><div class="bar" style="width:76%"></div></div><div class="v">41.0 h</div></div>
+    <div class="court-row"><div class="nm">B14</div><div class="barwrap"><div class="bar" style="width:75%"></div></div><div class="v">40.2 h</div></div>
+    <div class="footnote">Yim 1 (A-courts) ran ~30% busier than Yim 2 (B-courts).</div>
+  </section>
+</div>
+
+<!-- CHAMPIONS STRIP -->
+<section class="card">
+  <h2>Champions (33 events) — selected</h2>
+  <div class="champ-grid">
+    <div class="champ">
+      <div class="ev">BS U15</div>
+      <div class="who">จิรภัทร คุมพล <span class="seed">[1]</span></div>
+      <div class="vs">def. เอกฑิต เรียบร้อย [3]</div>
+      <div class="sc">21–14, 21–11</div>
+    </div>
+    <div class="champ">
+      <div class="ev">GS U13</div>
+      <div class="who">จิรัชยา วัฒนแสนสุข <span class="seed">[1]</span></div>
+      <div class="vs">def. กรรณิการ์ ตันมณี [6]</div>
+      <div class="sc">21–13, 21–14</div>
+    </div>
+    <div class="champ">
+      <div class="ev">BD U13</div>
+      <div class="who">พุฒิพัฒน์ ดุรงค์วิชัยโชค [1] / ณัฐพัฒน์ ภูมิผักแว่น</div>
+      <div class="vs">def. ธนานนท์ พิสฐศาสน์ [2] / พชร เชื้อทอง</div>
+      <div class="sc">17–21, 21–17, 21–15</div>
+    </div>
+    <div class="champ">
+      <div class="ev">XD U13</div>
+      <div class="who">พุฒิพัฒน์ ดุรงค์วิชัยโชค [1] / นันท์นภัส กานต์นิธิวัฒน์</div>
+      <div class="vs">def. พงศกร เจริญรัมย์ / ณมีรินทร์ พรหมเชยธีระ</div>
+      <div class="sc">21–12, 21–16</div>
+    </div>
+    <div class="champ">
+      <div class="ev">BS U19</div>
+      <div class="who">ปัณณทัต เปรมพันธ์พงษ์ <span class="seed">[1]</span></div>
+      <div class="vs">def. ปริญญา พุฒิไพรสกุล [4]</div>
+      <div class="sc">21–17, 21–15</div>
+    </div>
+    <div class="champ">
+      <div class="ev">WD</div>
+      <div class="who">ภัทราพร รุ่งเรืองประมง / สิรภัทร์ เทพณรงค์</div>
+      <div class="vs">def. กชพร ชัยชนะ / ปัณณวีร์ พลเยี่ยม</div>
+      <div class="sc">23–21, 21–17</div>
+    </div>
+    <div class="champ">
+      <div class="ev">XD</div>
+      <div class="who">รัชพล มรรคศศิธร [1] / นัทธมน ไล้สวน</div>
+      <div class="vs">def. แทนคุณ เศรษฐประเสริฐ [8] / ภัทราพร รุ่งเรืองประมง</div>
+      <div class="sc">21–9, 19–21, 21–11</div>
+    </div>
+    <div class="champ">
+      <div class="ev">GD U15</div>
+      <div class="who">ณัฐฎา เกริกกฤตยา [4] / ชณิฏภ์ษฎาฌ์ แหวนทองคำ</div>
+      <div class="vs">def. กานดา หลุยยะพงศ์ [1] / สาริสา แสงบรรจง</div>
+      <div class="sc">21–13, 21–19</div>
+    </div>
+  </div>
+  <div class="footnote">+ 25 more event finals, with full bracket-of-champions view.</div>
+</section>
+
+<!-- INTEGRITY -->
+<section class="card">
+  <h2>Integrity &amp; quality</h2>
+  <div class="grid-2">
+    <div>
+      <div style="font-size: 13px; color: var(--ink-soft); line-height: 1.7;">
+        <div><b>41</b> walkovers · <b>3.0%</b> overall rate</div>
+        <div><b>6</b> matches retired mid-play</div>
+        <div><b>WS</b> had the highest walkover rate at <span class="pill warn">22%</span> (4 of 18)</div>
+        <div><b>MS</b>: 5 walkovers / 51 matches (10%)</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size: 13px; color: var(--ink-soft); line-height: 1.7;">
+        <div>Three-setters by event:</div>
+        <div>XD &nbsp;<span class="pill warn">36%</span> · GS U19 <span class="pill">29%</span></div>
+        <div>BD U19 <span class="pill">23%</span> · BS U15 <span class="pill">23%</span></div>
+        <div>Average across tournament: <b>14%</b></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="footnote" style="text-align:center;margin: 22px 0;">
+  Mockup · all numbers are real, computed from the cached data already powering /api/matches.
+</div>
+
+</div>
+</body>
+</html>
