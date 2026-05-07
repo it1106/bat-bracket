@@ -107,7 +107,7 @@ function buildKpis(ctxs: MatchCtx[]): StatsKpis {
   }
 
   let multiEventPlayers = 0
-  for (const set of playerEvents.values()) if (set.size >= 2) multiEventPlayers++
+  for (const set of Array.from(playerEvents.values())) if (set.size >= 2) multiEventPlayers++
 
   return {
     events: events.size,
@@ -187,7 +187,7 @@ function buildEvents(ctxs: MatchCtx[]): ComputedStats['events'] {
     }
     byEvent.set(match.draw, a)
   }
-  const rows = [...byEvent.entries()].map(([name, a]): ComputedStats['events'][number] => {
+  const rows = Array.from(byEvent.entries()).map(([name, a]): ComputedStats['events'][number] => {
     let winner: string[] = []
     let winnerSeed: string | undefined
     if (a.lastFinal) {
@@ -280,13 +280,13 @@ function buildDrama(ctxs: MatchCtx[]): ComputedStats['drama'] {
   }
 
   let mostCourtTime: StatsCourtTimePlayer | null = null
-  for (const [playerId, r] of courtTime) {
+  for (const [playerId, r] of Array.from(courtTime)) {
     if (!mostCourtTime || r.minutes > mostCourtTime.minutes) {
       const { plain, seed } = extractSeed(r.name)
       mostCourtTime = {
         playerId, name: plain, seed,
         minutes: r.minutes, matches: r.matches,
-        events: [...r.events].sort((a, b) => eventRank(a) - eventRank(b)),
+        events: Array.from(r.events).sort((a, b) => eventRank(a) - eventRank(b)),
       }
     }
   }
@@ -319,7 +319,7 @@ function buildTopPlayers(ctxs: MatchCtx[]): ComputedStats['topPlayers'] {
       tally.set(p.playerId, r)
     }
   }
-  const rows = [...tally.entries()].map(([playerId, r]) => {
+  const rows = Array.from(tally.entries()).map(([playerId, r]) => {
     const { plain, seed } = extractSeed(r.name)
     return { playerId, name: plain, seed, wins: r.wins, losses: r.losses }
   })
@@ -336,7 +336,7 @@ function buildCourtUtilization(ctxs: MatchCtx[]): ComputedStats['courtUtilizatio
     a.minutes += durationMinutes
     by.set(match.court, a)
   }
-  const rows = [...by.entries()].map(([name, a]) => ({ name, ...a }))
+  const rows = Array.from(by.entries()).map(([name, a]) => ({ name, ...a }))
   rows.sort((a, b) => b.minutes - a.minutes || b.matches - a.matches)
   return rows.slice(0, 14)
 }
@@ -357,7 +357,7 @@ function buildIntegrity(ctxs: MatchCtx[]): ComputedStats['integrity'] {
   }
   const wo: ComputedStats['integrity']['walkoverByEvent'] = []
   const three: ComputedStats['integrity']['threeSetterByEvent'] = []
-  for (const [event, a] of by) {
+  for (const [event, a] of Array.from(by)) {
     if (a.walkovers > 0) wo.push({ event, walkovers: a.walkovers, rate: a.walkovers / a.total })
     if (a.decided >= 10) three.push({ event, rate: a.threeSetters / a.decided, sample: a.decided })
   }
@@ -395,7 +395,7 @@ function buildClubMedalsAndMultiGold(
   }
   const clubOf = (pid: string) => (clubs[pid] ?? '').trim() || '—'
 
-  for (const [draw, m] of lastFinalByDraw) {
+  for (const [draw, m] of Array.from(lastFinalByDraw)) {
     const win = m.winner === 1 ? m.team1 : m.team2
     const lose = m.winner === 1 ? m.team2 : m.team1
     for (const p of win) {
@@ -407,14 +407,14 @@ function buildClubMedalsAndMultiGold(
     }
     for (const p of lose) if (p.playerId) credit(clubOf(p.playerId), 'silver')
   }
-  for (const semis of semiLosersByDraw.values()) {
+  for (const semis of Array.from(semiLosersByDraw.values())) {
     for (const m of semis) {
       const lose = m.winner === 1 ? m.team2 : m.team1
       for (const p of lose) if (p.playerId) credit(clubOf(p.playerId), 'bronze')
     }
   }
 
-  const clubMedals: ComputedStats['clubMedals'] = [...medals.entries()]
+  const clubMedals: ComputedStats['clubMedals'] = Array.from(medals.entries())
     .map(([club, r]) => ({ club, ...r }))
     .filter((r) => r.club !== '—')
     .sort((a, b) =>
@@ -425,7 +425,7 @@ function buildClubMedalsAndMultiGold(
     )
     .slice(0, 10)
 
-  const multiGoldPlayers: ComputedStats['multiGoldPlayers'] = [...goldsByPlayer.entries()]
+  const multiGoldPlayers: ComputedStats['multiGoldPlayers'] = Array.from(goldsByPlayer.entries())
     .filter(([, r]) => r.events.length >= 2)
     .map(([playerId, r]) => {
       const { plain, seed } = extractSeed(r.name)
@@ -447,7 +447,7 @@ export function aggregate(
   dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
   clubs: Record<string, string>,
 ): ComputedStats {
-  const ctxs: MatchCtx[] = [...iterateMatches(data, dayGroupsByDate)]
+  const ctxs: MatchCtx[] = Array.from(iterateMatches(data, dayGroupsByDate))
   if (ctxs.length === 0) return { ...EMPTY }
   const { clubMedals, multiGoldPlayers } = buildClubMedalsAndMultiGold(ctxs, clubs)
   return {

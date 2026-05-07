@@ -3,14 +3,12 @@ import path from 'path'
 import { createHash } from 'crypto'
 import type { TournamentStats } from './types'
 
-const STATS_ROOT = path.join(process.cwd(), '.cache', 'stats')
-
 function safeSegment(s: string): string {
   return s.replace(/[^a-zA-Z0-9_-]/g, '_')
 }
 
 function statsPath(tournamentId: string): string {
-  return path.join(STATS_ROOT, `${safeSegment(tournamentId)}.json`)
+  return path.join(process.cwd(), '.cache', 'stats', `${safeSegment(tournamentId)}.json`)
 }
 
 export interface StatsCacheEnvelope {

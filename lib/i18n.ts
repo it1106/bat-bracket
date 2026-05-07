@@ -147,6 +147,35 @@ export type TKey =
   | 'customTabDeleteConfirm'
   | 'customTabEditTabs'
   | 'customTabEditDone'
+  | 'tournamentStats'
+  | 'statsKpiEvents'
+  | 'statsKpiMatches'
+  | 'statsKpiPlayers'
+  | 'statsKpiCourtTime'
+  | 'statsKpiAvgMatch'
+  | 'statsKpiThreeSetters'
+  | 'statsSectionMatchesPerDay'
+  | 'statsSectionEvents'
+  | 'statsSectionDrama'
+  | 'statsSectionTopPlayers'
+  | 'statsSectionCourtUtilization'
+  | 'statsSectionClubMedals'
+  | 'statsSectionMultiGold'
+  | 'statsSectionIntegrity'
+  | 'statsMarathonBadge'
+  | 'statsHighestSetBadge'
+  | 'statsComebacksBadge'
+  | 'statsMostCourtTimeBadge'
+  | 'statsCol3Set'
+  | 'statsColAvg'
+  | 'statsColMatches'
+  | 'statsColWinner'
+  | 'statsColPlayer'
+  | 'statsColClub'
+  | 'statsColEvents'
+  | 'statsColWL'
+  | 'statsEmptyState'
+  | 'statsLoadFailed'
 
 const dict: Record<Lang, Record<TKey, string>> = {
   en: {
@@ -231,6 +260,35 @@ const dict: Record<Lang, Record<TKey, string>> = {
     customTabDeleteConfirm: 'Confirm delete',
     customTabEditTabs: 'Edit tabs',
     customTabEditDone: 'Done',
+    tournamentStats: 'Tournament stats',
+    statsKpiEvents: 'Events',
+    statsKpiMatches: 'Matches',
+    statsKpiPlayers: 'Players · multi-event',
+    statsKpiCourtTime: 'Court time',
+    statsKpiAvgMatch: 'Avg match',
+    statsKpiThreeSetters: '3-setters',
+    statsSectionMatchesPerDay: 'Matches per day / court time',
+    statsSectionEvents: 'Events',
+    statsSectionDrama: 'Match drama',
+    statsSectionTopPlayers: 'Top players (by tournament wins)',
+    statsSectionCourtUtilization: 'Court utilization',
+    statsSectionClubMedals: 'Top clubs by medals',
+    statsSectionMultiGold: 'Players with multiple gold medals',
+    statsSectionIntegrity: 'Quality & integrity',
+    statsMarathonBadge: 'Marathon',
+    statsHighestSetBadge: 'Highest-scoring set',
+    statsComebacksBadge: 'comeback wins',
+    statsMostCourtTimeBadge: 'Most court time',
+    statsCol3Set: '3-set',
+    statsColAvg: 'Avg',
+    statsColMatches: 'Matches',
+    statsColWinner: 'Winner(s)',
+    statsColPlayer: 'Player',
+    statsColClub: 'Club',
+    statsColEvents: 'Events',
+    statsColWL: 'W–L',
+    statsEmptyState: 'Early days — check back when more matches are decided.',
+    statsLoadFailed: 'Could not load stats. Try again.',
   },
   th: {
     appTitle1: 'BAT',
@@ -314,6 +372,35 @@ const dict: Record<Lang, Record<TKey, string>> = {
     customTabDeleteConfirm: 'ยืนยันการลบ',
     customTabEditTabs: 'แก้ไขแท็บ',
     customTabEditDone: 'เสร็จ',
+    tournamentStats: 'สถิติการแข่งขัน',
+    statsKpiEvents: 'รายการ',
+    statsKpiMatches: 'แมตช์ทั้งหมด',
+    statsKpiPlayers: 'ผู้เล่น · หลายรายการ',
+    statsKpiCourtTime: 'เวลาสนามรวม',
+    statsKpiAvgMatch: 'แมตช์เฉลี่ย',
+    statsKpiThreeSetters: '3 เกม',
+    statsSectionMatchesPerDay: 'แมตช์ต่อวัน / เวลาสนาม',
+    statsSectionEvents: 'รายการ',
+    statsSectionDrama: 'แมตช์น่าจดจำ',
+    statsSectionTopPlayers: 'ผู้เล่นยอดเยี่ยม (ตามชัยชนะในรายการนี้)',
+    statsSectionCourtUtilization: 'การใช้งานสนาม',
+    statsSectionClubMedals: 'สโมสรยอดเยี่ยม (เรียงตามเหรียญรางวัล)',
+    statsSectionMultiGold: 'ผู้เล่นที่ได้เหรียญทองหลายเหรียญ',
+    statsSectionIntegrity: 'คุณภาพการแข่ง',
+    statsMarathonBadge: 'แมตช์มาราธอน',
+    statsHighestSetBadge: 'เกมคะแนนสูงสุด',
+    statsComebacksBadge: 'ชนะแบบพลิกกลับ',
+    statsMostCourtTimeBadge: 'ใช้สนามมากที่สุด',
+    statsCol3Set: '3 เกม',
+    statsColAvg: 'เฉลี่ย',
+    statsColMatches: 'แมตช์',
+    statsColWinner: 'ผู้ชนะ',
+    statsColPlayer: 'ผู้เล่น',
+    statsColClub: 'สโมสร',
+    statsColEvents: 'รายการ',
+    statsColWL: 'ชนะ–แพ้',
+    statsEmptyState: 'ยังเร็วเกินไป — กลับมาดูอีกครั้งหลังจากการแข่งดำเนินไปมากขึ้น',
+    statsLoadFailed: 'ไม่สามารถโหลดสถิติได้ กรุณาลองใหม่',
   },
 }
 
