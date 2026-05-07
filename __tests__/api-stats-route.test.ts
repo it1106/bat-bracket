@@ -1,0 +1,80 @@
+import { GET } from '@/app/api/stats/route'
+
+jest.mock('fs', () => ({
+  ...jest.requireActual('fs'),
+  promises: { ...jest.requireActual('fs').promises, readFile: jest.fn() },
+}))
+jest.mock('../lib/stats-cache', () => ({
+  readStatsCache: jest.fn(),
+  writeStatsCache: jest.fn(),
+  hashFullCacheBytes: jest.fn(() => 'sha-fixed'),
+}))
+jest.mock('../lib/day-cache', () => ({
+  readFullCache: jest.fn(),
+  readDayCache: jest.fn(),
+}))
+
+import { promises as fs } from 'fs'
+import { readStatsCache, writeStatsCache, hashFullCacheBytes } from '@/lib/stats-cache'
+import { readFullCache, readDayCache } from '@/lib/day-cache'
+import path from 'path'
+
+const real = jest.requireActual('fs') as typeof import('fs')
+const loadFull = () => JSON.parse(real.readFileSync(path.join(__dirname, '..', 'fixtures', 'stats-sprc-full.json'), 'utf8'))
+const loadDays = () => JSON.parse(real.readFileSync(path.join(__dirname, '..', 'fixtures', 'stats-sprc-days.json'), 'utf8'))
+const loadClubs = () => JSON.parse(real.readFileSync(path.join(__dirname, '..', 'fixtures', 'stats-sprc-clubs.json'), 'utf8'))
+
+let testId = 0
+const nextId = () => `test-${++testId}`
+
+const req = (id: string, override?: string) =>
+  new Request(`http://localhost/api/stats${override ?? `?tournament=${id}`}`)
+
+describe('GET /api/stats', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+    ;(hashFullCacheBytes as jest.Mock).mockReturnValue('sha-fixed')
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => loadClubs(),
+    }) as unknown as typeof fetch
+  })
+
+  it('returns 400 when missing tournament param', async () => {
+    const res = await GET(req(nextId(), '?'))
+    expect(res.status).toBe(400)
+  })
+
+  it('serves from disk cache when sourceVersion matches', async () => {
+    const id = nextId()
+    ;(readFullCache as jest.Mock).mockResolvedValue(loadFull())
+    ;(fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('any'))
+    ;(readStatsCache as jest.Mock).mockResolvedValue({
+      version: 1,
+      sourceVersion: 'full:sha-fixed',
+      stats: { tournamentId: id, generatedAt: 'X', coverage: {}, kpis: { matches: 999 } },
+    })
+    const res = await GET(req(id))
+    const json = await res.json()
+    expect(res.status).toBe(200)
+    expect(json.kpis.matches).toBe(999)
+    expect(writeStatsCache).not.toHaveBeenCalled()
+  })
+
+  it('aggregates and pins to disk on first miss', async () => {
+    const id = nextId()
+    ;(readFullCache as jest.Mock).mockResolvedValue(loadFull())
+    ;(fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('full-bytes'))
+    ;(readStatsCache as jest.Mock).mockResolvedValue(null)
+    ;(readDayCache as jest.Mock).mockImplementation(async (_id: string, dateIso: string) => {
+      const d = loadDays()
+      return d[dateIso] ? { groups: d[dateIso] } : null
+    })
+    const res = await GET(req(id))
+    const json = await res.json()
+    expect(res.status).toBe(200)
+    expect(json.kpis.matches).toBe(1384)
+    expect(json.kpis.events).toBe(33)
+    expect(writeStatsCache).toHaveBeenCalledTimes(1)
+  })
+})
