@@ -17,3 +17,18 @@ export function mergeForApi(
   }
   return Array.from(byId.values()).filter((e) => !denySet.has(e.id))
 }
+
+// Newest-first by startDateIso. Entries without a startDateIso sink to the
+// bottom and preserve their relative order. Pure: never mutates input.
+export function sortNewestFirst(entries: TournamentInfo[]): TournamentInfo[] {
+  const indexed = entries.map((e, i) => ({ e, i }))
+  indexed.sort((a, b) => {
+    const aHas = !!a.e.startDateIso
+    const bHas = !!b.e.startDateIso
+    if (aHas && !bHas) return -1
+    if (!aHas && bHas) return 1
+    if (!aHas && !bHas) return a.i - b.i
+    return (b.e.startDateIso ?? '').localeCompare(a.e.startDateIso ?? '')
+  })
+  return indexed.map((x) => x.e)
+}

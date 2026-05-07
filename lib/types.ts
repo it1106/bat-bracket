@@ -22,6 +22,7 @@ export interface TournamentInfo {
   id: string
   name: string
   done?: boolean
+  startDateIso?: string
 }
 
 export interface BracketData {

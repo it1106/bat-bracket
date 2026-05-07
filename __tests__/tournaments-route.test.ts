@@ -1,5 +1,6 @@
-import { mergeForApi } from '@/lib/tournaments-merge'
+import { mergeForApi, sortNewestFirst } from '@/lib/tournaments-merge'
 import type { DiscoveryStore } from '@/lib/discovery-store'
+import type { TournamentInfo } from '@/lib/types'
 
 describe('mergeForApi', () => {
   it('returns manual entries when discovered store is empty', () => {
@@ -92,5 +93,47 @@ describe('mergeForApi', () => {
       store,
     )
     expect(result).toEqual([])
+  })
+})
+
+describe('sortNewestFirst', () => {
+  it('sorts by startDateIso descending (newest first)', () => {
+    const input: TournamentInfo[] = [
+      { id: 'A', name: 'Old', startDateIso: '2026-01-01' },
+      { id: 'B', name: 'New', startDateIso: '2026-05-01' },
+      { id: 'C', name: 'Mid', startDateIso: '2026-03-01' },
+    ]
+    const result = sortNewestFirst(input)
+    expect(result.map((e) => e.id)).toEqual(['B', 'C', 'A'])
+  })
+
+  it('places entries without startDateIso at the bottom (preserving relative order)', () => {
+    const input: TournamentInfo[] = [
+      { id: 'A', name: 'Undated 1' },
+      { id: 'B', name: 'Dated', startDateIso: '2026-05-01' },
+      { id: 'C', name: 'Undated 2' },
+    ]
+    const result = sortNewestFirst(input)
+    expect(result.map((e) => e.id)).toEqual(['B', 'A', 'C'])
+  })
+
+  it('does not mutate input', () => {
+    const input: TournamentInfo[] = [
+      { id: 'A', name: 'A', startDateIso: '2026-01-01' },
+      { id: 'B', name: 'B', startDateIso: '2026-05-01' },
+    ]
+    const before = JSON.stringify(input)
+    sortNewestFirst(input)
+    expect(JSON.stringify(input)).toEqual(before)
+  })
+
+  it('preserves done flag during sort', () => {
+    const input: TournamentInfo[] = [
+      { id: 'A', name: 'A', startDateIso: '2026-01-01', done: true },
+      { id: 'B', name: 'B', startDateIso: '2026-05-01' },
+    ]
+    const result = sortNewestFirst(input)
+    expect(result[0]).toEqual({ id: 'B', name: 'B', startDateIso: '2026-05-01' })
+    expect(result[1]).toEqual({ id: 'A', name: 'A', startDateIso: '2026-01-01', done: true })
   })
 })

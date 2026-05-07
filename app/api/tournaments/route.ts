@@ -4,7 +4,7 @@ import { join } from 'path'
 import { readFullCache, isAllPast } from '@/lib/day-cache'
 import { getTodayIso } from '@/lib/today'
 import { loadDiscovered } from '@/lib/discovery-store'
-import { mergeForApi } from '@/lib/tournaments-merge'
+import { mergeForApi, sortNewestFirst } from '@/lib/tournaments-merge'
 import type { TournamentInfo } from '@/lib/types'
 
 // Force dynamic so auto-done flips and newly-discovered entries are reflected
@@ -53,22 +53,24 @@ function parseTournamentsTxt(): ParsedTxt {
   }
 }
 
-async function applyAutoDone(
+// One pass over the merged list: read each tournament's persisted full
+// schedule (if any) to derive startDateIso (first match-day) and the
+// auto-done flag. Both come from the same readFullCache call.
+async function annotateEntries(
   entries: TournamentInfo[],
   todayIso: string,
 ): Promise<TournamentInfo[]> {
   const out: TournamentInfo[] = []
   for (const e of entries) {
-    if (e.done) {
-      out.push(e)
-      continue
-    }
     const cached = await readFullCache(e.id)
-    if (cached && isAllPast(cached, todayIso)) {
-      out.push({ ...e, done: true })
-    } else {
-      out.push(e)
-    }
+    const startDateIso = cached?.days[0]?.dateIso
+    const autoDone = !e.done && cached ? isAllPast(cached, todayIso) : false
+    const done = e.done || autoDone
+    out.push({
+      ...e,
+      ...(done && { done: true }),
+      ...(startDateIso && { startDateIso }),
+    })
   }
   return out
 }
@@ -78,6 +80,7 @@ export async function GET() {
   const discovered = await loadDiscovered()
   const merged = mergeForApi(manualEntries, denySet, discovered)
   const todayIso = getTodayIso()
-  const final = await applyAutoDone(merged, todayIso)
-  return NextResponse.json(final)
+  const annotated = await annotateEntries(merged, todayIso)
+  const sorted = sortNewestFirst(annotated)
+  return NextResponse.json(sorted)
 }
