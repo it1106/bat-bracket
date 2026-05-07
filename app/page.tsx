@@ -176,7 +176,7 @@ export default function Home() {
       if (!next.has(key)) completion = true
     })
     prevLiveMatchIdsRef.current = next
-    if (!completion || !selectedTournament || !selectedDay) return
+    if (!completion || !selectedTournament || !selectedDay || selectedDay === 'stats') return
     if (liveRefetchTimerRef.current) clearTimeout(liveRefetchTimerRef.current)
     liveRefetchTimerRef.current = setTimeout(async () => {
       try {
@@ -528,6 +528,7 @@ export default function Home() {
   const handleDayChange = useCallback(async (date: string) => {
     if (!selectedTournament) return
     setSelectedDay(date)
+    if (date === 'stats') return
     setLoadingMatches(true)
     try {
       const res = await fetch(`/api/matches?tournament=${encodeURIComponent(selectedTournament)}&date=${date}`)

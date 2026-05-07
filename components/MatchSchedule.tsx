@@ -12,6 +12,7 @@ import { buildNextOppMap } from '@/lib/nextOpp'
 import { useLongPress } from '@/lib/useLongPress'
 import { buildFilename, captureMatchImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
 import JumpToNextButton from '@/components/JumpToNextButton'
+import TournamentStatsPanel from '@/components/TournamentStatsPanel'
 
 interface Props {
   groups: MatchScheduleGroup[]
@@ -329,8 +330,21 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
 
   return (
     <div className="match-schedule" ref={containerRef}>
-      {days.length > 0 && (
+      {(days.length > 0 || selectedDay === 'stats') && (
         <div className="match-schedule__day-tabs">
+          <button
+            key="__stats__"
+            onClick={() => onDayChange('stats')}
+            className={[
+              'match-schedule__day-tab',
+              'match-schedule__day-tab--stats',
+              selectedDay === 'stats' ? 'active' : '',
+            ].filter(Boolean).join(' ')}
+            title={t('tournamentStats')}
+            aria-label={t('tournamentStats')}
+          >
+            📊
+          </button>
           {days.map((d) => (
             <button
               key={d.date}
@@ -347,18 +361,22 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         </div>
       )}
 
-      {loading && (
+      {selectedDay === 'stats' && tournamentId && (
+        <TournamentStatsPanel tournamentId={tournamentId} />
+      )}
+
+      {selectedDay !== 'stats' && loading && (
         <div className="p-8 text-center text-gray-400 text-sm">
           <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin mr-2 align-[-2px]" />
           {t('loadingMatches')}
         </div>
       )}
 
-      {!loading && groups.length === 0 && (
+      {selectedDay !== 'stats' && !loading && groups.length === 0 && (
         <div className="p-8 text-center text-gray-400 text-sm">{t('noMatchesScheduled')}</div>
       )}
 
-      {!loading && (() => {
+      {selectedDay !== 'stats' && !loading && (() => {
         const rendered = groups.map((group, gi) => {
           const queryFiltered = playerQuery
             ? group.matches.filter((m) => matchesQuery(m, playerQuery, playerClubMap))
