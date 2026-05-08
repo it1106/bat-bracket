@@ -247,7 +247,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     playingOrderAway: '{n} away',
     winRate: 'Win rate',
     bracketRoundHint: 'Tip: click a round header to collapse the bracket to that round.',
-    searchNotFound: 'Search not found.  Search player or team does not compete today',
+    searchNotFound: 'Search not found.  Searched player or team does not compete today',
     searchHelp: 'Player name, club, or event. You can use & (and) or | (or) to search — e.g. kba & BS U15 will show only Kasemsak players in the U15 event.',
     customTab: 'Custom',
     customTabCreate: 'New Custom Search',
