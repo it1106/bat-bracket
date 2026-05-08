@@ -336,7 +336,13 @@ function buildCourtUtilization(ctxs: MatchCtx[]): ComputedStats['courtUtilizatio
     a.minutes += durationMinutes
     by.set(match.court, a)
   }
-  const rows = Array.from(by.entries()).map(([name, a]) => ({ name, ...a }))
+  // Drop entries that accumulated no play time. These are typically venue-
+  // level fallbacks BAT emits when a match has no specific court assigned
+  // (e.g. all walkovers grouped under "ณ มหาวิทยาลัย..."). Real courts
+  // always have measurable duration.
+  const rows = Array.from(by.entries())
+    .filter(([, a]) => a.minutes > 0)
+    .map(([name, a]) => ({ name, ...a }))
   rows.sort((a, b) => b.minutes - a.minutes || b.matches - a.matches)
   return rows.slice(0, 14)
 }
