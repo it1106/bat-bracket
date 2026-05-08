@@ -87,6 +87,9 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
   const playersPct = stats.kpis.players > 0
     ? Math.round((stats.kpis.multiEventPlayers / stats.kpis.players) * 100)
     : 0
+  const threeSetterCount = Math.round(stats.kpis.threeSetterRate * stats.kpis.decided)
+  const comebackCount = stats.drama.comebackCount
+  const comebackRate = stats.kpis.decided > 0 ? comebackCount / stats.kpis.decided : 0
   const defLabel = lang === 'th' ? 'ชนะ' : 'def.'
 
   return (
@@ -104,7 +107,20 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
         </div>
         <div className="stats-kpi"><div className="stats-kpi-num">{formatHours(stats.kpis.courtMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiCourtTime')}</div></div>
         <div className="stats-kpi"><div className="stats-kpi-num">{formatMinutes(stats.kpis.avgMatchMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiAvgMatch')}</div></div>
-        <div className="stats-kpi"><div className="stats-kpi-num">{pct(stats.kpis.threeSetterRate)}</div><div className="stats-kpi-lbl">{t('statsKpiThreeSetters')}</div></div>
+        <div className="stats-kpi">
+          <div className="stats-kpi-num">
+            {fmt(threeSetterCount)}
+            <span className="stats-kpi-sub"> ({pct(stats.kpis.threeSetterRate)})</span>
+          </div>
+          <div className="stats-kpi-lbl">{t('statsKpiThreeSetters')}</div>
+        </div>
+        <div className="stats-kpi">
+          <div className="stats-kpi-num">
+            {fmt(comebackCount)}
+            <span className="stats-kpi-sub"> ({pct(comebackRate)})</span>
+          </div>
+          <div className="stats-kpi-lbl">{t('statsKpiComebacks')}</div>
+        </div>
       </div>
 
       {/* Matches per day / court time */}
@@ -146,22 +162,6 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
             />
           )
         })()}
-
-        {stats.drama.comebackCount > 0 && (
-          <div className="stats-drama stats-drama--cool">
-            <div className="stats-drama-head">
-              <span className="stats-drama-badge">{stats.drama.comebackCount} {t('statsComebacksBadge')}</span>
-              {stats.drama.comebackHighlight && (
-                <span className="stats-drama-where">{stats.drama.comebackHighlight.draw} · {stats.drama.comebackHighlight.round}</span>
-              )}
-            </div>
-            {stats.drama.comebackHighlight && (
-              <div className="stats-drama-teams">
-                {(stats.drama.comebackHighlight.winnerSide === 1 ? stats.drama.comebackHighlight.team1 : stats.drama.comebackHighlight.team2).join(' / ')}
-              </div>
-            )}
-          </div>
-        )}
 
         {stats.drama.mostCourtTime && (
           <div className="stats-drama">

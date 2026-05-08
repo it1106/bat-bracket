@@ -154,6 +154,7 @@ export type TKey =
   | 'statsKpiCourtTime'
   | 'statsKpiAvgMatch'
   | 'statsKpiThreeSetters'
+  | 'statsKpiComebacks'
   | 'statsSectionMatchesPerDay'
   | 'statsSectionEvents'
   | 'statsSectionDrama'
@@ -267,6 +268,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsKpiCourtTime: 'Court time',
     statsKpiAvgMatch: 'Avg match',
     statsKpiThreeSetters: '3-setters',
+    statsKpiComebacks: 'Comeback wins',
     statsSectionMatchesPerDay: 'Matches per day / court time',
     statsSectionEvents: 'Events',
     statsSectionDrama: 'Match drama',
@@ -373,14 +375,15 @@ const dict: Record<Lang, Record<TKey, string>> = {
     customTabEditTabs: 'แก้ไขแท็บ',
     customTabEditDone: 'เสร็จ',
     tournamentStats: 'สถิติการแข่งขัน',
-    statsKpiEvents: 'รายการ',
+    statsKpiEvents: 'ประเภท',
     statsKpiMatches: 'แมตช์ทั้งหมด',
-    statsKpiPlayers: 'นักกีฬา · ลงมากกว่า 1 รายการ',
+    statsKpiPlayers: 'นักกีฬา · ลงมากกว่า 1 ประเภท',
     statsKpiCourtTime: 'เวลาสนามรวม',
     statsKpiAvgMatch: 'เวลาแข่งเฉลี่ยต่อแมตช์',
     statsKpiThreeSetters: '3 เกม',
+    statsKpiComebacks: 'พลิกกลับมาชนะ',
     statsSectionMatchesPerDay: 'แมตช์ต่อวัน / เวลาสนาม',
-    statsSectionEvents: 'รายการ',
+    statsSectionEvents: 'ประเภท',
     statsSectionDrama: 'แมตช์น่าจดจำ',
     statsSectionTopPlayers: 'นักกีฬายอดเยี่ยม',
     statsSectionCourtUtilization: 'การใช้งานสนาม',
@@ -397,7 +400,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsColWinner: 'ผู้ชนะ',
     statsColPlayer: 'นักกีฬา',
     statsColClub: 'สโมสร',
-    statsColEvents: 'รายการ',
+    statsColEvents: 'ประเภท',
     statsColWL: 'ชนะ–แพ้',
     statsEmptyState: 'ยังเร็วเกินไป — กลับมาดูอีกครั้งหลังจากการแข่งดำเนินไปมากขึ้น',
     statsLoadFailed: 'ไม่สามารถโหลดสถิติได้ กรุณาลองใหม่',
