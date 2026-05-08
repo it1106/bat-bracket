@@ -98,12 +98,13 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
       <div className="stats-kpis">
         <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.events)}</div><div className="stats-kpi-lbl">{t('statsKpiEvents')}</div></div>
         <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.matches)}</div><div className="stats-kpi-lbl">{t('statsKpiMatches')}</div></div>
+        <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.players)}</div><div className="stats-kpi-lbl">{t('statsKpiPlayers')}</div></div>
         <div className="stats-kpi">
           <div className="stats-kpi-num">
-            {fmt(stats.kpis.players)} / {fmt(stats.kpis.multiEventPlayers)}
+            {fmt(stats.kpis.multiEventPlayers)}
             {stats.kpis.players > 0 && <span className="stats-kpi-sub"> ({playersPct}%)</span>}
           </div>
-          <div className="stats-kpi-lbl">{t('statsKpiPlayers')}</div>
+          <div className="stats-kpi-lbl">{t('statsKpiMultiEvent')}</div>
         </div>
         <div className="stats-kpi"><div className="stats-kpi-num">{formatHours(stats.kpis.courtMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiCourtTime')}</div></div>
         <div className="stats-kpi"><div className="stats-kpi-num">{formatMinutes(stats.kpis.avgMatchMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiAvgMatch')}</div></div>

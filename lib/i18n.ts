@@ -151,6 +151,7 @@ export type TKey =
   | 'statsKpiEvents'
   | 'statsKpiMatches'
   | 'statsKpiPlayers'
+  | 'statsKpiMultiEvent'
   | 'statsKpiCourtTime'
   | 'statsKpiAvgMatch'
   | 'statsKpiThreeSetters'
@@ -264,7 +265,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     tournamentStats: 'Tournament stats',
     statsKpiEvents: 'Events',
     statsKpiMatches: 'Matches',
-    statsKpiPlayers: 'Players · multi-event',
+    statsKpiPlayers: 'Players',
+    statsKpiMultiEvent: 'Multi-event players',
     statsKpiCourtTime: 'Court time',
     statsKpiAvgMatch: 'Avg match',
     statsKpiThreeSetters: '3-setters',
@@ -377,7 +379,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     tournamentStats: 'สถิติการแข่งขัน',
     statsKpiEvents: 'ประเภท',
     statsKpiMatches: 'แมตช์ทั้งหมด',
-    statsKpiPlayers: 'นักกีฬา · ลงมากกว่า 1 ประเภท',
+    statsKpiPlayers: 'นักกีฬา',
+    statsKpiMultiEvent: 'ลงมากกว่า 1 ประเภท',
     statsKpiCourtTime: 'เวลาสนามรวม',
     statsKpiAvgMatch: 'เวลาแข่งเฉลี่ยต่อแมตช์',
     statsKpiThreeSetters: '3 เกม',
