@@ -203,9 +203,10 @@ export async function GET(request: Request) {
       ...stats,
     }
 
-    if (isAllPast && fullBytes) {
+    const coverageComplete = dayMap.daysOnDisk === fullData.days.length
+    if (isAllPast && fullBytes && coverageComplete) {
       const sv = `full:${hashFullCacheBytes(fullBytes)}`
-      await writeStatsCache(tournamentId, { sourceVersion: sv, stats: full })
+      await writeStatsCache(tournamentId, { sourceVersion: sv, coverageComplete: true, stats: full })
     }
 
     memCache.set(tournamentId, { data: full, ts: Date.now(), live: !isAllPast })

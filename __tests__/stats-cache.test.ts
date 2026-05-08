@@ -41,11 +41,25 @@ describe('stats-cache', () => {
   })
 
   it('round-trips write+read', async () => {
-    await writeStatsCache('abc', { sourceVersion: 'full:xyz', stats: sample() })
+    await writeStatsCache('abc', { sourceVersion: 'full:xyz', coverageComplete: true, stats: sample() })
     const got = await readStatsCache('abc')
     expect(got).not.toBeNull()
     expect(got!.sourceVersion).toBe('full:xyz')
+    expect(got!.coverageComplete).toBe(true)
     expect(got!.stats.tournamentId).toBe('abc')
+  })
+
+  it('does not write when coverageComplete is false', async () => {
+    await writeStatsCache('abc', { sourceVersion: 'full:xyz', coverageComplete: false, stats: sample() })
+    expect(await readStatsCache('abc')).toBeNull()
+  })
+
+  it('rejects envelopes that lack coverageComplete on read (legacy envelopes)', async () => {
+    const fs2 = await import('fs')
+    const file = require('path').join(process.cwd(), '.cache', 'stats', 'abc.json')
+    fs2.mkdirSync(require('path').dirname(file), { recursive: true })
+    fs2.writeFileSync(file, JSON.stringify({ version: 1, sourceVersion: 'full:xyz', stats: sample() }))
+    expect(await readStatsCache('abc')).toBeNull()
   })
 
   it('hashFullCacheBytes is stable sha256', () => {

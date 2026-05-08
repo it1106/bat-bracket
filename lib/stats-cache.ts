@@ -14,6 +14,11 @@ function statsPath(tournamentId: string): string {
 export interface StatsCacheEnvelope {
   version: 1
   sourceVersion: string
+  // Set to true only when every day in fullData.days had a disk-cache hit at
+  // write time. Older envelopes (or those written with partial coverage) are
+  // ignored on read so a stale, incomplete aggregate never gets stuck in the
+  // cache once shards finally arrive.
+  coverageComplete: boolean
   stats: TournamentStats
 }
 
@@ -22,6 +27,7 @@ export async function readStatsCache(tournamentId: string): Promise<StatsCacheEn
     const buf = await fs.readFile(statsPath(tournamentId), 'utf8')
     const parsed = JSON.parse(buf) as StatsCacheEnvelope
     if (parsed.version !== 1) return null
+    if (parsed.coverageComplete !== true) return null
     return parsed
   } catch {
     return null
@@ -30,8 +36,9 @@ export async function readStatsCache(tournamentId: string): Promise<StatsCacheEn
 
 export async function writeStatsCache(
   tournamentId: string,
-  envelope: { sourceVersion: string; stats: TournamentStats },
+  envelope: { sourceVersion: string; coverageComplete: boolean; stats: TournamentStats },
 ): Promise<void> {
+  if (!envelope.coverageComplete) return
   const file = statsPath(tournamentId)
   const tmp = `${file}.tmp`
   try {

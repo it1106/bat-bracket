@@ -52,6 +52,7 @@ describe('GET /api/stats', () => {
     ;(readStatsCache as jest.Mock).mockResolvedValue({
       version: 1,
       sourceVersion: 'full:sha-fixed',
+      coverageComplete: true,
       stats: { tournamentId: id, generatedAt: 'X', coverage: {}, kpis: { matches: 999 } },
     })
     const res = await GET(req(id))
@@ -76,6 +77,31 @@ describe('GET /api/stats', () => {
     expect(json.kpis.matches).toBe(1384)
     expect(json.kpis.events).toBe(33)
     expect(writeStatsCache).toHaveBeenCalledTimes(1)
+  })
+
+  it('past tournament with incomplete day coverage: aggregates but does NOT pin to disk', async () => {
+    const id = nextId()
+    ;(readFullCache as jest.Mock).mockResolvedValue(loadFull())
+    ;(fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('full-bytes'))
+    ;(readStatsCache as jest.Mock).mockResolvedValue(null)
+    // Simulate only 3 of 6 day shards on disk; the others are missing.
+    ;(readDayCache as jest.Mock).mockImplementation(async (_id: string, dateIso: string) => {
+      const d = loadDays()
+      if (['2026-05-01', '2026-05-02', '2026-05-06'].includes(dateIso) && d[dateIso]) {
+        return { groups: d[dateIso] }
+      }
+      return null
+    })
+    // Internal /api/matches?date= calls return empty so missing days stay missing.
+    global.fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clubs')) return { ok: true, json: async () => loadClubs() } as Response
+      if (url.includes('/api/matches')) return { ok: true, json: async () => ({ groups: [] }) } as Response
+      return { ok: false, json: async () => ({}) } as Response
+    }) as unknown as typeof fetch
+
+    const res = await GET(req(id))
+    expect(res.status).toBe(200)
+    expect(writeStatsCache).not.toHaveBeenCalled()
   })
 
   it('mid-tournament: full disk cache absent → fetch /api/matches and aggregate, do NOT pin', async () => {
