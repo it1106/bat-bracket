@@ -77,4 +77,37 @@ describe('GET /api/stats', () => {
     expect(json.kpis.events).toBe(33)
     expect(writeStatsCache).toHaveBeenCalledTimes(1)
   })
+
+  it('mid-tournament: full disk cache absent → fetch /api/matches and aggregate, do NOT pin', async () => {
+    const id = nextId()
+    ;(readFullCache as jest.Mock).mockResolvedValue(null)
+    ;(fs.readFile as jest.Mock).mockRejectedValue(new Error('ENOENT'))
+    ;(readStatsCache as jest.Mock).mockResolvedValue(null)
+    // Past-day shards are on disk; today/future fall back to /api/matches.
+    ;(readDayCache as jest.Mock).mockImplementation(async (_id: string, dateIso: string) => {
+      const d = loadDays()
+      return d[dateIso] ? { groups: d[dateIso] } : null
+    })
+    // Two endpoints get hit during a mid-tournament request:
+    //   - /api/clubs?tournament=…  (always)
+    //   - /api/matches?tournament=…  (no date — full schedule fallback)
+    const fullData = loadFull()
+    const clubData = loadClubs()
+    global.fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clubs')) {
+        return { ok: true, json: async () => clubData } as Response
+      }
+      if (url.includes('/api/matches')) {
+        return { ok: true, json: async () => fullData } as Response
+      }
+      return { ok: false, json: async () => ({}) } as Response
+    }) as unknown as typeof fetch
+
+    const res = await GET(req(id))
+    const json = await res.json()
+    expect(res.status).toBe(200)
+    expect(json.kpis.matches).toBe(1384)
+    expect(json.kpis.events).toBe(33)
+    expect(writeStatsCache).not.toHaveBeenCalled()
+  })
 })

@@ -37,18 +37,44 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
-    fetch(`/api/stats?tournament=${encodeURIComponent(tournamentId)}`)
-      .then((r) => r.json())
-      .then((data) => {
+    let timer: ReturnType<typeof setInterval> | null = null
+
+    const load = async (showSpinner: boolean) => {
+      if (showSpinner) {
+        setLoading(true)
+        setError(null)
+      }
+      try {
+        const res = await fetch(`/api/stats?tournament=${encodeURIComponent(tournamentId)}`)
+        const data = await res.json()
         if (cancelled) return
-        if ('error' in data) setError(data.error)
-        else setStats(data as TournamentStats)
-      })
-      .catch(() => { if (!cancelled) setError('fetch failed') })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+        if ('error' in data) {
+          if (showSpinner) setError(data.error)
+          // Silent on background refresh — keep showing the previous stats.
+        } else {
+          setStats(data as TournamentStats)
+          setError(null)
+        }
+      } catch {
+        if (showSpinner && !cancelled) setError('fetch failed')
+      } finally {
+        if (showSpinner && !cancelled) setLoading(false)
+      }
+    }
+
+    load(true)
+    // Refresh every 30 s so live tournaments tick up as matches finalize.
+    // Past tournaments still poll but the server returns a memo-cached
+    // result, so the cost is negligible.
+    timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      load(false)
+    }, 30_000)
+
+    return () => {
+      cancelled = true
+      if (timer) clearInterval(timer)
+    }
   }, [tournamentId])
 
   if (loading) return <div className="stats-loading">…</div>
