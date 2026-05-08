@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
+import { track } from '@/lib/analytics'
 import type { TournamentStats } from '@/lib/types'
 
 interface Props {
@@ -61,6 +62,9 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
         if (showSpinner && !cancelled) setLoading(false)
       }
     }
+
+    // Fire once per (tournamentId, mount). Background polls don't re-track.
+    track('tournament_stats_viewed', { tournament_id: tournamentId })
 
     load(true)
     // Refresh every 30 s so live tournaments tick up as matches finalize.
