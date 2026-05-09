@@ -287,7 +287,10 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
             <div className="stats-court-row" key={c.name}>
               <span className="stats-court-nm">{tail}</span>
               <div className="stats-bar-track"><div className="stats-bar-fill" style={{ width: `${(c.minutes / courtMax) * 100}%` }} /></div>
-              <span className="stats-court-v">{(c.minutes / 60).toFixed(1)}{lang === 'th' ? ' ชม.' : ' h'}</span>
+              <span className="stats-court-v">
+                {(c.minutes / 60).toFixed(1)}{lang === 'th' ? ' ชม.' : ' h'}
+                <span className="stats-bar-secondary">{fmt(c.matches)} {lang === 'th' ? 'แมตช์' : c.matches === 1 ? 'match' : 'matches'}</span>
+              </span>
             </div>
           )
         })}
