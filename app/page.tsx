@@ -64,6 +64,7 @@ function prefetchFutureDayHasMatches(
   tournamentId: string,
   days: MatchDay[],
   setDays: React.Dispatch<React.SetStateAction<MatchDay[]>>,
+  onSnapshot: (next: MatchDay[]) => void,
 ) {
   if (typeof window === 'undefined') return
   const todayIso = getTodayIso()
@@ -79,11 +80,13 @@ function prefetchFutureDayHasMatches(
         const data = await safeJson(res)
         if (!isApiError(data)) {
           const dayData = data as Pick<MatchesData, 'groups'>
-          setDays((prev) =>
-            prev.map((x) =>
+          setDays((prev) => {
+            const next = prev.map((x) =>
               x.date === d.date ? { ...x, hasMatches: dayData.groups.length > 0 } : x,
-            ),
-          )
+            )
+            onSnapshot(next)
+            return next
+          })
         }
       } catch {}
     }
@@ -303,7 +306,11 @@ export default function Home() {
     fetch('/api/tournaments')
       .then((r) => safeJson(r))
       .then((data) => {
-        if (!isApiError(data)) setTournaments(data as TournamentInfo[])
+        if (!isApiError(data)) {
+          const list = data as TournamentInfo[]
+          setTournaments(list)
+          setAlerts(recordTournamentSnapshot(list))
+        }
       })
       .catch(() => {})
       .finally(() => setLoadingTournaments(false))
@@ -359,7 +366,14 @@ export default function Home() {
       setMatchDays(md.days)
       setMatchGroups(md.groups)
       setSelectedDay(md.currentDate || md.days[0]?.date || '')
-      prefetchFutureDayHasMatches(id, md.days, setMatchDays)
+      const tname = t?.name ?? id
+      setAlerts(recordScheduleSnapshot(id, tname, md.days))
+      prefetchFutureDayHasMatches(
+        id,
+        md.days,
+        setMatchDays,
+        (next) => setAlerts(recordScheduleSnapshot(id, tname, next)),
+      )
       // The full-schedule endpoint skips sibling enrichment for speed. Refetch
       // the current day in the background to populate siblingPlayerIds (used
       // by the next-opponent highlight). No loading flicker.
@@ -549,13 +563,18 @@ export default function Home() {
       if (!isApiError(data)) {
         const md = data as Pick<MatchesData, 'groups'>
         setMatchGroups(md.groups)
-        setMatchDays(prev => prev.map(d =>
-          d.date === date ? { ...d, hasMatches: md.groups.length > 0 } : d
-        ))
+        setMatchDays(prev => {
+          const next = prev.map(d =>
+            d.date === date ? { ...d, hasMatches: md.groups.length > 0 } : d
+          )
+          const tname = tournaments.find((x) => x.id === selectedTournament)?.name ?? selectedTournament
+          setAlerts(recordScheduleSnapshot(selectedTournament, tname, next))
+          return next
+        })
       }
     } catch {}
     finally { setLoadingMatches(false) }
-  }, [selectedTournament])
+  }, [selectedTournament, tournaments])
 
   const handleExport = useCallback(() => {
     if (!bracketRef.current) return
