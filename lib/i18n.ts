@@ -156,6 +156,7 @@ export type TKey =
   | 'statsKpiAvgMatch'
   | 'statsKpiThreeSetters'
   | 'statsKpiComebacks'
+  | 'statsSectionByNumbers'
   | 'statsSectionMatchesPerDay'
   | 'statsSectionEvents'
   | 'statsSectionDrama'
@@ -271,6 +272,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsKpiAvgMatch: 'Avg match',
     statsKpiThreeSetters: '3-setters',
     statsKpiComebacks: 'Comeback wins',
+    statsSectionByNumbers: 'Tournament by Numbers',
     statsSectionMatchesPerDay: 'Matches per day / court time',
     statsSectionEvents: 'Events',
     statsSectionDrama: 'Match drama',
@@ -278,7 +280,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionCourtUtilization: 'Court utilization',
     statsSectionClubMedals: 'Top clubs by medals',
     statsSectionMultiGold: 'Players with multiple gold medals',
-    statsSectionIntegrity: 'Quality & integrity',
+    statsSectionIntegrity: 'Other stats',
     statsMarathonBadge: 'Marathon',
     statsHighestSetBadge: 'Highest-scoring set',
     statsComebacksBadge: 'comeback wins',
@@ -291,7 +293,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsColClub: 'Club',
     statsColEvents: 'Events',
     statsColWL: 'W–L',
-    statsEmptyState: 'Early days — check back when more matches are decided.',
+    statsEmptyState: "Competition hasn't started.  Check back when more matches are decided",
     statsLoadFailed: 'Could not load stats. Try again.',
   },
   th: {
@@ -385,6 +387,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsKpiAvgMatch: 'เวลาแข่งเฉลี่ยต่อแมตช์',
     statsKpiThreeSetters: '3 เกม',
     statsKpiComebacks: 'พลิกกลับมาชนะเกม 3 / โอกาสชนะหลังเสียเกมแรก',
+    statsSectionByNumbers: 'เจาะลึกสถิติการแข่งขัน',
     statsSectionMatchesPerDay: 'แมตช์ต่อวัน / เวลาสนาม',
     statsSectionEvents: 'ประเภท',
     statsSectionDrama: 'แมตช์น่าจดจำ',
@@ -392,7 +395,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionCourtUtilization: 'การใช้งานสนาม',
     statsSectionClubMedals: 'สโมสรยอดเยี่ยม (เรียงตามเหรียญรางวัล)',
     statsSectionMultiGold: 'นักกีฬาที่ได้เหรียญทองมากกว่า 1 เหรียญ',
-    statsSectionIntegrity: 'คุณภาพการแข่ง',
+    statsSectionIntegrity: 'สถิติอื่น ๆ',
     statsMarathonBadge: 'แมตช์มาราธอน',
     statsHighestSetBadge: 'เกมคะแนนสูงสุด',
     statsComebacksBadge: 'พลิกกลับมาชนะเกม 3',
@@ -405,7 +408,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsColClub: 'สโมสร',
     statsColEvents: 'ประเภท',
     statsColWL: 'ชนะ–แพ้',
-    statsEmptyState: 'ยังเร็วเกินไป — กลับมาดูอีกครั้งหลังจากการแข่งดำเนินไปมากขึ้น',
+    statsEmptyState: 'ยังไม่เริ่มการแข่งขัน',
     statsLoadFailed: 'ไม่สามารถโหลดสถิติได้ กรุณาลองใหม่',
   },
 }
