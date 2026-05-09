@@ -2015,3 +2015,41 @@ html.dark .ms-match--next-opp {
   .stats-court-row { grid-template-columns: 50px 1fr 70px; gap: 8px; font-size: 12px; }
   .stats-grid-2 { grid-template-columns: 1fr; gap: 10px; }
 }
+
+/* ──────────────────────────────────────────────────────────
+   Alert bell pulse
+   Used by components/AlertBell.tsx. The dot stays visible at
+   all times when there are pending alerts; the pulse ring
+   animates outward to draw attention.
+   ────────────────────────────────────────────────────────── */
+.alert-bell-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 2px var(--surface);
+  pointer-events: none;
+}
+.alert-bell-pulse {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--red);
+  opacity: 0.5;
+  animation: alert-bell-pulse 2s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes alert-bell-pulse {
+  0%   { transform: scale(0.8); opacity: 0.6; }
+  70%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .alert-bell-pulse { animation: none; opacity: 0; }
+}
