@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
+import { track } from '@/lib/analytics'
 import type { AlertItem } from '@/lib/alerts'
 
 interface AlertBellProps {
@@ -43,18 +44,24 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
     (a): a is Extract<AlertItem, { kind: 'schedule' }> => a.kind === 'schedule',
   )
 
+  const dismissWith = (via: 'item' | 'outside' | 'escape') => {
+    const tournaments = alerts.filter((a) => a.kind === 'tournament').length
+    const schedules = alerts.filter((a) => a.kind === 'schedule').length
+    track('alert_dismissed', { count: alerts.length, tournaments, schedules, via })
+    setOpen(false)
+    onDismiss()
+  }
+
   // Close + dismiss on Escape
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false)
-        onDismiss()
-      }
+      if (e.key === 'Escape') dismissWith('escape')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, onDismiss])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, alerts, onDismiss])
 
   // Close + dismiss on outside click / tap
   useEffect(() => {
@@ -63,8 +70,7 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
       const node = wrapRef.current
       if (!node) return
       if (node.contains(e.target as Node)) return
-      setOpen(false)
-      onDismiss()
+      dismissWith('outside')
     }
     document.addEventListener('mousedown', onDown)
     document.addEventListener('touchstart', onDown)
@@ -72,16 +78,21 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
       document.removeEventListener('mousedown', onDown)
       document.removeEventListener('touchstart', onDown)
     }
-  }, [open, onDismiss])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, alerts, onDismiss])
 
   const handleBellClick = () => {
     if (!hasAlerts) return
+    if (!open) {
+      const tournaments = alerts.filter((a) => a.kind === 'tournament').length
+      const schedules = alerts.filter((a) => a.kind === 'schedule').length
+      track('alert_opened', { count: alerts.length, tournaments, schedules })
+    }
     setOpen((v) => !v)
   }
 
   const handleItemClick = () => {
-    setOpen(false)
-    onDismiss()
+    dismissWith('item')
   }
 
   return (

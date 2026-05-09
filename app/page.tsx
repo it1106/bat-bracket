@@ -440,6 +440,15 @@ export default function Home() {
     })
   }, [selectedTournament, tournaments])
 
+  const alertsShownTrackedRef = useRef(false)
+  useEffect(() => {
+    if (alerts.length === 0 || alertsShownTrackedRef.current) return
+    const tournaments = alerts.filter((a) => a.kind === 'tournament').length
+    const schedules = alerts.filter((a) => a.kind === 'schedule').length
+    track('alert_shown', { count: alerts.length, tournaments, schedules })
+    alertsShownTrackedRef.current = true
+  }, [alerts])
+
   useEffect(() => {
     if (!selectedDraw) return
     const d = draws.find((x) => x.drawNum === selectedDraw)
