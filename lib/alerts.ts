@@ -1,4 +1,5 @@
-import type { TournamentInfo } from '@/lib/types'
+import type { MatchDay, TournamentInfo } from '@/lib/types'
+import { getTodayIso } from '@/lib/today'
 
 export interface AlertItemTournament {
   kind: 'tournament'
@@ -111,6 +112,53 @@ export function recordTournamentSnapshot(list: TournamentInfo[]): AlertItem[] {
     })
   }
   writeJson(KEY_TOURNAMENTS, incoming)
+  return appendPending(newAlerts)
+}
+
+export function recordScheduleSnapshot(
+  tournamentId: string,
+  tournamentName: string,
+  days: MatchDay[],
+  todayIso: string = getTodayIso(),
+): AlertItem[] {
+  if (!isBrowser()) return []
+  const all = readJson<Record<string, string[]>>(KEY_SCHEDULES, {})
+
+  const incomingDates = Array.from(
+    new Set(
+      days
+        .filter((d) => !!d.dateIso && d.dateIso > todayIso && d.hasMatches === true)
+        .map((d) => d.dateIso!),
+    ),
+  ).sort()
+
+  if (!isBootstrapped()) {
+    all[tournamentId] = incomingDates
+    writeJson(KEY_SCHEDULES, all)
+    setBootstrapped()
+    return getAlerts()
+  }
+
+  const previous = all[tournamentId] ?? []
+  const previousSet = new Set(previous)
+  const newDates = incomingDates.filter((d) => !previousSet.has(d))
+
+  // Merge into snapshot. Drop past dates from the stored snapshot to keep it lean.
+  const merged = Array.from(
+    new Set([...previous.filter((d) => d > todayIso), ...incomingDates]),
+  ).sort()
+  all[tournamentId] = merged
+  writeJson(KEY_SCHEDULES, all)
+
+  const now = new Date().toISOString()
+  const newAlerts: AlertItem[] = newDates.map((d) => ({
+    kind: 'schedule',
+    id: `s:${tournamentId}:${d}`,
+    tournamentId,
+    tournamentName,
+    dateIso: d,
+    addedAt: now,
+  }))
   return appendPending(newAlerts)
 }
 
