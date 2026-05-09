@@ -1,3 +1,5 @@
+import type { TournamentInfo } from '@/lib/types'
+
 export interface AlertItemTournament {
   kind: 'tournament'
   id: string
@@ -79,5 +81,36 @@ function appendPending(items: AlertItem[]): AlertItem[] {
     : merged
   writeJson(KEY_PENDING, capped)
   return capped
+}
+
+export function recordTournamentSnapshot(list: TournamentInfo[]): AlertItem[] {
+  if (!isBrowser()) return []
+  const seen = readJson<Record<string, { name: string; done?: boolean }>>(KEY_TOURNAMENTS, {})
+  const incoming: Record<string, { name: string; done?: boolean }> = {}
+  for (const t of list) {
+    incoming[t.id] = t.done ? { name: t.name, done: true } : { name: t.name }
+  }
+
+  if (!isBootstrapped()) {
+    writeJson(KEY_TOURNAMENTS, incoming)
+    setBootstrapped()
+    return getAlerts()
+  }
+
+  const newAlerts: AlertItem[] = []
+  const now = new Date().toISOString()
+  for (const t of list) {
+    if (seen[t.id]) continue
+    if (t.done) continue
+    newAlerts.push({
+      kind: 'tournament',
+      id: `t:${t.id}`,
+      tournamentId: t.id,
+      tournamentName: t.name,
+      addedAt: now,
+    })
+  }
+  writeJson(KEY_TOURNAMENTS, incoming)
+  return appendPending(newAlerts)
 }
 
