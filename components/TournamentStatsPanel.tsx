@@ -272,13 +272,16 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
         <section className="stats-section">
           <h2>{t('statsSectionMultiGold')}</h2>
           <table className="stats-table">
-            <thead><tr><th className="stats-num">🥇</th><th>{t('statsColPlayer')}</th><th>{t('statsColClub')}</th><th>{t('statsColEvents')}</th></tr></thead>
+            <thead><tr><th className="stats-num">🥇</th><th>{t('statsColPlayer')}</th><th className="stats-club-d">{t('statsColClub')}</th><th>{t('statsColEvents')}</th></tr></thead>
             <tbody>
               {stats.multiGoldPlayers.map((p) => (
                 <tr key={p.playerId}>
                   <td className="stats-num"><b>{p.events.length}</b></td>
-                  <td>{p.name}{p.seed && <span className="stats-seed"> {p.seed}</span>}</td>
-                  <td>{p.club}</td>
+                  <td>
+                    {p.name}
+                    {p.club && <div className="stats-club-m">{p.club}</div>}
+                  </td>
+                  <td className="stats-club-d">{p.club}</td>
                   <td>{p.events.join(' + ')}</td>
                 </tr>
               ))}

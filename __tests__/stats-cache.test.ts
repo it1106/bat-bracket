@@ -58,7 +58,15 @@ describe('stats-cache', () => {
     const fs2 = await import('fs')
     const file = require('path').join(process.cwd(), '.cache', 'stats', 'abc.json')
     fs2.mkdirSync(require('path').dirname(file), { recursive: true })
-    fs2.writeFileSync(file, JSON.stringify({ version: 1, sourceVersion: 'full:xyz', stats: sample() }))
+    fs2.writeFileSync(file, JSON.stringify({ version: 2, sourceVersion: 'full:xyz', stats: sample() }))
+    expect(await readStatsCache('abc')).toBeNull()
+  })
+
+  it('rejects v1 envelopes (clubs map may have been empty when they were written)', async () => {
+    const fs2 = await import('fs')
+    const file = require('path').join(process.cwd(), '.cache', 'stats', 'abc.json')
+    fs2.mkdirSync(require('path').dirname(file), { recursive: true })
+    fs2.writeFileSync(file, JSON.stringify({ version: 1, sourceVersion: 'full:xyz', coverageComplete: true, stats: sample() }))
     expect(await readStatsCache('abc')).toBeNull()
   })
 

@@ -11,8 +11,11 @@ function statsPath(tournamentId: string): string {
   return path.join(process.cwd(), '.cache', 'stats', `${safeSegment(tournamentId)}.json`)
 }
 
+// v1 envelopes were written before the route guarded against an empty
+// clubs map, so some on-disk caches have club: '—' baked into every
+// medal/multi-gold row. Bumping the version invalidates those.
 export interface StatsCacheEnvelope {
-  version: 1
+  version: 2
   sourceVersion: string
   // Set to true only when every day in fullData.days had a disk-cache hit at
   // write time. Older envelopes (or those written with partial coverage) are
@@ -26,7 +29,7 @@ export async function readStatsCache(tournamentId: string): Promise<StatsCacheEn
   try {
     const buf = await fs.readFile(statsPath(tournamentId), 'utf8')
     const parsed = JSON.parse(buf) as StatsCacheEnvelope
-    if (parsed.version !== 1) return null
+    if (parsed.version !== 2) return null
     if (parsed.coverageComplete !== true) return null
     return parsed
   } catch {
@@ -43,7 +46,7 @@ export async function writeStatsCache(
   const tmp = `${file}.tmp`
   try {
     await fs.mkdir(path.dirname(file), { recursive: true })
-    const payload: StatsCacheEnvelope = { version: 1, ...envelope }
+    const payload: StatsCacheEnvelope = { version: 2, ...envelope }
     await fs.writeFile(tmp, JSON.stringify(payload), 'utf8')
     await fs.rename(tmp, file)
     console.log(`[stats-cache] wrote tournament=${tournamentId}`)

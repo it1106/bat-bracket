@@ -204,7 +204,12 @@ export async function GET(request: Request) {
     }
 
     const coverageComplete = dayMap.daysOnDisk === fullData.days.length
-    if (isAllPast && fullBytes && coverageComplete) {
+    // Skip the cache write when clubs came back empty — otherwise every
+    // medal/multi-gold row gets '—' baked in for the immutable lifetime of
+    // the past tournament's full data. /api/clubs returns {} on transient
+    // upstream failures, so this guard isn't theoretical.
+    const clubsPopulated = Object.keys(clubs).length > 0
+    if (isAllPast && fullBytes && coverageComplete && clubsPopulated) {
       const sv = `full:${hashFullCacheBytes(fullBytes)}`
       await writeStatsCache(tournamentId, { sourceVersion: sv, coverageComplete: true, stats: full })
     }

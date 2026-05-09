@@ -1889,6 +1889,9 @@ html.dark .ms-match--next-opp {
   font-size: 11px;
   margin-left: 4px;
 }
+/* Multi-gold club column: full width on desktop, stacked under the player
+   name on mobile so the row doesn't squeeze into a tiny third column. */
+.stats-club-m { display: none; }
 .stats-wl {
   color: var(--muted);
   font-size: 12px;
@@ -1940,6 +1943,14 @@ html.dark .ms-match--next-opp {
   .stats-kpi-num { font-size: 17px; }
   .stats-kpi-num .stats-kpi-sub { font-size: 11px; margin-left: 3px; }
   .stats-kpi-lbl { font-size: 10px; margin-top: 2px; }
+
+  .stats-club-d { display: none; }
+  .stats-club-m {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 2px;
+  }
 
   .stats-section { padding: 12px 14px; border-radius: 10px; margin-bottom: 10px; }
   .stats-section h2 { font-size: 13px; margin-bottom: 10px; }
