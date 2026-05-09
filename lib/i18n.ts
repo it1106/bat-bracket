@@ -179,6 +179,10 @@ export type TKey =
   | 'statsColWL'
   | 'statsEmptyState'
   | 'statsLoadFailed'
+  | 'alertsTitle'
+  | 'alertsNewTournaments'
+  | 'alertsNewSchedule'
+  | 'alertsBellAria'
 
 const dict: Record<Lang, Record<TKey, string>> = {
   en: {
@@ -295,6 +299,10 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsColWL: 'W–L',
     statsEmptyState: "Competition hasn't started.  Check back when more matches are decided",
     statsLoadFailed: 'Could not load stats. Try again.',
+    alertsTitle: 'Notifications',
+    alertsNewTournaments: 'New tournaments',
+    alertsNewSchedule: 'New Schedule Published',
+    alertsBellAria: 'Notifications',
   },
   th: {
     appTitle1: 'BAT',
@@ -410,6 +418,10 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsColWL: 'ชนะ–แพ้',
     statsEmptyState: 'ยังไม่เริ่มการแข่งขัน',
     statsLoadFailed: 'ไม่สามารถโหลดสถิติได้ กรุณาลองใหม่',
+    alertsTitle: 'การแจ้งเตือน',
+    alertsNewTournaments: 'ทัวร์นาเมนต์ใหม่',
+    alertsNewSchedule: 'ประกาศเวลาแข่งใหม่',
+    alertsBellAria: 'การแจ้งเตือน',
   },
 }
 
