@@ -316,6 +316,34 @@ export default function Home() {
       .finally(() => setLoadingTournaments(false))
   }, [])
 
+  // Re-fetch tournament list when the tab becomes visible after >=5min idle.
+  // Catches newly-discovered tournaments without periodic polling.
+  useEffect(() => {
+    let hiddenAt = 0
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now()
+        return
+      }
+      if (document.visibilityState !== 'visible' || hiddenAt === 0) return
+      const elapsed = Date.now() - hiddenAt
+      hiddenAt = 0
+      if (elapsed < 5 * 60 * 1000) return
+      fetch('/api/tournaments')
+        .then((r) => safeJson(r))
+        .then((data) => {
+          if (!isApiError(data)) {
+            const list = data as TournamentInfo[]
+            setTournaments(list)
+            setAlerts(recordTournamentSnapshot(list))
+          }
+        })
+        .catch(() => {})
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
+
   // Load draws + matches when tournament changes
   const handleTournamentChange = useCallback(async (id: string) => {
     setSelectedTournament(id)
