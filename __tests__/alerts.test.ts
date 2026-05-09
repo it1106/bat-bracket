@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { getAlerts, dismissAlerts, recordTournamentSnapshot, recordScheduleSnapshot } from '@/lib/alerts'
+import { getAlerts, dismissAlerts, recordTournamentSnapshot, recordScheduleSnapshot, type AlertItem } from '@/lib/alerts'
 import type { TournamentInfo, MatchDay } from '@/lib/types'
 
 beforeEach(() => {
@@ -165,5 +165,29 @@ describe('recordScheduleSnapshot', () => {
     expect(localStorage.getItem('batbracket.alerts.bootstrapped')).toBe('1')
     const seen = JSON.parse(localStorage.getItem('batbracket.alerts.seenScheduleDays')!)
     expect(seen.T1).toEqual(['2026-05-10'])
+  })
+})
+
+describe('alerts: cap and resilience', () => {
+  it('caps pending at 50 items, FIFO-evicting the oldest', () => {
+    recordTournamentSnapshot([]) // bootstrap
+    // Build 60 distinct tournament ids and add them one by one.
+    for (let i = 0; i < 60; i++) {
+      recordTournamentSnapshot([{ id: `T${i}`, name: `name-${i}` }])
+    }
+    const pending: AlertItem[] = JSON.parse(localStorage.getItem('batbracket.alerts.pending')!)
+    expect(pending).toHaveLength(50)
+    // First 10 should have been evicted; the surviving block should start at T10.
+    expect(pending[0].id).toBe('t:T10')
+    expect(pending[49].id).toBe('t:T59')
+  })
+
+  it('survives corrupted snapshot keys by clearing and re-bootstrapping', () => {
+    localStorage.setItem('batbracket.alerts.seenTournaments', '<<garbage>>')
+    localStorage.setItem('batbracket.alerts.bootstrapped', '1')
+    const result = recordTournamentSnapshot([{ id: 'A', name: 'Alpha' }])
+    // After a corrupt snapshot, "seen" is empty, so post-bootstrap we DO alert.
+    expect(result).toHaveLength(1)
+    expect(result[0].id).toBe('t:A')
   })
 })
