@@ -133,6 +133,26 @@ describe('shareMatchAsImage', () => {
     ).resolves.toBeUndefined()
   })
 
+  it('injects scheduledTime into the cloned ms-meta when provided', async () => {
+    const row = makeRow()
+    document.body.appendChild(row)
+    await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E', scheduledTime: '10:00' })
+    const captured = (toJpeg as jest.Mock).mock.calls[0][0] as HTMLElement
+    const time = captured.querySelector('.ms-meta .ms-time') as HTMLElement | null
+    expect(time).not.toBeNull()
+    expect(time?.textContent).toBe('10:00')
+    // Original row must remain untouched.
+    expect(row.querySelector('.ms-time')).toBeNull()
+  })
+
+  it('does not add ms-time when scheduledTime is omitted', async () => {
+    const row = makeRow()
+    document.body.appendChild(row)
+    await shareMatchAsImage({ matchEl: row, tournamentName: 'T', eventName: 'E' })
+    const captured = (toJpeg as jest.Mock).mock.calls[0][0] as HTMLElement
+    expect(captured.querySelector('.ms-time')).toBeNull()
+  })
+
   it('swallows non-Abort rejection from navigator.share without downloading', async () => {
     Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
     Object.defineProperty(navigator, 'share', { value: jest.fn(async () => { throw new Error('nope') }), configurable: true })

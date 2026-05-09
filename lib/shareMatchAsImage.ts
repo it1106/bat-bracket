@@ -23,6 +23,7 @@ interface CaptureMatchImageOptions {
   matchEl: HTMLElement
   tournamentName: string
   filename: string
+  scheduledTime?: string
 }
 
 interface ShareFileOptions {
@@ -56,11 +57,23 @@ function buildHeader(tournamentName: string): HTMLElement {
   return header
 }
 
-function cleanClone(matchEl: HTMLElement): HTMLElement {
+function cleanClone(matchEl: HTMLElement, scheduledTime?: string): HTMLElement {
   const clone = matchEl.cloneNode(true) as HTMLElement
   for (const cls of HIGHLIGHT_CLASSES) clone.classList.remove(cls)
   clone.querySelectorAll('.ms-player-highlight').forEach((el) => el.classList.remove('ms-player-highlight'))
   clone.querySelectorAll('.ms-h2h-inline').forEach((el) => el.remove())
+  if (scheduledTime) {
+    const meta = clone.querySelector('.ms-meta')
+    if (meta) {
+      const timeEl = document.createElement('span')
+      timeEl.className = 'ms-time'
+      timeEl.textContent = scheduledTime
+      // Inline styles so the capture renders consistently even outside the
+      // app's CSS context (e.g. jsdom in tests, edge browser quirks).
+      timeEl.style.cssText = 'font-size:12px;font-weight:600;color:#1a1a1a;white-space:nowrap;'
+      meta.appendChild(timeEl)
+    }
+  }
   return clone
 }
 
@@ -70,7 +83,7 @@ async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
 }
 
 export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Promise<File> {
-  const { matchEl, tournamentName, filename } = opts
+  const { matchEl, tournamentName, filename, scheduledTime } = opts
 
   const wrapper = document.createElement('div')
   // The wrapper has to be in the DOM at a real on-screen position for iOS
@@ -85,7 +98,7 @@ export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Pro
     z-index: -1; pointer-events: none;
   `
   wrapper.appendChild(buildHeader(tournamentName))
-  wrapper.appendChild(cleanClone(matchEl))
+  wrapper.appendChild(cleanClone(matchEl, scheduledTime))
   document.body.appendChild(wrapper)
 
   if (document.fonts?.ready) {
@@ -131,11 +144,11 @@ export function shareFile(opts: ShareFileOptions): void {
     .catch(() => { /* swallow — no fallback */ })
 }
 
-export async function shareMatchAsImage(opts: { matchEl: HTMLElement; tournamentName: string; eventName: string }): Promise<void> {
+export async function shareMatchAsImage(opts: { matchEl: HTMLElement; tournamentName: string; eventName: string; scheduledTime?: string }): Promise<void> {
   const filename = buildFilename(opts.tournamentName, opts.eventName)
   let file: File
   try {
-    file = await captureMatchImageFile({ matchEl: opts.matchEl, tournamentName: opts.tournamentName, filename })
+    file = await captureMatchImageFile({ matchEl: opts.matchEl, tournamentName: opts.tournamentName, filename, scheduledTime: opts.scheduledTime })
   } catch (err) {
     console.warn('shareMatchAsImage: capture failed', err)
     return

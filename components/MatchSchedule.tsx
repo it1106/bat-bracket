@@ -125,6 +125,20 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     return map
   }, [groups])
 
+  // Time-grouped matches don't carry m.scheduledTime — only the parent
+  // group.time has it. We index per-match here so the share capture can
+  // inject the scheduled time even for time-grouped matches.
+  const matchTimeByKey = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const g of groups) {
+      for (const m of g.matches) {
+        const time = m.scheduledTime || (g.type === 'time' ? g.time : '')
+        if (time) map.set(matchKeyFor(m), time)
+      }
+    }
+    return map
+  }, [groups])
+
   const containerRef = useRef<HTMLDivElement>(null)
   const preparedFileRef = useRef<File | null>(null)
 
@@ -149,7 +163,9 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       const m = matchByKey.get(key)
       if (!m) return
       const filename = buildFilename(tournamentName, m.draw)
-      captureMatchImageFile({ matchEl: el, tournamentName, filename })
+      const isUpcoming = m.winner === null && !m.walkover && m.scores.length === 0
+      const scheduledTime = isUpcoming ? matchTimeByKey.get(key) : undefined
+      captureMatchImageFile({ matchEl: el, tournamentName, filename, scheduledTime })
         .then((file) => { preparedFileRef.current = file })
         .catch((err) => { console.warn('captureMatchImageFile failed', err) })
     },
