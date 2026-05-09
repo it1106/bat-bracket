@@ -15,6 +15,14 @@ import {
   ANN_CUSTOM_TABS_MULTI,
   ANN_CUSTOM_TABS_MULTI_TEXT_TH,
 } from '@/lib/announcements'
+import AlertBell from '@/components/AlertBell'
+import {
+  getAlerts,
+  dismissAlerts,
+  recordTournamentSnapshot,
+  recordScheduleSnapshot,
+  type AlertItem,
+} from '@/lib/alerts'
 import ScrollToTopButton from '@/components/ScrollToTopButton'
 import {
   loadCustomTabs,
@@ -136,6 +144,7 @@ export default function Home() {
   const autoSelectedTournamentRef = useRef(false)
   const [headerVisible, setHeaderVisible] = useState(true)
   const [searchHelpOpen, setSearchHelpOpen] = useState(false)
+  const [alerts, setAlerts] = useState<AlertItem[]>([])
   // Tracks { courtKey: matchId } from the SignalR feed so we can detect
   // when a previously-live match completes (court drops or matchId changes)
   // and refetch the schedule — the scrape doesn't auto-refresh.
@@ -240,6 +249,10 @@ export default function Home() {
       localStorage.removeItem('batbracket.excludeCompleted')
     } catch {}
     setCustomTabs(loadCustomTabs())
+  }, [])
+
+  useEffect(() => {
+    setAlerts(getAlerts())
   }, [])
 
   // If the active custom tab is deleted out from under us, fall back to Matches.
@@ -733,6 +746,10 @@ export default function Home() {
                 {t('exportJpg')}
               </button>
             )}
+            <AlertBell
+              alerts={alerts}
+              onDismiss={() => setAlerts(dismissAlerts())}
+            />
             <button
               onClick={() => {
                 const next = theme === 'dark' ? 'light' : 'dark'
