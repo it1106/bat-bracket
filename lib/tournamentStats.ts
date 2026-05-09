@@ -300,7 +300,7 @@ function buildDrama(ctxs: MatchCtx[]): ComputedStats['drama'] {
   }
 }
 
-function buildTopPlayers(ctxs: MatchCtx[]): ComputedStats['topPlayers'] {
+function buildTopPlayers(ctxs: MatchCtx[], clubs: Record<string, string>): ComputedStats['topPlayers'] {
   interface Rec { name: string; wins: number; losses: number }
   const tally = new Map<string, Rec>()
   for (const { match } of ctxs) {
@@ -319,9 +319,10 @@ function buildTopPlayers(ctxs: MatchCtx[]): ComputedStats['topPlayers'] {
       tally.set(p.playerId, r)
     }
   }
+  const clubOf = (pid: string) => (clubs[pid] ?? '').trim() || '—'
   const rows = Array.from(tally.entries()).map(([playerId, r]) => {
     const { plain, seed } = extractSeed(r.name)
-    return { playerId, name: plain, seed, wins: r.wins, losses: r.losses }
+    return { playerId, name: plain, seed, club: clubOf(playerId), wins: r.wins, losses: r.losses }
   })
   rows.sort((a, b) => b.wins - a.wins || a.losses - b.losses || (a.playerId < b.playerId ? -1 : 1))
   return rows.slice(0, 12)
@@ -461,7 +462,7 @@ export function aggregate(
     dailyVolume: buildDailyVolume(data, ctxs),
     events: buildEvents(ctxs),
     drama: buildDrama(ctxs),
-    topPlayers: buildTopPlayers(ctxs),
+    topPlayers: buildTopPlayers(ctxs, clubs),
     courtUtilization: buildCourtUtilization(ctxs),
     clubMedals,
     multiGoldPlayers,

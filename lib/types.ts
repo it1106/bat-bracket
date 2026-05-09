@@ -226,6 +226,7 @@ export interface StatsTopPlayer {
   playerId: string
   name: string
   seed?: string
+  club: string
   wins: number
   losses: number
 }

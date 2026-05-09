@@ -131,21 +131,6 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
         </div>
       </section>
 
-      {/* Matches per day / court time */}
-      <section className="stats-section">
-        <h2>{t('statsSectionMatchesPerDay')}</h2>
-        {stats.dailyVolume.map((d) => (
-          <div className="stats-bar-row" key={d.date}>
-            <span className="stats-bar-label">{d.label}</span>
-            <div className="stats-bar-track"><div className="stats-bar-fill" style={{ width: `${(d.total / dayMax) * 100}%` }} /></div>
-            <span className="stats-bar-val">
-              {fmt(d.total)}
-              <span className="stats-bar-secondary">{formatHours(d.minutes, lang)}</span>
-            </span>
-          </div>
-        ))}
-      </section>
-
       {/* Drama */}
       <section className="stats-section">
         <h2>{t('statsSectionDrama')}</h2>
@@ -185,6 +170,71 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
         )}
       </section>
 
+      {/* Club Medals */}
+      {stats.clubMedals.length > 0 && (
+        <section className="stats-section">
+          <h2>{t('statsSectionClubMedals')}</h2>
+          <table className="stats-table">
+            <thead><tr><th></th><th>{t('statsColClub')}</th><th className="stats-num">🥇</th><th className="stats-num">🥈</th><th className="stats-num">🥉</th></tr></thead>
+            <tbody>
+              {stats.clubMedals.map((c, i) => (
+                <tr key={c.club}>
+                  <td className="stats-rank">{i + 1}</td>
+                  <td>{c.club}</td>
+                  <td className="stats-num"><b>{c.gold}</b></td>
+                  <td className="stats-num">{c.silver}</td>
+                  <td className="stats-num">{c.bronze}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {/* Top players */}
+      <section className="stats-section">
+        <h2>{t('statsSectionTopPlayers')}</h2>
+        <table className="stats-table">
+          <thead><tr><th></th><th>{t('statsColPlayer')}</th><th className="stats-club-d">{t('statsColClub')}</th><th className="stats-num">{t('statsColWL')}</th></tr></thead>
+          <tbody>
+            {stats.topPlayers.map((p, i) => (
+              <tr key={p.playerId}>
+                <td className="stats-rank">{i + 1}</td>
+                <td>
+                  {p.name}{p.seed && <span className="stats-seed"> {p.seed}</span>}
+                  {p.club && <div className="stats-club-m">{p.club}</div>}
+                </td>
+                <td className="stats-club-d">{p.club}</td>
+                <td className="stats-num stats-wl"><b>{p.wins}</b>–<i>{p.losses}</i></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {/* Multi-Gold */}
+      {stats.multiGoldPlayers.length > 0 && (
+        <section className="stats-section">
+          <h2>{t('statsSectionMultiGold')}</h2>
+          <table className="stats-table">
+            <thead><tr><th className="stats-num">🥇</th><th>{t('statsColPlayer')}</th><th className="stats-club-d">{t('statsColClub')}</th><th>{t('statsColEvents')}</th></tr></thead>
+            <tbody>
+              {stats.multiGoldPlayers.map((p) => (
+                <tr key={p.playerId}>
+                  <td className="stats-num"><b>{p.events.length}</b></td>
+                  <td>
+                    {p.name}
+                    {p.club && <div className="stats-club-m">{p.club}</div>}
+                  </td>
+                  <td className="stats-club-d">{p.club}</td>
+                  <td>{p.events.join(' + ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       {/* Events */}
       <section className="stats-section">
         <h2>{t('statsSectionEvents')}</h2>
@@ -213,82 +263,35 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
         </table>
       </section>
 
-      {/* Top players + Courts */}
-      <div className="stats-grid-2">
-        <section className="stats-section">
-          <h2>{t('statsSectionTopPlayers')}</h2>
-          <table className="stats-table">
-            <thead><tr><th></th><th>{t('statsColPlayer')}</th><th className="stats-num">{t('statsColWL')}</th></tr></thead>
-            <tbody>
-              {stats.topPlayers.map((p, i) => (
-                <tr key={p.playerId}>
-                  <td className="stats-rank">{i + 1}</td>
-                  <td>{p.name}{p.seed && <span className="stats-seed"> {p.seed}</span>}</td>
-                  <td className="stats-num stats-wl"><b>{p.wins}</b>–<i>{p.losses}</i></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+      {/* Matches per day */}
+      <section className="stats-section">
+        <h2>{t('statsSectionMatchesPerDay')}</h2>
+        {stats.dailyVolume.map((d) => (
+          <div className="stats-bar-row" key={d.date}>
+            <span className="stats-bar-label">{d.label}</span>
+            <div className="stats-bar-track"><div className="stats-bar-fill" style={{ width: `${(d.total / dayMax) * 100}%` }} /></div>
+            <span className="stats-bar-val">
+              {fmt(d.total)}
+              <span className="stats-bar-secondary">{formatHours(d.minutes, lang)}</span>
+            </span>
+          </div>
+        ))}
+      </section>
 
-        <section className="stats-section">
-          <h2>{t('statsSectionCourtUtilization')}</h2>
-          {stats.courtUtilization.map((c) => {
-            const tail = c.name.split(' - ').pop() ?? c.name
-            return (
-              <div className="stats-court-row" key={c.name}>
-                <span className="stats-court-nm">{tail}</span>
-                <div className="stats-bar-track"><div className="stats-bar-fill" style={{ width: `${(c.minutes / courtMax) * 100}%` }} /></div>
-                <span className="stats-court-v">{(c.minutes / 60).toFixed(1)}{lang === 'th' ? ' ชม.' : ' h'}</span>
-              </div>
-            )
-          })}
-        </section>
-      </div>
-
-      {/* Club Medals */}
-      {stats.clubMedals.length > 0 && (
-        <section className="stats-section">
-          <h2>{t('statsSectionClubMedals')}</h2>
-          <table className="stats-table">
-            <thead><tr><th></th><th>{t('statsColClub')}</th><th className="stats-num">🥇</th><th className="stats-num">🥈</th><th className="stats-num">🥉</th></tr></thead>
-            <tbody>
-              {stats.clubMedals.map((c, i) => (
-                <tr key={c.club}>
-                  <td className="stats-rank">{i + 1}</td>
-                  <td>{c.club}</td>
-                  <td className="stats-num"><b>{c.gold}</b></td>
-                  <td className="stats-num">{c.silver}</td>
-                  <td className="stats-num">{c.bronze}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      {/* Multi-Gold */}
-      {stats.multiGoldPlayers.length > 0 && (
-        <section className="stats-section">
-          <h2>{t('statsSectionMultiGold')}</h2>
-          <table className="stats-table">
-            <thead><tr><th className="stats-num">🥇</th><th>{t('statsColPlayer')}</th><th className="stats-club-d">{t('statsColClub')}</th><th>{t('statsColEvents')}</th></tr></thead>
-            <tbody>
-              {stats.multiGoldPlayers.map((p) => (
-                <tr key={p.playerId}>
-                  <td className="stats-num"><b>{p.events.length}</b></td>
-                  <td>
-                    {p.name}
-                    {p.club && <div className="stats-club-m">{p.club}</div>}
-                  </td>
-                  <td className="stats-club-d">{p.club}</td>
-                  <td>{p.events.join(' + ')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
+      {/* Court utilization */}
+      <section className="stats-section">
+        <h2>{t('statsSectionCourtUtilization')}</h2>
+        {stats.courtUtilization.map((c) => {
+          const tail = c.name.split(' - ').pop() ?? c.name
+          return (
+            <div className="stats-court-row" key={c.name}>
+              <span className="stats-court-nm">{tail}</span>
+              <div className="stats-bar-track"><div className="stats-bar-fill" style={{ width: `${(c.minutes / courtMax) * 100}%` }} /></div>
+              <span className="stats-court-v">{(c.minutes / 60).toFixed(1)}{lang === 'th' ? ' ชม.' : ' h'}</span>
+            </div>
+          )
+        })}
+      </section>
 
       {/* Integrity */}
       <section className="stats-section">

@@ -58,16 +58,18 @@ describe('stats-cache', () => {
     const fs2 = await import('fs')
     const file = require('path').join(process.cwd(), '.cache', 'stats', 'abc.json')
     fs2.mkdirSync(require('path').dirname(file), { recursive: true })
-    fs2.writeFileSync(file, JSON.stringify({ version: 2, sourceVersion: 'full:xyz', stats: sample() }))
+    fs2.writeFileSync(file, JSON.stringify({ version: 3, sourceVersion: 'full:xyz', stats: sample() }))
     expect(await readStatsCache('abc')).toBeNull()
   })
 
-  it('rejects v1 envelopes (clubs map may have been empty when they were written)', async () => {
+  it('rejects older versioned envelopes (schema may differ from current)', async () => {
     const fs2 = await import('fs')
     const file = require('path').join(process.cwd(), '.cache', 'stats', 'abc.json')
     fs2.mkdirSync(require('path').dirname(file), { recursive: true })
-    fs2.writeFileSync(file, JSON.stringify({ version: 1, sourceVersion: 'full:xyz', coverageComplete: true, stats: sample() }))
-    expect(await readStatsCache('abc')).toBeNull()
+    for (const version of [1, 2]) {
+      fs2.writeFileSync(file, JSON.stringify({ version, sourceVersion: 'full:xyz', coverageComplete: true, stats: sample() }))
+      expect(await readStatsCache('abc')).toBeNull()
+    }
   })
 
   it('hashFullCacheBytes is stable sha256', () => {
