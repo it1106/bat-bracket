@@ -85,6 +85,11 @@ html, body {
   --order-pill-fg: #1a1a1a;
   --order-pill-next-bg: #f59e0b;
   --order-pill-next-fg: #1a1a1a;
+  /* Re-establish the text color from the wrapper's redefined --fg so
+     descendants without an explicit color rule (e.g. .stats-kpi-num,
+     .stats-table td) inherit the LIGHT color instead of the body's
+     already-resolved dark-mode color. */
+  color: var(--fg);
 }
 
 /* The dark-mode selectors below hardcode colors directly instead of going
