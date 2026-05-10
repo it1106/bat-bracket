@@ -144,6 +144,66 @@ export function shareFile(opts: ShareFileOptions): void {
     .catch(() => { /* swallow — no fallback */ })
 }
 
+interface CaptureStatsImageOptions {
+  sectionEl: HTMLElement
+  tournamentName: string
+  filename: string
+}
+
+// Mirrors captureMatchImageFile but for stats-panel sections. The wrapper
+// is force-narrow (400px) and tagged with .stats-share-capture so the
+// mobile-view CSS overrides kick in regardless of the user's viewport.
+export async function captureStatsImageFile(opts: CaptureStatsImageOptions): Promise<File> {
+  const { sectionEl, tournamentName, filename } = opts
+
+  const wrapper = document.createElement('div')
+  wrapper.className = 'ms-share-capture stats-share-capture'
+  wrapper.style.cssText = `
+    position: fixed; left: 0; top: 0; width: 400px;
+    background: #ffffff; font-family: 'Segoe UI', system-ui, sans-serif;
+    z-index: -1; pointer-events: none;
+  `
+  wrapper.appendChild(buildHeader(tournamentName))
+
+  // Wrap the cloned section in a stats-panel so descendant selectors like
+  // .stats-section work. Padding gives the section breathing room from the
+  // header and wrapper edges.
+  const panel = document.createElement('div')
+  panel.className = 'stats-panel'
+  panel.style.cssText = 'padding: 10px 14px 14px;'
+
+  const clone = sectionEl.cloneNode(true) as HTMLElement
+  clone.classList.remove('stats-share-pressing', 'stats-share-ready')
+  panel.appendChild(clone)
+  wrapper.appendChild(panel)
+  document.body.appendChild(wrapper)
+
+  if (document.fonts?.ready) {
+    try { await document.fonts.ready } catch { /* ignore */ }
+  }
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  )
+
+  const fullWidth = wrapper.scrollWidth
+  const fullHeight = wrapper.scrollHeight
+  const fontEmbedCSS = await prewarmFontEmbedCSS()
+
+  try {
+    const dataUrl = await toJpeg(wrapper, {
+      quality: 0.95,
+      pixelRatio: 2,
+      backgroundColor: '#ffffff',
+      width: fullWidth,
+      height: fullHeight,
+      fontEmbedCSS,
+    })
+    return await dataUrlToFile(dataUrl, filename)
+  } finally {
+    document.body.removeChild(wrapper)
+  }
+}
+
 export async function shareMatchAsImage(opts: { matchEl: HTMLElement; tournamentName: string; eventName: string; scheduledTime?: string }): Promise<void> {
   const filename = buildFilename(opts.tournamentName, opts.eventName)
   let file: File

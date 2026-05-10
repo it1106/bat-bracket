@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import { track } from '@/lib/analytics'
+import { useLongPress } from '@/lib/useLongPress'
+import { buildFilename, captureStatsImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
 import type { TournamentStats } from '@/lib/types'
 
 interface Props {
   tournamentId: string
+  tournamentName?: string
 }
 
 const fmt = (n: number) => n.toLocaleString('en-US')
@@ -30,11 +33,45 @@ function formatDuration(minutes: number, lang: 'en' | 'th'): string {
   return `${m}m`
 }
 
-export default function TournamentStatsPanel({ tournamentId }: Props) {
+export default function TournamentStatsPanel({ tournamentId, tournamentName }: Props) {
   const { t, lang } = useLanguage()
   const [stats, setStats] = useState<TournamentStats | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const preparedFileRef = useRef<File | null>(null)
+
+  useEffect(() => {
+    prewarmFontEmbedCSS()
+  }, [])
+
+  useLongPress(containerRef, {
+    targetSelector: '[data-stats-share]',
+    holdMs: 1000,
+    pressClass: 'stats-share-pressing',
+    readyClass: 'stats-share-ready',
+    onPressStart: (el) => {
+      preparedFileRef.current = null
+      if (!tournamentName) return
+      const key = el.dataset.statsShare
+      if (!key) return
+      const filename = buildFilename(tournamentName, `stats-${key}`)
+      captureStatsImageFile({ sectionEl: el, tournamentName, filename })
+        .then((file) => { preparedFileRef.current = file })
+        .catch((err) => { console.warn('captureStatsImageFile failed', err) })
+    },
+    onFire: (el) => {
+      const key = el.dataset.statsShare
+      if (!key || !tournamentName) return
+      track('stats_section_shared_as_image', {
+        tournament_id: tournamentId,
+        section: key,
+      })
+      const file = preparedFileRef.current
+      if (!file) return
+      shareFile({ file })
+    },
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -97,9 +134,9 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
   const defLabel = lang === 'th' ? 'ชนะ' : 'def.'
 
   return (
-    <div className="stats-panel">
+    <div className="stats-panel" ref={containerRef}>
       {/* Hero KPIs */}
-      <section className="stats-section">
+      <section className="stats-section" data-stats-share="by-numbers">
         <h2>{t('statsSectionByNumbers')}</h2>
         <div className="stats-kpis">
           <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.events)}</div><div className="stats-kpi-lbl">{t('statsKpiEvents')}</div></div>
@@ -132,7 +169,7 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
       </section>
 
       {/* Drama */}
-      <section className="stats-section">
+      <section className="stats-section" data-stats-share="drama">
         <h2>{t('statsSectionDrama')}</h2>
 
         {stats.drama.marathon && stats.drama.marathon.durationMinutes !== undefined && (
@@ -172,7 +209,7 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
 
       {/* Club Medals */}
       {stats.clubMedals.length > 0 && (
-        <section className="stats-section">
+        <section className="stats-section" data-stats-share="club-medals">
           <h2>{t('statsSectionClubMedals')}</h2>
           <table className="stats-table">
             <thead><tr><th></th><th>{t('statsColClub')}</th><th className="stats-num">🥇</th><th className="stats-num">🥈</th><th className="stats-num">🥉</th></tr></thead>
@@ -192,7 +229,7 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
       )}
 
       {/* Top players */}
-      <section className="stats-section">
+      <section className="stats-section" data-stats-share="top-players">
         <h2>{t('statsSectionTopPlayers')}</h2>
         <table className="stats-table">
           <thead><tr><th></th><th>{t('statsColPlayer')}</th><th className="stats-club-d">{t('statsColClub')}</th><th className="stats-num">{t('statsColWL')}</th></tr></thead>
@@ -214,7 +251,7 @@ export default function TournamentStatsPanel({ tournamentId }: Props) {
 
       {/* Multi-Gold */}
       {stats.multiGoldPlayers.length > 0 && (
-        <section className="stats-section">
+        <section className="stats-section" data-stats-share="multi-gold">
           <h2>{t('statsSectionMultiGold')}</h2>
           <table className="stats-table">
             <thead><tr><th className="stats-num">🥇</th><th>{t('statsColPlayer')}</th><th className="stats-club-d">{t('statsColClub')}</th><th>{t('statsColEvents')}</th></tr></thead>

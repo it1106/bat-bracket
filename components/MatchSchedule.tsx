@@ -378,7 +378,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       )}
 
       {selectedDay === 'stats' && tournamentId && (
-        <TournamentStatsPanel tournamentId={tournamentId} />
+        <TournamentStatsPanel tournamentId={tournamentId} tournamentName={tournamentName} />
       )}
 
       {selectedDay !== 'stats' && loading && (

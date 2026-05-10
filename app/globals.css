@@ -1325,6 +1325,29 @@ html[lang="th"] .pm-section-title {
   .ms-match--ready { transform: none; }
 }
 
+/* Long-press visual feedback for shareable stat sections. Mirrors the
+   ms-match press/ready cycle so the gesture feels identical across the app. */
+[data-stats-share] {
+  transition: transform 180ms ease-out;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.stats-share-pressing {
+  transform: scale(0.99);
+  transition: transform 480ms ease-out;
+}
+.stats-share-ready {
+  transform: scale(1);
+  outline: 2px solid #22c55e;
+  outline-offset: -2px;
+  transition: transform 120ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stats-share-pressing { transform: none; }
+  .stats-share-ready { transform: none; }
+}
+
 .ms-meta {
   grid-area: meta;
   display: flex;
@@ -2015,6 +2038,43 @@ html.dark .ms-match--next-opp {
   .stats-court-row { grid-template-columns: 50px 1fr 70px; gap: 8px; font-size: 12px; }
   .stats-grid-2 { grid-template-columns: 1fr; gap: 10px; }
 }
+
+/* Force mobile-view layout inside the long-press share-capture wrapper.
+   The mobile rules above only fire under @media (max-width: 480px), but
+   the capture happens at whatever the user's actual viewport is — we
+   replicate the necessary subset here so the JPG always looks like the
+   phone layout regardless of where it was captured. */
+.stats-share-capture .stats-kpis {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.stats-share-capture .stats-kpi { padding: 8px 10px; border-radius: 9px; }
+.stats-share-capture .stats-kpi-num { font-size: 17px; }
+.stats-share-capture .stats-kpi-num .stats-kpi-sub { font-size: 11px; margin-left: 3px; }
+.stats-share-capture .stats-kpi-lbl { font-size: 10px; margin-top: 2px; }
+.stats-share-capture .stats-club-d { display: none; }
+.stats-share-capture .stats-club-m {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+.stats-share-capture .stats-section {
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 0;
+}
+.stats-share-capture .stats-section h2 { font-size: 13px; margin-bottom: 10px; }
+.stats-share-capture .stats-drama { padding: 8px 10px; }
+.stats-share-capture .stats-drama-head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.stats-share-capture .stats-drama-badge { font-size: 11px; }
+.stats-share-capture .stats-drama-where { font-size: 11px; }
+.stats-share-capture .stats-drama-teams { font-size: 13px; line-height: 1.4; }
+.stats-share-capture .stats-drama-score { font-size: 12px; }
 
 /* ──────────────────────────────────────────────────────────
    Alert bell pulse
