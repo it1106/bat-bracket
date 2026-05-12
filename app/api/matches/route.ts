@@ -144,11 +144,13 @@ export async function GET(request: Request) {
 
       matchesDayCache.set(memKey, { data, ts: Date.now() })
 
-      // Persist days that are fully resolved. Future days are excluded as
-      // defense in depth — even an empty future day with zero matches would
-      // pass isDayComplete=false, but a sparsely-published future day might
-      // briefly look "all played" and shouldn't get pinned to disk.
-      if (dateIso <= todayIso && isDayComplete(data)) {
+      // Persist days that are fully resolved. Only past days are eligible:
+      // pinning *today* on the first apparently-complete read is wrong because
+      // BAT publishes matches in waves through the day — the morning session
+      // can pass isDayComplete() while the afternoon set isn't published yet,
+      // which freezes stats on a partial snapshot for the rest of the day.
+      // Future days are excluded for the same reason (sparsely-published).
+      if (dateIso < todayIso && isDayComplete(data)) {
         void writeDayCache(tournamentId, dateIso, data)
       }
 
