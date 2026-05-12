@@ -146,7 +146,16 @@ function buildResponse(stats: TournamentStats, isLive: boolean): NextResponse {
 }
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
+  // Self-loopback origin: always go through 127.0.0.1 instead of the request's
+  // public hostname. The request URL would point at e.g. http://ezebat.lan:3000,
+  // which DOES resolve from inside the box, but routing back via the external
+  // IP is fragile — a DNS hiccup or socket-pool blip flips fetchFullViaApi() to
+  // null, and the route then caches emptyStats for 30 s, leaving the panel
+  // showing zeroes. 127.0.0.1 is always reachable and the in-process route
+  // handlers don't care about the Host header.
+  const port = process.env.PORT || '3000'
+  const origin = `http://127.0.0.1:${port}`
   const tournamentId = searchParams.get('tournament')
   if (!tournamentId) {
     return NextResponse.json({ error: 'tournament param required' }, { status: 400 })
