@@ -418,10 +418,6 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
 .subheading {
   flex: 1;
   min-width: 200px;
-}
-
-.bk-wrap .subheading {
-  min-width: 220px;
   padding: 8px 12px;
   font-size: 11px;
   font-weight: 700;
@@ -429,6 +425,10 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bk-wrap .bk-round {
+  width: 220px;
 }
 
 .subheading:last-child {
