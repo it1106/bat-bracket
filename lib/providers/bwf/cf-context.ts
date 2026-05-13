@@ -43,7 +43,7 @@ export const _internals = { getToken: () => token, getLastPrime: () => lastPrime
 
 async function getRealDriver(): Promise<ChromiumDriver> {
   const { chromium } = await import('playwright-core')
-  const isLambda = process.platform === 'linux'
+  const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME
   const launchArgs = isLambda
     ? await (async () => { const s = await import('@sparticuz/chromium'); return s.default.args })()
     : []
