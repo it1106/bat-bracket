@@ -7,7 +7,21 @@ function makeMockDriver() {
     goto: [], fetch: [], close: 0, launch: 0,
   }
   let nextResponses: Array<{ status: number; body?: unknown }> = []
-  let nextPageHtml = '<html><head><title>Tournament | MITH YONEX Pathumthanee U13 U15 U17 International Junior 2026</title></head><script type="text/javascript">var app = new Vue({ el: \'#app\', data: { mainTmtId: 5726, tmtId: 5726, tournamentCode: \'6E65C36E-497D-42D2-8F4E-78A2D30D9893\', tournamentSlug: \'mith-yonex-pathumthanee-u13-u15-u17-international-junior-2026\', token: "tok-1" } });</script></html>'
+  let nextPageHtml = '<html><head><title>BWF Calendar</title></head><script>token: "tok-1"</script></html>'
+
+  function makePage() {
+    return {
+      async goto(url: string) { calls.goto.push(url) },
+      async content() { return nextPageHtml },
+      async evaluate(_fn: unknown, arg: unknown) {
+        const { url, method } = arg as { url: string; method: string }
+        calls.fetch.push({ url, method })
+        const r = nextResponses.shift() ?? { status: 200, body: {} }
+        return { status: r.status, data: r.body }
+      },
+      async close() { /* noop */ },
+    }
+  }
 
   return {
     calls,
@@ -17,23 +31,7 @@ function makeMockDriver() {
       async launch() {
         calls.launch++
         return {
-          async newPage() {
-            return {
-              async goto(url: string) { calls.goto.push(url) },
-              async content() { return nextPageHtml },
-              async close() { /* noop */ },
-            }
-          },
-          request: {
-            async fetch(url: string, opts: { method: string }) {
-              calls.fetch.push({ url, method: opts.method })
-              const r = nextResponses.shift() ?? { status: 200, body: {} }
-              return {
-                status: () => r.status,
-                json: async () => r.body,
-              }
-            },
-          },
+          async newPage() { return makePage() },
           async close() { calls.close++ },
         }
       },
