@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { extractMetaFromPageHtml } from '@/lib/providers/bwf/url-resolver'
+import { extractMetaFromPageHtml, extractDatesFromPageHtml } from '@/lib/providers/bwf/url-resolver'
 
 const html = () => fs.readFileSync(path.join(process.cwd(), 'fixtures', 'bwf', 'tournament-page.html'), 'utf-8')
 
@@ -22,5 +22,32 @@ describe('extractMetaFromPageHtml', () => {
 
   it('returns null when only some fields present', () => {
     expect(extractMetaFromPageHtml('<script>var tmtId = 1;</script>')).toBeNull()
+  })
+})
+
+describe('extractDatesFromPageHtml', () => {
+  it('extracts start/end dates from live-date div and slug year', () => {
+    const html = `
+      <html><body>
+        <div class="live-date">19  - 24 May</div>
+        <script>var app = new Vue({ data: { tournamentSlug: 'foo-2026' } });</script>
+      </body></html>
+    `
+    expect(extractDatesFromPageHtml(html)).toEqual({
+      startDateIso: '2026-05-19',
+      endDateIso: '2026-05-24',
+    })
+  })
+
+  it('handles cross-month range like "30 Apr - 5 May"', () => {
+    const html = `<div class="live-date">30 Apr - 5 May</div><script>var x = { tournamentSlug: 'q-2026' }</script>`
+    expect(extractDatesFromPageHtml(html)).toEqual({
+      startDateIso: '2026-04-30',
+      endDateIso: '2026-05-05',
+    })
+  })
+
+  it('returns null on unparseable date', () => {
+    expect(extractDatesFromPageHtml('<div>nope</div>')).toBeNull()
   })
 })
