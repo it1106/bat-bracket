@@ -1,0 +1,87 @@
+{
+  "drawsize": 4,
+  "drawendcol": 2,
+  "gameTypeId": 1,
+  "results": {
+    "0-0": {
+      "match": {
+        "code": "M1",
+        "team1": {
+          "countryCode": "THA",
+          "countryFlagUrl": "https://example/tha.svg",
+          "players": [
+            { "id": "111", "nameDisplay": "Somchai Saetang", "nameShort": "S. Saetang", "slug": "somchai-saetang", "countryCode": "THA", "countryFlagUrl": "https://example/tha.svg" }
+          ]
+        },
+        "team2": {
+          "countryCode": "INA",
+          "countryFlagUrl": "https://example/ina.svg",
+          "players": [
+            { "id": "222", "nameDisplay": "Budi Putra", "nameShort": "B. Putra", "slug": "budi-putra", "countryCode": "INA", "countryFlagUrl": "https://example/ina.svg" }
+          ]
+        },
+        "team1seed": 1,
+        "team2seed": null,
+        "winner": 1,
+        "score": [ { "home": 21, "away": 15 }, { "home": 21, "away": 19 } ],
+        "scoreStatus": 0,
+        "matchStatus": "F",
+        "courtName": "Court 1",
+        "oopRound": 3,
+        "matchTime": "2026-05-19T10:00:00Z",
+        "drawName": "BS U13",
+        "roundName": "SF",
+        "matchTypeId": 11,
+        "duration": "42"
+      }
+    },
+    "0-1": {
+      "match": {
+        "code": "M2",
+        "team1": {
+          "countryCode": "MAS",
+          "countryFlagUrl": "https://example/mas.svg",
+          "players": [
+            { "id": "333", "nameDisplay": "Ali Rahman", "nameShort": "A. Rahman", "slug": "ali-rahman", "countryCode": "MAS", "countryFlagUrl": "https://example/mas.svg" }
+          ]
+        },
+        "team2": {
+          "countryCode": "SGP",
+          "countryFlagUrl": "https://example/sgp.svg",
+          "players": [
+            { "id": "444", "nameDisplay": "Lee Wei", "nameShort": "L. Wei", "slug": "lee-wei", "countryCode": "SGP", "countryFlagUrl": "https://example/sgp.svg" }
+          ]
+        },
+        "team1seed": null,
+        "team2seed": 2,
+        "winner": 0,
+        "score": [],
+        "scoreStatus": 0,
+        "matchStatus": "N",
+        "courtName": "Court 2",
+        "oopRound": 4,
+        "matchTime": "2026-05-19T11:00:00Z",
+        "drawName": "BS U13",
+        "roundName": "SF",
+        "matchTypeId": 11
+      }
+    },
+    "1-0": {
+      "match": {
+        "code": "MF",
+        "team1": { "countryCode": null, "players": [] },
+        "team2": { "countryCode": null, "players": [] },
+        "team1seed": null,
+        "team2seed": null,
+        "winner": 0,
+        "score": [],
+        "scoreStatus": 0,
+        "matchStatus": "N",
+        "drawName": "BS U13",
+        "roundName": "F",
+        "matchTypeId": 11
+      }
+    }
+  },
+  "matches": []
+}

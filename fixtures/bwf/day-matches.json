@@ -1,0 +1,57 @@
+[
+  {
+    "code": "M1",
+    "matchTime": "2026-05-19T10:00:00Z",
+    "courtCode": "1",
+    "courtName": "Court 1",
+    "locationName": "Spirit Stadium",
+    "oopRound": 3,
+    "drawName": "BS U13",
+    "roundName": "SF",
+    "matchTypeId": 11,
+    "winner": 1,
+    "scoreStatus": 0,
+    "matchStatus": "F",
+    "score": [ { "home": 21, "away": 15 }, { "home": 21, "away": 19 } ],
+    "duration": "42",
+    "team1": {
+      "countryCode": "THA",
+      "countryFlagUrl": "https://example/tha.svg",
+      "players": [ { "id": "111", "nameDisplay": "Somchai Saetang", "nameShort": "S. Saetang", "slug": "somchai-saetang", "countryCode": "THA", "countryFlagUrl": "https://example/tha.svg" } ]
+    },
+    "team2": {
+      "countryCode": "INA",
+      "countryFlagUrl": "https://example/ina.svg",
+      "players": [ { "id": "222", "nameDisplay": "Budi Putra", "nameShort": "B. Putra", "slug": "budi-putra", "countryCode": "INA", "countryFlagUrl": "https://example/ina.svg" } ]
+    },
+    "team1seed": 1,
+    "team2seed": null
+  },
+  {
+    "code": "M2",
+    "matchTime": "2026-05-19T11:00:00Z",
+    "courtCode": "2",
+    "courtName": "Court 2",
+    "locationName": "Spirit Stadium",
+    "oopRound": 4,
+    "drawName": "BS U13",
+    "roundName": "SF",
+    "matchTypeId": 11,
+    "winner": 0,
+    "scoreStatus": 0,
+    "matchStatus": "N",
+    "score": [],
+    "team1": {
+      "countryCode": "MAS",
+      "countryFlagUrl": "https://example/mas.svg",
+      "players": [ { "id": "333", "nameDisplay": "Ali Rahman", "nameShort": "A. Rahman", "slug": "ali-rahman", "countryCode": "MAS", "countryFlagUrl": "https://example/mas.svg" } ]
+    },
+    "team2": {
+      "countryCode": "SGP",
+      "countryFlagUrl": "https://example/sgp.svg",
+      "players": [ { "id": "444", "nameDisplay": "Lee Wei", "nameShort": "L. Wei", "slug": "lee-wei", "countryCode": "SGP", "countryFlagUrl": "https://example/sgp.svg" } ]
+    },
+    "team1seed": null,
+    "team2seed": 2
+  }
+]
