@@ -2,6 +2,8 @@ import * as cheerio from 'cheerio'
 import { parseBracket } from './scraper'
 import { cache as drawsCache } from './draws-cache'
 import { batFetch } from './bat-fetch'
+import { providerFor } from '@/lib/providers/resolve'
+import { resolveRef } from '@/lib/tournaments-registry'
 import type { BracketData } from './types'
 
 // playerId → clubName, scoped per tournament as "{tournamentId}:{playerId}"
@@ -33,6 +35,16 @@ export function makeBracketKey(guid: string, drawNum: string) {
 }
 
 export async function fetchBracket(guid: string, drawNum: string): Promise<BracketData> {
+  const ref = resolveRef(guid) ?? { id: guid.toUpperCase(), provider: 'bat' as const }
+
+  if (ref.provider !== 'bat') {
+    const data = await providerFor(ref).getBracket(ref, drawNum)
+    if (!data) throw new Error(`[bracket-cache] no bracket for ${guid} draw ${drawNum}`)
+    return data
+  }
+
+  // BAT path: raw HTML is preserved in rawHtmlCache to support fromRound re-parsing
+  // and sibling enrichment; playerClubCache is populated for club display.
   const apiUrl = `https://bat.tournamentsoftware.com/tournament/${guid}/Draw/${drawNum}/GetDrawContent?tabindex=1&X-Requested-With=XMLHttpRequest`
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
