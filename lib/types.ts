@@ -18,11 +18,19 @@ export interface DrawInfo {
   type: string
 }
 
+export type ProviderTag = 'bat' | 'bwf'
+
+export interface TournamentRef {
+  id: string
+  provider: ProviderTag
+}
+
 export interface TournamentInfo {
   id: string
   name: string
   done?: boolean
   startDateIso?: string
+  provider?: ProviderTag
 }
 
 export interface BracketData {
