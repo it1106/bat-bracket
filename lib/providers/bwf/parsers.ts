@@ -113,7 +113,7 @@ export function parseDrawData(
     let m: BwfMatch
     try {
       m = cells[key].match
-    } catch (err) {
+    } catch {
       console.warn(`[bwf-parser] skipping malformed cell ${key}`)
       continue
     }

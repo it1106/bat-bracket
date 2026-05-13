@@ -71,7 +71,7 @@ export const batProvider: TournamentProvider = {
     if (!day) return []
     return full.groups
   },
-  async getPlayer(_ref: TournamentRef, _playerId: string): Promise<PlayerProfile | null> {
+  async getPlayer(): Promise<PlayerProfile | null> {
     throw new NotImplementedError('getPlayer', 'bat')
   },
   async getH2H(): Promise<H2HData | null> {

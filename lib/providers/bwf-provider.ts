@@ -12,7 +12,7 @@ import {
 } from './bwf/parsers'
 import { buildBracketHtml } from './bwf/bracket-html'
 import type {
-  TournamentInfo, BracketData, MatchesData,
+  MatchesData,
   MatchScheduleGroup, MatchEntry, PlayerProfile, H2HData,
   TournamentRef,
 } from '@/lib/types'
