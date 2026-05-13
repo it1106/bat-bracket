@@ -1,4 +1,4 @@
-import { extractMetaFromPageHtml } from './url-resolver'
+import { extractTokenFromHtml } from './url-resolver'
 
 export interface ChromiumDriver {
   launch(): Promise<DriverContext>
@@ -24,7 +24,6 @@ export interface DriverResponse {
 }
 
 const PRIME_TTL_MS = 25 * 60_000
-const PROBE_URL = 'https://bwfbadminton.com/tournament/5726/mith-yonex-pathumthanee-u13-u15-u17-international-junior-2026/'
 const PRIMER_URL = 'https://bwfbadminton.com/calendar/'
 
 let context: DriverContext | null = null
@@ -67,9 +66,6 @@ async function prime(): Promise<void> {
   if (!driver) driver = await getRealDriver()
   if (context) { try { await context.close() } catch {} }
   context = await driver.launch()
-  const primerPage = await context.newPage()
-  await primerPage.goto(PRIMER_URL)
-  await primerPage.close()
   await refreshToken()
   lastPrime = Date.now()
   console.log('[bwf-cf] primed: token=' + (token ? 'extracted' : 'missing'))
@@ -78,12 +74,12 @@ async function prime(): Promise<void> {
 async function refreshToken(): Promise<void> {
   if (!context) throw new Error('no context')
   const page = await context.newPage()
-  await page.goto(PROBE_URL)
+  await page.goto(PRIMER_URL)
   const html = await page.content()
   await page.close()
-  const meta = extractMetaFromPageHtml(html)
-  if (!meta) throw new Error('cannot extract token from probe page')
-  token = meta.token
+  const t = extractTokenFromHtml(html)
+  if (!t) throw new Error('cannot extract token from primer page')
+  token = t
 }
 
 export async function primeIfNeeded(): Promise<void> {

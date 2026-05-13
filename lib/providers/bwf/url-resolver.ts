@@ -16,6 +16,10 @@ const RX = {
   token: /\btoken\s*:\s*["']([^"']+)["']/,
 }
 
+export function extractTokenFromHtml(html: string): string | null {
+  return RX.token.exec(html)?.[1] ?? null
+}
+
 export function extractMetaFromPageHtml(html: string): BwfPageMeta | null {
   const tmtId = RX.tmtId.exec(html)?.[1]
   const tournamentCode = RX.tournamentCode.exec(html)?.[1]
