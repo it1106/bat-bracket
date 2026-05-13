@@ -487,7 +487,11 @@ export function parseMatchesFull(html: string): MatchesData {
   $('.js-date-selection-tab').each((_, el) => {
     const date = $(el).attr('data-value') ?? ''
     const dateIso = $(el).find('time').attr('datetime')?.split('T')[0] ?? ''
-    const label = dateIso ? `${dateIso.slice(8)}/${dateIso.slice(5, 7)}` : $(el).find('.date__day').text().trim()
+    const label = dateIso
+      ? `${dateIso.slice(8)}/${dateIso.slice(5, 7)}`
+      : date.length === 8
+        ? `${date.slice(6)}/${date.slice(4, 6)}`
+        : $(el).find('.date__day').text().trim()
     // Past/today assumed to have matches; future days assumed empty until proven otherwise
     const hasMatches = dateIso ? dateIso <= todayIso : undefined
     if (date) days.push({ date, label, dateIso, hasMatches })

@@ -73,7 +73,7 @@ export const bwfProvider: TournamentProvider = {
       }
       return {
         days: days.map((dateIso) => ({
-          date: dateIso, label: dateIso.slice(5), dateIso, hasMatches: true,
+          date: dateIso, label: `${dateIso.slice(8)}/${dateIso.slice(5, 7)}`, dateIso, hasMatches: true,
         })),
         currentDate: days[0] ?? '',
         groups: allGroups,
