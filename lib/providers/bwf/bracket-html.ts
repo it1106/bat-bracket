@@ -37,8 +37,8 @@ function buildSvgConnector(groupCount: number, topBase: number, slotPitch: numbe
   return `<svg width="24" height="${totalH}" style="position:absolute;top:-10px;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path></svg>`
 }
 
-interface BwfPlayer { id?: string | number; nameDisplay?: string }
-interface BwfTeam { players?: BwfPlayer[]; }
+interface BwfPlayer { id?: string | number; nameDisplay?: string; countryFlagUrl?: string | null }
+interface BwfTeam { players?: BwfPlayer[]; countryFlagUrl?: string | null }
 interface BwfMatch {
   team1?: BwfTeam; team2?: BwfTeam
   team1seed?: number | null; team2seed?: number | null
@@ -53,7 +53,40 @@ interface BwfDrawDataResponse {
   results?: Record<string, { match: BwfMatch }>
 }
 
-export function buildBracketHtml(json: unknown, drawName: string): string {
+function teamRowHtml(
+  team: BwfTeam | undefined,
+  seed: number | null | undefined,
+  isWinner: boolean,
+  isSep: boolean,
+  isDoubles: boolean,
+): string {
+  const players = team?.players ?? []
+  const dblCls = isDoubles ? ' bk-row--doubles' : ''
+  const winCls = isWinner ? ' winner' : ''
+  const sepCls = isSep ? ' bk-row--team-sep' : ''
+  const seedHtml = seed ? `<span class="bk-seed">${seed}</span>` : ''
+
+  if (isDoubles) {
+    // Each player gets their own flag; seed appears before the first player
+    const playerLines = players.length
+      ? players.map((p) => {
+          const flagUrl = p.countryFlagUrl ?? ''
+          const flagHtml = flagUrl ? `<img class="bk-flag" src="${esc(flagUrl)}" alt="">` : ''
+          return `<span class="bk-player">${flagHtml}${esc(p.nameDisplay ?? '')}</span>`
+        }).join('')
+      : '<span class="bk-player"></span>'
+    return `<div class="bk-row${dblCls}${winCls}${sepCls}">${seedHtml}${playerLines}</div>`
+  }
+
+  // Singles: flag from first player, seed, name inline
+  const p = players[0]
+  const flagUrl = p?.countryFlagUrl ?? team?.countryFlagUrl ?? ''
+  const flagHtml = flagUrl ? `<img class="bk-flag" src="${esc(flagUrl)}" alt="">` : ''
+  const nameHtml = p ? `<span class="bk-player">${esc(p.nameDisplay ?? '')}</span>` : '<span class="bk-player"></span>'
+  return `<div class="bk-row${winCls}${sepCls}">${flagHtml}${seedHtml}${nameHtml}</div>`
+}
+
+export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0): string {
   const data = json as BwfDrawDataResponse
   const cells = data.results ?? {}
 
@@ -73,13 +106,16 @@ export function buildBracketHtml(json: unknown, drawName: string): string {
     byCol.get(c)!.push({ row: r, match: m })
   }
 
-  const cols = Array.from(byCol.keys()).sort((a, b) => a - b)
-  if (cols.length === 0) return `<div class="bk-wrap"></div>`
+  const allCols = Array.from(byCol.keys()).sort((a, b) => a - b)
+  if (allCols.length === 0) return `<div class="bk-wrap"></div>`
+
+  const clampedFrom = Math.max(0, Math.min(fromRound, allCols.length - 1))
+  const cols = allCols.slice(clampedFrom)
 
   const SLOT_PITCH_BASE = isDoubles ? SLOT_PITCH_BASE_DOUBLES : SLOT_PITCH_BASE_SINGLES
   const SLOT_HEIGHT_APPROX = isDoubles ? SLOT_HEIGHT_APPROX_DOUBLES : SLOT_HEIGHT_APPROX_SINGLES
 
-  // Each column is a "round"; pairs of rows within a column form match groups
+  // Height based on the first displayed round
   const firstColMatches = byCol.get(cols[0])!
   const firstGroupCount = Math.ceil(firstColMatches.length / 2)
   const totalH = Math.ceil(LABEL_OFFSET + (firstGroupCount * 2 - 1) * SLOT_PITCH_BASE + SLOT_HEIGHT_APPROX + 50)
@@ -87,10 +123,11 @@ export function buildBracketHtml(json: unknown, drawName: string): string {
   let bkWrapHtml = ''
 
   for (let r = 0; r < cols.length; r++) {
+    const absoluteIdx = clampedFrom + r
     const col = cols[r]
     const colMatches = byCol.get(col)!.sort((a, b) => a.row - b.row)
     const groupCount = Math.ceil(colMatches.length / 2)
-    const roundName = colMatches[0]?.match.roundName ?? `Round ${r + 1}`
+    const roundName = colMatches[0]?.match.roundName ?? `Round ${absoluteIdx + 1}`
     const abbrev = abbrevRound(roundName)
 
     const slotPitch = SLOT_PITCH_BASE * Math.pow(2, r)
@@ -108,17 +145,9 @@ export function buildBracketHtml(json: unknown, drawName: string): string {
           ? topBase + gi * 2 * slotPitch
           : topBase + (gi * 2 + 1) * slotPitch
 
-        const t1 = match.team1?.players ?? []
-        const t2 = match.team2?.players ?? []
         const winner = match.winner === 1 || match.winner === 2 ? match.winner : null
-
-        const dblCls = isDoubles ? ' bk-row--doubles' : ''
-        const row1Html = `<div class="bk-row${dblCls}${winner === 1 ? ' winner' : ''}">${
-          t1.length ? t1.map((p) => `<span class="bk-player">${esc(p.nameDisplay ?? '')}</span>`).join('') : '<span class="bk-player"></span>'
-        }</div>`
-        const row2Html = `<div class="bk-row${dblCls} bk-row--team-sep${winner === 2 ? ' winner' : ''}">${
-          t2.length ? t2.map((p) => `<span class="bk-player">${esc(p.nameDisplay ?? '')}</span>`).join('') : '<span class="bk-player"></span>'
-        }</div>`
+        const row1Html = teamRowHtml(match.team1, match.team1seed, winner === 1, false, isDoubles)
+        const row2Html = teamRowHtml(match.team2, match.team2seed, winner === 2, true, isDoubles)
 
         const score = match.score ?? []
         const scoreStatus = match.scoreStatus ?? 0
@@ -143,7 +172,7 @@ export function buildBracketHtml(json: unknown, drawName: string): string {
 
     bkWrapHtml +=
       `<div class="bk-round" style="height:${totalH}px">` +
-      `<div class="bk-round-label" data-round-index="${r}" style="height:32px;line-height:32px;cursor:pointer">${esc(roundName)}</div>` +
+      `<div class="bk-round-label" data-round-index="${absoluteIdx}" style="height:32px;line-height:32px;cursor:pointer">${esc(roundName)}</div>` +
       slotParts.join('') +
       `</div>` + connHtml
   }

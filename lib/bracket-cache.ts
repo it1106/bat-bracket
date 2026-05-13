@@ -75,6 +75,13 @@ export async function fetchBracket(guid: string, drawNum: string): Promise<Brack
   throw new Error('fetch failed')
 }
 
+/** For non-BAT providers: rebuild bracket HTML from a specific round without caching the variant. */
+export async function fetchBracketFromRound(guid: string, drawNum: string, fromRound: number): Promise<BracketData | null> {
+  const ref = resolveRef(guid) ?? { id: guid.toUpperCase(), provider: 'bat' as const }
+  if (ref.provider === 'bat') return null
+  return providerFor(ref).getBracket(ref, drawNum, fromRound)
+}
+
 export async function fetchAndCache(guid: string, drawNum: string): Promise<BracketData> {
   const bracket = await fetchBracket(guid, drawNum)
   const done = drawsCache.get(guid)?.done

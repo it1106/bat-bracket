@@ -6,9 +6,13 @@ const fixture = (name: string) =>
   JSON.parse(fs.readFileSync(path.join(process.cwd(), 'fixtures', 'bwf', name), 'utf-8'))
 
 describe('buildBracketHtml', () => {
-  it('produces a stable HTML string for a known draw', () => {
+  it('produces bk-wrap structure with rounds and match slots', () => {
     const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
-    expect(html).toMatchSnapshot()
+    expect(html).toContain('class="bk-wrap"')
+    expect(html).toContain('class="bk-round"')
+    expect(html).toContain('class="bk-match-slot"')
+    expect(html).toContain('data-round-index="0"')
+    expect(html).toContain('data-round-index="1"')
   })
 
   it('returns "no data" placeholder when results are empty', () => {
@@ -16,9 +20,32 @@ describe('buildBracketHtml', () => {
     expect(html).toContain('No data')
   })
 
-  it('marks the winner team with team-win class', () => {
+  it('marks the winner row with winner class', () => {
     const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
-    // Match M1 has winner=1, so team1 should be team-win
-    expect(html).toMatch(/team1[^"]*team-win/)
+    // Match M1 has winner=1, so first team row should have winner class
+    expect(html).toContain('class="bk-row winner"')
+  })
+
+  it('renders seed number', () => {
+    const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
+    expect(html).toContain('<span class="bk-seed">1</span>')
+  })
+
+  it('renders country flag', () => {
+    const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
+    expect(html).toContain('class="bk-flag"')
+    expect(html).toContain('https://example/tha.svg')
+  })
+
+  it('respects fromRound by slicing columns', () => {
+    const fullHtml = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13', 0)
+    const fromHtml = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13', 1)
+    // fromRound=1 should show fewer rounds
+    const fullRounds = (fullHtml.match(/data-round-index=/g) ?? []).length
+    const fromRounds = (fromHtml.match(/data-round-index=/g) ?? []).length
+    expect(fromRounds).toBeLessThan(fullRounds)
+    // The first displayed round still carries its absolute index
+    expect(fromHtml).toContain('data-round-index="1"')
+    expect(fromHtml).not.toContain('data-round-index="0"')
   })
 })

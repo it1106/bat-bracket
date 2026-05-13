@@ -8,7 +8,7 @@ export interface TournamentProvider {
   tag: ProviderTag
   getMeta(ref: TournamentRef): Promise<TournamentInfo | null>
   getDraws(ref: TournamentRef): Promise<DrawInfo[]>
-  getBracket(ref: TournamentRef, drawNum: string): Promise<BracketData | null>
+  getBracket(ref: TournamentRef, drawNum: string, fromRound?: number): Promise<BracketData | null>
   getMatchesFull(ref: TournamentRef): Promise<MatchesData | null>
   getDayMatches(ref: TournamentRef, dateIso: string): Promise<MatchScheduleGroup[]>
   getPlayer(ref: TournamentRef, playerId: string): Promise<PlayerProfile | null>

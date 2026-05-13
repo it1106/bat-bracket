@@ -47,14 +47,14 @@ export const bwfProvider: TournamentProvider = {
       return []
     }
   },
-  async getBracket(ref, drawNum) {
+  async getBracket(ref, drawNum, fromRound = 0) {
     try {
       const { tmtId } = resolveOrThrow(ref)
       const drawsJson = await fetchTournamentDraws({ tmtId })
       const drawInfo = parseDraws(drawsJson).find((d) => d.drawNum === drawNum)
       const drawName = drawInfo?.name ?? drawNum
       const data = await fetchTournamentDrawData({ tmtId, drawId: drawNum })
-      const html = buildBracketHtml(data, drawName)
+      const html = buildBracketHtml(data, drawName, fromRound)
       return { html, format: 'single-elimination' as const }
     } catch (err) {
       console.warn('[bwf] getBracket failed:', err)
