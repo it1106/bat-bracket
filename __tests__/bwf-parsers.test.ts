@@ -138,7 +138,7 @@ describe('parseDayMatches', () => {
         }),
       ],
     })
-    expect(groups[1].court).toBe('Court 2')
+    expect((groups[1] as { type: 'court'; court: string }).court).toBe('Court 2')
   })
 
   it('returns empty array on non-array input', () => {

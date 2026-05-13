@@ -22,7 +22,7 @@ describe('parseTournamentsTxt', () => {
       { id: '1BEC8194-C338-4CB0-AA1D-7444C90F5DE6', name: 'Trang Yonex Open 2026 Presented by Pumpui', done: true },
       { id: 'D5DF6DCC-DBCE-4E78-8B43-E4681BEFE8CC', name: 'โตโยต้า เยาวชนชิงชนะเลิศแห่งประเทศไทย ประจำปี 2569', done: true },
     ])
-    expect([...denySet]).toEqual(['11111111-2222-3333-4444-555555555555'])
+    expect(Array.from(denySet)).toEqual(['11111111-2222-3333-4444-555555555555'])
   })
 
   it('emits @bwf entries with provider=bwf when sidecar has entry', () => {
