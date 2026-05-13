@@ -4,6 +4,7 @@ import {
   parseTournamentDetail,
   parseDraws,
   parseDrawData,
+  parseDayMatches,
 } from '@/lib/providers/bwf/parsers'
 
 const fixture = (name: string) =>
@@ -119,5 +120,29 @@ describe('parseDrawData', () => {
     )[0]
     expect(ret.retired).toBe(true)
     expect(ret.walkover).toBe(false)
+  })
+})
+
+describe('parseDayMatches', () => {
+  it('maps day matches to MatchScheduleGroup[] grouped by court', () => {
+    const groups = parseDayMatches(fixture('day-matches.json'))
+    expect(groups).toHaveLength(2)
+    expect(groups[0]).toMatchObject({
+      type: 'court',
+      court: 'Court 1',
+      matches: [
+        expect.objectContaining({
+          round: 'SF',
+          team1: [{ name: 'Somchai Saetang', playerId: '111' }],
+          winner: 1,
+        }),
+      ],
+    })
+    expect(groups[1].court).toBe('Court 2')
+  })
+
+  it('returns empty array on non-array input', () => {
+    expect(parseDayMatches(null)).toEqual([])
+    expect(parseDayMatches({})).toEqual([])
   })
 })

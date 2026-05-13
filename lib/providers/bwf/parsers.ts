@@ -1,4 +1,4 @@
-import type { TournamentInfo, DrawInfo, MatchEntry, MatchPlayer, MatchScore } from '@/lib/types'
+import type { TournamentInfo, DrawInfo, MatchEntry, MatchPlayer, MatchScore, MatchScheduleGroup } from '@/lib/types'
 
 interface BwfTournamentDetailResponse {
   results?: {
@@ -146,4 +146,44 @@ export function parseDrawData(
   }
 
   return out
+}
+
+function dayMatchToEntry(m: BwfMatch): MatchEntry {
+  const winner = (m.winner === 1 || m.winner === 2 ? m.winner : null) as 1 | 2 | null
+  const status = m.scoreStatus ?? 0
+  const matchStatus = m.matchStatus ?? 'N'
+  return {
+    draw: m.drawName ?? '',
+    drawNum: '',
+    round: m.roundName ?? '',
+    team1: mapPlayers(m.team1),
+    team2: mapPlayers(m.team2),
+    winner,
+    scores: mapScores(m.score),
+    court: m.courtName ?? '',
+    walkover: status === 1,
+    retired: status === 2,
+    nowPlaying: NOW_PLAYING_STATUSES.has(matchStatus),
+    ...(m.duration && { duration: m.duration }),
+    ...(m.matchTime && { scheduledTime: m.matchTime }),
+  }
+}
+
+export function parseDayMatches(json: unknown): MatchScheduleGroup[] {
+  if (!Array.isArray(json)) return []
+  const byCourt = new Map<string, MatchEntry[]>()
+  for (const m of json as BwfMatch[]) {
+    try {
+      const court = m.courtName ?? ''
+      if (!byCourt.has(court)) byCourt.set(court, [])
+      byCourt.get(court)!.push(dayMatchToEntry(m))
+    } catch (err) {
+      console.warn('[bwf-parser] skipping day match:', err)
+    }
+  }
+  return Array.from(byCourt.entries()).map(([court, matches]) => ({
+    type: 'court' as const,
+    court,
+    matches,
+  }))
 }
