@@ -8,12 +8,11 @@ import {
 import {
   parseTournamentDetail,
   parseDraws,
-  parseDrawData,
   parseDayMatches,
 } from './bwf/parsers'
 import { buildBracketHtml } from './bwf/bracket-html'
 import type {
-  TournamentInfo, DrawInfo, BracketData, MatchesData,
+  TournamentInfo, BracketData, MatchesData,
   MatchScheduleGroup, MatchEntry, PlayerProfile, H2HData,
   TournamentRef,
 } from '@/lib/types'
