@@ -43,18 +43,21 @@ export const _internals = { getToken: () => token, getLastPrime: () => lastPrime
 
 async function getRealDriver(): Promise<ChromiumDriver> {
   const { chromium } = await import('playwright-core')
-  const sparticuz = await import('@sparticuz/chromium')
+  const isLambda = process.platform === 'linux'
+  const launchArgs = isLambda
+    ? await (async () => { const s = await import('@sparticuz/chromium'); return s.default.args })()
+    : []
+  const executablePath = isLambda
+    ? await (async () => { const s = await import('@sparticuz/chromium'); return s.default.executablePath() })()
+    : undefined
+  const ctxOpts = {
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    locale: 'en-US',
+  }
   return {
     async launch() {
-      const browser = await chromium.launch({
-        args: sparticuz.default.args,
-        executablePath: await sparticuz.default.executablePath(),
-        headless: true,
-      })
-      const ctx = await browser.newContext({
-        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        locale: 'en-US',
-      })
+      const browser = await chromium.launch({ args: launchArgs, executablePath, headless: true })
+      const ctx = await browser.newContext(ctxOpts)
       return ctx as unknown as DriverContext
     },
   }
