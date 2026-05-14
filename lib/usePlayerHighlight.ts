@@ -48,10 +48,12 @@ export function applyPlayerHighlight(
     row.classList.toggle('highlighted', matches)
   })
 
-  // EventBundle standings + group-match rows (new components)
+  // EventBundle standings + group-match rows (new components). Standings rows
+  // render the club name as a sibling div of the player button, so check the
+  // row's full text in addition to per-player text + the playerId→club map.
   root.querySelectorAll<HTMLElement>('.standings-row, .group-card-matches .ms-match').forEach((row) => {
     const players = row.querySelectorAll<HTMLElement>('[data-player-id]')
-    const matches = Array.from(players).some((p) =>
+    const matches = textMatches(row.textContent) || Array.from(players).some((p) =>
       textMatches(p.textContent) || clubMatches(p.getAttribute('data-player-id'))
     )
     row.classList.toggle('tracked', matches)
