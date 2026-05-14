@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import { expandSearchQuery } from '@/lib/searchAliases'
+import { applyPlayerHighlight } from '@/lib/usePlayerHighlight'
 import { useLanguage } from '@/lib/LanguageContext'
 import { longRoundL } from '@/lib/i18n'
 
@@ -42,7 +42,6 @@ export default function BracketCanvas({
   // (including off-screen) are styled correctly from initial render.
   const displayHtml = useMemo(() => {
     if (!bracketHtml || typeof document === 'undefined') return bracketHtml
-    const queries = expandSearchQuery(playerQuery)
     const wrapper = document.createElement('div')
     wrapper.innerHTML = bracketHtml
 
@@ -51,38 +50,7 @@ export default function BracketCanvas({
       el.textContent = longRoundL(raw, lang)
     })
 
-    if (queries.length > 0) {
-      const textMatches = (text: string | null | undefined) => {
-        if (!text) return false
-        const lc = text.toLowerCase()
-        return queries.some((q) => lc.includes(q))
-      }
-      const clubMatches = (pid: string | null) => {
-        if (!pid || !playerClubMap) return false
-        const club = (playerClubMap[pid] ?? '').toLowerCase()
-        return !!club && queries.some((q) => club.includes(q))
-      }
-
-      // bk-row format
-      wrapper.querySelectorAll<HTMLElement>('.bk-row').forEach((row) => {
-        const spans = row.querySelectorAll<HTMLElement>('.bk-player, span')
-        const matches = Array.from(spans).some((s) =>
-          textMatches(s.textContent) ||
-          clubMatches(s.getAttribute('data-player-id'))
-        )
-        row.classList.toggle('tracked', matches)
-      })
-
-      // match__row format
-      wrapper.querySelectorAll<HTMLElement>('.match__row').forEach((row) => {
-        const links = row.querySelectorAll<HTMLAnchorElement>('.match__row-title-value-content a')
-        const matches = Array.from(links).some((link) =>
-          textMatches(link.textContent) ||
-          clubMatches(link.getAttribute('data-player-id'))
-        )
-        row.classList.toggle('highlighted', matches)
-      })
-    }
+    applyPlayerHighlight(wrapper, playerQuery, playerClubMap)
 
     // Gold/silver/bronze medals: final round awards 🥇/🥈,
     // semi-final awards 🥉 to each losing team.
