@@ -327,6 +327,10 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
   color: var(--win-fg);
 }
 
+.bk-match-box:has(.bk-row.winner) .bk-row:not(.winner) {
+  color: var(--muted);
+}
+
 .bk-row.bye {
   color: var(--muted);
   background: var(--bg);
@@ -1513,6 +1517,10 @@ html.dark .ms-board-set.live {
 .ms-team--2.winner {
   font-weight: 700;
   color: var(--win-fg);
+}
+
+.ms-match:has(.ms-team.winner) .ms-team:not(.winner) {
+  color: var(--muted);
 }
 
 .ms-medal {
