@@ -55,7 +55,7 @@ export default function StandingsTable({ rows, qualifierCount, onPlayerClick }: 
               </td>
               <td className="py-1.5 px-2">
                 {playerHtml}
-                {r.club && <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{r.club}</div>}
+                {r.club && <span className="sr-only">{r.club}</span>}
               </td>
               <td className="py-1.5 px-2 text-right">{r.played}</td>
               <td className="py-1.5 px-2 text-right tabular-nums">{r.won}-{r.lost}</td>
