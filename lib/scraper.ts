@@ -169,6 +169,76 @@ function playerText(el: cheerio.Cheerio<any>): string {
          el.clone().children().remove().end().text().trim()
 }
 
+interface ExtractedMatch {
+  team1: MatchPlayer[]
+  team2: MatchPlayer[]
+  winner: 1 | 2 | null
+  scores: MatchScore[]
+  walkover: boolean
+  retired: boolean
+  rowsHtmlParts: string[]
+  scoreContent: string
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractMatchEntry($: cheerio.CheerioAPI, matchEl: any, isDoubles: boolean): ExtractedMatch {
+  const rows = $(matchEl).find('.match__row')
+  const teamPlayers: MatchPlayer[][] = []
+  const rowsHtmlParts: string[] = []
+  let winner: 1 | 2 | null = null
+
+  rows.each((ri, row) => {
+    const cls = $(row).attr('class') ?? ''
+    const hasWon = cls.includes('has-won')
+    if (hasWon) winner = (ri === 0 ? 1 : 2)
+
+    const titleValueDivs = $(row).find('.match__row-title-value')
+    const playerCount = titleValueDivs.length || 1
+    const players: MatchPlayer[] = titleValueDivs.map((_, tv) => {
+      const a = $(tv).find('a')
+      const hrefMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
+      const name = a.length ? playerText($(a).first()) : $(tv).find('.nav-link__value').first().text().trim()
+      return { name, playerId: hrefMatch ? hrefMatch[1] : '' }
+    }).get()
+    while (players.length < playerCount) players.push({ name: '', playerId: '' })
+    teamPlayers.push(players)
+
+    const playerSpans = players.map((p) =>
+      `<span class="bk-player"${p.playerId ? ` data-player-id="${p.playerId}"` : ''}>${p.name}</span>`
+    ).join('')
+    rowsHtmlParts.push(`<div class="bk-row${isDoubles ? ' bk-row--doubles' : ''}${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}">${playerSpans}</div>`)
+  })
+
+  const resultEl = $(matchEl).find('.match__result')
+  const gameScores: string[] = resultEl.find('ul.points').map((_, g) => {
+    const pts = $(g).find('li').map((_, p) => $(p).text().trim()).get()
+    return pts.join('-')
+  }).get()
+  const scoreStr = gameScores.length > 0 ? gameScores.join(', ') : ''
+  const scores: MatchScore[] = gameScores.map((s) => {
+    const [a, b] = s.split('-').map((n) => parseInt(n, 10) || 0)
+    return { t1: a, t2: b }
+  })
+
+  const footerEl = $(matchEl).find('.match__footer').first()
+  const footerRaw = footerText(footerEl)
+  const msgText = $(matchEl).find('.match__message').text().trim()
+  const retired = !!msgText && /ret/i.test(msgText) && gameScores.length > 0
+  const walkover = !!msgText && !retired
+  const scoreContent = retired ? `${scoreStr} Ret.` : walkover ? msgText : scoreStr || footerRaw
+
+  return {
+    team1: teamPlayers[0] ?? [],
+    team2: teamPlayers[1] ?? [],
+    winner,
+    scores,
+    walkover,
+    retired,
+    rowsHtmlParts,
+    scoreContent,
+  }
+}
+
 export function parseBracket(html: string, fromRound = 0): BracketData {
   const $ = cheerio.load(html, { xmlMode: false })
 
@@ -227,47 +297,12 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
 
       matches.each((mi, matchEl) => {
         const top = mi === 0 ? slot1Top : slot2Top
-
-        const rows = $(matchEl).find('.match__row')
-        const rowParts: string[] = []
-
-        rows.each((ri, row) => {
-          const cls = $(row).attr('class') ?? ''
-          const hasWon = cls.includes('has-won')
-          const titleValueDivs = $(row).find('.match__row-title-value')
-          const playerCount = titleValueDivs.length || 1
-          const players = titleValueDivs.map((_, tv) => {
-            const a = $(tv).find('a')
-            const hrefMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
-            const name = a.length ? playerText($(a).first()) : $(tv).find('.nav-link__value').first().text().trim()
-            return { name, playerId: hrefMatch ? hrefMatch[1] : '' }
-          }).get()
-          while (players.length < playerCount) players.push({ name: '', playerId: '' })
-          const playerSpans = players.map((p) =>
-            `<span class="bk-player"${p.playerId ? ` data-player-id="${p.playerId}"` : ''}>${p.name}</span>`
-          ).join('')
-
-          rowParts.push(`<div class="bk-row${isDoubles ? ' bk-row--doubles' : ''}${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}">${playerSpans}</div>`)
-        })
-
-        const resultEl = $(matchEl).find('.match__result')
-        const gameScores = resultEl.find('ul.points').map((_, g) => {
-          const pts = $(g).find('li').map((_, p) => $(p).text().trim()).get()
-          return pts.join('-')
-        }).get()
-        const scoreStr = gameScores.length > 0 ? gameScores.join(', ') : ''
-        const footerEl = $(matchEl).find('.match__footer').first()
-        const footerRaw = footerText(footerEl)
-        const msgText = $(matchEl).find('.match__message').text().trim()
-        const retired = !!msgText && /ret/i.test(msgText) && gameScores.length > 0
-        const walkover = !!msgText && !retired
-
-        const matchBoxHtml = rowParts.join('')
+        const ex = extractMatchEntry($, matchEl, isDoubles)
+        const matchBoxHtml = ex.rowsHtmlParts.join('')
         const abbrev = abbrevRound(roundName)
         const matchNum = gi * 2 + mi + 1
         const abbrevLabel = abbrev === 'F' ? abbrev : `${abbrev} #${matchNum}`
-        const scoreContent = retired ? `${scoreStr} Ret.` : walkover ? msgText : scoreStr || footerRaw
-        const scoreHtml = `<div class="bk-score"><span class="bk-round-abbrev">${abbrevLabel}</span>${scoreContent}</div>`
+        const scoreHtml = `<div class="bk-score"><span class="bk-round-abbrev">${abbrevLabel}</span>${ex.scoreContent}</div>`
 
         slotParts.push(
           `<div class="bk-match-slot" style="position:absolute;top:${top}px;left:8px;right:8px">` +
@@ -739,6 +774,43 @@ export function parseH2H(html: string): H2HData {
 
   return { player1, player2, records, matches }
 }
+export function parseRoundRobinMatches(html: string, drawName: string): MatchEntry[] {
+  const $ = cheerio.load(html, { xmlMode: false })
+  const bracket = $('.bracket.js-bracket')
+  if (!bracket.length) return []
+
+  const roundNames = bracket.find('.subheading').map((_, el) => $(el).text().trim()).get()
+  const out: MatchEntry[] = []
+
+  bracket.find('swiper-container > swiper-slide').each((slideIdx, slide) => {
+    const roundName = longRound(roundNames[slideIdx] ?? `Round ${slideIdx + 1}`)
+    const firstMatchEl = $(slide).find('.match').first()
+    const isDoubles = firstMatchEl.find('.match__row').first().find('.match__row-title-value').length >= 2
+
+    $(slide).find('.match').each((_, matchEl) => {
+      if ($(matchEl).hasClass('is-invisible')) return
+      const ex = extractMatchEntry($, matchEl, isDoubles)
+      const hasAnyName = [...ex.team1, ...ex.team2].some((p) => p.name.length > 0)
+      if (!hasAnyName) return
+      out.push({
+        draw: drawName,
+        drawNum: '',
+        round: roundName,
+        team1: ex.team1,
+        team2: ex.team2,
+        winner: ex.winner,
+        scores: ex.scores,
+        court: '',
+        walkover: ex.walkover,
+        retired: ex.retired,
+        nowPlaying: false,
+      })
+    })
+  })
+
+  return out
+}
+
 export function parseStandings(html: string): StandingsRow[] {
   const $ = cheerio.load(html)
   const rows: StandingsRow[] = []
