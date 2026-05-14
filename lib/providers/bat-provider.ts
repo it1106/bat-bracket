@@ -28,6 +28,20 @@ async function fetchHtml(kind: string, url: string): Promise<string | null> {
   return res.text()
 }
 
+// XHR variant: required for endpoints (e.g. GetStandings) that return the
+// full page wrapper unless the request is flagged as XHR.
+async function fetchHtmlXhr(kind: string, refId: string, drawNum: string, url: string): Promise<string | null> {
+  const headers = {
+    ...HEADERS,
+    'X-Requested-With': 'XMLHttpRequest',
+    'Accept': 'text/html, */*; q=0.01',
+    'Referer': `https://bat.tournamentsoftware.com/tournament/${refId}/draw/${drawNum}`,
+  }
+  const res = await batFetch(kind, url, { headers })
+  if (!res.ok) return null
+  return res.text()
+}
+
 export const batProvider: TournamentProvider = {
   tag: 'bat',
   async getMeta(ref: TournamentRef): Promise<TournamentInfo | null> {
@@ -99,8 +113,8 @@ export const batProvider: TournamentProvider = {
 
     const playoffPromise = this.getBracket(ref, playoffDraw.drawNum)
     const groupPromises = groupDraws.flatMap((g) => [
-      fetchHtml('group', drawContentUrl(g.drawNum)),
-      fetchHtml('standings', standingsUrl(g.drawNum)),
+      fetchHtmlXhr('group', ref.id, g.drawNum, drawContentUrl(g.drawNum)),
+      fetchHtmlXhr('standings', ref.id, g.drawNum, standingsUrl(g.drawNum)),
     ])
 
     const settled = await Promise.allSettled([playoffPromise, ...groupPromises])
