@@ -115,6 +115,12 @@ export default function Home() {
   const [selectedDraw, setSelectedDraw] = useState('')
   const [bracketHtml, setBracketHtml] = useState('')
   const [eventBundle, setEventBundle] = useState<EventBundle | null>(null)
+  // eventName → playoff drawNum, derived from `draws` once they load.
+  // MatchSchedule uses this to deep-link round-robin matches into the bundle.
+  const eventToPlayoffDrawNum: Record<string, string> = {}
+  for (const d of draws) {
+    if (d.isPlayoff && d.eventName) eventToPlayoffDrawNum[d.eventName] = d.drawNum
+  }
   const [playerQuery, setPlayerQuery] = useState('')
   const [highlightResults, setHighlightResults] = useState(true)
   const [excludeCompleted, setExcludeCompleted] = useState(false)
@@ -1042,6 +1048,7 @@ export default function Home() {
           playerQuery={playerQuery}
           excludeCompleted={excludeCompleted}
           onEventClick={handleOpenBracketAtRound}
+          eventToPlayoffDrawNum={eventToPlayoffDrawNum}
           playerClubMap={playerClubMap}
           onPlayerClick={handlePlayerClick}
           onH2HClick={handleH2HClick}

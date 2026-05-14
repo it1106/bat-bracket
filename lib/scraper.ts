@@ -163,6 +163,8 @@ export function abbrevRound(name: string): string {
   return t.split(/\s+/).map((w) => w[0]?.toUpperCase() ?? '').join('').slice(0, 4)
 }
 
+const GROUP_NAME_RE = /^(.+?) - Group ([A-Z])$/
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function playerText(el: cheerio.Cheerio<any>): string {
   return el.find('span.nav-link__value').first().text().trim() ||
@@ -511,6 +513,15 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchScheduleGroup[] {
     if (matches.length > 0) groups.push({ type: 'time', time, matches })
   })
 
+  // Annotate matches whose draw name matches "<event> - Group X" with eventName
+  // so schedule deep-links can route into the event bundle view.
+  for (const g of groups) {
+    for (const m of g.matches) {
+      const gm = m.draw.match(GROUP_NAME_RE)
+      if (gm) m.eventName = gm[1]
+    }
+  }
+
   return orderScheduleGroups(groups)
 }
 
@@ -856,8 +867,6 @@ export function parseStandings(html: string): StandingsRow[] {
 
   return rows
 }
-
-const GROUP_NAME_RE = /^(.+?) - Group ([A-Z])$/
 
 export function detectGroupedDraws(draws: DrawInfo[]): DrawInfo[] {
   const annotated = draws.map((d) => {
