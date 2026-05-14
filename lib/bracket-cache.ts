@@ -14,7 +14,7 @@ export function extractPlayerClubs(html: string, guid: string): void {
   const prefix = guid.toLowerCase()
   $('.match__row').each((_, row) => {
     const clubs = $(row).find('.match__row-entrant-info-club')
-      .map((_, el) => $(el).text().replace(/\u00A0/g, '').trim())
+      .map((_, el) => $(el).text().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim())
       .get()
     $(row).find('a[data-player-id]').each((i, a) => {
       const playerId = $(a).attr('data-player-id') ?? ''

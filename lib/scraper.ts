@@ -844,7 +844,7 @@ export function parseStandings(html: string): StandingsRow[] {
       if (fallback) players.push({ name: fallback, playerId: '' })
     }
 
-    const club = playerCell.find('.entrant-info-club').first().text().replace(/ /g, '').trim()
+    const club = playerCell.find('.entrant-info-club').first().text().replace(/ /g, ' ').replace(/\s+/g, ' ').trim()
 
     const numCells = $tr.find('td').slice(2)
     const txt = (i: number) => (numCells.eq(i).text().trim() || '')
