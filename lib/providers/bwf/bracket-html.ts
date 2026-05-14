@@ -171,7 +171,7 @@ export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0)
         const row1Html = teamRowHtml(match.team1, match.team1seed, 1, winner, score, isWalkover, isRetired)
         const row2Html = teamRowHtml(match.team2, match.team2seed, 2, winner, score, isWalkover, isRetired)
 
-        const isUnplayed = winner === null && score.length === 0 && !isWalkover
+        const isUnplayed = winner === null && !isWalkover
         const footerHtml = isUnplayed && match.matchTime
           ? `<div class="bk-footer">` +
             `<span class="bk-round-tag">${esc(abbrevRound(roundName))}</span>` +

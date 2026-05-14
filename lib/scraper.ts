@@ -190,7 +190,10 @@ function buildMatchBoxHtml(ex: ExtractedMatch, roundAbbrev: string): string {
   const teamRows =
     buildTeamRowHtml(ex.team1, ex.scores, 1, ex.winner, ex.walkover, ex.retired) +
     buildTeamRowHtml(ex.team2, ex.scores, 2, ex.winner, ex.walkover, ex.retired)
-  const isUnplayed = ex.winner === null && ex.scores.length === 0 && !ex.walkover
+  // "Not yet completed" means no team has been declared winner yet. Walkovers
+  // already convey the schedule visually via the orange pill, and completed
+  // matches don't need the scheduled-time footer either.
+  const isUnplayed = ex.winner === null && !ex.walkover
   if (!isUnplayed || !ex.scheduledTime) return teamRows
   const footer =
     `<div class="bk-footer">` +
@@ -282,14 +285,22 @@ function extractMatchEntry($: cheerio.CheerioAPI, matchEl: any): ExtractedMatch 
   const retired = !!msgText && /ret/i.test(msgText) && gameScores.length > 0
   const walkover = !!msgText && !retired
 
-  // Footer text (e.g. "ศ. 17/4/2569 9:30") sits inside the clock-iconed
-  // nav-link of .match__footer. We surface it for unplayed matches.
-  const footerVal = $(matchEl).find('.match__footer .nav-link__value').first().text().replace(/\s+/g, ' ').trim()
+  // The scheduled date/time (e.g. "ศ. 15/5/2569 10:30") lives in one of the
+  // .match__footer .nav-link__value spans. For completed matches it's the
+  // first one (next to icon-clock); for unplayed matches the first item is a
+  // calendar-export link with an empty value, with the time in the second.
+  // Picking the first value that looks like a date (contains "/") works
+  // for both shapes regardless of upstream ordering.
+  let scheduledTime: string | undefined
+  $(matchEl).find('.match__footer .nav-link__value').each((_, el) => {
+    const txt = $(el).text().replace(/\s+/g, ' ').trim()
+    if (txt && txt.includes('/') && !scheduledTime) scheduledTime = txt
+  })
 
   const team1 = teamPlayers[0] ?? []
   const team2 = teamPlayers[1] ?? []
 
-  return { team1, team2, winner, scores, walkover, retired, scheduledTime: footerVal || undefined }
+  return { team1, team2, winner, scores, walkover, retired, scheduledTime }
 }
 
 export function parseBracket(html: string, fromRound = 0): BracketData {
