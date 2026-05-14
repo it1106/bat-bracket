@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio'
 import { getTodayIso } from './today'
-import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch } from './types'
+import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch, MatchPlayer, StandingsRow } from './types'
 
 function extractId(url: string): string {
   const match = url.match(/\/tournament\/([^/]+)/)
@@ -739,6 +739,52 @@ export function parseH2H(html: string): H2HData {
 
   return { player1, player2, records, matches }
 }
+export function parseStandings(html: string): StandingsRow[] {
+  const $ = cheerio.load(html)
+  const rows: StandingsRow[] = []
+
+  $('table.table--striped tbody tr').each((_, tr) => {
+    const $tr = $(tr)
+    const positionText = $tr.find('.standing-status').first().text().trim()
+    const position = parseInt(positionText, 10)
+    if (!Number.isFinite(position)) return
+
+    const playerCell = $tr.find('td').eq(1)
+    const players: MatchPlayer[] = playerCell.find('a').map((_, a) => {
+      const href = $(a).attr('href') ?? ''
+      const idMatch = href.match(/Player\/(\d+)/)
+      const name = $(a).find('.nav-link__value').first().text().trim() || $(a).text().trim()
+      return { name, playerId: idMatch ? idMatch[1] : '' }
+    }).get()
+    if (players.length === 0) {
+      const fallback = playerCell.text().trim()
+      if (fallback) players.push({ name: fallback, playerId: '' })
+    }
+
+    const club = playerCell.find('.entrant-info-club').first().text().replace(/ /g, '').trim()
+
+    const numCells = $tr.find('td').slice(2)
+    const txt = (i: number) => (numCells.eq(i).text().trim() || '')
+    const num = (i: number) => parseInt(txt(i), 10) || 0
+
+    rows.push({
+      position,
+      players,
+      ...(club ? { club } : {}),
+      played: num(0),
+      won: num(1),
+      drawn: num(2),
+      lost: num(3),
+      matches: txt(4),
+      games: txt(5),
+      points: txt(6),
+      pts: num(7),
+    })
+  })
+
+  return rows
+}
+
 const GROUP_NAME_RE = /^(.+?) - Group ([A-Z])$/
 
 export function detectGroupedDraws(draws: DrawInfo[]): DrawInfo[] {
