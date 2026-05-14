@@ -170,7 +170,13 @@ function buildEvents(ctxs: MatchCtx[]): ComputedStats['events'] {
   const byEvent = new Map<string, Acc>()
   for (const { match } of ctxs) {
     if (!match.draw) continue
-    const a = byEvent.get(match.draw) ?? {
+    // Grouped events: aggregate all "<event> - Group X" + the <event> playoff
+    // under the parent event name. eventName is annotated by parseMatchGroups
+    // when the draw matches the group naming pattern; the playoff draw doesn't
+    // match the regex, so its own name is used (which IS the parent name) and
+    // both feed into the same accumulator key.
+    const key = match.eventName ?? match.draw
+    const a = byEvent.get(key) ?? {
       matches: 0, threeSetters: 0, walkovers: 0, decided: 0,
       durSum: 0, durCount: 0, lastFinal: null,
     }
@@ -185,7 +191,7 @@ function buildEvents(ctxs: MatchCtx[]): ComputedStats['events'] {
     if (match.winner !== null && !match.walkover && isFinal(match.round)) {
       a.lastFinal = match
     }
-    byEvent.set(match.draw, a)
+    byEvent.set(key, a)
   }
   const rows = Array.from(byEvent.entries()).map(([name, a]): ComputedStats['events'][number] => {
     let winner: string[] = []

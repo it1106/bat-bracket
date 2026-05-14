@@ -16,6 +16,9 @@ export interface DrawInfo {
   name: string
   size: string
   type: string
+  eventName?: string
+  groupLetter?: string
+  isPlayoff?: boolean
 }
 
 export type ProviderTag = 'bat' | 'bwf'
@@ -35,7 +38,7 @@ export interface TournamentInfo {
 
 export interface BracketData {
   html: string
-  format: 'single-elimination' | 'groups-knockout' | 'double-elimination' | 'unknown'
+  format: 'single-elimination' | 'double-elimination' | 'unknown'
 }
 
 export interface ApiError {
@@ -69,6 +72,7 @@ export interface MatchEntry {
   sequenceLabel?: string
   h2hUrl?: string
   eventId?: string
+  eventName?: string
   // Comma-separated, sorted player IDs of the bracket sibling match (the
   // match whose winner this match's winner would face if they advance).
   siblingPlayerIds?: string
@@ -293,4 +297,32 @@ export interface TournamentStats extends ComputedStats {
   tournamentId: string
   generatedAt: string
   coverage: TournamentStatsCoverage
+}
+
+export interface StandingsRow {
+  position: number
+  players: MatchPlayer[]
+  club?: string
+  played: number
+  won: number
+  drawn: number
+  lost: number
+  matches: string
+  games: string
+  points: string
+  pts: number
+}
+
+export interface GroupData {
+  drawNum: string
+  groupLetter: string
+  standings: StandingsRow[]
+  matches: MatchEntry[]
+}
+
+export interface EventBundle {
+  eventName: string
+  playoff: BracketData
+  playoffDrawNum: string
+  groups: GroupData[]
 }

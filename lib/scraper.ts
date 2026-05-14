@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio'
 import { getTodayIso } from './today'
-import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch } from './types'
+import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch, MatchPlayer, MatchScore, StandingsRow } from './types'
 
 function extractId(url: string): string {
   const match = url.match(/\/tournament\/([^/]+)/)
@@ -163,10 +163,82 @@ export function abbrevRound(name: string): string {
   return t.split(/\s+/).map((w) => w[0]?.toUpperCase() ?? '').join('').slice(0, 4)
 }
 
+const GROUP_NAME_RE = /^(.+?) - Group ([A-Z])$/
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function playerText(el: cheerio.Cheerio<any>): string {
   return el.find('span.nav-link__value').first().text().trim() ||
          el.clone().children().remove().end().text().trim()
+}
+
+interface ExtractedMatch {
+  team1: MatchPlayer[]
+  team2: MatchPlayer[]
+  winner: 1 | 2 | null
+  scores: MatchScore[]
+  walkover: boolean
+  retired: boolean
+  rowsHtmlParts: string[]
+  scoreContent: string
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractMatchEntry($: cheerio.CheerioAPI, matchEl: any, isDoubles: boolean): ExtractedMatch {
+  const rows = $(matchEl).find('.match__row')
+  const teamPlayers: MatchPlayer[][] = []
+  const rowsHtmlParts: string[] = []
+  let winner: 1 | 2 | null = null
+
+  rows.each((ri, row) => {
+    const cls = $(row).attr('class') ?? ''
+    const hasWon = cls.includes('has-won')
+    if (hasWon) winner = (ri === 0 ? 1 : 2)
+
+    const titleValueDivs = $(row).find('.match__row-title-value')
+    const playerCount = titleValueDivs.length || 1
+    const players: MatchPlayer[] = titleValueDivs.map((_, tv) => {
+      const a = $(tv).find('a')
+      const hrefMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
+      const name = a.length ? playerText($(a).first()) : $(tv).find('.nav-link__value').first().text().trim()
+      return { name, playerId: hrefMatch ? hrefMatch[1] : '' }
+    }).get()
+    while (players.length < playerCount) players.push({ name: '', playerId: '' })
+    teamPlayers.push(players)
+
+    const playerSpans = players.map((p) =>
+      `<span class="bk-player"${p.playerId ? ` data-player-id="${p.playerId}"` : ''}>${p.name}</span>`
+    ).join('')
+    rowsHtmlParts.push(`<div class="bk-row${isDoubles ? ' bk-row--doubles' : ''}${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}">${playerSpans}</div>`)
+  })
+
+  const resultEl = $(matchEl).find('.match__result')
+  const gameScores: string[] = resultEl.find('ul.points').map((_, g) => {
+    const pts = $(g).find('li').map((_, p) => $(p).text().trim()).get()
+    return pts.join('-')
+  }).get()
+  const scoreStr = gameScores.length > 0 ? gameScores.join(', ') : ''
+  const scores: MatchScore[] = gameScores.map((s) => {
+    const [a, b] = s.split('-').map((n) => parseInt(n, 10) || 0)
+    return { t1: a, t2: b }
+  })
+
+  const footerEl = $(matchEl).find('.match__footer').first()
+  const footerRaw = footerText(footerEl)
+  const msgText = $(matchEl).find('.match__message').text().trim()
+  const retired = !!msgText && /ret/i.test(msgText) && gameScores.length > 0
+  const walkover = !!msgText && !retired
+  const scoreContent = retired ? `${scoreStr} Ret.` : walkover ? msgText : scoreStr || footerRaw
+
+  return {
+    team1: teamPlayers[0] ?? [],
+    team2: teamPlayers[1] ?? [],
+    winner,
+    scores,
+    walkover,
+    retired,
+    rowsHtmlParts,
+    scoreContent,
+  }
 }
 
 export function parseBracket(html: string, fromRound = 0): BracketData {
@@ -227,47 +299,12 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
 
       matches.each((mi, matchEl) => {
         const top = mi === 0 ? slot1Top : slot2Top
-
-        const rows = $(matchEl).find('.match__row')
-        const rowParts: string[] = []
-
-        rows.each((ri, row) => {
-          const cls = $(row).attr('class') ?? ''
-          const hasWon = cls.includes('has-won')
-          const titleValueDivs = $(row).find('.match__row-title-value')
-          const playerCount = titleValueDivs.length || 1
-          const players = titleValueDivs.map((_, tv) => {
-            const a = $(tv).find('a')
-            const hrefMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
-            const name = a.length ? playerText($(a).first()) : $(tv).find('.nav-link__value').first().text().trim()
-            return { name, playerId: hrefMatch ? hrefMatch[1] : '' }
-          }).get()
-          while (players.length < playerCount) players.push({ name: '', playerId: '' })
-          const playerSpans = players.map((p) =>
-            `<span class="bk-player"${p.playerId ? ` data-player-id="${p.playerId}"` : ''}>${p.name}</span>`
-          ).join('')
-
-          rowParts.push(`<div class="bk-row${isDoubles ? ' bk-row--doubles' : ''}${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}">${playerSpans}</div>`)
-        })
-
-        const resultEl = $(matchEl).find('.match__result')
-        const gameScores = resultEl.find('ul.points').map((_, g) => {
-          const pts = $(g).find('li').map((_, p) => $(p).text().trim()).get()
-          return pts.join('-')
-        }).get()
-        const scoreStr = gameScores.length > 0 ? gameScores.join(', ') : ''
-        const footerEl = $(matchEl).find('.match__footer').first()
-        const footerRaw = footerText(footerEl)
-        const msgText = $(matchEl).find('.match__message').text().trim()
-        const retired = !!msgText && /ret/i.test(msgText) && gameScores.length > 0
-        const walkover = !!msgText && !retired
-
-        const matchBoxHtml = rowParts.join('')
+        const ex = extractMatchEntry($, matchEl, isDoubles)
+        const matchBoxHtml = ex.rowsHtmlParts.join('')
         const abbrev = abbrevRound(roundName)
         const matchNum = gi * 2 + mi + 1
         const abbrevLabel = abbrev === 'F' ? abbrev : `${abbrev} #${matchNum}`
-        const scoreContent = retired ? `${scoreStr} Ret.` : walkover ? msgText : scoreStr || footerRaw
-        const scoreHtml = `<div class="bk-score"><span class="bk-round-abbrev">${abbrevLabel}</span>${scoreContent}</div>`
+        const scoreHtml = `<div class="bk-score"><span class="bk-round-abbrev">${abbrevLabel}</span>${ex.scoreContent}</div>`
 
         slotParts.push(
           `<div class="bk-match-slot" style="position:absolute;top:${top}px;left:8px;right:8px">` +
@@ -475,6 +512,15 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchScheduleGroup[] {
 
     if (matches.length > 0) groups.push({ type: 'time', time, matches })
   })
+
+  // Annotate matches whose draw name matches "<event> - Group X" with eventName
+  // so schedule deep-links can route into the event bundle view.
+  for (const g of groups) {
+    for (const m of g.matches) {
+      const gm = m.draw.match(GROUP_NAME_RE)
+      if (gm) m.eventName = gm[1]
+    }
+  }
 
   return orderScheduleGroups(groups)
 }
@@ -739,6 +785,107 @@ export function parseH2H(html: string): H2HData {
 
   return { player1, player2, records, matches }
 }
+export function parseRoundRobinMatches(html: string, drawName: string): MatchEntry[] {
+  const $ = cheerio.load(html, { xmlMode: false })
+  const bracket = $('.bracket.js-bracket')
+  if (!bracket.length) return []
+
+  const roundNames = bracket.find('.subheading').map((_, el) => $(el).text().trim()).get()
+  const out: MatchEntry[] = []
+
+  bracket.find('swiper-container > swiper-slide').each((slideIdx, slide) => {
+    const roundName = longRound(roundNames[slideIdx] ?? `Round ${slideIdx + 1}`)
+    const firstMatchEl = $(slide).find('.match').first()
+    const isDoubles = firstMatchEl.find('.match__row').first().find('.match__row-title-value').length >= 2
+
+    $(slide).find('.match').each((_, matchEl) => {
+      if ($(matchEl).hasClass('is-invisible')) return
+      const ex = extractMatchEntry($, matchEl, isDoubles)
+      const hasAnyName = [...ex.team1, ...ex.team2].some((p) => p.name.length > 0)
+      if (!hasAnyName) return
+      out.push({
+        draw: drawName,
+        drawNum: '',
+        round: roundName,
+        team1: ex.team1,
+        team2: ex.team2,
+        winner: ex.winner,
+        scores: ex.scores,
+        court: '',
+        walkover: ex.walkover,
+        retired: ex.retired,
+        nowPlaying: false,
+      })
+    })
+  })
+
+  return out
+}
+
+export function parseStandings(html: string): StandingsRow[] {
+  const $ = cheerio.load(html)
+  const rows: StandingsRow[] = []
+
+  $('table.table--striped tbody tr').each((_, tr) => {
+    const $tr = $(tr)
+    const positionText = $tr.find('.standing-status').first().text().trim()
+    const position = parseInt(positionText, 10)
+    if (!Number.isFinite(position)) return
+
+    const playerCell = $tr.find('td').eq(1)
+    const players: MatchPlayer[] = playerCell.find('a').map((_, a) => {
+      const href = $(a).attr('href') ?? ''
+      const idMatch = href.match(/Player\/(\d+)/)
+      const name = $(a).find('.nav-link__value').first().text().trim() || $(a).text().trim()
+      return { name, playerId: idMatch ? idMatch[1] : '' }
+    }).get()
+    if (players.length === 0) {
+      const fallback = playerCell.text().trim()
+      if (fallback) players.push({ name: fallback, playerId: '' })
+    }
+
+    const club = playerCell.find('.entrant-info-club').first().text().replace(/ /g, '').trim()
+
+    const numCells = $tr.find('td').slice(2)
+    const txt = (i: number) => (numCells.eq(i).text().trim() || '')
+    const num = (i: number) => parseInt(txt(i), 10) || 0
+
+    rows.push({
+      position,
+      players,
+      ...(club ? { club } : {}),
+      played: num(0),
+      won: num(1),
+      drawn: num(2),
+      lost: num(3),
+      matches: txt(4),
+      games: txt(5),
+      points: txt(6),
+      pts: num(7),
+    })
+  })
+
+  return rows
+}
+
+export function detectGroupedDraws(draws: DrawInfo[]): DrawInfo[] {
+  const annotated = draws.map((d) => {
+    const m = d.name.match(GROUP_NAME_RE)
+    if (!m || d.type !== 'Round Robin') return { ...d }
+    return { ...d, eventName: m[1], groupLetter: m[2] }
+  })
+  const groupedEventNames = new Set(
+    annotated.filter((d) => d.groupLetter).map((d) => d.eventName as string)
+  )
+  return annotated.map((d) => {
+    if (d.groupLetter) return d
+    if (d.type === 'Elimination' && groupedEventNames.has(d.name)) {
+      return { ...d, eventName: d.name, isPlayoff: true }
+    }
+    return d
+  })
+}
+
 // True iff the bracket HTML contains at least one entrant with a real
 // data-player-id (i.e. the draw has been seeded with actual people, not
 // just TBD placeholders). Used by the discovery runner's bracket gate.

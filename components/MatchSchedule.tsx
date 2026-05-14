@@ -25,6 +25,7 @@ interface Props {
   highlightMatches?: boolean
   showJumpToNext?: boolean
   onEventClick?: (drawNum: string, round: string) => void
+  eventToPlayoffDrawNum?: Record<string, string>
   playerClubMap?: Record<string, string>
   onPlayerClick?: (playerId: string) => void
   onH2HClick?: (h2hUrl: string, m: MatchEntry) => void
@@ -99,7 +100,7 @@ function playerMatchesQuery(
   })
 }
 
-export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, highlightMatches = true, showJumpToNext = true, onEventClick, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId, tournamentName }: Props) {
+export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, highlightMatches = true, showJumpToNext = true, onEventClick, eventToPlayoffDrawNum, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId, tournamentName }: Props) {
   const { t, longRound } = useLanguage()
   const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
     useFirstUnplayed(groups, playerQuery, playerClubMap)
@@ -256,10 +257,21 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     >
       <div className="ms-meta">
         {isLive && <span className="ms-live-badge">{t('live')}</span>}
-        <span
-          className={`ms-event${onEventClick && m.drawNum ? ' ms-event--link' : ''}`}
-          onClick={onEventClick && m.drawNum ? () => { recordMatchView(m); onEventClick(m.drawNum, m.round) } : undefined}
-        >{m.draw}</span>
+        {(() => {
+          // Round-robin matches deep-link to the parent event's playoff drawNum
+          // (which the page handler treats as a bundle and switches to the
+          // EventBundleView). Falls back to the literal drawNum otherwise.
+          const targetDrawNum = m.eventName && eventToPlayoffDrawNum?.[m.eventName]
+            ? eventToPlayoffDrawNum[m.eventName]
+            : m.drawNum
+          const canClick = !!onEventClick && !!targetDrawNum
+          return (
+            <span
+              className={`ms-event${canClick ? ' ms-event--link' : ''}`}
+              onClick={canClick ? () => { recordMatchView(m); onEventClick!(targetDrawNum, m.round) } : undefined}
+            >{m.draw}</span>
+          )
+        })()}
         <span className="ms-round">{longRound(m.round)}</span>
         {showCourt && (() => {
           // Prefer the scrape's friendly label ("Court - 5") over SignalR's bare

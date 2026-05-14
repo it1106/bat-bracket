@@ -5,6 +5,7 @@ export async function register() {
 
     const { prewarmDrawsCache } = await import('./lib/draws-cache')
     const { prewarmBracketCache } = await import('./lib/bracket-cache')
+    const { prewarmEventBundleCache } = await import('./lib/event-bundle-cache')
     const { prewarmMatchesFullCache } = await import('./lib/matches-full-cache')
     const { runDiscoveryCycle, buildDefaultDeps } = await import('./lib/discovery-runner')
     const { getBangkokHour } = await import('./lib/today')
@@ -13,6 +14,7 @@ export async function register() {
       await prewarmMatchesFullCache()
       await prewarmDrawsCache()
       await prewarmBracketCache()
+      await prewarmEventBundleCache()
       // BWF: prime Chromium context so first user request doesn't pay cold-start.
       try {
         const { primeIfNeeded } = await import('./lib/providers/bwf/cf-context')
