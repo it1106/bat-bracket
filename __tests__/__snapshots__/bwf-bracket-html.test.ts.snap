@@ -1,0 +1,7 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`buildBracketHtml produces a stable HTML string for a known draw 1`] = `
+"<div class="tournament-brackets"><div class="bracket"><div class="round"><div class="round-name">SF</div><div class="match" data-col="0" data-row="0"><div class="team1 team-win"><span class="seed">1</span>Somchai Saetang</div><div class="team2">Budi Putra</div><div class="scores"><span class="score-set">21-15</span> <span class="score-set">21-19</span></div></div>
+<div class="match" data-col="0" data-row="1"><div class="team1">Ali Rahman</div><div class="team2"><span class="seed">2</span>Lee Wei</div></div></div>
+<div class="round"><div class="round-name">F</div><div class="match" data-col="1" data-row="0"><div class="team1"><span class="tbd">TBD</span></div><div class="team2"><span class="tbd">TBD</span></div></div></div></div></div>"
+`;

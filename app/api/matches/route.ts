@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings } from '@/lib/scraper'
 import { cache as bracketCache, TTL_MS as BRACKET_TTL_MS, fetchAndCache, rawHtmlCache, makeBracketKey } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
-import { readDayCache, writeDayCache, isDayComplete, readFullCache, writeFullCache, isAllPast } from '@/lib/day-cache'
+import { readDayCache, writeDayCache, isDayComplete, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
+import { resolveRef } from '@/lib/tournaments-registry'
+import { providerFor } from '@/lib/providers/resolve'
 import { getTodayIso } from '@/lib/today'
 import type { MatchScheduleGroup, MatchEntry, MatchesData } from '@/lib/types'
 
@@ -132,15 +134,21 @@ export async function GET(request: Request) {
         }
       }
 
-      const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/Matches/MatchesInDay?date=${date}`
+      const ref = resolveRef(tournamentId) ?? { id: tournamentId.toUpperCase(), provider: 'bat' as const }
       const ttl = dateIso > todayIso ? 600 : dateIso < todayIso ? 3600 : 60
-      const res = await batFetch('matches-day', url, {
-        headers: { ...HEADERS, 'Referer': `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches` },
-        ...(fresh ? { cache: 'no-store' as const } : { next: { revalidate: ttl } }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = parseMatchesPartial(await res.text())
-      await enrichWithSiblings(tournamentId, data.groups)
+      let data: Pick<import('@/lib/types').MatchesData, 'groups'>
+      if (ref.provider !== 'bat') {
+        data = await fetchDayMatchGroups(tournamentId, dateIso)
+      } else {
+        const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/Matches/MatchesInDay?date=${date}`
+        const res = await batFetch('matches-day', url, {
+          headers: { ...HEADERS, 'Referer': `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches` },
+          ...(fresh ? { cache: 'no-store' as const } : { next: { revalidate: ttl } }),
+        })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        data = parseMatchesPartial(await res.text())
+        await enrichWithSiblings(tournamentId, data.groups)
+      }
 
       matchesDayCache.set(memKey, { data, ts: Date.now() })
 
@@ -177,10 +185,18 @@ export async function GET(request: Request) {
         return NextResponse.json(cached.data)
       }
 
-      const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
-      const res = await batFetch('matches-full', url, { headers: HEADERS, cache: 'no-store' })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = parseMatchesFull(await res.text())
+      const fullRef = resolveRef(tournamentId) ?? { id: tournamentId.toUpperCase(), provider: 'bat' as const }
+      let data: import('@/lib/types').MatchesData
+      if (fullRef.provider !== 'bat') {
+        const result = await providerFor(fullRef).getMatchesFull(fullRef)
+        if (!result) throw new Error('Provider returned no matches data')
+        data = result
+      } else {
+        const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
+        const res = await batFetch('matches-full', url, { headers: HEADERS, cache: 'no-store' })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        data = parseMatchesFull(await res.text())
+      }
       // Sibling enrichment is skipped on the full-schedule path — it costs an
       // extra BAT round-trip per draw (2-5 s on cold tournaments) and the
       // client backfills siblings by immediately fetching the per-day endpoint

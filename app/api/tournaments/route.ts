@@ -5,49 +5,20 @@ import { readFullCache, isAllPast } from '@/lib/day-cache'
 import { getTodayIso } from '@/lib/today'
 import { loadDiscovered } from '@/lib/discovery-store'
 import { mergeForApi, sortNewestFirst } from '@/lib/tournaments-merge'
+import { parseTournamentsTxt as parseFromTxt, type ParsedTxt } from '@/lib/tournaments-txt'
+import { resolveBwfUrl } from '@/lib/providers/bwf/url-resolver-runtime'
 import type { TournamentInfo } from '@/lib/types'
 
 // Force dynamic so auto-done flips and newly-discovered entries are reflected
 // on the very next request. Cost is a few file stats per call, trivially cheap.
 export const dynamic = 'force-dynamic'
 
-interface ParsedTxt {
-  manualEntries: TournamentInfo[]
-  denySet: Set<string>
-}
-
-const DENY_RE = /^#\s*deny\s+([A-Fa-f0-9-]{36})/
-
 function parseTournamentsTxt(): ParsedTxt {
   try {
-    const filePath = join(process.cwd(), 'public', 'tournaments.txt')
-    const content = readFileSync(filePath, 'utf-8')
-    const lines = content.split('\n').map((l) => l.trim()).filter((l) => l.length > 0)
-
-    const denySet = new Set<string>()
-    const manualEntries: TournamentInfo[] = []
-
-    for (const l of lines) {
-      const denyMatch = DENY_RE.exec(l)
-      if (denyMatch) {
-        denySet.add(denyMatch[1].toUpperCase())
-        continue
-      }
-      if (l.startsWith('#')) continue
-
-      const spaceIdx = l.indexOf(' ')
-      if (spaceIdx === -1) {
-        manualEntries.push({ id: l.toUpperCase(), name: l })
-        continue
-      }
-      const id = l.slice(0, spaceIdx).toUpperCase()
-      const rest = l.slice(spaceIdx + 1).trim()
-      const manualDone = rest.endsWith('[done]')
-      const name = manualDone ? rest.slice(0, -6).trim() : rest
-      manualEntries.push({ id, name, ...(manualDone && { done: true }) })
-    }
-
-    return { manualEntries, denySet }
+    const content = readFileSync(join(process.cwd(), 'public', 'tournaments.txt'), 'utf-8')
+    return parseFromTxt(content, {
+      onUnresolved: (url) => { resolveBwfUrl(url).catch(() => {}) },
+    })
   } catch {
     return { manualEntries: [], denySet: new Set() }
   }

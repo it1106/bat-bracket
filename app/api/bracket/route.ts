@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { cache, TTL_MS, makeBracketKey, fetchAndCache, rawHtmlCache } from '@/lib/bracket-cache'
+import { cache, TTL_MS, makeBracketKey, fetchAndCache, fetchBracketFromRound, rawHtmlCache } from '@/lib/bracket-cache'
 import { parseBracket } from '@/lib/scraper'
 
 export const maxDuration = 60
@@ -42,11 +42,14 @@ export async function GET(request: Request) {
 
   const key = makeBracketKey(guid, drawNum)
 
-  // fromRound > 0: re-parse from raw HTML without re-fetching
+  // fromRound > 0: re-parse/rebuild from a specific round without re-caching
   if (fromRound > 0) {
     const rawHtml = rawHtmlCache.get(key)
     if (rawHtml) return NextResponse.json(parseBracket(rawHtml, fromRound))
-    // fall through to fetch if raw HTML not cached yet
+    // Non-BAT providers rebuild bracket HTML directly
+    const nonBat = await fetchBracketFromRound(guid, drawNum, fromRound)
+    if (nonBat) return NextResponse.json(nonBat)
+    // fall through (BAT without rawHtmlCache, will fetch fresh)
   }
 
   const cached = cache.get(key)

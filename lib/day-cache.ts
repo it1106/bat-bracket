@@ -1,6 +1,8 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import type { MatchesData } from './types'
+import { providerFor } from '@/lib/providers/resolve'
+import { resolveRef } from '@/lib/tournaments-registry'
 
 export type DayCacheData = Pick<MatchesData, 'groups'>
 
@@ -82,6 +84,20 @@ export async function writeFullCache(
 export function isAllPast(data: MatchesData, todayIso: string): boolean {
   if (data.days.length === 0) return false
   return data.days.every((d) => d.dateIso && d.dateIso < todayIso)
+}
+
+// Fetch a single day's match groups from the appropriate provider (non-BAT
+// only — BAT day fetches are handled inline in the matches route because they
+// require the raw Buddhist-year date param and sibling enrichment).
+export async function fetchDayMatchGroups(
+  tournamentId: string,
+  dateIso: string,
+): Promise<DayCacheData> {
+  const ref = resolveRef(tournamentId) ?? { id: tournamentId.toUpperCase(), provider: 'bat' as const }
+  if (ref.provider === 'bat') {
+    throw new Error('[day-cache] BAT day fetch must go through matches route')
+  }
+  return { groups: await providerFor(ref).getDayMatches(ref, dateIso) }
 }
 
 // A day is "complete" iff every scheduled match has a resolution: a winner,
