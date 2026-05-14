@@ -316,8 +316,8 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
 }
 
 .bk-flag {
-  width: 14px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   object-fit: cover;
   border-radius: 1px;
   margin-right: 4px;
