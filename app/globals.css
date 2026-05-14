@@ -1777,6 +1777,20 @@ html.dark .ms-match--next-opp {
 .group-card-matches .ms-match:has(.ms-board-row.winner) .ms-board-row:not(.winner) .ms-board-players {
   color: var(--muted);
 }
+.group-card-matches .ms-match.tracked {
+  background: var(--track-bg) !important;
+}
+.group-card-matches .ms-match.tracked .ms-board-players,
+.group-card-matches .ms-match.tracked .ms-board-set,
+.group-card-matches .ms-match.tracked .ms-board-badge {
+  color: var(--track-fg) !important;
+}
+
+.standings-row.tracked td {
+  background: var(--track-bg) !important;
+  color: var(--track-fg) !important;
+  font-weight: 700;
+}
 
 /* ── Jump-to-next floating button ── */
 .ms-jump-next {

@@ -9,7 +9,7 @@ export function applyPlayerHighlight(
 ): void {
   const queries = expandSearchQuery(playerQuery)
   if (queries.length === 0) {
-    root.querySelectorAll<HTMLElement>('.bk-row.tracked, .match__row.highlighted, .standings-row.tracked')
+    root.querySelectorAll<HTMLElement>('.bk-row.tracked, .match__row.highlighted, .standings-row.tracked, .group-card-matches .ms-match.tracked')
       .forEach((row) => {
         row.classList.remove('tracked')
         row.classList.remove('highlighted')
@@ -49,7 +49,7 @@ export function applyPlayerHighlight(
   })
 
   // EventBundle standings + group-match rows (new components)
-  root.querySelectorAll<HTMLElement>('.standings-row, .group-match-row').forEach((row) => {
+  root.querySelectorAll<HTMLElement>('.standings-row, .group-card-matches .ms-match').forEach((row) => {
     const players = row.querySelectorAll<HTMLElement>('[data-player-id]')
     const matches = Array.from(players).some((p) =>
       textMatches(p.textContent) || clubMatches(p.getAttribute('data-player-id'))
