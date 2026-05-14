@@ -14,7 +14,7 @@ import { buildBracketHtml } from './bwf/bracket-html'
 import type {
   MatchesData,
   MatchScheduleGroup, MatchEntry, PlayerProfile, H2HData,
-  TournamentRef,
+  TournamentRef, EventBundle,
 } from '@/lib/types'
 import type { TournamentProvider } from './types'
 import { NotImplementedError } from './types'
@@ -96,6 +96,7 @@ export const bwfProvider: TournamentProvider = {
   async getPlayer(): Promise<PlayerProfile | null> { throw new NotImplementedError('getPlayer', 'bwf') },
   async getH2H(): Promise<H2HData | null> { throw new NotImplementedError('getH2H', 'bwf') },
   async getLiveScore(): Promise<MatchEntry | null> { throw new NotImplementedError('getLiveScore', 'bwf') },
+  async getEventBundle(): Promise<EventBundle | null> { throw new NotImplementedError('getEventBundle', 'bwf') },
 }
 
 function enumerateDays(startIso: string, endIso: string): string[] {

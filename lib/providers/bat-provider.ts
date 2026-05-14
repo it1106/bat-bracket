@@ -4,12 +4,15 @@ import {
   parseTournamentMeta,
   parseBracket,
   parseMatchesFull,
+  parseRoundRobinMatches,
+  parseStandings,
+  detectGroupedDraws,
   orderScheduleGroups,
 } from '@/lib/scraper'
 import type {
   TournamentInfo, DrawInfo, BracketData, MatchesData,
   MatchScheduleGroup, MatchEntry, PlayerProfile, H2HData,
-  TournamentRef,
+  TournamentRef, EventBundle, GroupData,
 } from '@/lib/types'
 import type { TournamentProvider } from './types'
 import { NotImplementedError } from './types'
@@ -79,5 +82,46 @@ export const batProvider: TournamentProvider = {
   },
   async getLiveScore(): Promise<MatchEntry | null> {
     throw new NotImplementedError('getLiveScore', 'bat')
+  },
+  async getEventBundle(ref: TournamentRef, eventName: string): Promise<EventBundle | null> {
+    const allDraws = await this.getDraws(ref)
+    const annotated = detectGroupedDraws(allDraws)
+    const groupDraws = annotated
+      .filter((d) => d.eventName === eventName && d.groupLetter)
+      .sort((a, b) => (a.groupLetter ?? '').localeCompare(b.groupLetter ?? ''))
+    const playoffDraw = annotated.find((d) => d.eventName === eventName && d.isPlayoff)
+    if (!playoffDraw || groupDraws.length === 0) return null
+
+    const drawContentUrl = (n: string) =>
+      `https://bat.tournamentsoftware.com/tournament/${ref.id}/Draw/${n}/GetDrawContent?tabindex=1&X-Requested-With=XMLHttpRequest`
+    const standingsUrl = (n: string) =>
+      `https://bat.tournamentsoftware.com/tournament/${ref.id}/Draw/${n}/GetStandings`
+
+    const playoffPromise = this.getBracket(ref, playoffDraw.drawNum)
+    const groupPromises = groupDraws.flatMap((g) => [
+      fetchHtml('group', drawContentUrl(g.drawNum)),
+      fetchHtml('standings', standingsUrl(g.drawNum)),
+    ])
+
+    const settled = await Promise.allSettled([playoffPromise, ...groupPromises])
+    const playoffResult = settled[0] as PromiseSettledResult<BracketData | null>
+    const playoff: BracketData = playoffResult.status === 'fulfilled' && playoffResult.value
+      ? playoffResult.value
+      : { html: '', format: 'unknown' }
+
+    const groups: GroupData[] = groupDraws.map((g, i) => {
+      const drawHtmlRes = settled[1 + i * 2] as PromiseSettledResult<string | null>
+      const standingsHtmlRes = settled[2 + i * 2] as PromiseSettledResult<string | null>
+      const drawHtml = drawHtmlRes.status === 'fulfilled' ? drawHtmlRes.value : null
+      const standingsHtml = standingsHtmlRes.status === 'fulfilled' ? standingsHtmlRes.value : null
+      return {
+        drawNum: g.drawNum,
+        groupLetter: g.groupLetter ?? '',
+        standings: standingsHtml ? parseStandings(standingsHtml) : [],
+        matches: drawHtml ? parseRoundRobinMatches(drawHtml, g.name) : [],
+      }
+    })
+
+    return { eventName, playoff, playoffDrawNum: playoffDraw.drawNum, groups }
   },
 }

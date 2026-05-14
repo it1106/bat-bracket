@@ -1,7 +1,7 @@
 import type {
   TournamentInfo, DrawInfo, BracketData, MatchesData,
   MatchScheduleGroup, MatchEntry, PlayerProfile, H2HData,
-  ProviderTag, TournamentRef,
+  ProviderTag, TournamentRef, EventBundle,
 } from '@/lib/types'
 
 export interface TournamentProvider {
@@ -14,6 +14,7 @@ export interface TournamentProvider {
   getPlayer(ref: TournamentRef, playerId: string): Promise<PlayerProfile | null>
   getH2H(ref: TournamentRef, p1: string, p2: string): Promise<H2HData | null>
   getLiveScore(ref: TournamentRef, matchId: string): Promise<MatchEntry | null>
+  getEventBundle(ref: TournamentRef, eventName: string): Promise<EventBundle | null>
 }
 
 export class NotImplementedError extends Error {
