@@ -107,6 +107,77 @@ describe('runDiscoveryCycle — happy path and basic skips', () => {
     expect(saved[0].entries[0].hasBracket).toBe(false)
   })
 
+  it('promotes a grouped tournament whose draws[0] (playoff) is empty but draws[1+] (groups) have players', async () => {
+    // Reproduces the production bug: SAT NSDF Badminton Thai Domestic Power
+    // 2026 Final has 9 draws per event — the playoff (Elimination, all Bye
+    // until groups complete) sorts first, then 8 Round Robin groups with real
+    // entrants. The old gate stopped at draws[0] and never flipped hasBracket.
+    const saved: DiscoveryStore[] = []
+    const probedDrawNums: string[] = []
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        parseTournamentDraws: () => [
+          { drawNum: '9', name: 'BS U11', size: '8', type: 'Elimination' },
+          { drawNum: '1', name: 'BS U11 - Group A', size: '3', type: 'Round Robin' },
+          { drawNum: '2', name: 'BS U11 - Group B', size: '3', type: 'Round Robin' },
+        ],
+        fetchDrawContentHtml: async (_id, drawNum) => {
+          probedDrawNums.push(drawNum)
+          // Playoff (drawNum 9) is empty Bye markup — no player IDs
+          if (drawNum === '9') return '<html><body><div>Bye</div></body></html>'
+          return '<html><body><a data-player-id="1185">Player A</a></body></html>'
+        },
+        bracketHasSeededPlayers: (html: string) => /data-player-id="\d/.test(html),
+        saveDiscovered: async (s) => { saved.push(s) },
+      }),
+    )
+    expect(saved[0].entries[0].hasBracket).toBe(true)
+    // Should have probed past the empty playoff to find populated groups
+    expect(probedDrawNums.length).toBeGreaterThanOrEqual(2)
+    expect(probedDrawNums[0]).toBe('9')
+    expect(probedDrawNums[1]).toBe('1')
+  })
+
+  it('caps probing at 5 draws when none have seeded players', async () => {
+    const probedDrawNums: string[] = []
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        parseTournamentDraws: () => Array.from({ length: 12 }, (_, i) => ({
+          drawNum: String(i + 1), name: `Draw ${i + 1}`, size: '8', type: 'Elimination',
+        })),
+        fetchDrawContentHtml: async (_id, drawNum) => {
+          probedDrawNums.push(drawNum)
+          return '<html></html>'
+        },
+        bracketHasSeededPlayers: () => false,
+        saveDiscovered: async () => {},
+      }),
+    )
+    expect(probedDrawNums).toHaveLength(5)
+  })
+
+  it('stops probing on first success (does not over-fetch for healthy tournaments)', async () => {
+    const probedDrawNums: string[] = []
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        parseTournamentDraws: () => [
+          { drawNum: '1', name: 'Singles', size: '32', type: 'Elimination' },
+          { drawNum: '2', name: 'Doubles', size: '16', type: 'Elimination' },
+        ],
+        fetchDrawContentHtml: async (_id, drawNum) => {
+          probedDrawNums.push(drawNum)
+          return '<a data-player-id="42">x</a>'
+        },
+        bracketHasSeededPlayers: () => true,
+        saveDiscovered: async () => {},
+      }),
+    )
+    expect(probedDrawNums).toEqual(['1'])
+  })
+
   it('does not refetch draws for already-promoted entries', async () => {
     const existing: DiscoveryStore = {
       version: 1,

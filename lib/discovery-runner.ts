@@ -106,13 +106,24 @@ async function runDiscoveryCycleInner(deps: DiscoveryDeps): Promise<void> {
   }
 }
 
+// Probe up to this many draws when checking whether the tournament has been
+// seeded. Group-stage tournaments list their (empty) playoff first and the
+// populated group draws after, so we can't stop at draws[0] — but we cap to
+// avoid burning the per-tournament fetch budget on tournaments that genuinely
+// have no entrants yet.
+const BRACKET_GATE_PROBE_CAP = 5
+
 async function runBracketGate(deps: DiscoveryDeps, id: string): Promise<boolean> {
   try {
     const drawsHtml = await deps.fetchDrawsHtml(id)
     const draws = deps.parseTournamentDraws(drawsHtml)
     if (draws.length === 0) return false
-    const contentHtml = await deps.fetchDrawContentHtml(id, draws[0].drawNum)
-    return deps.bracketHasSeededPlayers(contentHtml)
+    const probeCount = Math.min(draws.length, BRACKET_GATE_PROBE_CAP)
+    for (let i = 0; i < probeCount; i++) {
+      const contentHtml = await deps.fetchDrawContentHtml(id, draws[i].drawNum)
+      if (deps.bracketHasSeededPlayers(contentHtml)) return true
+    }
+    return false
   } catch {
     return false
   }
