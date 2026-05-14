@@ -82,17 +82,19 @@ export function parseTournamentDraws(html: string): DrawInfo[] {
   return results
 }
 
-// Slot pitch in the first (largest) round — singles vs doubles
-const SLOT_PITCH_BASE_SINGLES = 120
-const SLOT_PITCH_BASE_DOUBLES = 130
+// Slot pitch in the first (largest) round — singles vs doubles. The card
+// layout puts per-set scores inline with the players, so doubles cards stay
+// roughly two-line tall and singles stay roughly one-line tall.
+const SLOT_PITCH_BASE_SINGLES = 100
+const SLOT_PITCH_BASE_DOUBLES = 150
 // Top offset for first slot: label height (32px) + header padding (14px)
 const LABEL_OFFSET = 46
-// Vertical center within a slot box (singles ~79px, doubles ~92px)
-const SLOT_CENTER_OFFSET_SINGLES = 39.5
-const SLOT_CENTER_OFFSET_DOUBLES = 46
+// Vertical center within a slot box
+const SLOT_CENTER_OFFSET_SINGLES = 32
+const SLOT_CENTER_OFFSET_DOUBLES = 50
 // Approximate rendered height of a bk-match-box
-const SLOT_HEIGHT_APPROX_SINGLES = 79
-const SLOT_HEIGHT_APPROX_DOUBLES = 92
+const SLOT_HEIGHT_APPROX_SINGLES = 64
+const SLOT_HEIGHT_APPROX_DOUBLES = 100
 
 // For round r (0-indexed from first/largest round):
 //   topBase(r)  = LABEL_OFFSET + pitchBase * (2^r - 1) / 2
@@ -178,15 +180,75 @@ interface ExtractedMatch {
   scores: MatchScore[]
   walkover: boolean
   retired: boolean
-  rowsHtmlParts: string[]
-  scoreContent: string
+  scheduledTime?: string
+}
+
+// Inline clock icon, sized to sit next to the time text.
+const BK_CLOCK_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
+
+function buildMatchBoxHtml(ex: ExtractedMatch, roundAbbrev: string): string {
+  const teamRows =
+    buildTeamRowHtml(ex.team1, ex.scores, 1, ex.winner, ex.walkover, ex.retired) +
+    buildTeamRowHtml(ex.team2, ex.scores, 2, ex.winner, ex.walkover, ex.retired)
+  const isUnplayed = ex.winner === null && ex.scores.length === 0 && !ex.walkover
+  if (!isUnplayed || !ex.scheduledTime) return teamRows
+  const footer =
+    `<div class="bk-footer">` +
+    `<span class="bk-round-tag">${roundAbbrev}</span>` +
+    `<span class="bk-clock">${BK_CLOCK_SVG}</span>` +
+    `<span class="bk-time">${ex.scheduledTime}</span>` +
+    `</div>`
+  return teamRows + footer
+}
+
+function buildTeamRowHtml(
+  players: MatchPlayer[],
+  scores: MatchScore[],
+  teamNum: 1 | 2,
+  winner: 1 | 2 | null,
+  walkover: boolean,
+  retired: boolean,
+): string {
+  const isWinner = winner === teamNum
+  const isLoser = winner !== null && winner !== teamNum
+  const winCls = isWinner ? ' winner' : ''
+
+  const playerSpans = players.length === 0
+    ? '<span class="bk-player"></span>'
+    : players.map((p) =>
+        `<span class="bk-player"${p.playerId ? ` data-player-id="${p.playerId}"` : ''}>${p.name}</span>`
+      ).join('')
+
+  const dotHtml = winner === null
+    ? ''
+    : isWinner
+      ? '<span class="bk-dot"></span>'
+      : '<span class="bk-dot bk-dot--placeholder"></span>'
+
+  let resultInner = ''
+  if (walkover) {
+    resultInner = isLoser ? '<span class="bk-walkover-badge">Walkover</span>' : ''
+  } else {
+    const setHtmls = scores.map((s, i) => {
+      const myScore = teamNum === 1 ? s.t1 : s.t2
+      const otherScore = teamNum === 1 ? s.t2 : s.t1
+      const wonSet = myScore > otherScore
+      const isLastSet = i === scores.length - 1
+      const retCls = retired && isLastSet && isLoser ? ' bk-set--retired' : ''
+      const wonCls = wonSet ? ' bk-set--won' : ''
+      return `<span class="bk-set${wonCls}${retCls}">${myScore}</span>`
+    }).join('')
+    const retBadge = retired && isLoser ? '<span class="bk-walkover-badge" style="margin-left:4px">Ret.</span>' : ''
+    resultInner = setHtmls + retBadge
+  }
+
+  return `<div class="bk-row${winCls}"><div class="bk-team-players">${playerSpans}</div><div class="bk-team-result">${dotHtml}${resultInner}</div></div>`
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractMatchEntry($: cheerio.CheerioAPI, matchEl: any, isDoubles: boolean): ExtractedMatch {
+function extractMatchEntry($: cheerio.CheerioAPI, matchEl: any): ExtractedMatch {
   const rows = $(matchEl).find('.match__row')
   const teamPlayers: MatchPlayer[][] = []
-  const rowsHtmlParts: string[] = []
   let winner: 1 | 2 | null = null
 
   rows.each((ri, row) => {
@@ -204,11 +266,6 @@ function extractMatchEntry($: cheerio.CheerioAPI, matchEl: any, isDoubles: boole
     }).get()
     while (players.length < playerCount) players.push({ name: '', playerId: '' })
     teamPlayers.push(players)
-
-    const playerSpans = players.map((p) =>
-      `<span class="bk-player"${p.playerId ? ` data-player-id="${p.playerId}"` : ''}>${p.name}</span>`
-    ).join('')
-    rowsHtmlParts.push(`<div class="bk-row${isDoubles ? ' bk-row--doubles' : ''}${hasWon ? ' winner' : ''}${ri > 0 ? ' bk-row--team-sep' : ''}">${playerSpans}</div>`)
   })
 
   const resultEl = $(matchEl).find('.match__result')
@@ -216,29 +273,23 @@ function extractMatchEntry($: cheerio.CheerioAPI, matchEl: any, isDoubles: boole
     const pts = $(g).find('li').map((_, p) => $(p).text().trim()).get()
     return pts.join('-')
   }).get()
-  const scoreStr = gameScores.length > 0 ? gameScores.join(', ') : ''
   const scores: MatchScore[] = gameScores.map((s) => {
     const [a, b] = s.split('-').map((n) => parseInt(n, 10) || 0)
     return { t1: a, t2: b }
   })
 
-  const footerEl = $(matchEl).find('.match__footer').first()
-  const footerRaw = footerText(footerEl)
   const msgText = $(matchEl).find('.match__message').text().trim()
   const retired = !!msgText && /ret/i.test(msgText) && gameScores.length > 0
   const walkover = !!msgText && !retired
-  const scoreContent = retired ? `${scoreStr} Ret.` : walkover ? msgText : scoreStr || footerRaw
 
-  return {
-    team1: teamPlayers[0] ?? [],
-    team2: teamPlayers[1] ?? [],
-    winner,
-    scores,
-    walkover,
-    retired,
-    rowsHtmlParts,
-    scoreContent,
-  }
+  // Footer text (e.g. "ศ. 17/4/2569 9:30") sits inside the clock-iconed
+  // nav-link of .match__footer. We surface it for unplayed matches.
+  const footerVal = $(matchEl).find('.match__footer .nav-link__value').first().text().replace(/\s+/g, ' ').trim()
+
+  const team1 = teamPlayers[0] ?? []
+  const team2 = teamPlayers[1] ?? []
+
+  return { team1, team2, winner, scores, walkover, retired, scheduledTime: footerVal || undefined }
 }
 
 export function parseBracket(html: string, fromRound = 0): BracketData {
@@ -299,16 +350,12 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
 
       matches.each((mi, matchEl) => {
         const top = mi === 0 ? slot1Top : slot2Top
-        const ex = extractMatchEntry($, matchEl, isDoubles)
-        const matchBoxHtml = ex.rowsHtmlParts.join('')
-        const abbrev = abbrevRound(roundName)
-        const matchNum = gi * 2 + mi + 1
-        const abbrevLabel = abbrev === 'F' ? abbrev : `${abbrev} #${matchNum}`
-        const scoreHtml = `<div class="bk-score"><span class="bk-round-abbrev">${abbrevLabel}</span>${ex.scoreContent}</div>`
+        const ex = extractMatchEntry($, matchEl)
+        const matchBoxHtml = buildMatchBoxHtml(ex, abbrevRound(roundName))
 
         slotParts.push(
           `<div class="bk-match-slot" style="position:absolute;top:${top}px;left:8px;right:8px">` +
-          `<div class="bk-match-box">${matchBoxHtml}</div>${scoreHtml}</div>`
+          `<div class="bk-match-box">${matchBoxHtml}</div></div>`
         )
       })
     })
@@ -369,11 +416,6 @@ export function parseBracketSiblings(html: string): Array<{ players: string[]; s
   })
 
   return result
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function footerText(el: cheerio.Cheerio<any>): string {
-  return el.find('.match__footer-list').text().replace(/\s+/g, ' ').trim()
 }
 
 // Splits a "Duration: 23m | Main Location - 5" tooltip into its parts.
@@ -795,12 +837,10 @@ export function parseRoundRobinMatches(html: string, drawName: string): MatchEnt
 
   bracket.find('swiper-container > swiper-slide').each((slideIdx, slide) => {
     const roundName = longRound(roundNames[slideIdx] ?? `Round ${slideIdx + 1}`)
-    const firstMatchEl = $(slide).find('.match').first()
-    const isDoubles = firstMatchEl.find('.match__row').first().find('.match__row-title-value').length >= 2
 
     $(slide).find('.match').each((_, matchEl) => {
       if ($(matchEl).hasClass('is-invisible')) return
-      const ex = extractMatchEntry($, matchEl, isDoubles)
+      const ex = extractMatchEntry($, matchEl)
       const hasAnyName = [...ex.team1, ...ex.team2].some((p) => p.name.length > 0)
       if (!hasAnyName) return
       out.push({

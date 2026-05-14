@@ -1,16 +1,18 @@
 // Generates bk-wrap HTML matching the BAT scraper's output so existing CSS applies.
 
-const SLOT_PITCH_BASE_SINGLES = 120
-const SLOT_PITCH_BASE_DOUBLES = 130
+const SLOT_PITCH_BASE_SINGLES = 100
+const SLOT_PITCH_BASE_DOUBLES = 150
 const LABEL_OFFSET = 46
-const SLOT_HEIGHT_APPROX_SINGLES = 79
-const SLOT_HEIGHT_APPROX_DOUBLES = 92
-const SLOT_CENTER_OFFSET_SINGLES = 39.5
-const SLOT_CENTER_OFFSET_DOUBLES = 46
+const SLOT_HEIGHT_APPROX_SINGLES = 64
+const SLOT_HEIGHT_APPROX_DOUBLES = 100
+const SLOT_CENTER_OFFSET_SINGLES = 32
+const SLOT_CENTER_OFFSET_DOUBLES = 50
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 }
+
+const BK_CLOCK_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
 
 function abbrevRound(name: string): string {
   const n = name.trim()
@@ -56,34 +58,51 @@ interface BwfDrawDataResponse {
 function teamRowHtml(
   team: BwfTeam | undefined,
   seed: number | null | undefined,
-  isWinner: boolean,
-  isSep: boolean,
-  isDoubles: boolean,
+  teamNum: 1 | 2,
+  winner: 1 | 2 | null,
+  scores: Array<{ home: number; away: number }>,
+  walkover: boolean,
+  retired: boolean,
 ): string {
-  const players = team?.players ?? []
-  const dblCls = isDoubles ? ' bk-row--doubles' : ''
+  const isWinner = winner === teamNum
+  const isLoser = winner !== null && winner !== teamNum
   const winCls = isWinner ? ' winner' : ''
-  const sepCls = isSep ? ' bk-row--team-sep' : ''
+  const players = team?.players ?? []
   const seedHtml = seed ? `<span class="bk-seed">${seed}</span>` : ''
 
-  if (isDoubles) {
-    // Each player gets their own flag; seed appears before the first player
-    const playerLines = players.length
-      ? players.map((p) => {
-          const flagUrl = p.countryFlagUrl ?? ''
-          const flagHtml = flagUrl ? `<img class="bk-flag" src="${esc(flagUrl)}" alt="">` : ''
-          return `<span class="bk-player">${flagHtml}${esc(p.nameDisplay ?? '')}</span>`
-        }).join('')
-      : '<span class="bk-player"></span>'
-    return `<div class="bk-row${dblCls}${winCls}${sepCls}">${seedHtml}${playerLines}</div>`
+  const playerSpans = players.length
+    ? players.map((p, i) => {
+        const flagUrl = p.countryFlagUrl ?? (i === 0 ? team?.countryFlagUrl ?? '' : '')
+        const flagHtml = flagUrl ? `<img class="bk-flag" src="${esc(flagUrl)}" alt="">` : ''
+        const seedSuffix = i === 0 ? seedHtml : ''
+        return `<span class="bk-player">${flagHtml}${esc(p.nameDisplay ?? '')}${seedSuffix}</span>`
+      }).join('')
+    : '<span class="bk-player"></span>'
+
+  const dotHtml = winner === null
+    ? ''
+    : isWinner
+      ? '<span class="bk-dot"></span>'
+      : '<span class="bk-dot bk-dot--placeholder"></span>'
+
+  let resultInner = ''
+  if (walkover) {
+    resultInner = isLoser ? '<span class="bk-walkover-badge">Walkover</span>' : ''
+  } else {
+    const setHtmls = scores.map((s, i) => {
+      const myScore = teamNum === 1 ? s.home : s.away
+      const otherScore = teamNum === 1 ? s.away : s.home
+      const wonSet = myScore > otherScore
+      const isLastSet = i === scores.length - 1
+      const retCls = retired && isLastSet && isLoser ? ' bk-set--retired' : ''
+      const wonCls = wonSet ? ' bk-set--won' : ''
+      return `<span class="bk-set${wonCls}${retCls}">${myScore}</span>`
+    }).join('')
+    const retBadge = retired && isLoser ? '<span class="bk-walkover-badge" style="margin-left:4px">Ret.</span>' : ''
+    resultInner = setHtmls + retBadge
   }
 
-  // Singles: flag from first player, seed, name inline
-  const p = players[0]
-  const flagUrl = p?.countryFlagUrl ?? team?.countryFlagUrl ?? ''
-  const flagHtml = flagUrl ? `<img class="bk-flag" src="${esc(flagUrl)}" alt="">` : ''
-  const nameHtml = p ? `<span class="bk-player">${esc(p.nameDisplay ?? '')}</span>` : '<span class="bk-player"></span>'
-  return `<div class="bk-row${winCls}${sepCls}">${flagHtml}${seedHtml}${nameHtml}</div>`
+  return `<div class="bk-row${winCls}"><div class="bk-team-players">${playerSpans}</div><div class="bk-team-result">${dotHtml}${resultInner}</div></div>`
 }
 
 export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0): string {
@@ -128,7 +147,6 @@ export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0)
     const colMatches = byCol.get(col)!.sort((a, b) => a.row - b.row)
     const groupCount = Math.ceil(colMatches.length / 2)
     const roundName = colMatches[0]?.match.roundName ?? `Round ${absoluteIdx + 1}`
-    const abbrev = abbrevRound(roundName)
 
     const slotPitch = SLOT_PITCH_BASE * Math.pow(2, r)
     const topBase = Math.round(LABEL_OFFSET + SLOT_PITCH_BASE * (Math.pow(2, r) - 1) / 2)
@@ -146,22 +164,25 @@ export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0)
           : topBase + (gi * 2 + 1) * slotPitch
 
         const winner = match.winner === 1 || match.winner === 2 ? match.winner : null
-        const row1Html = teamRowHtml(match.team1, match.team1seed, winner === 1, false, isDoubles)
-        const row2Html = teamRowHtml(match.team2, match.team2seed, winner === 2, true, isDoubles)
-
         const score = match.score ?? []
         const scoreStatus = match.scoreStatus ?? 0
         const isWalkover = scoreStatus === 1
-        const isRetired = scoreStatus === 2
-        const scoreStr = score.map((s) => `${s.home}-${s.away}`).join(', ')
-        const scoreContent = isRetired ? `${scoreStr} Ret.` : isWalkover ? 'W/O' : scoreStr
-        const matchNum = gi * 2 + mi + 1
-        const abbrevLabel = abbrev === 'F' ? abbrev : `${abbrev} #${matchNum}`
-        const scoreHtml = `<div class="bk-score"><span class="bk-round-abbrev">${esc(abbrevLabel)}</span>${esc(scoreContent)}</div>`
+        const isRetired = scoreStatus === 2 && score.length > 0
+        const row1Html = teamRowHtml(match.team1, match.team1seed, 1, winner, score, isWalkover, isRetired)
+        const row2Html = teamRowHtml(match.team2, match.team2seed, 2, winner, score, isWalkover, isRetired)
+
+        const isUnplayed = winner === null && score.length === 0 && !isWalkover
+        const footerHtml = isUnplayed && match.matchTime
+          ? `<div class="bk-footer">` +
+            `<span class="bk-round-tag">${esc(abbrevRound(roundName))}</span>` +
+            `<span class="bk-clock">${BK_CLOCK_SVG}</span>` +
+            `<span class="bk-time">${esc(match.matchTime)}</span>` +
+            `</div>`
+          : ''
 
         slotParts.push(
           `<div class="bk-match-slot" style="position:absolute;top:${top}px;left:8px;right:8px">` +
-          `<div class="bk-match-box">${row1Html}${row2Html}</div>${scoreHtml}</div>`
+          `<div class="bk-match-box">${row1Html}${row2Html}${footerHtml}</div></div>`
         )
       }
     }

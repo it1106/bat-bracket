@@ -167,7 +167,7 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
 
 .bk-round {
   position: relative;
-  width: 200px;
+  width: 240px;
   flex-shrink: 0;
 }
 
@@ -250,54 +250,41 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
 
 .bk-match-box {
   border: 1.5px solid var(--match-border);
-  border-radius: 5px;
+  border-radius: 6px;
   overflow: hidden;
   background: var(--surface);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
+/* New card-style row: players on the left, per-set scores + winner dot
+   on the right. Replaces the old bk-row layout where the score lived in
+   a separate bk-score strip below the match box. */
 .bk-row {
   display: flex;
   align-items: center;
-  padding: 5px 8px;
+  gap: 8px;
+  padding: 6px 8px;
   font-size: 12px;
   color: var(--fg);
-  min-height: 28px;
-  line-height: 1.3;
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
-.bk-row--doubles {
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
-  padding: 4px 8px;
+.bk-row + .bk-row {
+  border-top: 1px solid var(--match-border);
 }
 
-.bk-seed {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--muted);
-  flex-shrink: 0;
-  margin-right: 3px;
-  min-width: 14px;
+.bk-team-players {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
+  overflow: hidden;
 }
 
-.bk-flag {
-  width: 14px;
-  height: 10px;
-  object-fit: cover;
-  border-radius: 1px;
-  flex-shrink: 0;
-  margin-right: 3px;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-/* In doubles rows, each player line is flex so flag sits inline */
-.bk-row--doubles .bk-player {
+.bk-team-result {
   display: flex;
   align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .bk-player {
@@ -306,6 +293,10 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
   overflow: hidden;
   text-overflow: ellipsis;
   min-height: 16px;
+}
+
+.bk-player + .bk-player {
+  padding-top: 2px;
 }
 
 .bk-player[data-player-id] {
@@ -317,8 +308,71 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
   color: var(--brand-fg);
 }
 
-.bk-row--team-sep {
-  border-top: 1px solid var(--match-border);
+.bk-seed {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.bk-flag {
+  width: 14px;
+  height: 10px;
+  object-fit: cover;
+  border-radius: 1px;
+  margin-right: 4px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.bk-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+
+.bk-dot--placeholder {
+  visibility: hidden;
+}
+
+.bk-set {
+  display: inline-block;
+  min-width: 18px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--fg);
+}
+
+.bk-set.bk-set--won {
+  font-weight: 700;
+}
+
+.bk-set.bk-set--retired {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.bk-walkover-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 999px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+html.dark .bk-walkover-badge {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
 }
 
 .bk-row.winner {
@@ -338,7 +392,7 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
   font-size: 11px;
 }
 
-.bk-row.bye span:empty::before {
+.bk-row.bye .bk-player:empty::before {
   content: 'BYE';
 }
 
@@ -352,25 +406,36 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
   margin-right: 2px;
 }
 
-.bk-score {
-  font-size: 10px;
-  color: var(--fg);
-  padding: 2px 8px 3px;
-  background: var(--score-bg);
+/* Footer shown only on unplayed matches: round abbrev + clock + scheduled
+   date/time. Completed matches drop the footer entirely so the score is
+   the focus. */
+.bk-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--muted);
   border-top: 1px solid var(--row-sep);
+  background: var(--score-bg);
 }
 
-.bk-round-abbrev {
-  font-weight: 600;
-  color: var(--muted);
-  margin-right: 4px;
+.bk-round-tag {
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bk-clock {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .bk-time {
-  font-size: 10px;
-  color: var(--muted);
-  padding: 2px 8px 4px;
-  background: var(--score-bg);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .bk-conn {
