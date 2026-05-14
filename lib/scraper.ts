@@ -739,6 +739,26 @@ export function parseH2H(html: string): H2HData {
 
   return { player1, player2, records, matches }
 }
+const GROUP_NAME_RE = /^(.+?) - Group ([A-Z])$/
+
+export function detectGroupedDraws(draws: DrawInfo[]): DrawInfo[] {
+  const annotated = draws.map((d) => {
+    const m = d.name.match(GROUP_NAME_RE)
+    if (!m || d.type !== 'Round Robin') return { ...d }
+    return { ...d, eventName: m[1], groupLetter: m[2] }
+  })
+  const groupedEventNames = new Set(
+    annotated.filter((d) => d.groupLetter).map((d) => d.eventName as string)
+  )
+  return annotated.map((d) => {
+    if (d.groupLetter) return d
+    if (d.type === 'Elimination' && groupedEventNames.has(d.name)) {
+      return { ...d, eventName: d.name, isPlayoff: true }
+    }
+    return d
+  })
+}
+
 // True iff the bracket HTML contains at least one entrant with a real
 // data-player-id (i.e. the draw has been seeded with actual people, not
 // just TBD placeholders). Used by the discovery runner's bracket gate.
