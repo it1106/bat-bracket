@@ -32,4 +32,12 @@ describe('parseStandings', () => {
   it('returns empty array for non-standings HTML', () => {
     expect(parseStandings('<html><body>nothing</body></html>')).toEqual([])
   })
+
+  it('extracts the club name from each row, preserving spaces', () => {
+    const rows = parseStandings(fixtureHtml('group-standings-bs-u11-a.html'))
+    const clubs = rows.map((r) => r.club).filter((c): c is string => !!c)
+    expect(clubs.length).toBeGreaterThan(0)
+    // Real fixture row: "รร.นานาชาติบาลานซ์ สุราษฎ" (with intentional space).
+    expect(clubs).toContain('รร.นานาชาติบาลานซ์ สุราษฎ')
+  })
 })
