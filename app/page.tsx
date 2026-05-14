@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import BracketCanvas from '@/components/BracketCanvas'
+import EventBundleView from '@/components/EventBundleView'
 import MatchSchedule from '@/components/MatchSchedule'
 import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
@@ -40,7 +41,7 @@ import { useLiveScore } from '@/lib/useLiveScore'
 import { matchLiveCourt } from '@/lib/live-score'
 import { setPersonProps, track } from '@/lib/analytics'
 import { getTodayIso } from '@/lib/today'
-import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData, MatchEntry } from '@/lib/types'
+import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData, MatchEntry, EventBundle } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
   return typeof data === 'object' && data !== null && 'error' in data
@@ -113,6 +114,7 @@ export default function Home() {
   const [selectedTournament, setSelectedTournament] = useState('')
   const [selectedDraw, setSelectedDraw] = useState('')
   const [bracketHtml, setBracketHtml] = useState('')
+  const [eventBundle, setEventBundle] = useState<EventBundle | null>(null)
   const [playerQuery, setPlayerQuery] = useState('')
   const [highlightResults, setHighlightResults] = useState(true)
   const [excludeCompleted, setExcludeCompleted] = useState(false)
@@ -477,18 +479,40 @@ export default function Home() {
     }
   }, [])
 
+  const fetchEventBundle = useCallback(async (tournamentId: string, eventName: string) => {
+    setLoadingBracket(true)
+    setError(null)
+    setEventBundle(null)
+    setBracketHtml('')
+    try {
+      const res = await fetch(`/api/event-bundle?tournament=${encodeURIComponent(tournamentId)}&event=${encodeURIComponent(eventName)}`)
+      const data = await safeJson(res) as EventBundle | ApiError
+      if (isApiError(data)) throw new Error(data.error)
+      setEventBundle(data)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setLoadingBracket(false)
+    }
+  }, [])
+
   // Load bracket when draw changes
   const handleDrawChange = useCallback(async (drawNum: string) => {
     setSelectedDraw(drawNum)
     setBracketHtml('')
+    setEventBundle(null)
     setFromRound(0)
     setFromRoundName('')
     setError(null)
     if (!drawNum || !selectedTournament) return
     const d = draws.find((d) => d.drawNum === drawNum)
     setDrawName(d?.name ?? drawNum)
+    if (d?.isPlayoff && d.eventName) {
+      await fetchEventBundle(selectedTournament, d.eventName)
+      return
+    }
     await fetchBracketFrom(selectedTournament, drawNum, 0)
-  }, [selectedTournament, draws, fetchBracketFrom])
+  }, [selectedTournament, draws, fetchBracketFrom, fetchEventBundle])
 
   const handleRoundClick = useCallback(async (roundIndex: number) => {
     if (!selectedTournament || !selectedDraw) return
@@ -984,7 +1008,17 @@ export default function Home() {
             </div>
           )}
 
-          {bracketHtml && !loadingBracket && (
+          {eventBundle && !loadingBracket && (
+            <EventBundleView
+              bundle={eventBundle}
+              playerQuery={playerQuery}
+              playerClubMap={playerClubMap}
+              onPlayerClick={handlePlayerClick}
+              onRoundClick={handleRoundClick}
+              bracketRef={bracketRef}
+            />
+          )}
+          {!eventBundle && bracketHtml && !loadingBracket && (
             <BracketCanvas
               bracketHtml={bracketHtml}
               playerQuery={playerQuery}
