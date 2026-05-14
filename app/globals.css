@@ -1719,6 +1719,65 @@ html.dark .ms-match--next-opp {
   }
 }
 
+/* Group-card match list reuses ms-match/ms-board markup but always renders
+   the mobile-style layout (per-set score cells, players left). The card is
+   half-width on desktop, so the desktop ms-match grid (~900px) won't fit. */
+.group-card-matches .ms-match {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  user-select: none;
+}
+.group-card-matches .ms-match:hover { background: var(--surface); }
+.group-card-matches .ms-board { display: block; }
+.group-card-matches .ms-board-row {
+  display: flex;
+  align-items: normal;
+  gap: 0;
+  min-height: 22px;
+}
+.group-card-matches .ms-board-row + .ms-board-row {
+  border-top: 1px solid var(--row-sep);
+  margin-top: 3px;
+  padding-top: 3px;
+}
+.group-card-matches .ms-board-players {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.4;
+  min-width: 0;
+  overflow: hidden;
+}
+.group-card-matches .ms-board-players div + div { padding-top: 2px; }
+.group-card-matches .ms-board-set {
+  display: inline-block;
+  width: 22px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+  color: var(--fg);
+}
+.group-card-matches .ms-board-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--fg);
+  padding-left: 6px;
+  flex-shrink: 0;
+}
+.group-card-matches .ms-board-row.winner .ms-board-players {
+  font-weight: 700;
+  color: var(--win-fg);
+}
+.group-card-matches .ms-match:has(.ms-board-row.winner) .ms-board-row:not(.winner) .ms-board-players {
+  color: var(--muted);
+}
+
 /* ── Jump-to-next floating button ── */
 .ms-jump-next {
   position: fixed;

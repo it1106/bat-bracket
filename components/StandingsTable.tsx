@@ -19,8 +19,7 @@ export default function StandingsTable({ rows, qualifierCount, onPlayerClick }: 
           <th className="text-left py-1.5 px-2">Player</th>
           <th className="text-right py-1.5 px-2 w-8" title="Played">Pl</th>
           <th className="text-right py-1.5 px-2 w-12">W-L</th>
-          <th className="text-right py-1.5 px-2 w-12 hidden sm:table-cell" title="Sets">M</th>
-          <th className="text-right py-1.5 px-2 w-16 hidden sm:table-cell" title="Points">Gm</th>
+          <th className="text-right py-1.5 px-2 w-16" title="Points">Gm</th>
           <th className="text-right py-1.5 px-2 w-10 font-semibold">Pts</th>
         </tr>
       </thead>
@@ -60,8 +59,7 @@ export default function StandingsTable({ rows, qualifierCount, onPlayerClick }: 
               </td>
               <td className="py-1.5 px-2 text-right">{r.played}</td>
               <td className="py-1.5 px-2 text-right tabular-nums">{r.won}-{r.lost}</td>
-              <td className="py-1.5 px-2 text-right tabular-nums hidden sm:table-cell">{r.matches}</td>
-              <td className="py-1.5 px-2 text-right tabular-nums hidden sm:table-cell">{r.games}</td>
+              <td className="py-1.5 px-2 text-right tabular-nums">{r.games}</td>
               <td className="py-1.5 px-2 text-right font-semibold">{r.pts}</td>
             </tr>
           )
