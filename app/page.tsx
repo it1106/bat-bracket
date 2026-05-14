@@ -719,13 +719,27 @@ export default function Home() {
               {tournaments.filter((tn) => !tn.done).map((tn) => (
                 <option key={tn.id} value={tn.id}>{tn.name}</option>
               ))}
-              {tournaments.some((tn) => tn.done) && (
-                <optgroup label={t('pastEvents')}>
-                  {tournaments.filter((tn) => tn.done).map((tn) => (
-                    <option key={tn.id} value={tn.id}>{tn.name}</option>
-                  ))}
-                </optgroup>
-              )}
+              {(() => {
+                const past = tournaments.filter((tn) => tn.done)
+                if (past.length === 0) return null
+                const groups: Array<{ year: string; items: TournamentInfo[] }> = []
+                for (const tn of past) {
+                  const year = tn.startDateIso?.slice(0, 4) || ''
+                  const last = groups[groups.length - 1]
+                  if (last && last.year === year) last.items.push(tn)
+                  else groups.push({ year, items: [tn] })
+                }
+                return groups.map((g) => (
+                  <optgroup
+                    key={g.year || 'undated'}
+                    label={g.year ? `${t('pastEvents')} · ${g.year}` : t('pastEvents')}
+                  >
+                    {g.items.map((tn) => (
+                      <option key={tn.id} value={tn.id}>{tn.name}</option>
+                    ))}
+                  </optgroup>
+                ))
+              })()}
             </select>
           </div>
 
