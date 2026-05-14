@@ -11,7 +11,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing ?id= parameter' }, { status: 400 })
   }
 
-  const filter = (draws: DrawInfo[]) => draws.filter((d) => d.type !== 'Round Robin')
+  // Hide individual group draws (they're surfaced inside the event bundle view).
+  // Non-grouped Round Robin draws (no eventName) stay hidden by historical
+  // convention. Playoff draws now carry eventName + isPlayoff, so they remain
+  // visible as the event-level entry.
+  const filter = (draws: DrawInfo[]) =>
+    draws.filter((d) => !d.groupLetter && (d.isPlayoff || d.type !== 'Round Robin'))
 
   const cached = cache.get(id)
   if (cached && (cached.done || Date.now() - cached.ts < TTL_MS)) {
