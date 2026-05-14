@@ -4,7 +4,7 @@ import { join } from 'path'
 import { readFullCache, isAllPast } from '@/lib/day-cache'
 import { getTodayIso } from '@/lib/today'
 import { loadDiscovered } from '@/lib/discovery-store'
-import { mergeForApi, sortNewestFirst } from '@/lib/tournaments-merge'
+import { mergeForApi, sortTournamentsForDropdown } from '@/lib/tournaments-merge'
 import { parseTournamentsTxt as parseFromTxt, type ParsedTxt } from '@/lib/tournaments-txt'
 import { resolveBwfUrl } from '@/lib/providers/bwf/url-resolver-runtime'
 import type { TournamentInfo } from '@/lib/types'
@@ -52,6 +52,6 @@ export async function GET() {
   const merged = mergeForApi(manualEntries, denySet, discovered)
   const todayIso = getTodayIso()
   const annotated = await annotateEntries(merged, todayIso)
-  const sorted = sortNewestFirst(annotated)
+  const sorted = sortTournamentsForDropdown(annotated)
   return NextResponse.json(sorted)
 }

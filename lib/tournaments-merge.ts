@@ -18,17 +18,34 @@ export function mergeForApi(
   return Array.from(byId.values()).filter((e) => !denySet.has(e.id))
 }
 
-// Newest-first by startDateIso. Entries without a startDateIso sink to the
-// bottom and preserve their relative order. Pure: never mutates input.
-export function sortNewestFirst(entries: TournamentInfo[]): TournamentInfo[] {
+// Sort tournaments for the dropdown: active first (earliest startDateIso at
+// the top so the next event up is most prominent), then done (newest first
+// so the most recent past event is on top of that group). Within each
+// bucket, entries without startDateIso sink to the bottom and preserve their
+// relative order. Pure: never mutates input.
+export function sortTournamentsForDropdown(entries: TournamentInfo[]): TournamentInfo[] {
   const indexed = entries.map((e, i) => ({ e, i }))
-  indexed.sort((a, b) => {
+
+  const compareWithin = (
+    a: { e: TournamentInfo; i: number },
+    b: { e: TournamentInfo; i: number },
+    direction: 'asc' | 'desc',
+  ): number => {
     const aHas = !!a.e.startDateIso
     const bHas = !!b.e.startDateIso
     if (aHas && !bHas) return -1
     if (!aHas && bHas) return 1
     if (!aHas && !bHas) return a.i - b.i
-    return (b.e.startDateIso ?? '').localeCompare(a.e.startDateIso ?? '')
+    const cmp = (a.e.startDateIso ?? '').localeCompare(b.e.startDateIso ?? '')
+    return direction === 'asc' ? cmp : -cmp
+  }
+
+  indexed.sort((a, b) => {
+    const aDone = !!a.e.done
+    const bDone = !!b.e.done
+    if (aDone !== bDone) return aDone ? 1 : -1
+    return compareWithin(a, b, aDone ? 'desc' : 'asc')
   })
+
   return indexed.map((x) => x.e)
 }
