@@ -985,7 +985,7 @@ export default function Home() {
       {/* Bracket view */}
       {viewMode === 'bracket' && (
         <>
-          {!bracketHtml && !loading && !error && (
+          {!bracketHtml && !eventBundle && !loading && !error && (
             <div className="p-10 text-center text-[var(--muted)] text-sm">
               {!selectedTournament
                 ? t('startPrompt')
