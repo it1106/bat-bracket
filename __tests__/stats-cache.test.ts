@@ -58,7 +58,7 @@ describe('stats-cache', () => {
     const fs2 = await import('fs')
     const file = require('path').join(process.cwd(), '.cache', 'stats', 'abc.json')
     fs2.mkdirSync(require('path').dirname(file), { recursive: true })
-    fs2.writeFileSync(file, JSON.stringify({ version: 4, sourceVersion: 'full:xyz', stats: sample() }))
+    fs2.writeFileSync(file, JSON.stringify({ version: 5, sourceVersion: 'full:xyz', stats: sample() }))
     expect(await readStatsCache('abc')).toBeNull()
   })
 
@@ -66,7 +66,7 @@ describe('stats-cache', () => {
     const fs2 = await import('fs')
     const file = require('path').join(process.cwd(), '.cache', 'stats', 'abc.json')
     fs2.mkdirSync(require('path').dirname(file), { recursive: true })
-    for (const version of [1, 2, 3]) {
+    for (const version of [1, 2, 3, 4]) {
       fs2.writeFileSync(file, JSON.stringify({ version, sourceVersion: 'full:xyz', coverageComplete: true, stats: sample() }))
       expect(await readStatsCache('abc')).toBeNull()
     }

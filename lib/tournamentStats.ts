@@ -146,9 +146,9 @@ function buildDailyVolume(
   return rows
 }
 
-const OPEN_ORDER = ['MS', 'WS', 'MD', 'WD', 'XD'] as const
-const DISCIPLINES = ['BS', 'GS', 'BD', 'GD', 'XD'] as const
-const AGE_BANDS = [19, 17, 15, 13, 11, 9] as const
+const OPEN_ORDER = ['MS', 'MD', 'WS', 'WD', 'XD'] as const
+const DISCIPLINES = ['BS', 'BD', 'GS', 'GD', 'XD'] as const
+const AGE_BANDS = [19, 17, 15, 13, 11, 9, 7] as const
 
 const EVENT_RANK = (() => {
   const order: string[] = [...OPEN_ORDER]
@@ -464,8 +464,19 @@ function buildClubMedalsAndMultiGold(
     }
   }
 
+  const sortMedalists = (xs: StatsClubMedalist[]): StatsClubMedalist[] =>
+    xs.slice().sort((a, b) => eventRank(a.event) - eventRank(b.event) || (a.name < b.name ? -1 : 1))
+
   const clubMedals: ComputedStats['clubMedals'] = Array.from(medals.entries())
-    .map(([club, r]) => ({ club, ...r }))
+    .map(([club, r]) => ({
+      club,
+      gold: r.gold,
+      silver: r.silver,
+      bronze: r.bronze,
+      goldMedalists: sortMedalists(r.goldMedalists),
+      silverMedalists: sortMedalists(r.silverMedalists),
+      bronzeMedalists: sortMedalists(r.bronzeMedalists),
+    }))
     .filter((r) => r.club !== '—')
     .sort((a, b) =>
       b.gold - a.gold ||

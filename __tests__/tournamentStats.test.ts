@@ -50,8 +50,8 @@ describe('tournamentStats — events', () => {
     const { data, days, clubs } = loadSprc()
     const stats = aggregate(data, days, clubs)
     expect(stats.events.length).toBe(33)
-    expect(stats.events.slice(0, 5).map((e) => e.name)).toEqual(['MS', 'WS', 'MD', 'WD', 'XD'])
-    expect(stats.events.slice(5, 10).map((e) => e.name)).toEqual(['BS U19', 'GS U19', 'BD U19', 'GD U19', 'XD U19'])
+    expect(stats.events.slice(0, 5).map((e) => e.name)).toEqual(['MS', 'MD', 'WS', 'WD', 'XD'])
+    expect(stats.events.slice(5, 10).map((e) => e.name)).toEqual(['BS U19', 'BD U19', 'GS U19', 'GD U19', 'XD U19'])
     expect(stats.events[stats.events.length - 1].name).toMatch(/U9/)
   })
 
