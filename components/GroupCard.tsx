@@ -12,8 +12,6 @@ interface Props {
 
 function MatchRow({ match, onPlayerClick }: { match: MatchEntry; onPlayerClick?: (playerId: string) => void }) {
   const winner = match.winner
-  const medal = (team: 1 | 2) =>
-    winner === team ? <span className="ms-medal" aria-label="winner">🏸</span> : null
 
   const renderTeam = (team: MatchPlayer[], teamNum: 1 | 2) => {
     const lost = winner !== null && winner !== teamNum
@@ -29,11 +27,12 @@ function MatchRow({ match, onPlayerClick }: { match: MatchEntry; onPlayerClick?:
                 className={onPlayerClick && p.playerId ? 'cursor-pointer hover:underline' : undefined}
                 onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); onPlayerClick(p.playerId) } : undefined}
               >
-                {medal(teamNum)}{p.name}
+                {p.name}
               </span>
             </div>
           ))}
         </div>
+        {winner === teamNum && <span className="ms-board-dot" aria-label="winner" />}
         {match.walkover
           ? (lost ? <span className="ms-board-badge">W/O</span> : null)
           : (

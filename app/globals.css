@@ -1596,6 +1596,17 @@ html.dark .ms-board-set.live {
   margin-right: 4px;
 }
 
+.ms-board-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  margin-right: 8px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
 .ms-player-highlight {
   background: var(--track-bg);
   border-radius: 3px;

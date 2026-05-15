@@ -226,10 +226,11 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     const isLive = live !== null
     const { done: doneScore, liveText } = scoreStr(m, scoreTr, live)
     const medal = (team: 1 | 2) => {
-      if (m.winner !== team) return null
-      const icon = finalMedal ? '🥇' : '🏸'
-      return <span className="ms-medal" aria-label="winner">{icon}</span>
+      if (m.winner !== team || !finalMedal) return null
+      return <span className="ms-medal" aria-label="winner">🥇</span>
     }
+    const winnerDot = (team: 1 | 2) =>
+      m.winner === team ? <span className="ms-board-dot" aria-label="winner" /> : null
     const { completedSets: liveCompleted, currentT1, currentT2 } = liveProgress(live)
     const boardSets1 = live?.setScores?.length
       ? liveCompleted.map((s) => s.t1)
@@ -325,6 +326,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           <div className="ms-board-players">
             {m.team1.map((p, i) => <div key={i}><span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</span></div>)}
           </div>
+          {winnerDot(1)}
           {m.walkover
             ? <span className="ms-board-badge">{m.winner === 2 ? t('walkover') : ''}</span>
             : (
@@ -340,6 +342,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           <div className="ms-board-players">
             {m.team2.map((p, i) => <div key={i}><span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</span></div>)}
           </div>
+          {winnerDot(2)}
           {m.walkover
             ? <span className="ms-board-badge">{m.winner === 1 ? t('walkover') : ''}</span>
             : (
