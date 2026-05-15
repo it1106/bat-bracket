@@ -11,10 +11,12 @@ export default function IOSInstallBanner() {
     if (typeof window === 'undefined') return
 
     const ua = window.navigator.userAgent
-    const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream
+    const isIOS =
+      /iPad|iPhone|iPod/.test(ua) &&
+      !(window as Window & { MSStream?: unknown }).MSStream
     const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua)
     const isStandalone =
-      (window.navigator as any).standalone === true ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true ||
       window.matchMedia('(display-mode: standalone)').matches
 
     if (!isIOS || !isSafari || isStandalone) return
