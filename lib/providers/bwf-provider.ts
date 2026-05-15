@@ -16,7 +16,7 @@ import type {
   MatchScheduleGroup, MatchEntry, PlayerProfile, H2HData,
   TournamentRef, EventBundle,
 } from '@/lib/types'
-import type { TournamentProvider } from './types'
+import type { TournamentProvider, GroupRefresh } from './types'
 import { NotImplementedError } from './types'
 
 function resolveOrThrow(ref: TournamentRef) {
@@ -97,6 +97,7 @@ export const bwfProvider: TournamentProvider = {
   async getH2H(): Promise<H2HData | null> { throw new NotImplementedError('getH2H', 'bwf') },
   async getLiveScore(): Promise<MatchEntry | null> { throw new NotImplementedError('getLiveScore', 'bwf') },
   async getEventBundle(): Promise<EventBundle | null> { throw new NotImplementedError('getEventBundle', 'bwf') },
+  async refreshGroup(): Promise<GroupRefresh | null> { throw new NotImplementedError('refreshGroup', 'bwf') },
 }
 
 function enumerateDays(startIso: string, endIso: string): string[] {

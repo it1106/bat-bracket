@@ -1,11 +1,12 @@
 'use client'
 import { useState } from 'react'
 import StandingsTable from './StandingsTable'
-import type { GroupData, MatchEntry, MatchPlayer } from '@/lib/types'
+import type { GroupData, MatchEntry, MatchPlayer, StandingsRow } from '@/lib/types'
 
 interface Props {
   group: GroupData
   qualifierCount: number
+  tournamentId?: string
   onPlayerClick?: (playerId: string) => void
   onExpand?: (groupLetter: string) => void
 }
@@ -60,15 +61,34 @@ function MatchRow({ match, onPlayerClick }: { match: MatchEntry; onPlayerClick?:
   )
 }
 
-export default function GroupCard({ group, qualifierCount, onPlayerClick, onExpand }: Props) {
+export default function GroupCard({ group, qualifierCount, tournamentId, onPlayerClick, onExpand }: Props) {
   const [expanded, setExpanded] = useState(false)
-  const played = group.matches.filter(m => m.scores.length > 0 || m.walkover).length
+  const [standings, setStandings] = useState<StandingsRow[]>(group.standings)
+  const [matches, setMatches] = useState<MatchEntry[]>(group.matches)
+  const [refreshing, setRefreshing] = useState(false)
+  const played = matches.filter(m => m.scores.length > 0 || m.walkover).length
 
   const byRound = new Map<string, MatchEntry[]>()
-  group.matches.forEach(m => {
+  matches.forEach(m => {
     if (!byRound.has(m.round)) byRound.set(m.round, [])
     byRound.get(m.round)!.push(m)
   })
+
+  async function refresh() {
+    if (!tournamentId) return
+    setRefreshing(true)
+    try {
+      const res = await fetch(`/api/group-refresh?tournament=${encodeURIComponent(tournamentId)}&draw=${encodeURIComponent(group.drawNum)}`)
+      if (!res.ok) return
+      const data = await res.json() as { standings?: StandingsRow[]; matches?: MatchEntry[] }
+      if (data.standings) setStandings(data.standings)
+      if (data.matches) setMatches(data.matches)
+    } catch {
+      // Keep existing data on failure.
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   return (
     <section
@@ -78,22 +98,29 @@ export default function GroupCard({ group, qualifierCount, onPlayerClick, onExpa
       <header className="flex items-baseline justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-700">
         <h3 className="font-semibold text-sm">Group {group.groupLetter}</h3>
         <span className="text-xs text-gray-500 dark:text-gray-400">
-          {played} / {group.matches.length} played
+          {played} / {matches.length} played
         </span>
       </header>
-      <StandingsTable rows={group.standings} qualifierCount={qualifierCount} onPlayerClick={onPlayerClick} />
-      {group.matches.length > 0 && (
+      <StandingsTable rows={standings} qualifierCount={qualifierCount} onPlayerClick={onPlayerClick} />
+      {matches.length > 0 && (
         <button
           type="button"
           className="w-full text-left px-3 py-2 text-sm text-blue-600 dark:text-blue-400 border-t border-gray-200 dark:border-gray-700 hover:bg-blue-50/40 dark:hover:bg-blue-900/10"
           onClick={() => {
             setExpanded(e => {
-              if (!e) onExpand?.(group.groupLetter)
-              return !e
+              const next = !e
+              if (next) {
+                onExpand?.(group.groupLetter)
+                refresh()
+              }
+              return next
             })
           }}
         >
-          {expanded ? 'Hide matches' : `Show matches (${group.matches.length})`}
+          {expanded
+            ? 'Hide matches'
+            : `Show matches (${matches.length})`}
+          {refreshing && <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">updating…</span>}
         </button>
       )}
       {expanded && (

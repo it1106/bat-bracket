@@ -15,6 +15,7 @@ interface Props {
   playerQuery: string
   playerClubMap?: Record<string, string>
   initialTab?: 'groups' | 'playoff'
+  tournamentId?: string
   onPlayerClick?: (playerId: string) => void
   onTabChange?: (tab: 'groups' | 'playoff') => void
   onGroupExpand?: (groupLetter: string) => void
@@ -24,7 +25,7 @@ interface Props {
 
 export default function EventBundleView({
   bundle, playerQuery, playerClubMap,
-  initialTab = 'groups', onPlayerClick, onTabChange, onGroupExpand,
+  initialTab = 'groups', tournamentId, onPlayerClick, onTabChange, onGroupExpand,
   onRoundClick, bracketRef,
 }: Props) {
   const [tab, setTab] = useState<'groups' | 'playoff'>(initialTab)
@@ -65,6 +66,7 @@ export default function EventBundleView({
               key={g.drawNum}
               group={g}
               qualifierCount={qualifierCount}
+              tournamentId={tournamentId}
               onPlayerClick={onPlayerClick}
               onExpand={onGroupExpand}
             />

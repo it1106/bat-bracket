@@ -1,8 +1,13 @@
 import type {
   TournamentInfo, DrawInfo, BracketData, MatchesData,
   MatchScheduleGroup, MatchEntry, PlayerProfile, H2HData,
-  ProviderTag, TournamentRef, EventBundle,
+  ProviderTag, TournamentRef, EventBundle, StandingsRow,
 } from '@/lib/types'
+
+export interface GroupRefresh {
+  standings: StandingsRow[]
+  matches: MatchEntry[]
+}
 
 export interface TournamentProvider {
   tag: ProviderTag
@@ -15,6 +20,7 @@ export interface TournamentProvider {
   getH2H(ref: TournamentRef, p1: string, p2: string): Promise<H2HData | null>
   getLiveScore(ref: TournamentRef, matchId: string): Promise<MatchEntry | null>
   getEventBundle(ref: TournamentRef, eventName: string): Promise<EventBundle | null>
+  refreshGroup(ref: TournamentRef, drawNum: string): Promise<GroupRefresh | null>
 }
 
 export class NotImplementedError extends Error {

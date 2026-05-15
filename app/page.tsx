@@ -1055,6 +1055,7 @@ export default function Home() {
               bundle={eventBundle}
               playerQuery={playerQuery}
               playerClubMap={playerClubMap}
+              tournamentId={selectedTournament}
               onPlayerClick={handlePlayerClick}
               onRoundClick={handleRoundClick}
               bracketRef={bracketRef}
