@@ -155,6 +155,7 @@ export default function Home() {
   const autoSelectedTournamentRef = useRef(false)
   const [headerVisible, setHeaderVisible] = useState(true)
   const [searchHelpOpen, setSearchHelpOpen] = useState(false)
+  const [showPastTournaments, setShowPastTournaments] = useState(false)
   const [alerts, setAlerts] = useState<AlertItem[]>([])
   // Tracks { courtKey: matchId } from the SignalR feed so we can detect
   // when a previously-live match completes (court drops or matchId changes)
@@ -258,6 +259,8 @@ export default function Home() {
       if (stored === 'true' || stored === 'false') setHighlightResults(stored === 'true')
       // excludeCompleted intentionally does not persist; clear any legacy value
       localStorage.removeItem('batbracket.excludeCompleted')
+      const past = localStorage.getItem('batbracket.showPastTournaments')
+      if (past === 'true') setShowPastTournaments(true)
     } catch {}
     setCustomTabs(loadCustomTabs())
   }, [])
@@ -434,8 +437,12 @@ export default function Home() {
     autoSelectedTournamentRef.current = true
     if (typeof window === 'undefined') return
     const saved = localStorage.getItem('selectedTournament')
-    if (saved && tournaments.some((t) => t.id === saved)) {
-      handleTournamentChange(saved)
+    if (saved) {
+      const match = tournaments.find((t) => t.id === saved)
+      if (match) {
+        if (match.done) setShowPastTournaments(true)
+        handleTournamentChange(saved)
+      }
     }
   }, [loadingTournaments, tournaments, handleTournamentChange])
 
@@ -704,9 +711,24 @@ export default function Home() {
 
           {/* Tournament selector */}
           <div className="flex flex-col gap-1">
-            <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
-              {t('tournament')}
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
+                {t('tournament')}
+              </label>
+              {tournaments.some((tn) => tn.done) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !showPastTournaments
+                    setShowPastTournaments(next)
+                    try { localStorage.setItem('batbracket.showPastTournaments', String(next)) } catch {}
+                  }}
+                  className="text-[10px] font-semibold text-[var(--muted)] hover:text-[var(--fg)] uppercase tracking-wide"
+                >
+                  {showPastTournaments ? `▾ ${t('hidePast')}` : `▸ ${t('showPast')}`}
+                </button>
+              )}
+            </div>
             <select
               value={selectedTournament}
               onChange={(e) => handleTournamentChange(e.target.value)}
@@ -719,7 +741,7 @@ export default function Home() {
               {tournaments.filter((tn) => !tn.done).map((tn) => (
                 <option key={tn.id} value={tn.id}>{tn.name}</option>
               ))}
-              {(() => {
+              {showPastTournaments && (() => {
                 const past = tournaments.filter((tn) => tn.done)
                 if (past.length === 0) return null
                 const groups: Array<{ year: string; items: TournamentInfo[] }> = []
