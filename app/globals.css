@@ -1004,6 +1004,20 @@ html[lang="th"] .pm-section-title {
   color: var(--brand-fg);
 }
 
+.pm-tracked-win::before,
+.pm-tracked-loss::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.pm-tracked-win::before { background: #22c55e; }
+.pm-tracked-loss::before { background: #ef4444; }
+
 /* Mobile scoreboard elements — hidden on desktop */
 .pm-m { display: none; }
 
