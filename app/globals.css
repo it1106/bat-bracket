@@ -2169,8 +2169,8 @@ html.dark .ms-match--next-opp {
   display: none;
   flex-direction: column;
   gap: 4px;
-  min-width: 180px;
-  max-width: 260px;
+  min-width: 207px;
+  max-width: 299px;
   padding: 8px 10px;
   background: var(--surface);
   color: var(--fg);
