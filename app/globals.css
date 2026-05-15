@@ -1580,22 +1580,7 @@ html.dark .ms-board-set.live {
 
 .ms-team--1 { grid-area: team1; line-height: 1.6; }
 .ms-team--2 { grid-area: team2; line-height: 1.6; }
-.ms-team--1, .ms-team--2 {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.ms-team-players { flex: 1; min-width: 0; }
-.ms-team-players > div + div { padding-top: 3px; }
-.ms-team-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #22c55e;
-  flex-shrink: 0;
-  margin-left: auto;
-}
+.ms-team--1 div + div, .ms-team--2 div + div { padding-top: 3px; }
 
 .ms-team--1.winner,
 .ms-team--2.winner {
