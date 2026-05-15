@@ -213,12 +213,23 @@ export async function GET(request: Request) {
     }
 
     const coverageComplete = dayMap.daysOnDisk === fullData.days.length
-    // Skip the cache write when clubs came back empty — otherwise every
-    // medal/multi-gold row gets '—' baked in for the immutable lifetime of
-    // the past tournament's full data. /api/clubs returns {} on transient
-    // upstream failures, so this guard isn't theoretical.
-    const clubsPopulated = Object.keys(clubs).length > 0
-    if (isAllPast && fullBytes && coverageComplete && clubsPopulated) {
+    // /api/clubs can return a partial map during the bracket-prewarm window
+    // (its hasClubs check returns true after the first draw lands, even
+    // though most are still in flight). With most playerIds missing from
+    // the clubs map, every medal row gets attributed to '—' and filtered
+    // out — so the table shows a dramatic undercount, then gets pinned to
+    // disk forever. Require the clubs map to cover at least half the
+    // tournament's known players before either disk- or mem-caching the
+    // result; below that, skip both so the next request retries fresh.
+    const clubsCount = Object.keys(clubs).length
+    const expectedPlayers = stats.kpis.players
+    const clubsCoverageOk = expectedPlayers === 0 || clubsCount / expectedPlayers >= 0.5
+    if (!clubsCoverageOk) {
+      console.log(`[stats] partial clubs map for tournament=${tournamentId} (${clubsCount}/${expectedPlayers}); skipping cache`)
+      return buildResponse(full, !isAllPast)
+    }
+
+    if (isAllPast && fullBytes && coverageComplete) {
       const sv = `full:${hashFullCacheBytes(fullBytes)}`
       await writeStatsCache(tournamentId, { sourceVersion: sv, coverageComplete: true, stats: full })
     }

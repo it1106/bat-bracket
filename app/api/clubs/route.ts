@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { cache as drawsCache, fetchAndCache as fetchDrawsAndCache } from '@/lib/draws-cache'
-import { playerClubCache, fetchBracket } from '@/lib/bracket-cache'
+import { playerClubCache, cache as bracketCache, fetchBracket, makeBracketKey } from '@/lib/bracket-cache'
 
 export const maxDuration = 60
+
+// Tracks tournaments where we've completed a full draw walk this process
+// life. Once set, the global playerClubCache is the source of truth and
+// we can skip the per-draw scan; until then, callers race the prewarm and
+// could otherwise see a partial map.
+const fullyWalked = new Set<string>()
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -12,22 +18,29 @@ export async function GET(request: Request) {
   const tid = tournamentId.toLowerCase()
   const prefix = `${tid}:`
 
-  const hasClubs = Array.from(playerClubCache.keys()).some(k => k.startsWith(prefix))
-
-  if (!hasClubs) {
+  if (!fullyWalked.has(tid)) {
     let draws = drawsCache.get(tid)?.draws
     if (!draws) {
       try { draws = await fetchDrawsAndCache(tid) } catch {
         return NextResponse.json({})
       }
     }
-    // Fetch brackets in batches of 5 to build the club map
+    // Walk every draw, but skip ones the bracket cache already holds —
+    // those were populated by the prewarm and have already extracted
+    // their player→club entries into playerClubCache. Only the missing
+    // ones cost a BAT round-trip.
     const BATCH = 5
+    let allFetched = true
     for (let i = 0; i < draws.length; i += BATCH) {
-      await Promise.allSettled(
-        draws.slice(i, i + BATCH).map(d => fetchBracket(tid, d.drawNum).catch(() => null))
+      const results = await Promise.allSettled(
+        draws.slice(i, i + BATCH).map(async d => {
+          if (bracketCache.has(makeBracketKey(tid, d.drawNum))) return
+          await fetchBracket(tid, d.drawNum)
+        })
       )
+      if (results.some(r => r.status === 'rejected')) allFetched = false
     }
+    if (allFetched) fullyWalked.add(tid)
   }
 
   const result: Record<string, string> = {}
