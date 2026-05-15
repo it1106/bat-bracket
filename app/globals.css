@@ -918,7 +918,7 @@ html[lang="th"] .pm-section-title {
 
 .pm-match {
   display: grid;
-  grid-template-columns: 70px 250px 200px 250px;
+  grid-template-columns: 140px minmax(0, 1fr) 150px minmax(0, 1fr);
   grid-template-areas:
     "meta team1 score team2"
     "meta sched sched sched";
