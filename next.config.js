@@ -23,5 +23,20 @@ const nextConfig = {
   // PostHog rejects requests with a trailing slash; this stops Next from
   // adding one to /ingest/decide and friends.
   skipTrailingSlashRedirect: true,
+  // Next.js 14 hardcodes crossorigin="use-credentials" on the manifest <link>,
+  // which makes Chrome's installability check perform a CORS-with-credentials
+  // fetch even on same-origin. Without these headers Chrome silently rejects
+  // the manifest and the "Install app" button never appears.
+  async headers() {
+    return [
+      {
+        source: '/manifest.webmanifest',
+        headers: [
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
+          { key: 'Access-Control-Allow-Origin', value: 'https://batmatch.app' },
+        ],
+      },
+    ]
+  },
 }
 module.exports = nextConfig
