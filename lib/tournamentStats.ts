@@ -18,7 +18,7 @@ const EMPTY: ComputedStats = {
   },
   dailyVolume: [],
   events: [],
-  drama: { marathon: null, highestSet: null, comebackCount: 0, comebackHighlight: null, mostCourtTime: null },
+  drama: { marathon: null, highestSet: null, highestScoringMatch: null, comebackCount: 0, comebackHighlight: null, mostCourtTime: null },
   topPlayers: [],
   courtUtilization: [],
   clubMedals: [],
@@ -248,6 +248,7 @@ function roundRank(round: string): number {
 function buildDrama(ctxs: MatchCtx[]): ComputedStats['drama'] {
   let marathon: { ref: StatsMatchRef; minutes: number } | null = null
   let highestSet: { ref: StatsSetRef; total: number } | null = null
+  let highestScoringMatch: { ref: StatsMatchRef; total: number } | null = null
   let comebackCount = 0
   let comebackBest: { ref: StatsMatchRef; rank: number } | null = null
   const courtTime = new Map<string, { name: string; minutes: number; matches: number; events: Set<string> }>()
@@ -259,12 +260,17 @@ function buildDrama(ctxs: MatchCtx[]): ComputedStats['drama'] {
         marathon = { ref: toMatchRef(match, durationMinutes)!, minutes: durationMinutes }
       }
     }
+    let matchTotal = 0
     for (let si = 0; si < match.scores.length; si++) {
       const s = match.scores[si]
       const total = s.t1 + s.t2
+      matchTotal += total
       if (!highestSet || total > highestSet.total) {
         highestSet = { ref: { ...toMatchRef(match, durationMinutes)!, setIndex: si }, total }
       }
+    }
+    if (matchTotal > 0 && (!highestScoringMatch || matchTotal > highestScoringMatch.total)) {
+      highestScoringMatch = { ref: toMatchRef(match, durationMinutes)!, total: matchTotal }
     }
     if (isComeback(match)) {
       comebackCount++
@@ -300,6 +306,7 @@ function buildDrama(ctxs: MatchCtx[]): ComputedStats['drama'] {
   return {
     marathon: marathon ? marathon.ref : null,
     highestSet: highestSet ? highestSet.ref : null,
+    highestScoringMatch: highestScoringMatch ? highestScoringMatch.ref : null,
     comebackCount,
     comebackHighlight: comebackBest ? comebackBest.ref : null,
     mostCourtTime,

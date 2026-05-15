@@ -169,6 +169,7 @@ export type TKey =
   | 'statsSectionIntegrity'
   | 'statsMarathonBadge'
   | 'statsHighestSetBadge'
+  | 'statsHighestScoringBadge'
   | 'statsComebacksBadge'
   | 'statsMostCourtTimeBadge'
   | 'statsCol3Set'
@@ -291,6 +292,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionIntegrity: 'Other stats',
     statsMarathonBadge: 'Marathon',
     statsHighestSetBadge: 'Highest-scoring set',
+    statsHighestScoringBadge: 'Highest-scoring match',
     statsComebacksBadge: 'comeback wins',
     statsMostCourtTimeBadge: 'Most court time',
     statsCol3Set: '3-set',
@@ -412,6 +414,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionIntegrity: 'สถิติอื่น ๆ',
     statsMarathonBadge: 'แมตช์มาราธอน',
     statsHighestSetBadge: 'เกมคะแนนสูงสุด',
+    statsHighestScoringBadge: 'แมตช์คะแนนรวมสูงสุด',
     statsComebacksBadge: 'พลิกกลับมาชนะเกม 3',
     statsMostCourtTimeBadge: 'ใช้สนามมากที่สุด',
     statsCol3Set: '3 เกม',

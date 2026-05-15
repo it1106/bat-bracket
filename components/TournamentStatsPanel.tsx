@@ -193,6 +193,18 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           )
         })()}
 
+        {stats.drama.highestScoringMatch && (() => {
+          const total = stats.drama.highestScoringMatch.scores.reduce((acc, s) => acc + s.t1 + s.t2, 0)
+          return (
+            <DramaCard
+              badge={`★ ${t('statsHighestScoringBadge')} — ${total}`}
+              where={`${stats.drama.highestScoringMatch.draw} · ${stats.drama.highestScoringMatch.round}`}
+              ref_={stats.drama.highestScoringMatch}
+              defLabel={defLabel}
+            />
+          )
+        })()}
+
         {stats.drama.mostCourtTime && (
           <div className="stats-drama">
             <div className="stats-drama-head">

@@ -229,6 +229,7 @@ export interface StatsCourtTimePlayer {
 export interface StatsDrama {
   marathon: StatsMatchRef | null
   highestSet: StatsSetRef | null
+  highestScoringMatch: StatsMatchRef | null
   comebackCount: number
   comebackHighlight: StatsMatchRef | null
   mostCourtTime: StatsCourtTimePlayer | null

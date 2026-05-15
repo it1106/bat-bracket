@@ -28,7 +28,7 @@ describe('stats-cache', () => {
     },
     dailyVolume: [],
     events: [],
-    drama: { marathon: null, highestSet: null, comebackCount: 0, comebackHighlight: null, mostCourtTime: null },
+    drama: { marathon: null, highestSet: null, highestScoringMatch: null, comebackCount: 0, comebackHighlight: null, mostCourtTime: null },
     topPlayers: [],
     courtUtilization: [],
     clubMedals: [],
