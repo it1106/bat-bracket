@@ -246,6 +246,13 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       isActive ? 'ms-match--active' : '',
       isNextOpp ? 'ms-match--next-opp' : '',
     ].filter(Boolean).join(' ')
+    // Prefer the scrape's friendly label ("Court - 5") over SignalR's bare
+    // "5", but the scrape sometimes ships the literal "Now playing" stub
+    // instead of a court — fall back to live.courtName in that case.
+    const courtLabel = showCourt
+      ? ((m.court && !/^now\s*playing$/i.test(m.court) ? m.court : '') || live?.courtName || '')
+      : ''
+    const durationLabel = m.winner !== null && m.duration ? m.duration : ''
     return (
     <div
       key={matchKey}
@@ -274,15 +281,8 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           )
         })()}
         <span className="ms-round">{longRound(m.round)}</span>
-        {showCourt && (() => {
-          // Prefer the scrape's friendly label ("Court - 5") over SignalR's bare
-          // "5", but the scrape sometimes ships the literal "Now playing" stub
-          // instead of a court — fall back to live.courtName in that case.
-          const scraped = m.court && !/^now\s*playing$/i.test(m.court) ? m.court : ''
-          const label = scraped || live?.courtName || ''
-          return label ? <span className="ms-court">{label}</span> : null
-        })()}
-        {m.winner !== null && m.duration && <span className="ms-duration">{m.duration}</span>}
+        {courtLabel && <span className="ms-court ms-d">{courtLabel}</span>}
+        {durationLabel && <span className="ms-duration ms-d">{durationLabel}</span>}
         {m.sequenceLabel && <span className="ms-seq">{m.sequenceLabel}</span>}
         {m.nowPlaying && !isLive && <span className="ms-now-playing" title={t('nowPlaying')} />}
         {m.h2hUrl && onH2HClick && m.team1.length > 0 && m.team2.length > 0 && (
@@ -384,6 +384,13 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           }
         </div>
       </div>
+
+      {(courtLabel || durationLabel) && (
+        <div className="ms-footer ms-m">
+          {courtLabel && <span className="ms-court">{courtLabel}</span>}
+          {durationLabel && <span className="ms-duration">{durationLabel}</span>}
+        </div>
+      )}
     </div>
     )
   }
