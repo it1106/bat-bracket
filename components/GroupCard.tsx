@@ -11,7 +11,7 @@ interface Props {
   onExpand?: (groupLetter: string) => void
 }
 
-function MatchRow({ match, onPlayerClick }: { match: MatchEntry; onPlayerClick?: (playerId: string) => void }) {
+function MatchRow({ match, onPlayerClick, showDate }: { match: MatchEntry; onPlayerClick?: (playerId: string) => void; showDate?: boolean }) {
   const winner = match.winner
 
   const renderTeam = (team: MatchPlayer[], teamNum: 1 | 2) => {
@@ -51,8 +51,16 @@ function MatchRow({ match, onPlayerClick }: { match: MatchEntry; onPlayerClick?:
     )
   }
 
+  const meta: string[] = []
+  if (showDate && match.scheduledDateLabel) meta.push(match.scheduledDateLabel)
+  if (match.scheduledTime) meta.push(match.scheduledTime)
+  const metaText = meta.join(' · ')
+
   return (
     <div className="ms-match">
+      {metaText && (
+        <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">{metaText}</div>
+      )}
       <div className="ms-board">
         {renderTeam(match.team1, 1)}
         {renderTeam(match.team2, 2)}
@@ -125,12 +133,21 @@ export default function GroupCard({ group, qualifierCount, tournamentId, onPlaye
       )}
       {expanded && (
         <div className="group-card-matches px-3 pb-3">
-          {Array.from(byRound.entries()).map(([round, ms]) => (
-            <div key={round} className="mt-2">
-              <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-1">{round}</div>
-              {ms.map((m, i) => <MatchRow key={i} match={m} onPlayerClick={onPlayerClick} />)}
-            </div>
-          ))}
+          {Array.from(byRound.entries()).map(([round, ms]) => {
+            const dates = Array.from(new Set(ms.map(m => m.scheduledDateLabel).filter(Boolean)))
+            const sharedDate = dates.length === 1 ? dates[0] : ''
+            return (
+              <div key={round} className="mt-2">
+                <div className="flex items-baseline justify-between mb-1">
+                  <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">{round}</div>
+                  {sharedDate && (
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400">{sharedDate}</div>
+                  )}
+                </div>
+                {ms.map((m, i) => <MatchRow key={i} match={m} onPlayerClick={onPlayerClick} showDate={!sharedDate} />)}
+              </div>
+            )
+          })}
         </div>
       )}
     </section>

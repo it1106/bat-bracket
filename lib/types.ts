@@ -69,6 +69,7 @@ export interface MatchEntry {
   retired: boolean
   nowPlaying: boolean
   scheduledTime?: string
+  scheduledDateLabel?: string
   sequenceLabel?: string
   h2hUrl?: string
   eventId?: string

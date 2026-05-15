@@ -880,10 +880,8 @@ export function parseRoundRobinScheduleMatches(html: string, drawName: string): 
   const $ = cheerio.load(html, { xmlMode: false })
   const out: MatchEntry[] = []
 
-  $('.match-group__item').each((_, item) => {
-    const matchEl = $(item).find('.match').first().get(0)
-    if (!matchEl) return
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parseMatch = (matchEl: any, dateLabel: string) => {
     const roundRaw = $(matchEl).find('.match__header-title-item .nav-link__value').first().text().trim()
     const round = longRound(roundRaw || 'Round')
 
@@ -919,6 +917,13 @@ export function parseRoundRobinScheduleMatches(html: string, drawName: string): 
     const retired = !!msgText && /ret/i.test(msgText) && scores.length > 0
     const walkover = !!msgText && !retired
 
+    let scheduledTime: string | undefined
+    $(matchEl).find('.match__footer-list-item').each((_, fi) => {
+      const text = $(fi).text().trim()
+      const tm = text.match(/\b(\d{1,2}:\d{2})\b/)
+      if (tm) scheduledTime = tm[1]
+    })
+
     const hasAnyName = [...team1, ...team2].some((p) => p.name.length > 0)
     if (!hasAnyName) return
 
@@ -934,8 +939,34 @@ export function parseRoundRobinScheduleMatches(html: string, drawName: string): 
       walkover,
       retired,
       nowPlaying: false,
+      scheduledTime,
+      scheduledDateLabel: dateLabel || undefined,
+    })
+  }
+
+  // Walk each date divider and process the matches in the following match-group.
+  // Falls through to a flat sweep if the markup ever changes shape.
+  let consumedAny = false
+  $('h4.module-divider').each((_, divider) => {
+    const dateLabel = $(divider).find('.module-divider__body .nav-link__value').first().text().trim()
+    let sib = $(divider).next()
+    while (sib.length && !sib.is('ul.match-group')) sib = sib.next()
+    if (!sib.length) return
+    sib.find('> li.match-group__item').each((_, item) => {
+      const matchEl = $(item).find('.match').first().get(0)
+      if (!matchEl) return
+      consumedAny = true
+      parseMatch(matchEl, dateLabel)
     })
   })
+
+  if (!consumedAny) {
+    $('.match-group__item').each((_, item) => {
+      const matchEl = $(item).find('.match').first().get(0)
+      if (!matchEl) return
+      parseMatch(matchEl, '')
+    })
+  }
 
   return out
 }
