@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: 'BAT Unofficial Scoreboard',
   description: 'Tournament bracket viewer for bat.tournamentsoftware.com',
   applicationName: 'BAT Scoreboard',
+  manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     title: 'BAT Scoreboard',
