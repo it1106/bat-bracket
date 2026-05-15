@@ -304,9 +304,12 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       </div>
 
       <div className={`ms-team ms-team--1 ms-d${m.winner === 1 ? ' winner' : ''}`}>
-        {m.team1.map((p, i) => (
-          <div key={i}><span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</span></div>
-        ))}
+        <div className="ms-team-players">
+          {m.team1.map((p, i) => (
+            <div key={i}><span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</span></div>
+          ))}
+        </div>
+        {m.winner === 1 && <span className="ms-team-dot" aria-label="winner" />}
       </div>
       <div className="ms-score ms-d">
         {doneScore && <span>{doneScore}</span>}
@@ -316,9 +319,12 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         {liveText && <span key={liveText} className="set-live">{liveText}</span>}
       </div>
       <div className={`ms-team ms-team--2 ms-d${m.winner === 2 ? ' winner' : ''}`}>
-        {m.team2.map((p, i) => (
-          <div key={i}><span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</span></div>
-        ))}
+        <div className="ms-team-players">
+          {m.team2.map((p, i) => (
+            <div key={i}><span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</span></div>
+          ))}
+        </div>
+        {m.winner === 2 && <span className="ms-team-dot" aria-label="winner" />}
       </div>
 
       <div className="ms-board ms-m">
