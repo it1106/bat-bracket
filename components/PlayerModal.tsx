@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { PlayerProfile, MatchEntry } from '@/lib/types'
 import { useLanguage } from '@/lib/LanguageContext'
 import { pct } from '@/lib/playerStats'
-import { expandSearchQuery } from '@/lib/searchAliases'
 
 interface Props {
   profile: PlayerProfile | null
@@ -12,7 +11,6 @@ interface Props {
   onClose: () => void
   onH2HClick?: (h2hUrl: string, m: MatchEntry) => void
   onPlayerClick?: (playerId: string) => void
-  playerQuery?: string
 }
 
 
@@ -23,16 +21,10 @@ function scoreStr(entry: MatchEntry, tr: { walkover: string; vsMatch: string; re
   return entry.retired ? `${s} ${tr.retired}` : s
 }
 
-export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick, playerQuery }: Props) {
+export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick }: Props) {
   const { t, abbrevRound, lang } = useLanguage()
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const [activeEventIds, setActiveEventIds] = useState<Set<string>>(new Set())
-  const trackedTerms = useMemo(() => expandSearchQuery(playerQuery ?? ''), [playerQuery])
-  const isTrackedName = (name: string) => {
-    if (trackedTerms.length === 0) return false
-    const lc = name.toLowerCase()
-    return trackedTerms.some((q) => lc.includes(q))
-  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -155,8 +147,8 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                 <div className="pm-matches">
                   {profile.matches.filter(m => m.team1.length > 0 && m.team2.length > 0 && matchInActiveEvent(m)).map((m, i) => {
                     const renderName = (p: import('@/lib/types').MatchPlayer, pi: number, teamNum: 1 | 2) => {
-                      const tracked = isTrackedName(p.name)
-                      const dotClass = tracked && m.winner !== null
+                      const isProfilePlayer = !!profile.playerId && p.playerId === profile.playerId
+                      const dotClass = isProfilePlayer && m.winner !== null
                         ? (m.winner === teamNum ? ' pm-tracked-win' : ' pm-tracked-loss')
                         : ''
                       return (
