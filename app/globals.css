@@ -1614,7 +1614,7 @@ html.dark .ms-board-set.live {
   border-radius: 50%;
   background: #22c55e;
   margin-left: 6px;
-  vertical-align: middle;
+  vertical-align: baseline;
 }
 
 .ms-player-highlight {
