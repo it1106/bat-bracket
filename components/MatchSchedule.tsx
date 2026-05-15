@@ -331,7 +331,11 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             ? <span className="ms-board-badge">{m.winner === 2 ? t('walkover') : ''}</span>
             : (
               <>
-                {boardSets1.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
+                {boardSets1.map((v, i) => {
+                  const opp = boardSets2[i]
+                  const lost = m.winner !== null && opp != null && v < opp
+                  return <span key={i} className={`ms-board-set${lost ? ' ms-board-set--lost' : ''}`}>{v}</span>
+                })}
                 {currentT1 != null && <span key={currentT1} className="ms-board-set live">{currentT1}</span>}
                 {m.retired && m.winner === 2 && <span className="ms-board-badge">{t('retired')}</span>}
               </>
@@ -347,7 +351,11 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             ? <span className="ms-board-badge">{m.winner === 1 ? t('walkover') : ''}</span>
             : (
               <>
-                {boardSets2.map((v, i) => <span key={i} className="ms-board-set">{v}</span>)}
+                {boardSets2.map((v, i) => {
+                  const opp = boardSets1[i]
+                  const lost = m.winner !== null && opp != null && v < opp
+                  return <span key={i} className={`ms-board-set${lost ? ' ms-board-set--lost' : ''}`}>{v}</span>
+                })}
                 {currentT2 != null && <span key={currentT2} className="ms-board-set live">{currentT2}</span>}
                 {m.retired && m.winner === 1 && <span className="ms-board-badge">{t('retired')}</span>}
               </>

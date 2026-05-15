@@ -1785,6 +1785,8 @@ html.dark .ms-match--next-opp {
     color: var(--fg);
   }
 
+  .ms-board-set--lost { color: var(--muted); font-weight: 500; }
+
   .ms-board-badge {
     font-size: 14px;
     font-weight: 700;
@@ -1843,6 +1845,7 @@ html.dark .ms-match--next-opp {
   flex-shrink: 0;
   color: var(--fg);
 }
+.group-card-matches .ms-board-set--lost { color: var(--muted); font-weight: 500; }
 .group-card-matches .ms-board-badge {
   font-size: 12px;
   font-weight: 700;

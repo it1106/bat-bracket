@@ -37,9 +37,12 @@ function MatchRow({ match, onPlayerClick }: { match: MatchEntry; onPlayerClick?:
           ? (lost ? <span className="ms-board-badge">W/O</span> : null)
           : (
             <>
-              {match.scores.map((s, i) => (
-                <span key={i} className="ms-board-set">{teamNum === 1 ? s.t1 : s.t2}</span>
-              ))}
+              {match.scores.map((s, i) => {
+                const own = teamNum === 1 ? s.t1 : s.t2
+                const opp = teamNum === 1 ? s.t2 : s.t1
+                const setLost = winner !== null && own < opp
+                return <span key={i} className={`ms-board-set${setLost ? ' ms-board-set--lost' : ''}`}>{own}</span>
+              })}
               {match.retired && lost && <span className="ms-board-badge">Ret.</span>}
             </>
           )}
