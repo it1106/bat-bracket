@@ -380,6 +380,11 @@ interface DramaCardProps {
   defLabel: string
 }
 
+// Belt-and-suspenders strip — server already removes [N] via extractSeed,
+// but a stale v3 envelope or a non-numeric marker like [Q]/[WC] could still
+// slip through to the popover.
+const stripSeedSuffix = (name: string): string => name.replace(/\s*\[[^\]]*\]\s*$/, '').trim()
+
 function MedalCell({
   count,
   medalists,
@@ -397,7 +402,7 @@ function MedalCell({
       <span className="stats-medal-tip" role="tooltip">
         {medalists.map((m, i) => (
           <span className="stats-medal-tip-row" key={`${m.playerId}-${m.event}-${i}`}>
-            <span className="stats-medal-tip-name">{m.name}</span>
+            <span className="stats-medal-tip-name">{stripSeedSuffix(m.name)}</span>
             <span className="stats-medal-tip-event">{m.event}</span>
           </span>
         ))}
