@@ -1148,6 +1148,7 @@ export default function Home() {
           onClose={handleModalClose}
           onH2HClick={handleH2HClick}
           onPlayerClick={handlePlayerClick}
+          playerQuery={playerQuery}
         />
       )}
 
