@@ -146,7 +146,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                 <div className="pm-section-title">{t('matchResults')}</div>
                 <div className="pm-matches">
                   {profile.matches.filter(m => m.team1.length > 0 && m.team2.length > 0 && matchInActiveEvent(m)).map((m, i) => {
-                    const renderName = (teamNum: 1 | 2) => (p: import('@/lib/types').MatchPlayer, pi: number) => {
+                    const renderName = (p: import('@/lib/types').MatchPlayer, pi: number, teamNum: 1 | 2) => {
                       const isTracked = !!profile.playerId && p.playerId === profile.playerId
                       const dotClass = isTracked && m.winner !== null
                         ? (m.winner === teamNum ? ' pm-tracked-win' : ' pm-tracked-loss')
@@ -178,20 +178,20 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
 
                       {/* Desktop: team1 | score | team2 */}
                       <div className={`pm-match-team pm-d${m.winner === 1 ? ' winner' : ''}`}>
-                        {m.team1.length ? m.team1.map(renderName(1)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
+                        {m.team1.length ? m.team1.map((p, pi) => renderName(p, pi, 1)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                       </div>
                       <div className="pm-match-score pm-d">
                         {m.scheduledTime && !m.scores.length && !m.walkover ? m.scheduledTime : scoreStr(m, scoreTr)}
                       </div>
                       <div className={`pm-match-team pm-d${m.winner === 2 ? ' winner' : ''}`}>
-                        {m.team2.length ? m.team2.map(renderName(2)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
+                        {m.team2.length ? m.team2.map((p, pi) => renderName(p, pi, 2)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                       </div>
 
                       {/* Mobile: two-row scoreboard */}
                       <div className="pm-board pm-m">
                         <div className={`pm-board-row${m.winner === 1 ? ' winner' : ''}`}>
                           <div className="pm-board-players">
-                            {m.team1.length ? m.team1.map(renderName(1)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
+                            {m.team1.length ? m.team1.map((p, pi) => renderName(p, pi, 1)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                           </div>
                           {m.walkover
                             ? <span className="pm-board-badge">{m.winner === 1 ? t('walkover') : ''}</span>
@@ -200,7 +200,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                         </div>
                         <div className={`pm-board-row${m.winner === 2 ? ' winner' : ''}`}>
                           <div className="pm-board-players">
-                            {m.team2.length ? m.team2.map(renderName(2)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
+                            {m.team2.length ? m.team2.map((p, pi) => renderName(p, pi, 2)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                           </div>
                           {m.walkover
                             ? <span className="pm-board-badge">{m.winner === 2 ? t('walkover') : ''}</span>
