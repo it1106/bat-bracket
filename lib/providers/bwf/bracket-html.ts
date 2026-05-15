@@ -36,7 +36,7 @@ function buildSvgConnector(groupCount: number, topBase: number, slotPitch: numbe
     const mid = (c1 + c2) / 2
     pathParts.push(`M 0 ${c1} H 12`, `M 0 ${c2} H 12`, `M 12 ${c1} V ${c2}`, `M 12 ${mid} H 24`)
   }
-  return `<svg width="24" height="${totalH}" style="position:absolute;top:-10px;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path></svg>`
+  return `<svg width="24" height="${totalH}" style="position:absolute;top:0;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path></svg>`
 }
 
 interface BwfPlayer { id?: string | number; nameDisplay?: string; countryFlagUrl?: string | null }
