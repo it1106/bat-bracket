@@ -43,7 +43,7 @@ export default function TopBar({
           <select
             value={selectedTournament}
             onChange={(e) => onTournamentChange(e.target.value)}
-            className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[200px] max-w-[600px] bg-white focus:outline-none focus:border-blue-500"
+            className="border border-gray-300 rounded-md px-2.5 py-1.5 text-xs min-w-[200px] max-w-[350px] bg-white focus:outline-none focus:border-blue-500"
           >
             <option value="">Select tournament…</option>
             {tournaments.map((t) => (
