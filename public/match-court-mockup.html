@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Match card — court location mockup</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root {
+        --bg: #f0f2f5;
+        --surface: #ffffff;
+        --fg: #1a1a1a;
+        --muted: #888888;
+        --border: #e5e7eb;
+        --brand-fg: #25316B;
+        --win-bg: #e8f5e9;
+        --win-fg: #166534;
+        --row-sep: #f0f0f0;
+      }
+      html,
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        margin: 0;
+      }
+      .page {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 32px 0 8px;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 13px;
+        margin: 0 0 24px;
+      }
+
+      /* ── Schedule card styles (copied from globals.css) ── */
+      .match-schedule__time-header {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        padding: 10px 12px 6px;
+        background: var(--bg);
+      }
+      .ms-list {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .ms-match {
+        display: grid;
+        grid-template-columns: 150px 250px 250px 250px;
+        grid-template-areas: 'meta team1 score team2';
+        align-items: normal;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--row-sep);
+        color: var(--fg);
+        font-size: 13px;
+      }
+      .ms-match:last-child {
+        border-bottom: none;
+      }
+      .ms-meta {
+        grid-area: meta;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding-right: 8px;
+      }
+      .ms-event {
+        font-weight: 700;
+        color: var(--brand-fg);
+        white-space: nowrap;
+        font-size: 13px;
+      }
+      .ms-round {
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .ms-court {
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .ms-team--1 {
+        grid-area: team1;
+        line-height: 1.6;
+      }
+      .ms-team--2 {
+        grid-area: team2;
+        line-height: 1.6;
+      }
+      .ms-team--1.winner,
+      .ms-team--2.winner {
+        font-weight: 700;
+        color: var(--win-fg);
+      }
+      .ms-score {
+        grid-area: score;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        color: var(--fg);
+        font-size: 13px;
+        padding: 0 8px;
+      }
+      .ms-h2h-inline {
+        align-self: flex-start;
+        margin-top: 4px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--brand-fg);
+        background: rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1px 8px;
+        cursor: pointer;
+      }
+
+      /* Highlight the new line */
+      .ms-court.new {
+        color: #0f766e;
+        font-weight: 600;
+      }
+      .ms-court.new::after {
+        content: ' ← new';
+        font-weight: 400;
+        color: #94a3b8;
+      }
+
+      /* ── Mobile board styles (copied) ── */
+      .mobile-wrap {
+        max-width: 420px;
+      }
+      .mobile-wrap .ms-match {
+        display: flex;
+        flex-direction: column;
+        padding: 10px 12px;
+      }
+      .mobile-wrap .ms-meta {
+        flex-direction: row;
+        align-items: center;
+        gap: 6px;
+        padding: 0 0 8px 0;
+        border-bottom: 1px solid var(--row-sep);
+        margin-bottom: 8px;
+      }
+      .mobile-wrap .ms-event {
+        font-size: 13px;
+      }
+      .mobile-wrap .ms-round {
+        font-size: 12px;
+        color: var(--brand-fg);
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+      .mobile-wrap .ms-court {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .mobile-wrap .ms-h2h-inline {
+        align-self: center;
+        margin-top: 0;
+        margin-left: auto;
+      }
+      .ms-board-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 28px;
+      }
+      .ms-board-row.winner {
+        font-weight: 700;
+        color: var(--win-fg);
+      }
+      .ms-board-players {
+        flex: 1;
+      }
+      .ms-board-set {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        width: 20px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Match card — court location mockup</h1>
+      <p class="note">
+        New <code>.ms-court</code> label sits in the <code>.ms-meta</code>
+        column, right after the round. Shown on every match when
+        <code>m.court</code> is populated (even if the group is already a
+        court group).
+      </p>
+
+      <h2>Desktop — grouped by time (court varies per match)</h2>
+      <div class="ms-list">
+        <div class="match-schedule__time-header">10:00</div>
+        <div class="ms-match">
+          <div class="ms-meta">
+            <span class="ms-event">GD U15</span>
+            <span class="ms-round">Quarter Final</span>
+            <span class="ms-court new">Court 3</span>
+            <button class="ms-h2h-inline">H2H</button>
+          </div>
+          <div class="ms-team--1 winner">
+            <div>Somchai P. / Apinya C.</div>
+          </div>
+          <div class="ms-score">21-15, 21-18</div>
+          <div class="ms-team--2">
+            <div>Kritsada T. / Nutthaporn W.</div>
+          </div>
+        </div>
+        <div class="ms-match">
+          <div class="ms-meta">
+            <span class="ms-event">MS Open</span>
+            <span class="ms-round">Round of 16</span>
+            <span class="ms-court new">Court 1</span>
+          </div>
+          <div class="ms-team--1">
+            <div>Natthapol K.</div>
+          </div>
+          <div class="ms-score">18-21, 21-23</div>
+          <div class="ms-team--2 winner">
+            <div>Piyawat S.</div>
+          </div>
+        </div>
+      </div>
+
+      <h2>Desktop — grouped by court (redundant, intentional per spec)</h2>
+      <div class="ms-list">
+        <div class="match-schedule__time-header">Court 3</div>
+        <div class="ms-match">
+          <div class="ms-meta">
+            <span class="ms-event">WS U17</span>
+            <span class="ms-round">Semi Final</span>
+            <span class="ms-court new">Court 3</span>
+          </div>
+          <div class="ms-team--1 winner">
+            <div>Pornpicha M.</div>
+          </div>
+          <div class="ms-score">21-12, 21-19</div>
+          <div class="ms-team--2">
+            <div>Arisa T.</div>
+          </div>
+        </div>
+        <div class="ms-match">
+          <div class="ms-meta">
+            <span class="ms-event">XD Open</span>
+            <span class="ms-round">Round of 16</span>
+            <span class="ms-court new">Court 3</span>
+          </div>
+          <div class="ms-team--1">
+            <div>Chai K. / Mali P.</div>
+          </div>
+          <div class="ms-score">—</div>
+          <div class="ms-team--2">
+            <div>Nat W. / Ploy S.</div>
+          </div>
+        </div>
+      </div>
+
+      <h2>Mobile</h2>
+      <div class="mobile-wrap">
+        <div class="ms-list">
+          <div class="match-schedule__time-header">10:00</div>
+          <div class="ms-match">
+            <div class="ms-meta">
+              <span class="ms-event">GD U15</span>
+              <span class="ms-round">QF</span>
+              <span class="ms-court new">Court 3</span>
+              <button class="ms-h2h-inline">H2H</button>
+            </div>
+            <div class="ms-board-row winner">
+              <div class="ms-board-players">Somchai P. / Apinya C.</div>
+              <span class="ms-board-set">21</span>
+              <span class="ms-board-set">21</span>
+            </div>
+            <div class="ms-board-row">
+              <div class="ms-board-players">Kritsada T. / Nutthaporn W.</div>
+              <span class="ms-board-set">15</span>
+              <span class="ms-board-set">18</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

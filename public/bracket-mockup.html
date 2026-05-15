@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bracket card mockup</title>
+<style>
+:root {
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #888888;
+  --border: #e5e7eb;
+  --brand: #25316B;
+  --brand-fg: #25316B;
+  --win-bg: #e8f5e9;
+  --win-fg: #166534;
+  --row-sep: #f0f0f0;
+  --match-border: #696969;
+  --walkover-bg: #fef3c7;
+  --walkover-fg: #92400e;
+}
+html.dark {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --fg: #e6edf3;
+  --muted: #7d8590;
+  --border: #30363d;
+  --brand-fg: #58a6ff;
+  --win-bg: rgba(46, 160, 67, 0.15);
+  --win-fg: #7ee787;
+  --row-sep: #21262d;
+  --match-border: #30363d;
+  --walkover-bg: rgba(245, 158, 11, 0.18);
+  --walkover-fg: #f59e0b;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 14px/1.4 'Segoe UI', system-ui, sans-serif;
+  padding: 24px;
+}
+.toolbar { margin-bottom: 16px; display: flex; gap: 8px; align-items: center; }
+.toolbar button {
+  padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--fg); cursor: pointer;
+}
+.section-label {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--muted); margin: 32px 0 8px;
+}
+
+/* ── Bracket layout (mirrors prod CSS) ── */
+.bk-wrap {
+  display: flex; flex-direction: row; align-items: flex-start;
+  width: max-content; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 0 24px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.bk-round { position: relative; width: 240px; flex-shrink: 0; }
+.bk-round-label {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 0 8px 8px; border-bottom: 1px solid var(--row-sep);
+  margin-bottom: 4px; height: 32px; line-height: 32px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.bk-match-slot { position: absolute; left: 8px; right: 8px; }
+.bk-match-box {
+  border: 1.5px solid var(--match-border); border-radius: 6px;
+  overflow: hidden; background: var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* ── New card-style row (replaces bk-row + bk-score) ── */
+.bk-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; min-height: 28px;
+  font-size: 12px; color: var(--fg);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+.bk-row + .bk-row { border-top: 1px solid var(--match-border); }
+.bk-team-players {
+  flex: 1; min-width: 0; line-height: 1.45;
+  overflow: hidden;
+}
+.bk-team-players .bk-player {
+  display: block; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bk-team-players .bk-player + .bk-player { padding-top: 2px; }
+.bk-seed { color: var(--muted); font-weight: 700; margin-left: 4px; }
+.bk-team-result {
+  display: flex; align-items: center; gap: 4px;
+  flex-shrink: 0;
+}
+.bk-dot {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; background: #22c55e;
+  margin-right: 2px; flex-shrink: 0;
+}
+.bk-dot--placeholder { visibility: hidden; }
+.bk-set {
+  display: inline-block; min-width: 18px; text-align: right;
+  font-variant-numeric: tabular-nums; font-weight: 500;
+  font-size: 12px; color: var(--fg);
+}
+.bk-set.bk-set--won { font-weight: 700; }
+.bk-set.bk-set--retired { color: var(--muted); font-style: italic; }
+.bk-walkover-badge {
+  display: inline-block; padding: 2px 8px;
+  font-size: 11px; font-weight: 600;
+  background: var(--walkover-bg); color: var(--walkover-fg);
+  border-radius: 999px; flex-shrink: 0;
+}
+.bk-footer {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; font-size: 12px;
+  color: #1d4ed8;
+  border-top: 1px solid var(--match-border);
+  background: #eff6ff;
+}
+html.dark .bk-footer { color: #79c0ff; background: rgba(56, 139, 253, 0.15); }
+.bk-round-tag {
+  font-weight: 700; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  color: inherit;
+}
+.bk-clock { display: inline-flex; align-items: center; flex-shrink: 0; }
+.bk-time { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: inherit; }
+.bk-row.winner { font-weight: 700; color: var(--win-fg); background: var(--win-bg); }
+.bk-match-box:has(.bk-row.winner) .bk-row:not(.winner) { color: var(--muted); }
+
+/* Connector */
+.bk-conn { position: relative; width: 24px; flex-shrink: 0; }
+.bk-conn svg { position: absolute; top: 0; left: 0; overflow: visible; }
+.bk-conn path { stroke: var(--match-border); stroke-width: 1.4px; stroke-linecap: round; fill: none; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button onclick="document.documentElement.classList.toggle('dark')">Toggle dark mode</button>
+  <span style="color:var(--muted);font-size:12px">Geometry: round=240px, slot pitch singles=100, doubles=150</span>
+</div>
+
+<!-- ============ DOUBLES ============ -->
+<div class="section-label">Doubles bracket — 4 → 2 → 1 (QF → SF → F)</div>
+
+<div class="bk-wrap">
+  <!-- Quarter Final (4 matches) -->
+  <div class="bk-round" style="height:680px">
+    <div class="bk-round-label">QUARTER FINAL</div>
+
+    <!-- QF #1: completed match with 3 sets -->
+    <div class="bk-match-slot" style="top:46px">
+      <div class="bk-match-box">
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">เตชินท์ วิริยชัยฤกษ์<span class="bk-seed">[1]</span></span>
+            <span class="bk-player">ทิพย์จิรา ใจวิจิตรวรคุณ</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set bk-set--won">23</span>
+            <span class="bk-set">18</span>
+            <span class="bk-set bk-set--won">21</span>
+          </div>
+        </div>
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">คณพศ ทีวะกุล</span>
+            <span class="bk-player">สุรดา เวชพาณิชย์</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set">21</span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set">14</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QF #2: walkover -->
+    <div class="bk-match-slot" style="top:196px">
+      <div class="bk-match-box">
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">ณภัทร วริทธิ์วุฒิกุล</span>
+            <span class="bk-player">ปฐมาภรณ์ กิตติเสนีย์</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-walkover-badge">Walkover</span>
+          </div>
+        </div>
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">กุลพัทธ์ โล่ห์ทอง</span>
+            <span class="bk-player">ฐิติวรดา บัวแก้ว</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QF #3: 2-set sweep -->
+    <div class="bk-match-slot" style="top:346px">
+      <div class="bk-match-box">
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">ภูริ จิรประภา<span class="bk-seed">[3]</span></span>
+            <span class="bk-player">ปิยะดา ศิริชัย</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set bk-set--won">21</span>
+          </div>
+        </div>
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">ธนพร ตั้งวิริยะ</span>
+            <span class="bk-player">วราภรณ์ ยินดี</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set">15</span>
+            <span class="bk-set">19</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QF #4: retired -->
+    <div class="bk-match-slot" style="top:496px">
+      <div class="bk-match-box">
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">นริศ ตรีเลิศ<span class="bk-seed">[2]</span></span>
+            <span class="bk-player">รวิณ ภัทรเวช</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set">15</span>
+            <span class="bk-set">8</span>
+            <span class="bk-walkover-badge" style="margin-left:4px">Ret.</span>
+          </div>
+        </div>
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">อัครชัย พงษ์รัตน์</span>
+            <span class="bk-player">ธนวัฒน์ มีชัย</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set">15</span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set bk-set--retired">10</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connector QF→SF -->
+  <div class="bk-conn" style="height:680px">
+    <svg width="24" height="680" style="position:absolute;top:0;left:0;overflow:visible">
+      <path d="M 0 106 H 12  M 0 256 H 12  M 12 106 V 256  M 12 181 H 24
+               M 0 406 H 12  M 0 556 H 12  M 12 406 V 556  M 12 481 H 24"
+            fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path>
+    </svg>
+  </div>
+
+  <!-- Semi Final (2 matches) -->
+  <div class="bk-round" style="height:680px">
+    <div class="bk-round-label">SEMI FINAL</div>
+
+    <div class="bk-match-slot" style="top:121px">
+      <div class="bk-match-box">
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">เตชินท์ วิริยชัยฤกษ์<span class="bk-seed">[1]</span></span>
+            <span class="bk-player">ทิพย์จิรา ใจวิจิตรวรคุณ</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set">18</span>
+            <span class="bk-set bk-set--won">21</span>
+          </div>
+        </div>
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">กุลพัทธ์ โล่ห์ทอง</span>
+            <span class="bk-player">ฐิติวรดา บัวแก้ว</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set">19</span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set">17</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bk-match-slot" style="top:421px">
+      <div class="bk-match-box">
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">ภูริ จิรประภา<span class="bk-seed">[3]</span></span>
+            <span class="bk-player">ปิยะดา ศิริชัย</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set">15</span>
+            <span class="bk-set">19</span>
+          </div>
+        </div>
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">นริศ ตรีเลิศ<span class="bk-seed">[2]</span></span>
+            <span class="bk-player">รวิณ ภัทรเวช</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set bk-set--won">21</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connector SF→F -->
+  <div class="bk-conn" style="height:680px">
+    <svg width="24" height="680" style="position:absolute;top:0;left:0;overflow:visible">
+      <path d="M 0 181 H 12  M 0 481 H 12  M 12 181 V 481  M 12 331 H 24"
+            fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path>
+    </svg>
+  </div>
+
+  <!-- Final -->
+  <div class="bk-round" style="height:680px">
+    <div class="bk-round-label">FINAL</div>
+
+    <div class="bk-match-slot" style="top:271px">
+      <div class="bk-match-box">
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">เตชินท์ วิริยชัยฤกษ์<span class="bk-seed">[1]</span></span>
+            <span class="bk-player">ทิพย์จิรา ใจวิจิตรวรคุณ</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set">19</span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set bk-set--won">21</span>
+          </div>
+        </div>
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">นริศ ตรีเลิศ<span class="bk-seed">[2]</span></span>
+            <span class="bk-player">รวิณ ภัทรเวช</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set">18</span>
+            <span class="bk-set">15</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SINGLES ============ -->
+<div class="section-label">Singles bracket — 4 → 2 → 1</div>
+
+<div class="bk-wrap">
+  <!-- QF -->
+  <div class="bk-round" style="height:480px">
+    <div class="bk-round-label">QUARTER FINAL</div>
+
+    <div class="bk-match-slot" style="top:46px">
+      <div class="bk-match-box">
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">เตชินท์ วิริยชัยฤกษ์<span class="bk-seed">[1]</span></span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set bk-set--won">21</span>
+          </div>
+        </div>
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">คณพศ ทีวะกุล</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set">15</span>
+            <span class="bk-set">19</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bk-match-slot" style="top:146px">
+      <div class="bk-match-box">
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">ณภัทร วริทธิ์วุฒิกุล</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-walkover-badge">Walkover</span>
+          </div>
+        </div>
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">กุลพัทธ์ โล่ห์ทอง</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bk-match-slot" style="top:246px">
+      <div class="bk-match-box">
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">ภูริ จิรประภา<span class="bk-seed">[3]</span></span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set">17</span>
+            <span class="bk-set bk-set--won">21</span>
+          </div>
+        </div>
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">ธนพร ตั้งวิริยะ</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set">15</span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set">19</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bk-match-slot" style="top:346px">
+      <div class="bk-match-box">
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">นริศ ตรีเลิศ<span class="bk-seed">[2]</span></span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set bk-set--won">21</span>
+          </div>
+        </div>
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">อัครชัย พงษ์รัตน์</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set">12</span>
+            <span class="bk-set">14</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bk-conn" style="height:480px">
+    <svg width="24" height="480" style="position:absolute;top:0;left:0;overflow:visible">
+      <path d="M 0 78 H 12  M 0 178 H 12  M 12 78 V 178  M 12 128 H 24
+               M 0 278 H 12  M 0 378 H 12  M 12 278 V 378  M 12 328 H 24"
+            fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path>
+    </svg>
+  </div>
+
+  <div class="bk-round" style="height:480px">
+    <div class="bk-round-label">SEMI FINAL</div>
+
+    <div class="bk-match-slot" style="top:96px">
+      <div class="bk-match-box">
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">เตชินท์ วิริยชัยฤกษ์<span class="bk-seed">[1]</span></span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set">19</span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set bk-set--won">21</span>
+          </div>
+        </div>
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">กุลพัทธ์ โล่ห์ทอง</span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set">17</span>
+            <span class="bk-set">15</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bk-match-slot" style="top:296px">
+      <div class="bk-match-box">
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">ภูริ จิรประภา<span class="bk-seed">[3]</span></span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set">15</span>
+            <span class="bk-set">19</span>
+          </div>
+        </div>
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">นริศ ตรีเลิศ<span class="bk-seed">[2]</span></span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set bk-set--won">21</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bk-conn" style="height:480px">
+    <svg width="24" height="480" style="position:absolute;top:0;left:0;overflow:visible">
+      <path d="M 0 128 H 12  M 0 328 H 12  M 12 128 V 328  M 12 228 H 24"
+            fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path>
+    </svg>
+  </div>
+
+  <div class="bk-round" style="height:480px">
+    <div class="bk-round-label">FINAL</div>
+
+    <div class="bk-match-slot" style="top:196px">
+      <div class="bk-match-box">
+        <div class="bk-row winner">
+          <div class="bk-team-players">
+            <span class="bk-player">เตชินท์ วิริยชัยฤกษ์<span class="bk-seed">[1]</span></span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot"></span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set">19</span>
+            <span class="bk-set bk-set--won">21</span>
+          </div>
+        </div>
+        <div class="bk-row">
+          <div class="bk-team-players">
+            <span class="bk-player">นริศ ตรีเลิศ<span class="bk-seed">[2]</span></span>
+          </div>
+          <div class="bk-team-result">
+            <span class="bk-dot bk-dot--placeholder"></span>
+            <span class="bk-set">17</span>
+            <span class="bk-set bk-set--won">21</span>
+            <span class="bk-set">18</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FUTURE MATCHES (with footer) ============ -->
+<div class="section-label">Future / unplayed matches — with round + clock + scheduled time footer</div>
+
+<div style="display:flex;gap:24px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px">
+
+  <!-- Future doubles match -->
+  <div style="position:relative;width:240px">
+    <div class="bk-match-box">
+      <div class="bk-row">
+        <div class="bk-team-players">
+          <span class="bk-player">เตชินท์ วิริยชัยฤกษ์<span class="bk-seed">[1]</span></span>
+          <span class="bk-player">ทิพย์จิรา ใจวิจิตรวรคุณ</span>
+        </div>
+        <div class="bk-team-result"></div>
+      </div>
+      <div class="bk-row">
+        <div class="bk-team-players">
+          <span class="bk-player">นริศ ตรีเลิศ<span class="bk-seed">[2]</span></span>
+          <span class="bk-player">รวิณ ภัทรเวช</span>
+        </div>
+        <div class="bk-team-result"></div>
+      </div>
+      <div class="bk-footer">
+        <span class="bk-round-tag">F</span>
+        <span class="bk-clock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span>
+        <span class="bk-time">พฤ. 14/5/2569 10:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Future singles match -->
+  <div style="position:relative;width:240px">
+    <div class="bk-match-box">
+      <div class="bk-row">
+        <div class="bk-team-players">
+          <span class="bk-player">กุลพัทธ์ โล่ห์ทอง</span>
+        </div>
+        <div class="bk-team-result"></div>
+      </div>
+      <div class="bk-row">
+        <div class="bk-team-players">
+          <span class="bk-player">ภูริ จิรประภา<span class="bk-seed">[3]</span></span>
+        </div>
+        <div class="bk-team-result"></div>
+      </div>
+      <div class="bk-footer">
+        <span class="bk-round-tag">SF</span>
+        <span class="bk-clock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span>
+        <span class="bk-time">ศ. 17/4/2569 9:30</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Future match with TBD opponent -->
+  <div style="position:relative;width:240px">
+    <div class="bk-match-box">
+      <div class="bk-row">
+        <div class="bk-team-players">
+          <span class="bk-player">เตชินท์ วิริยชัยฤกษ์<span class="bk-seed">[1]</span></span>
+        </div>
+        <div class="bk-team-result"></div>
+      </div>
+      <div class="bk-row">
+        <div class="bk-team-players">
+          <span class="bk-player" style="color:var(--muted);font-style:italic">TBD</span>
+        </div>
+        <div class="bk-team-result"></div>
+      </div>
+      <div class="bk-footer">
+        <span class="bk-round-tag">QF</span>
+        <span class="bk-clock"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span>
+        <span class="bk-time">พฤ. 14/5/2569 14:00</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>H2H Button Placement Mockups</title>
+<style>
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    padding: 40px 20px;
+    color: #1a1a1a;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 6px; color: #25316B; }
+  .sub { color: #666; margin: 0 0 28px; font-size: 14px; }
+  .option { margin-bottom: 36px; }
+  .option-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #25316B;
+    margin-bottom: 4px;
+  }
+  .option-desc {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 10px;
+  }
+
+  /* Schedule styles (mirrored from globals.css) */
+  .match-schedule__time-header {
+    font-size: 13px;
+    font-weight: 700;
+    color: #25316B;
+    padding: 6px 10px;
+    background: #e8eaf0;
+    border-radius: 6px 6px 0 0;
+    border-bottom: 2px solid #25316B;
+    letter-spacing: 0.3px;
+  }
+  .ms-list {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    overflow: hidden;
+    font-size: 13px;
+  }
+  .ms-match {
+    display: grid;
+    grid-template-columns: 130px 250px 220px 250px;
+    grid-template-areas: "meta team1 score team2";
+    align-items: normal;
+    padding: 8px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #1a1a1a;
+    position: relative;
+  }
+  .ms-match:last-child { border-bottom: none; }
+  .ms-match:hover { background: #fafafa; }
+  .ms-meta {
+    grid-area: meta;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-right: 8px;
+  }
+  .ms-event { font-weight: 700; color: #25316B; white-space: nowrap; font-size: 13px; }
+  .ms-round { color: #888; font-size: 12px; white-space: nowrap; }
+  .ms-team--1 { grid-area: team1; line-height: 1.6; }
+  .ms-team--2 { grid-area: team2; line-height: 1.6; }
+  .winner { font-weight: 700; color: #166534; }
+  .ms-score {
+    grid-area: score;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #444;
+    font-size: 13px;
+    white-space: nowrap;
+    padding: 0 8px;
+    text-align: left;
+  }
+
+  /* ── CURRENT: H2H row at bottom ── */
+  .current .ms-match { grid-template-areas: "meta team1 score team2" "h2h h2h h2h h2h"; }
+  .current .ms-h2h-row {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    padding-top: 6px;
+    margin-top: 4px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .current .ms-h2h-btn {
+    font-size: 11px;
+    font-weight: 600;
+    color: #25316B;
+    background: transparent;
+    border: 1px solid #c5cae8;
+    border-radius: 20px;
+    padding: 2px 16px;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+  .current .ms-h2h-btn:hover { background: #25316B; color: #fff; }
+
+  /* ── OPTION A: meta-row right pill ── */
+  .optA .ms-meta { flex-direction: column; }
+  .optA .ms-h2h-inline {
+    margin-top: 6px;
+    align-self: flex-start;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #25316B;
+    background: #f0f2f8;
+    border: 1px solid #d8dcec;
+    border-radius: 10px;
+    padding: 1px 8px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .optA .ms-h2h-inline:hover {
+    background: #25316B;
+    color: #fff;
+    border-color: #25316B;
+  }
+
+  /* ── OPTION B: score column "VS" link ── */
+  .optB .ms-score--vs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .optB .ms-vs-link {
+    font-size: 11px;
+    font-weight: 700;
+    color: #25316B;
+    letter-spacing: 0.1em;
+    padding: 2px 10px;
+    border-radius: 12px;
+    border: 1px dashed #c5cae8;
+    cursor: pointer;
+    background: transparent;
+  }
+  .optB .ms-vs-link:hover {
+    background: #25316B;
+    color: #fff;
+    border-style: solid;
+    border-color: #25316B;
+  }
+  .optB .ms-h2h-trailing {
+    font-size: 10px;
+    color: #25316B;
+    font-weight: 600;
+    margin-left: 6px;
+    cursor: pointer;
+    opacity: 0.6;
+  }
+  .optB .ms-h2h-trailing:hover { opacity: 1; text-decoration: underline; }
+
+  /* ── OPTION C: hover-reveal corner icon ── */
+  .optC .ms-h2h-corner {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #25316B;
+    background: #fff;
+    border: 1px solid #c5cae8;
+    border-radius: 10px;
+    padding: 1px 7px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+  .optC .ms-match:hover .ms-h2h-corner { opacity: 1; }
+  .optC .ms-h2h-corner:hover { background: #25316B; color: #fff; border-color: #25316B; }
+
+  /* ── OPTION D: compact icon aligned between score and team2 ── */
+  .optD .ms-match { grid-template-columns: 130px 230px 180px 38px 230px; grid-template-areas: "meta team1 score h2h team2"; }
+  .optD .ms-h2h-dot {
+    grid-area: h2h;
+    align-self: center;
+    width: 28px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: #f0f2f8;
+    color: #25316B;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .optD .ms-h2h-dot:hover {
+    background: #25316B;
+    color: #fff;
+  }
+
+  .note {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #555;
+    margin-top: 6px;
+  }
+  .dot-now {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>H2H Button Placement — Mockups</h1>
+  <p class="sub">Same rows, different placements. Desktop view. Hover rows to see interactions.</p>
+
+  <!-- CURRENT -->
+  <div class="option current">
+    <div class="option-title">Current · full-width row below each match</div>
+    <div class="option-desc">Adds a visual separator and 26px of vertical bulk per card.</div>
+    <div class="match-schedule__time-header">09:00</div>
+    <div class="ms-list">
+      <div class="ms-match">
+        <div class="ms-meta"><span class="ms-event">MS R32</span><span class="ms-round">Main Draw</span></div>
+        <div class="ms-team--1 winner">Kunlavut Vitidsarn</div>
+        <div class="ms-score">21-18, 21-15</div>
+        <div class="ms-team--2">Viktor Axelsen</div>
+        <div class="ms-h2h-row"><button class="ms-h2h-btn">H2H</button></div>
+      </div>
+      <div class="ms-match">
+        <div class="ms-meta"><span class="ms-event">WS QF</span><span class="ms-round">Main Draw</span></div>
+        <div class="ms-team--1">An Se-young</div>
+        <div class="ms-score"></div>
+        <div class="ms-team--2">Chen Yufei</div>
+        <div class="ms-h2h-row"><button class="ms-h2h-btn">H2H</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION A -->
+  <div class="option optA">
+    <div class="option-title">Option A · small pill under draw/round in meta column</div>
+    <div class="option-desc">Zero added height. Uses empty space beneath the round label. Reads as metadata.</div>
+    <div class="match-schedule__time-header">09:00</div>
+    <div class="ms-list">
+      <div class="ms-match">
+        <div class="ms-meta">
+          <span class="ms-event">MS R32</span>
+          <span class="ms-round">Main Draw</span>
+          <button class="ms-h2h-inline">H2H</button>
+        </div>
+        <div class="ms-team--1 winner">Kunlavut Vitidsarn</div>
+        <div class="ms-score">21-18, 21-15</div>
+        <div class="ms-team--2">Viktor Axelsen</div>
+      </div>
+      <div class="ms-match">
+        <div class="ms-meta">
+          <span class="ms-event">WS QF</span>
+          <span class="ms-round">Main Draw</span>
+          <button class="ms-h2h-inline">H2H</button>
+        </div>
+        <div class="ms-team--1">An Se-young</div>
+        <div class="ms-score"></div>
+        <div class="ms-team--2">Chen Yufei</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION B -->
+  <div class="option optB">
+    <div class="option-title">Option B · clickable "VS" in the score column</div>
+    <div class="option-desc">Most contextual — literally between the two players. Shows "VS" for upcoming (no score) and a tiny "H2H" link after the score for completed matches.</div>
+    <div class="match-schedule__time-header">09:00</div>
+    <div class="ms-list">
+      <div class="ms-match">
+        <div class="ms-meta"><span class="ms-event">MS R32</span><span class="ms-round">Main Draw</span></div>
+        <div class="ms-team--1 winner">Kunlavut Vitidsarn</div>
+        <div class="ms-score">21-18, 21-15 <span class="ms-h2h-trailing">H2H ›</span></div>
+        <div class="ms-team--2">Viktor Axelsen</div>
+      </div>
+      <div class="ms-match">
+        <div class="ms-meta"><span class="ms-event">WS QF</span><span class="ms-round">Main Draw</span></div>
+        <div class="ms-team--1">An Se-young</div>
+        <div class="ms-score ms-score--vs"><button class="ms-vs-link">VS</button></div>
+        <div class="ms-team--2">Chen Yufei</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION C -->
+  <div class="option optC">
+    <div class="option-title">Option C · hover-reveal corner pill</div>
+    <div class="option-desc">Invisible until hover. Cleanest in default state, but undiscoverable on touch devices.</div>
+    <div class="match-schedule__time-header">09:00</div>
+    <div class="ms-list">
+      <div class="ms-match">
+        <div class="ms-meta"><span class="ms-event">MS R32</span><span class="ms-round">Main Draw</span></div>
+        <div class="ms-team--1 winner">Kunlavut Vitidsarn</div>
+        <div class="ms-score">21-18, 21-15</div>
+        <div class="ms-team--2">Viktor Axelsen</div>
+        <button class="ms-h2h-corner">H2H</button>
+      </div>
+      <div class="ms-match">
+        <div class="ms-meta"><span class="ms-event">WS QF</span><span class="ms-round">Main Draw</span></div>
+        <div class="ms-team--1">An Se-young</div>
+        <div class="ms-score"></div>
+        <div class="ms-team--2">Chen Yufei</div>
+        <button class="ms-h2h-corner">H2H</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION D -->
+  <div class="option optD">
+    <div class="option-title">Option D · dedicated micro-column between score and team2</div>
+    <div class="option-desc">Own grid column. Always visible, never crowds content, sits at the visual center of the match.</div>
+    <div class="match-schedule__time-header">09:00</div>
+    <div class="ms-list">
+      <div class="ms-match">
+        <div class="ms-meta"><span class="ms-event">MS R32</span><span class="ms-round">Main Draw</span></div>
+        <div class="ms-team--1 winner">Kunlavut Vitidsarn</div>
+        <div class="ms-score">21-18, 21-15</div>
+        <button class="ms-h2h-dot">H2H</button>
+        <div class="ms-team--2">Viktor Axelsen</div>
+      </div>
+      <div class="ms-match">
+        <div class="ms-meta"><span class="ms-event">WS QF</span><span class="ms-round">Main Draw</span></div>
+        <div class="ms-team--1">An Se-young</div>
+        <div class="ms-score"></div>
+        <button class="ms-h2h-dot">H2H</button>
+        <div class="ms-team--2">Chen Yufei</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">Pick one (A / B / C / D) or describe a hybrid. Mobile layout will mirror the chosen desktop placement.</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Alert bell — header notification mockup</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root {
+        --bg: #f0f2f5;
+        --surface: #ffffff;
+        --fg: #1a1a1a;
+        --muted: #888888;
+        --border: #e5e7eb;
+        --brand: #2563eb;
+        --brand-fg: #25316B;
+        --red: #dc2626;
+        --info-bg: #eff6ff;
+        --info-fg: #1e40af;
+      }
+      html, body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        margin: 0;
+      }
+      .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 28px 0 8px;
+      }
+      .lede {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 12px;
+      }
+      .frame {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 4px;
+      }
+      .frame--mobile {
+        max-width: 414px;
+      }
+      .frame__caption {
+        font-size: 12px;
+        color: var(--muted);
+        padding-bottom: 16px;
+      }
+
+      /* === Header (mirrors TopBar.tsx structure) === */
+      .topbar {
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      }
+      .topbar__row {
+        display: flex;
+        align-items: flex-end;
+        gap: 12px;
+        padding: 10px 20px;
+        flex-wrap: wrap;
+      }
+      .brand {
+        display: flex;
+        flex-direction: column;
+        white-space: nowrap;
+        margin-right: 8px;
+      }
+      .brand__title {
+        font-weight: 700;
+        font-size: 1.2rem;
+        line-height: 2rem;
+      }
+      .brand__title em { color: var(--brand-fg); font-style: normal; }
+      .brand__title strong { color: var(--red); font-weight: 700; }
+      .brand__sub {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .field label {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .field select, .field input {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 12px;
+        background: var(--surface);
+        color: var(--fg);
+        min-width: 180px;
+      }
+      .right-cluster {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn-export {
+        background: #16a34a;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 28px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--fg);
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .lang-toggle {
+        display: inline-flex;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        overflow: hidden;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .lang-toggle span {
+        padding: 4px 8px;
+      }
+      .lang-toggle .on {
+        background: var(--brand);
+        color: white;
+      }
+
+      /* === Bell === */
+      .bell-wrap {
+        position: relative;
+      }
+      .bell {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--fg);
+        cursor: pointer;
+        position: relative;
+        transition: background-color 0.15s;
+      }
+      .bell:hover { background: var(--bg); }
+      .bell svg {
+        width: 18px;
+        height: 18px;
+      }
+      .bell[aria-disabled="true"] {
+        color: var(--muted);
+        cursor: default;
+      }
+      .bell[aria-disabled="true"]:hover { background: var(--surface); }
+
+      /* Red dot + pulse ring */
+      .bell__dot {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--red);
+        box-shadow: 0 0 0 2px var(--surface);
+      }
+      .bell__pulse {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--red);
+        opacity: 0.5;
+        animation: pulse 2s ease-out infinite;
+        pointer-events: none;
+      }
+      @keyframes pulse {
+        0%   { transform: scale(0.8); opacity: 0.6; }
+        70%  { transform: scale(2.2); opacity: 0; }
+        100% { transform: scale(2.2); opacity: 0; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .bell__pulse { animation: none; opacity: 0; }
+      }
+
+      /* === Dropdown (desktop) === */
+      .dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        width: 320px;
+        max-height: 70vh;
+        overflow-y: auto;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        z-index: 60;
+      }
+      .dropdown__head {
+        padding: 12px 16px 8px;
+        font-weight: 600;
+        font-size: 13px;
+        border-bottom: 1px solid var(--border);
+      }
+      .dropdown__group-title {
+        padding: 12px 16px 4px;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .dropdown__item {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 10px 16px;
+        background: transparent;
+        border: none;
+        font-size: 13px;
+        color: var(--fg);
+        cursor: pointer;
+        line-height: 1.35;
+      }
+      .dropdown__item:hover { background: var(--info-bg); }
+      .dropdown__item-meta {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+
+      /* === Mobile dropdown === */
+      .frame--mobile .dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 8px;
+        right: 8px;
+        width: auto;
+      }
+
+      /* === Backdrop (mobile only) === */
+      .backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.18);
+        z-index: 50;
+      }
+
+      /* Wrapper to contain absolute-positioned dropdown within the frame */
+      .header-host {
+        position: relative;
+      }
+
+      .swatch-row {
+        display: flex;
+        gap: 24px;
+        padding: 16px 20px;
+        align-items: center;
+        background: var(--bg);
+      }
+      .swatch-row .label {
+        font-size: 12px;
+        color: var(--muted);
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1>Alert bell — header notification mockup</h1>
+      <p class="lede">Bell sits in the right-side cluster of the existing top bar. Red dot + pulse when there are unseen changes; dropdown on click; dismiss-on-close clears the alerts.</p>
+
+      <!-- ─── DESKTOP, NO ALERTS ─── -->
+      <h2>Desktop — no alerts (inert bell)</h2>
+      <div class="frame">
+        <div class="header-host">
+          <div class="topbar">
+            <div class="topbar__row">
+              <div class="brand">
+                <span class="brand__title"><em>BAT</em> <strong>Bracket</strong> Viewer</span>
+                <span class="brand__sub">Live tournament tracker</span>
+              </div>
+              <div class="field">
+                <label>Tournament</label>
+                <select><option>BAT Open 2026 — May</option></select>
+              </div>
+              <div class="field">
+                <label>Track Player</label>
+                <input placeholder="Search player…" />
+              </div>
+              <div class="right-cluster">
+                <button class="btn-export">↓ Export JPG</button>
+                <span class="bell-wrap">
+                  <button class="bell" aria-disabled="true" aria-label="Notifications (none)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                    </svg>
+                  </button>
+                </span>
+                <button class="icon-btn" title="Toggle theme">🌙</button>
+                <span class="lang-toggle"><span class="on">EN</span><span>TH</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame__caption">Bell rendered unconditionally so layout doesn't shift when alerts arrive. Inert (muted) when there are zero pending alerts.</div>
+
+      <!-- ─── DESKTOP, HAS ALERTS, CLOSED ─── -->
+      <h2>Desktop — has alerts (closed)</h2>
+      <div class="frame">
+        <div class="header-host">
+          <div class="topbar">
+            <div class="topbar__row">
+              <div class="brand">
+                <span class="brand__title"><em>BAT</em> <strong>Bracket</strong> Viewer</span>
+                <span class="brand__sub">Live tournament tracker</span>
+              </div>
+              <div class="field">
+                <label>Tournament</label>
+                <select><option>BAT Open 2026 — May</option></select>
+              </div>
+              <div class="field">
+                <label>Track Player</label>
+                <input placeholder="Search player…" />
+              </div>
+              <div class="right-cluster">
+                <button class="btn-export">↓ Export JPG</button>
+                <span class="bell-wrap">
+                  <button class="bell" aria-label="Notifications (3 unread)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                    </svg>
+                    <span class="bell__pulse"></span>
+                    <span class="bell__dot"></span>
+                  </button>
+                </span>
+                <button class="icon-btn" title="Toggle theme">🌙</button>
+                <span class="lang-toggle"><span class="on">EN</span><span>TH</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame__caption">Red dot with a slow pulsing ring around it. Animation pauses on dropdown open; respects <code>prefers-reduced-motion</code>.</div>
+
+      <!-- ─── DESKTOP, OPEN DROPDOWN ─── -->
+      <h2>Desktop — dropdown open</h2>
+      <div class="frame" style="height: 280px;">
+        <div class="header-host">
+          <div class="topbar">
+            <div class="topbar__row">
+              <div class="brand">
+                <span class="brand__title"><em>BAT</em> <strong>Bracket</strong> Viewer</span>
+                <span class="brand__sub">Live tournament tracker</span>
+              </div>
+              <div class="field">
+                <label>Tournament</label>
+                <select><option>BAT Open 2026 — May</option></select>
+              </div>
+              <div class="field">
+                <label>Track Player</label>
+                <input placeholder="Search player…" />
+              </div>
+              <div class="right-cluster">
+                <button class="btn-export">↓ Export JPG</button>
+                <span class="bell-wrap">
+                  <button class="bell" aria-label="Notifications (3 unread)" aria-expanded="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                    </svg>
+                    <span class="bell__dot"></span>
+                  </button>
+                  <div class="dropdown" role="dialog" aria-label="Notifications">
+                    <div class="dropdown__head">Notifications</div>
+                    <div class="dropdown__group-title">New tournaments</div>
+                    <button class="dropdown__item">
+                      Toyota Junior Open 2026
+                      <div class="dropdown__item-meta">added today</div>
+                    </button>
+                    <button class="dropdown__item">
+                      Khon Kaen Masters
+                      <div class="dropdown__item-meta">added yesterday</div>
+                    </button>
+                    <div class="dropdown__group-title">New schedule published</div>
+                    <button class="dropdown__item">
+                      BAT Open 2026 — May
+                      <div class="dropdown__item-meta">Sun, May 12</div>
+                    </button>
+                  </div>
+                </span>
+                <button class="icon-btn" title="Toggle theme">🌙</button>
+                <span class="lang-toggle"><span class="on">EN</span><span>TH</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame__caption">320px wide, scrollable. Tap any item or click outside → dismiss everything. Pulse stops once open.</div>
+
+      <!-- ─── MOBILE, HAS ALERTS, CLOSED ─── -->
+      <h2>Mobile — has alerts (closed, 414px frame)</h2>
+      <div class="frame frame--mobile">
+        <div class="header-host">
+          <div class="topbar">
+            <div class="topbar__row" style="padding: 8px 12px;">
+              <div class="brand" style="margin-right: 0;">
+                <span class="brand__title" style="font-size: 1rem; line-height: 1.4rem;"><em>BAT</em> <strong>Bracket</strong></span>
+                <span class="brand__sub" style="font-size: 11px;">Live tracker</span>
+              </div>
+              <div class="right-cluster" style="gap: 6px;">
+                <span class="bell-wrap">
+                  <button class="bell" aria-label="Notifications (3 unread)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                    </svg>
+                    <span class="bell__pulse"></span>
+                    <span class="bell__dot"></span>
+                  </button>
+                </span>
+                <button class="icon-btn" title="Toggle theme">🌙</button>
+                <span class="lang-toggle"><span class="on">EN</span><span>TH</span></span>
+              </div>
+            </div>
+            <div class="topbar__row" style="padding: 0 12px 8px;">
+              <div class="field" style="flex: 1;">
+                <select style="width: 100%; min-width: 0;"><option>BAT Open 2026 — May</option></select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="frame__caption">Bell stays grouped with theme + lang at the right edge of the brand row, separate from the tournament selector below. Touch target is 36×36 (well above guidance).</div>
+
+      <!-- ─── MOBILE, OPEN DROPDOWN ─── -->
+      <h2>Mobile — dropdown open (full-width sheet)</h2>
+      <div class="frame frame--mobile" style="height: 380px;">
+        <div class="header-host">
+          <div class="topbar">
+            <div class="topbar__row" style="padding: 8px 12px;">
+              <div class="brand" style="margin-right: 0;">
+                <span class="brand__title" style="font-size: 1rem; line-height: 1.4rem;"><em>BAT</em> <strong>Bracket</strong></span>
+                <span class="brand__sub" style="font-size: 11px;">Live tracker</span>
+              </div>
+              <div class="right-cluster" style="gap: 6px;">
+                <span class="bell-wrap">
+                  <button class="bell" aria-label="Notifications (3 unread)" aria-expanded="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                    </svg>
+                    <span class="bell__dot"></span>
+                  </button>
+                </span>
+                <button class="icon-btn" title="Toggle theme">🌙</button>
+                <span class="lang-toggle"><span class="on">EN</span><span>TH</span></span>
+              </div>
+            </div>
+            <div class="topbar__row" style="padding: 0 12px 8px;">
+              <div class="field" style="flex: 1;">
+                <select style="width: 100%; min-width: 0;"><option>BAT Open 2026 — May</option></select>
+              </div>
+            </div>
+          </div>
+          <div class="backdrop"></div>
+          <div class="dropdown" role="dialog" aria-label="Notifications">
+            <div class="dropdown__head">Notifications</div>
+            <div class="dropdown__group-title">New tournaments</div>
+            <button class="dropdown__item">
+              Toyota Junior Open 2026
+              <div class="dropdown__item-meta">added today</div>
+            </button>
+            <button class="dropdown__item">
+              Khon Kaen Masters
+              <div class="dropdown__item-meta">added yesterday</div>
+            </button>
+            <div class="dropdown__group-title">New schedule published</div>
+            <button class="dropdown__item">
+              BAT Open 2026 — May
+              <div class="dropdown__item-meta">Sun, May 12</div>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="frame__caption">Mobile dropdown spans the viewport (8px gutters), sits below the header with a soft backdrop. Tap outside or any item → dismiss.</div>
+
+      <!-- ─── THAI VARIANT ─── -->
+      <h2>Thai variant — dropdown open</h2>
+      <div class="frame frame--mobile" style="height: 380px;">
+        <div class="header-host">
+          <div class="topbar">
+            <div class="topbar__row" style="padding: 8px 12px;">
+              <div class="brand" style="margin-right: 0;">
+                <span class="brand__title" style="font-size: 1rem; line-height: 1.4rem;"><em>BAT</em> <strong>Bracket</strong></span>
+                <span class="brand__sub" style="font-size: 11px;">ติดตามทัวร์นาเมนต์สด</span>
+              </div>
+              <div class="right-cluster" style="gap: 6px;">
+                <span class="bell-wrap">
+                  <button class="bell" aria-label="การแจ้งเตือน (3)" aria-expanded="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                    </svg>
+                    <span class="bell__dot"></span>
+                  </button>
+                </span>
+                <button class="icon-btn" title="โหมดมืด">🌙</button>
+                <span class="lang-toggle"><span>EN</span><span class="on">TH</span></span>
+              </div>
+            </div>
+            <div class="topbar__row" style="padding: 0 12px 8px;">
+              <div class="field" style="flex: 1;">
+                <select style="width: 100%; min-width: 0;"><option>BAT Open 2026 — May</option></select>
+              </div>
+            </div>
+          </div>
+          <div class="backdrop"></div>
+          <div class="dropdown" role="dialog" aria-label="การแจ้งเตือน">
+            <div class="dropdown__head">การแจ้งเตือน</div>
+            <div class="dropdown__group-title">ทัวร์นาเมนต์ใหม่</div>
+            <button class="dropdown__item">
+              Toyota Junior Open 2026
+              <div class="dropdown__item-meta">เพิ่มวันนี้</div>
+            </button>
+            <button class="dropdown__item">
+              Khon Kaen Masters
+              <div class="dropdown__item-meta">เพิ่มเมื่อวาน</div>
+            </button>
+            <div class="dropdown__group-title">ประกาศเวลาแข่งใหม่</div>
+            <button class="dropdown__item">
+              BAT Open 2026 — May
+              <div class="dropdown__item-meta">อาทิตย์ที่ 12 พ.ค.</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,419 @@
+- generic [ref=e2]:
+  - button "สลับธีม" [ref=e4] [cursor=pointer]
+  - generic [ref=e5]:
+    - generic [ref=e6]: สถิติการแข่งขัน
+    - heading "โตโยต้า เยาวชนชิงชนะเลิศแห่งประเทศไทย ประจำปี 2569" [level=1] [ref=e7]
+    - generic [ref=e8]: 24 – 30 เม.ย. 2569 · 20 รายการ · U9 ถึง U19
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e11]: "20"
+        - generic [ref=e12]: รายการ
+      - generic [ref=e13]:
+        - generic [ref=e14]: 1,155
+        - generic [ref=e15]: แมตช์ทั้งหมด
+      - generic [ref=e16]:
+        - generic [ref=e17]: 979 / 676(69%)
+        - generic [ref=e18]: ผู้เล่น · หลายรายการ
+      - generic [ref=e19]:
+        - generic [ref=e20]: 505 ชม.
+        - generic [ref=e21]: เวลาสนามรวม
+      - generic [ref=e22]:
+        - generic [ref=e23]: 27 นาที
+        - generic [ref=e24]: แมตช์เฉลี่ย
+      - generic [ref=e25]:
+        - generic [ref=e26]: 18%
+        - generic [ref=e27]: 3 เกม
+  - generic [ref=e28]:
+    - heading "แมตช์ต่อวัน" [level=2] [ref=e29]
+    - generic [ref=e30]:
+      - generic [ref=e31]: พฤ 24 เม.ย.
+      - generic [ref=e34]:
+        - text: "230"
+        - generic [ref=e35]: · 87 ชม.
+    - generic [ref=e36]:
+      - generic [ref=e37]: ศ 25 เม.ย.
+      - generic [ref=e40]:
+        - text: "232"
+        - generic [ref=e41]: · 88 ชม.
+    - generic [ref=e42]:
+      - generic [ref=e43]: ส 26 เม.ย.
+      - generic [ref=e46]:
+        - text: "216"
+        - generic [ref=e47]: · 88 ชม.
+    - generic [ref=e48]:
+      - generic [ref=e49]: อา 27 เม.ย.
+      - generic [ref=e52]:
+        - text: "193"
+        - generic [ref=e53]: · 82 ชม.
+    - generic [ref=e54]:
+      - generic [ref=e55]: จ 28 เม.ย.
+      - generic [ref=e58]:
+        - text: "192"
+        - generic [ref=e59]: · 100 ชม.
+    - generic [ref=e60]:
+      - generic [ref=e61]: อ 29 เม.ย.
+      - generic [ref=e64]:
+        - text: "72"
+        - generic [ref=e65]: · 46 ชม.
+    - generic [ref=e66]:
+      - generic [ref=e67]: พ 30 เม.ย.
+      - generic [ref=e70]:
+        - text: "20"
+        - generic [ref=e71]: · 14 ชม.
+    - generic [ref=e72]: "วันที่แมตช์มากที่สุด: ศ 25 เม.ย. (232 แมตช์) · วันที่ใช้เวลาสนามรวมมากที่สุด: จ 28 เม.ย. (100 ชม.)"
+  - generic [ref=e73]:
+    - heading "แมตช์น่าจดจำ" [level=2] [ref=e74]
+    - generic [ref=e75]:
+      - generic [ref=e76]:
+        - generic [ref=e77]: ★ แมตช์ยาวที่สุด — 1 ชม. 24 นาที
+        - generic [ref=e78]: GD U17 · รอบรองชนะเลิศ
+      - generic [ref=e79]: ธัญญากร สุบิน [8] / พิชญ์ภณิตา อัศวพงษ์โชติ ชนะ ณัชชา นิพิฐนรเศรษฐ [4] / ปุญญิศา บุญเนตร
+      - generic [ref=e80]: 17–21, 21–17, 21–13
+    - generic [ref=e81]:
+      - generic [ref=e82]:
+        - generic [ref=e83]: ★ เกมคะแนนสูงสุด — 56 คะแนน
+        - generic [ref=e84]: BD U15 · รอบ 16
+      - generic [ref=e85]: นพพร ไชยปา [5] / รับชัย ว่องไว ชนะ ธนานันท์ สุขุมเสฏฐ
+      - generic [ref=e86]: 28–26, …
+    - generic [ref=e87]:
+      - generic [ref=e88]:
+        - generic [ref=e89]: ชนะพลิกกลับ 104 แมตช์ (9% ของแมตช์ที่ตัดสินผล)
+        - generic [ref=e90]: เสียเกมแรก แต่กลับมาชนะ
+      - generic [ref=e91]: "ไฮไลต์: BD U17 รอบชิงชนะเลิศ · ชิษณุกร อัศวมานะชัย [3] ชนะ วิชัยดี สุขใส"
+      - generic [ref=e92]: 17–21, 21–14, 21–16
+    - generic [ref=e93]:
+      - generic [ref=e94]:
+        - generic [ref=e95]: ★ ผู้เล่นยอดเยี่ยม — ชนะ 11 แมตช์โดยไม่แพ้เลย
+        - generic [ref=e96]: 3 คนเท่ากัน
+      - generic [ref=e97]: ณัฐฎา เกริกกฤตยา · จิรัชยา วัฒนแสนสุข · ณัฐพัฒน์ ภูมิผักแว่น
+      - generic [ref=e98]: 11–0 ทั้งคู่
+  - generic [ref=e99]:
+    - heading "รายการ" [level=2] [ref=e100]
+    - table [ref=e101]:
+      - rowgroup [ref=e102]:
+        - row "BS U19 · 68 แมตช์ · 16% 3 เกม 🏆 ปัณณทัต เปรมพันธ์พงษ์ [1]" [ref=e103]:
+          - cell "BS U19" [ref=e104]
+          - cell "· 68 แมตช์" [ref=e105]
+          - cell "· 16% 3 เกม" [ref=e106]
+          - text: ·
+          - cell "🏆 ปัณณทัต เปรมพันธ์พงษ์ [1]" [ref=e107]
+        - row "GS U19 · 21 แมตช์ · 19% 3 เกม 🏆 ญาตาวีมินทร์ เกตุเกลี้ยง [1]" [ref=e108]:
+          - cell "GS U19" [ref=e109]
+          - cell "· 21 แมตช์" [ref=e110]
+          - cell "· 19% 3 เกม" [ref=e111]
+          - text: ·
+          - cell "🏆 ญาตาวีมินทร์ เกตุเกลี้ยง [1]" [ref=e112]
+        - row "BD U19 · 32 แมตช์ · 25% 3 เกม 🏆 กุลพัทธ์ โล่ห์ทอง [4] / เตชินท์ วิริยชัยฤกษ์" [ref=e113]:
+          - cell "BD U19" [ref=e114]
+          - cell "· 32 แมตช์" [ref=e115]
+          - cell "· 25% 3 เกม" [ref=e116]
+          - text: ·
+          - cell "🏆 กุลพัทธ์ โล่ห์ทอง [4] / เตชินท์ วิริยชัยฤกษ์" [ref=e117]
+        - row "GD U19 · 16 แมตช์ · 19% 3 เกม 🏆 ชัญญพัชร์ ชาติวีระชัยศรี [8] / ณัฐพัชร์ บุญสัมพุทธ" [ref=e118]:
+          - cell "GD U19" [ref=e119]
+          - cell "· 16 แมตช์" [ref=e120]
+          - cell "· 19% 3 เกม" [ref=e121]
+          - text: ·
+          - cell "🏆 ชัญญพัชร์ ชาติวีระชัยศรี [8] / ณัฐพัชร์ บุญสัมพุทธ" [ref=e122]
+        - row "XD U19 · 31 แมตช์ · 26% 3 เกม 🏆 กิติพัฒน์ กานต์นิธิวัฒน์ [3] / สุนิสา เล็กจุฬา" [ref=e123]:
+          - cell "XD U19" [ref=e124]
+          - cell "· 31 แมตช์" [ref=e125]
+          - cell "· 26% 3 เกม" [ref=e126]
+          - text: ·
+          - cell "🏆 กิติพัฒน์ กานต์นิธิวัฒน์ [3] / สุนิสา เล็กจุฬา" [ref=e127]
+        - row "BS U17 · 116 แมตช์ · 16% 3 เกม 🏆 ธนัชเดช กลีบมาลัย" [ref=e128]:
+          - cell "BS U17" [ref=e129]
+          - cell "· 116 แมตช์" [ref=e130]
+          - cell "· 16% 3 เกม" [ref=e131]
+          - text: ·
+          - cell "🏆 ธนัชเดช กลีบมาลัย" [ref=e132]
+        - row "GS U17 · 58 แมตช์ · 19% 3 เกม 🏆 นฤชา ชาลี [2]" [ref=e133]:
+          - cell "GS U17" [ref=e134]
+          - cell "· 58 แมตช์" [ref=e135]
+          - cell "· 19% 3 เกม" [ref=e136]
+          - text: ·
+          - cell "🏆 นฤชา ชาลี [2]" [ref=e137]
+        - row "BD U17 · 50 แมตช์ · 28% 3 เกม 🏆 ชิษณุกร อัศวมานะชัย [3] / ธีรพิชญ์ ทองกวา" [ref=e138]:
+          - cell "BD U17" [ref=e139]
+          - cell "· 50 แมตช์" [ref=e140]
+          - cell "· 28% 3 เกม" [ref=e141]
+          - text: ·
+          - cell "🏆 ชิษณุกร อัศวมานะชัย [3] / ธีรพิชญ์ ทองกวา" [ref=e142]
+        - row "GD U17 · 34 แมตช์ · 18% 3 เกม 🏆 ของขวัญ เริญศรี [1] / พิมพ์ณภา ธนัทอนันตพงศ์" [ref=e143]:
+          - cell "GD U17" [ref=e144]
+          - cell "· 34 แมตช์" [ref=e145]
+          - cell "· 18% 3 เกม" [ref=e146]
+          - text: ·
+          - cell "🏆 ของขวัญ เริญศรี [1] / พิมพ์ณภา ธนัทอนันตพงศ์" [ref=e147]
+        - row "XD U17 3 เกม 31% · 48 แมตช์ · 31% 3 เกม 🏆 ปริญญา พุฒิไพรสกุล [1] / พิมพ์ณภา ธนัทอนันตพงศ์" [ref=e148]:
+          - cell "XD U17 3 เกม 31%" [ref=e149]:
+            - text: XD U17
+            - generic [ref=e150]: 3 เกม 31%
+          - cell "· 48 แมตช์" [ref=e151]
+          - cell "· 31% 3 เกม" [ref=e152]
+          - text: ·
+          - cell "🏆 ปริญญา พุฒิไพรสกุล [1] / พิมพ์ณภา ธนัทอนันตพงศ์" [ref=e153]
+        - row "BS U15 · 129 แมตช์ · 12% 3 เกม 🏆 เตชพัฒน์ ซิ้มยินดี [1]" [ref=e154]:
+          - cell "BS U15" [ref=e155]
+          - cell "· 129 แมตช์" [ref=e156]
+          - cell "· 12% 3 เกม" [ref=e157]
+          - text: ·
+          - cell "🏆 เตชพัฒน์ ซิ้มยินดี [1]" [ref=e158]
+        - row "GS U15 · 79 แมตช์ · 14% 3 เกม 🏆 ณัฐฎา เกริกกฤตยา [7]" [ref=e159]:
+          - cell "GS U15" [ref=e160]
+          - cell "· 79 แมตช์" [ref=e161]
+          - cell "· 14% 3 เกม" [ref=e162]
+          - text: ·
+          - cell "🏆 ณัฐฎา เกริกกฤตยา [7]" [ref=e163]
+        - row "BD U15 · 48 แมตช์ · 14% 3 เกม 🏆 นพพร ไชยปา [5] / รับชัย ว่องไว" [ref=e164]:
+          - cell "BD U15" [ref=e165]
+          - cell "· 48 แมตช์" [ref=e166]
+          - cell "· 14% 3 เกม" [ref=e167]
+          - text: ·
+          - cell "🏆 นพพร ไชยปา [5] / รับชัย ว่องไว" [ref=e168]
+        - row "GD U15 · 29 แมตช์ · 21% 3 เกม 🏆 ชณิฏภ์ษฎาฌ์ แหวนทองคำ [4] / ณัฐฎา เกริกกฤตยา" [ref=e169]:
+          - cell "GD U15" [ref=e170]
+          - cell "· 29 แมตช์" [ref=e171]
+          - cell "· 21% 3 เกม" [ref=e172]
+          - text: ·
+          - cell "🏆 ชณิฏภ์ษฎาฌ์ แหวนทองคำ [4] / ณัฐฎา เกริกกฤตยา" [ref=e173]
+        - row "XD U15 · 44 แมตช์ · 13% 3 เกม 🏆 สุวิจักขณ์ มีชัย [1] / สิริกร จงเจริญ" [ref=e174]:
+          - cell "XD U15" [ref=e175]
+          - cell "· 44 แมตช์" [ref=e176]
+          - cell "· 13% 3 เกม" [ref=e177]
+          - text: ·
+          - cell "🏆 สุวิจักขณ์ มีชัย [1] / สิริกร จงเจริญ" [ref=e178]
+        - row "BS U13 · 103 แมตช์ · 13% 3 เกม 🏆 ณัฐพัฒน์ ภูมิผักแว่น [2]" [ref=e179]:
+          - cell "BS U13" [ref=e180]
+          - cell "· 103 แมตช์" [ref=e181]
+          - cell "· 13% 3 เกม" [ref=e182]
+          - text: ·
+          - cell "🏆 ณัฐพัฒน์ ภูมิผักแว่น [2]" [ref=e183]
+        - row "GS U13 · 57 แมตช์ · 14% 3 เกม 🏆 จิรัชยา วัฒนแสนสุข [1]" [ref=e184]:
+          - cell "GS U13" [ref=e185]
+          - cell "· 57 แมตช์" [ref=e186]
+          - cell "· 14% 3 เกม" [ref=e187]
+          - text: ·
+          - cell "🏆 จิรัชยา วัฒนแสนสุข [1]" [ref=e188]
+        - row "BD U13 · 42 แมตช์ · 20% 3 เกม 🏆 ณัฐพัฒน์ ภูมิผักแว่น [1] / พุฒิพัฒน์ ดุรงค์วิชัยโชค" [ref=e189]:
+          - cell "BD U13" [ref=e190]
+          - cell "· 42 แมตช์" [ref=e191]
+          - cell "· 20% 3 เกม" [ref=e192]
+          - text: ·
+          - cell "🏆 ณัฐพัฒน์ ภูมิผักแว่น [1] / พุฒิพัฒน์ ดุรงค์วิชัยโชค" [ref=e193]
+        - row "GD U13 · 32 แมตช์ · 18% 3 เกม 🏆 กรรณิการ์ ตันมณี [1] / พรปวีณ์ สุขอินทร์" [ref=e194]:
+          - cell "GD U13" [ref=e195]
+          - cell "· 32 แมตช์" [ref=e196]
+          - cell "· 18% 3 เกม" [ref=e197]
+          - text: ·
+          - cell "🏆 กรรณิการ์ ตันมณี [1] / พรปวีณ์ สุขอินทร์" [ref=e198]
+        - row "XD U13 3 เกม 33% · 36 แมตช์ · 33% 3 เกม 🏆 ธัชธรรม์ เหมาะประสิทธิ์ วรสุภาพ [8] / จิรัชยา วัฒนแสนสุข" [ref=e199]:
+          - cell "XD U13 3 เกม 33%" [ref=e200]:
+            - text: XD U13
+            - generic [ref=e201]: 3 เกม 33%
+          - cell "· 36 แมตช์" [ref=e202]
+          - cell "· 33% 3 เกม" [ref=e203]
+          - text: ·
+          - cell "🏆 ธัชธรรม์ เหมาะประสิทธิ์ วรสุภาพ [8] / จิรัชยา วัฒนแสนสุข" [ref=e204]
+  - generic [ref=e205]:
+    - generic [ref=e206]:
+      - heading "ผู้เล่นยอดเยี่ยม (ตามชัยชนะในรายการนี้)" [level=2] [ref=e207]
+      - table [ref=e208]:
+        - rowgroup [ref=e209]:
+          - row "ผู้เล่น ชนะ–แพ้" [ref=e210]:
+            - columnheader [ref=e211]
+            - columnheader "ผู้เล่น" [ref=e212]
+            - columnheader "ชนะ–แพ้" [ref=e213]
+        - rowgroup [ref=e214]:
+          - row "1 ณัฐฎา เกริกกฤตยา 11–0" [ref=e215]:
+            - cell "1" [ref=e216]
+            - cell "ณัฐฎา เกริกกฤตยา" [ref=e217]
+            - cell "11–0" [ref=e218]
+          - row "2 จิรัชยา วัฒนแสนสุข 11–0" [ref=e219]:
+            - cell "2" [ref=e220]
+            - cell "จิรัชยา วัฒนแสนสุข" [ref=e221]
+            - cell "11–0" [ref=e222]
+          - row "3 ณัฐพัฒน์ ภูมิผักแว่น [2] 11–0" [ref=e223]:
+            - cell "3" [ref=e224]
+            - cell "ณัฐพัฒน์ ภูมิผักแว่น [2]" [ref=e225]
+            - cell "11–0" [ref=e226]
+          - row "4 จิรภัทร คุมพล 11–2" [ref=e227]:
+            - cell "4" [ref=e228]
+            - cell "จิรภัทร คุมพล" [ref=e229]
+            - cell "11–2" [ref=e230]
+          - row "5 พิมพ์ณภา ธนัทอนันตพงศ์ 10–0" [ref=e231]:
+            - cell "5" [ref=e232]
+            - cell "พิมพ์ณภา ธนัทอนันตพงศ์" [ref=e233]
+            - cell "10–0" [ref=e234]
+          - row "6 ธัชธรรม์ เหมาะประสิทธิ์ วรสุภาพ [8] 10–1" [ref=e235]:
+            - cell "6" [ref=e236]
+            - cell "ธัชธรรม์ เหมาะประสิทธิ์ วรสุภาพ [8]" [ref=e237]
+            - cell "10–1" [ref=e238]
+          - row "7 พรปวีณ์ สุขอินทร์ 10–1" [ref=e239]:
+            - cell "7" [ref=e240]
+            - cell "พรปวีณ์ สุขอินทร์" [ref=e241]
+            - cell "10–1" [ref=e242]
+          - row "8 ชณิฏภ์ษฎาฌ์ แหวนทองคำ [4] 9–1" [ref=e243]:
+            - cell "8" [ref=e244]
+            - cell "ชณิฏภ์ษฎาฌ์ แหวนทองคำ [4]" [ref=e245]
+            - cell "9–1" [ref=e246]
+          - row "9 เตชินท์ วิริยชัยฤกษ์ 9–1" [ref=e247]:
+            - cell "9" [ref=e248]
+            - cell "เตชินท์ วิริยชัยฤกษ์" [ref=e249]
+            - cell "9–1" [ref=e250]
+          - row "10 กิติพัฒน์ กานต์นิธิวัฒน์ [9] 9–1" [ref=e251]:
+            - cell "10" [ref=e252]
+            - cell "กิติพัฒน์ กานต์นิธิวัฒน์ [9]" [ref=e253]
+            - cell "9–1" [ref=e254]
+      - generic [ref=e255]: มีผู้เล่น 676 คนลงเล่นมากกว่า 1 รายการ · ผู้เล่นที่ใช้เวลาสนามรวมมากที่สุดคือ ฐิติวรดา บัวแก้ว (6 ชม. 14 นาที)
+    - generic [ref=e256]:
+      - heading "การใช้งานสนาม" [level=2] [ref=e257]
+      - generic [ref=e258]:
+        - generic [ref=e259]: คอร์ต 1
+        - generic [ref=e262]: 70.6 ชม.
+      - generic [ref=e263]:
+        - generic [ref=e264]: คอร์ต 6
+        - generic [ref=e267]: 66.7 ชม.
+      - generic [ref=e268]:
+        - generic [ref=e269]: คอร์ต 7
+        - generic [ref=e272]: 66.3 ชม.
+      - generic [ref=e273]:
+        - generic [ref=e274]: คอร์ต 3
+        - generic [ref=e277]: 66.1 ชม.
+      - generic [ref=e278]:
+        - generic [ref=e279]: คอร์ต 4
+        - generic [ref=e282]: 63.4 ชม.
+      - generic [ref=e283]:
+        - generic [ref=e284]: คอร์ต 2
+        - generic [ref=e287]: 60.2 ชม.
+      - generic [ref=e288]:
+        - generic [ref=e289]: คอร์ต 8
+        - generic [ref=e292]: 57.5 ชม.
+      - generic [ref=e293]:
+        - generic [ref=e294]: คอร์ต 5
+        - generic [ref=e297]: 54.5 ชม.
+      - generic [ref=e298]: คอร์ต 1 ใช้งานมากสุด 70.6 ชม. · รวมทุกคอร์ต 505 ชม.
+  - generic [ref=e299]:
+    - heading "สโมสรยอดเยี่ยม (เรียงตามเหรียญรางวัล)" [level=2] [ref=e300]
+    - table [ref=e301]:
+      - rowgroup [ref=e302]:
+        - row "สโมสร 🥇 🥈 🥉" [ref=e303]:
+          - columnheader [ref=e304]
+          - columnheader "สโมสร" [ref=e305]
+          - columnheader "🥇" [ref=e306]
+          - columnheader "🥈" [ref=e307]
+          - columnheader "🥉" [ref=e308]
+      - rowgroup [ref=e309]:
+        - row "1 บ้านทองหยอด 11 8 12" [ref=e310]:
+          - cell "1" [ref=e311]
+          - cell "บ้านทองหยอด" [ref=e312]
+          - cell "11" [ref=e313]
+          - cell "8" [ref=e314]
+          - cell "12" [ref=e315]
+        - row "2 ที ไทยแลนด์ 4 3 2" [ref=e316]:
+          - cell "2" [ref=e317]
+          - cell "ที ไทยแลนด์" [ref=e318]
+          - cell "4" [ref=e319]
+          - cell "3" [ref=e320]
+          - cell "2" [ref=e321]
+        - row "3 สมาคมกีฬาแบดมินตันจังหวัดปทุมธานี 3 4 3" [ref=e322]:
+          - cell "3" [ref=e323]
+          - cell "สมาคมกีฬาแบดมินตันจังหวัดปทุมธานี" [ref=e324]
+          - cell "3" [ref=e325]
+          - cell "4" [ref=e326]
+          - cell "3" [ref=e327]
+        - row "4 พลสนะแบดมินตัน 3 1 5" [ref=e328]:
+          - cell "4" [ref=e329]
+          - cell "พลสนะแบดมินตัน" [ref=e330]
+          - cell "3" [ref=e331]
+          - cell "1" [ref=e332]
+          - cell "5" [ref=e333]
+        - row "5 BOY'S CLUB 2 1 2" [ref=e334]:
+          - cell "5" [ref=e335]
+          - cell "BOY'S CLUB" [ref=e336]
+          - cell "2" [ref=e337]
+          - cell "1" [ref=e338]
+          - cell "2" [ref=e339]
+        - row "6 Taksakorn Badminton Academy 2 0 0" [ref=e340]:
+          - cell "6" [ref=e341]
+          - cell "Taksakorn Badminton Academy" [ref=e342]
+          - cell "2" [ref=e343]
+          - cell "0" [ref=e344]
+          - cell "0" [ref=e345]
+        - row "7 ภคภัทร์ 1 2 2" [ref=e346]:
+          - cell "7" [ref=e347]
+          - cell "ภคภัทร์" [ref=e348]
+          - cell "1" [ref=e349]
+          - cell "2" [ref=e350]
+          - cell "2" [ref=e351]
+        - row "8 GRANULAR 1 1 5" [ref=e352]:
+          - cell "8" [ref=e353]
+          - cell "GRANULAR" [ref=e354]
+          - cell "1" [ref=e355]
+          - cell "1" [ref=e356]
+          - cell "5" [ref=e357]
+        - row "9 เกษมศักดิ์ Badminton Academy 1 1 2" [ref=e358]:
+          - cell "9" [ref=e359]
+          - cell "เกษมศักดิ์ Badminton Academy" [ref=e360]
+          - cell "1" [ref=e361]
+          - cell "1" [ref=e362]
+          - cell "2" [ref=e363]
+        - row "10 ศิริภูล 1 1 1" [ref=e364]:
+          - cell "10" [ref=e365]
+          - cell "ศิริภูล" [ref=e366]
+          - cell "1" [ref=e367]
+          - cell "1" [ref=e368]
+          - cell "1" [ref=e369]
+    - generic [ref=e370]: 🥇 ผู้ชนะเลิศ · 🥈 รองชนะเลิศ · 🥉 รองชนะเลิศอันดับ 3 (ผู้แพ้ในรอบรองฯ ทั้ง 2 คู่) · ประเภทคู่นับเหรียญละ 1 ต่อผู้เล่น
+  - generic [ref=e371]:
+    - heading "ผู้เล่นที่ได้เหรียญทองหลายเหรียญ" [level=2] [ref=e372]
+    - table [ref=e373]:
+      - rowgroup [ref=e374]:
+        - row "🥇 ผู้เล่น สโมสร รายการ" [ref=e375]:
+          - columnheader "🥇" [ref=e376]
+          - columnheader "ผู้เล่น" [ref=e377]
+          - columnheader "สโมสร" [ref=e378]
+          - columnheader "รายการ" [ref=e379]
+      - rowgroup [ref=e380]:
+        - row "2 พิมพ์ณภา ธนัทอนันตพงศ์ บ้านทองหยอด XD U17 + GD U17" [ref=e381]:
+          - cell "2" [ref=e382]
+          - cell "พิมพ์ณภา ธนัทอนันตพงศ์" [ref=e383]
+          - cell "บ้านทองหยอด" [ref=e384]
+          - cell "XD U17 + GD U17" [ref=e385]
+        - row "2 จิรัชยา วัฒนแสนสุข [1] สมาคมกีฬาแบดมินตันจังหวัดปทุมธานี GS U13 + XD U13" [ref=e386]:
+          - cell "2" [ref=e387]
+          - cell "จิรัชยา วัฒนแสนสุข [1]" [ref=e388]
+          - cell "สมาคมกีฬาแบดมินตันจังหวัดปทุมธานี" [ref=e389]
+          - cell "GS U13 + XD U13" [ref=e390]
+        - row "2 ณัฐฎา เกริกกฤตยา [7] พลสนะแบดมินตัน GS U15 + GD U15" [ref=e391]:
+          - cell "2" [ref=e392]
+          - cell "ณัฐฎา เกริกกฤตยา [7]" [ref=e393]
+          - cell "พลสนะแบดมินตัน" [ref=e394]
+          - cell "GS U15 + GD U15" [ref=e395]
+        - row "2 ณัฐพัฒน์ ภูมิผักแว่น [2] Taksakorn Badminton Academy BS U13 + BD U13" [ref=e396]:
+          - cell "2" [ref=e397]
+          - cell "ณัฐพัฒน์ ภูมิผักแว่น [2]" [ref=e398]
+          - cell "Taksakorn Badminton Academy" [ref=e399]
+          - cell "BS U13 + BD U13" [ref=e400]
+    - generic [ref=e401]: มีผู้เล่น 4 คนได้เหรียญทอง 2 เหรียญในรายการนี้ · ไม่มีผู้เล่นที่ได้ 3 เหรียญทองขึ้นไป
+  - generic [ref=e402]:
+    - heading "คุณภาพการแข่ง" [level=2] [ref=e403]
+    - generic [ref=e404]:
+      - generic [ref=e406]:
+        - generic [ref=e407]: เดินผ่าน (W.O.) 0 แมตช์ · อัตรารวม 0%
+        - generic [ref=e408]: ถอนตัวกลางเกม 0 แมตช์
+        - generic [ref=e409]: ไม่มี W.O. ในรายการนี้ — อัตรา W.O. ทั้งรายการ 0%
+      - generic [ref=e411]:
+        - generic [ref=e412]: "3 เกม แยกตามรายการ:"
+        - generic [ref=e413]:
+          - text: XD U17
+          - generic [ref=e414]: 31%
+          - text: · XD U13
+          - generic [ref=e415]: 33%
+        - generic [ref=e416]:
+          - text: BD U17
+          - generic [ref=e417]: 28%
+          - text: · GD U15
+          - generic [ref=e418]: 21%
+        - generic [ref=e419]: "เฉลี่ยทั้งรายการ: 18%"
+  - generic [ref=e420]: Mockup · ตัวเลขจากข้อมูลจริงจาก โตโยต้า 2026 · อัปเดตเวลาสนามจาก day cache
