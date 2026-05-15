@@ -164,9 +164,9 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       const m = matchByKey.get(key)
       if (!m) return
       const filename = buildFilename(tournamentName, m.draw)
-      const isUpcoming = m.winner === null && !m.walkover && m.scores.length === 0
-      const scheduledTime = isUpcoming ? matchTimeByKey.get(key) : undefined
-      captureMatchImageFile({ matchEl: el, tournamentName, filename, scheduledTime })
+      const scheduledTime = matchTimeByKey.get(key)
+      const scheduledDateLabel = days.find((d) => d.date === selectedDay)?.label
+      captureMatchImageFile({ matchEl: el, tournamentName, filename, scheduledTime, scheduledDateLabel })
         .then((file) => { preparedFileRef.current = file })
         .catch((err) => { console.warn('captureMatchImageFile failed', err) })
     },

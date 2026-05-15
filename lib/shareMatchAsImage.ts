@@ -24,6 +24,7 @@ interface CaptureMatchImageOptions {
   tournamentName: string
   filename: string
   scheduledTime?: string
+  scheduledDateLabel?: string
 }
 
 interface ShareFileOptions {
@@ -57,20 +58,31 @@ function buildHeader(tournamentName: string): HTMLElement {
   return header
 }
 
-function cleanClone(matchEl: HTMLElement, scheduledTime?: string): HTMLElement {
+function cleanClone(
+  matchEl: HTMLElement,
+  opts: { scheduledTime?: string; scheduledDateLabel?: string } = {},
+): HTMLElement {
   const clone = matchEl.cloneNode(true) as HTMLElement
   for (const cls of HIGHLIGHT_CLASSES) clone.classList.remove(cls)
   clone.querySelectorAll('.ms-player-highlight').forEach((el) => el.classList.remove('ms-player-highlight'))
   clone.querySelectorAll('.ms-h2h-inline').forEach((el) => el.remove())
-  if (scheduledTime) {
-    const meta = clone.querySelector('.ms-meta')
-    if (meta) {
+  const meta = clone.querySelector('.ms-meta')
+  if (meta) {
+    // Inline styles so the capture renders consistently even outside the
+    // app's CSS context (e.g. jsdom in tests, edge browser quirks).
+    const stampStyle = 'font-size:12px;font-weight:600;color:#1a1a1a;white-space:nowrap;'
+    if (opts.scheduledDateLabel) {
+      const dateEl = document.createElement('span')
+      dateEl.className = 'ms-date'
+      dateEl.textContent = opts.scheduledDateLabel
+      dateEl.style.cssText = stampStyle
+      meta.appendChild(dateEl)
+    }
+    if (opts.scheduledTime) {
       const timeEl = document.createElement('span')
       timeEl.className = 'ms-time'
-      timeEl.textContent = scheduledTime
-      // Inline styles so the capture renders consistently even outside the
-      // app's CSS context (e.g. jsdom in tests, edge browser quirks).
-      timeEl.style.cssText = 'font-size:12px;font-weight:600;color:#1a1a1a;white-space:nowrap;'
+      timeEl.textContent = opts.scheduledTime
+      timeEl.style.cssText = stampStyle
       meta.appendChild(timeEl)
     }
   }
@@ -83,7 +95,7 @@ async function dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
 }
 
 export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Promise<File> {
-  const { matchEl, tournamentName, filename, scheduledTime } = opts
+  const { matchEl, tournamentName, filename, scheduledTime, scheduledDateLabel } = opts
 
   const wrapper = document.createElement('div')
   // The wrapper has to be in the DOM at a real on-screen position for iOS
@@ -98,7 +110,7 @@ export async function captureMatchImageFile(opts: CaptureMatchImageOptions): Pro
     z-index: -1; pointer-events: none;
   `
   wrapper.appendChild(buildHeader(tournamentName))
-  wrapper.appendChild(cleanClone(matchEl, scheduledTime))
+  wrapper.appendChild(cleanClone(matchEl, { scheduledTime, scheduledDateLabel }))
   document.body.appendChild(wrapper)
 
   if (document.fonts?.ready) {
@@ -204,11 +216,11 @@ export async function captureStatsImageFile(opts: CaptureStatsImageOptions): Pro
   }
 }
 
-export async function shareMatchAsImage(opts: { matchEl: HTMLElement; tournamentName: string; eventName: string; scheduledTime?: string }): Promise<void> {
+export async function shareMatchAsImage(opts: { matchEl: HTMLElement; tournamentName: string; eventName: string; scheduledTime?: string; scheduledDateLabel?: string }): Promise<void> {
   const filename = buildFilename(opts.tournamentName, opts.eventName)
   let file: File
   try {
-    file = await captureMatchImageFile({ matchEl: opts.matchEl, tournamentName: opts.tournamentName, filename, scheduledTime: opts.scheduledTime })
+    file = await captureMatchImageFile({ matchEl: opts.matchEl, tournamentName: opts.tournamentName, filename, scheduledTime: opts.scheduledTime, scheduledDateLabel: opts.scheduledDateLabel })
   } catch (err) {
     console.warn('shareMatchAsImage: capture failed', err)
     return
