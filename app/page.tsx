@@ -711,7 +711,7 @@ export default function Home() {
               value={selectedTournament}
               onChange={(e) => handleTournamentChange(e.target.value)}
               disabled={loadingTournaments}
-              className="border border-[var(--border)] rounded-md px-2.5 py-1.5 text-xs min-w-[220px] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:border-[var(--brand)] disabled:opacity-50"
+              className="border border-[var(--border)] rounded-md px-2.5 py-1.5 text-xs min-w-[220px] max-w-[350px] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:border-[var(--brand)] disabled:opacity-50"
             >
               <option value="">
                 {loadingTournaments ? t('loading') : t('selectTournament')}
