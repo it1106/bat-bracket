@@ -2151,6 +2151,58 @@ html.dark .ms-match--next-opp {
 .stats-evname { font-weight: 600; }
 .stats-winner-cell { color: var(--fg); }
 
+/* Hover/focus tooltip on medal counts in the Top Clubs by Medals table.
+   Lists the players who earned that color of medal and the event each won.
+   Tabindex on the wrapper makes the popover reachable on touch (tap to open,
+   tap elsewhere to close). */
+.stats-medal-cell {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+  outline: none;
+}
+.stats-medal-tip {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 8px 10px;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  font-weight: normal;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+}
+.stats-medal-cell:hover .stats-medal-tip,
+.stats-medal-cell:focus .stats-medal-tip,
+.stats-medal-cell:focus-within .stats-medal-tip {
+  display: flex;
+}
+.stats-medal-tip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  line-height: 1.35;
+}
+.stats-medal-tip-name { color: var(--fg); }
+.stats-medal-tip-event {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Don't render the popover in shared screenshots — only the count matters. */
+.stats-share-capture .stats-medal-tip { display: none !important; }
+
 .stats-court-row {
   display: grid;
   grid-template-columns: 50px 1fr 70px;

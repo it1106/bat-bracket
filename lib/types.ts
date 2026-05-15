@@ -250,11 +250,20 @@ export interface StatsCourt {
   minutes: number
 }
 
+export interface StatsClubMedalist {
+  playerId: string
+  name: string
+  event: string
+}
+
 export interface StatsClubMedal {
   club: string
   gold: number
   silver: number
   bronze: number
+  goldMedalists: StatsClubMedalist[]
+  silverMedalists: StatsClubMedalist[]
+  bronzeMedalists: StatsClubMedalist[]
 }
 
 export interface StatsMultiGoldPlayer {

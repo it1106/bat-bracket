@@ -4,6 +4,7 @@ import type {
   MatchEntry,
   MatchScheduleGroup,
   MatchesData,
+  StatsClubMedalist,
   StatsCourtTimePlayer,
   StatsKpis,
   StatsMatchRef,
@@ -405,32 +406,61 @@ function buildClubMedalsAndMultiGold(
     }
   }
 
-  const medals = new Map<string, { gold: number; silver: number; bronze: number }>()
+  interface MedalTally {
+    gold: number
+    silver: number
+    bronze: number
+    goldMedalists: StatsClubMedalist[]
+    silverMedalists: StatsClubMedalist[]
+    bronzeMedalists: StatsClubMedalist[]
+  }
+  const medals = new Map<string, MedalTally>()
   const goldsByPlayer = new Map<string, { name: string; events: string[] }>()
 
-  const credit = (club: string, kind: 'gold' | 'silver' | 'bronze') => {
-    const r = medals.get(club) ?? { gold: 0, silver: 0, bronze: 0 }
+  const credit = (
+    club: string,
+    kind: 'gold' | 'silver' | 'bronze',
+    medalist: StatsClubMedalist,
+  ) => {
+    const r = medals.get(club) ?? {
+      gold: 0, silver: 0, bronze: 0,
+      goldMedalists: [], silverMedalists: [], bronzeMedalists: [],
+    }
     r[kind]++
+    if (kind === 'gold') r.goldMedalists.push(medalist)
+    else if (kind === 'silver') r.silverMedalists.push(medalist)
+    else r.bronzeMedalists.push(medalist)
     medals.set(club, r)
   }
   const clubOf = (pid: string) => (clubs[pid] ?? '').trim() || '—'
+  const medalistOf = (p: { playerId: string; name: string }, event: string): StatsClubMedalist => ({
+    playerId: p.playerId,
+    name: extractSeed(p.name).plain,
+    event,
+  })
 
   for (const [draw, m] of Array.from(lastFinalByDraw)) {
     const win = m.winner === 1 ? m.team1 : m.team2
     const lose = m.winner === 1 ? m.team2 : m.team1
     for (const p of win) {
       if (!p.playerId) continue
-      credit(clubOf(p.playerId), 'gold')
+      credit(clubOf(p.playerId), 'gold', medalistOf(p, draw))
       const g = goldsByPlayer.get(p.playerId) ?? { name: p.name, events: [] }
       g.events.push(draw)
       goldsByPlayer.set(p.playerId, g)
     }
-    for (const p of lose) if (p.playerId) credit(clubOf(p.playerId), 'silver')
+    for (const p of lose) {
+      if (!p.playerId) continue
+      credit(clubOf(p.playerId), 'silver', medalistOf(p, draw))
+    }
   }
   for (const semis of Array.from(semiLosersByDraw.values())) {
     for (const m of semis) {
       const lose = m.winner === 1 ? m.team2 : m.team1
-      for (const p of lose) if (p.playerId) credit(clubOf(p.playerId), 'bronze')
+      for (const p of lose) {
+        if (!p.playerId) continue
+        credit(clubOf(p.playerId), 'bronze', medalistOf(p, m.draw))
+      }
     }
   }
 

@@ -5,7 +5,7 @@ import { useLanguage } from '@/lib/LanguageContext'
 import { track } from '@/lib/analytics'
 import { useLongPress } from '@/lib/useLongPress'
 import { buildFilename, captureStatsImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
-import type { TournamentStats } from '@/lib/types'
+import type { StatsClubMedalist, TournamentStats } from '@/lib/types'
 
 interface Props {
   tournamentId: string
@@ -230,9 +230,15 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
                 <tr key={c.club}>
                   <td className="stats-rank">{i + 1}</td>
                   <td>{c.club}</td>
-                  <td className="stats-num"><b>{c.gold}</b></td>
-                  <td className="stats-num">{c.silver}</td>
-                  <td className="stats-num">{c.bronze}</td>
+                  <td className="stats-num">
+                    <MedalCell count={c.gold} medalists={c.goldMedalists} bold />
+                  </td>
+                  <td className="stats-num">
+                    <MedalCell count={c.silver} medalists={c.silverMedalists} />
+                  </td>
+                  <td className="stats-num">
+                    <MedalCell count={c.bronze} medalists={c.bronzeMedalists} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -372,6 +378,32 @@ interface DramaCardProps {
   where: string
   ref_: { team1: string[]; team2: string[]; winnerSide: 1 | 2; scores: Array<{ t1: number; t2: number }> }
   defLabel: string
+}
+
+function MedalCell({
+  count,
+  medalists,
+  bold = false,
+}: {
+  count: number
+  medalists?: StatsClubMedalist[]
+  bold?: boolean
+}) {
+  const num = bold ? <b>{count}</b> : <>{count}</>
+  if (count === 0 || !medalists || medalists.length === 0) return num
+  return (
+    <span className="stats-medal-cell" tabIndex={0}>
+      {num}
+      <span className="stats-medal-tip" role="tooltip">
+        {medalists.map((m, i) => (
+          <span className="stats-medal-tip-row" key={`${m.playerId}-${m.event}-${i}`}>
+            <span className="stats-medal-tip-name">{m.name}</span>
+            <span className="stats-medal-tip-event">{m.event}</span>
+          </span>
+        ))}
+      </span>
+    </span>
+  )
 }
 
 function DramaCard({ badge, where, ref_, defLabel }: DramaCardProps) {
