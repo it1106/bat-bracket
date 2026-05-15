@@ -147,8 +147,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                 <div className="pm-matches">
                   {profile.matches.filter(m => m.team1.length > 0 && m.team2.length > 0 && matchInActiveEvent(m)).map((m, i) => {
                     const renderName = (p: import('@/lib/types').MatchPlayer, pi: number, teamNum: 1 | 2) => {
-                      const isTracked = !!profile.playerId && p.playerId === profile.playerId
-                      const dotClass = isTracked && m.winner !== null
+                      const dotClass = m.winner !== null
                         ? (m.winner === teamNum ? ' pm-tracked-win' : ' pm-tracked-loss')
                         : ''
                       return (
