@@ -1607,6 +1607,16 @@ html.dark .ms-board-set.live {
   align-self: center;
 }
 
+.ms-team-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 .ms-player-highlight {
   background: var(--track-bg);
   border-radius: 3px;
