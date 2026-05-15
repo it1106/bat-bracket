@@ -873,6 +873,73 @@ export function parseRoundRobinMatches(html: string, drawName: string): MatchEnt
   return out
 }
 
+// Parses the GetMatchesContent endpoint for a single round-robin draw.
+// This endpoint is the live source for schedule + scores; GetDrawContent
+// renders the static N×N bracket grid that doesn't reflect updates.
+export function parseRoundRobinScheduleMatches(html: string, drawName: string): MatchEntry[] {
+  const $ = cheerio.load(html, { xmlMode: false })
+  const out: MatchEntry[] = []
+
+  $('.match-group__item').each((_, item) => {
+    const matchEl = $(item).find('.match').first().get(0)
+    if (!matchEl) return
+
+    const roundRaw = $(matchEl).find('.match__header-title-item .nav-link__value').first().text().trim()
+    const round = longRound(roundRaw || 'Round')
+
+    const rows = $(matchEl).find('.match__row')
+    let team1: MatchEntry['team1'] = []
+    let team2: MatchEntry['team2'] = []
+    let winner: MatchEntry['winner'] = null
+
+    rows.each((ri, row) => {
+      const hasWon = $(row).hasClass('has-won')
+      const players: MatchEntry['team1'] = []
+      $(row).find('.match__row-title-value').each((_, tv) => {
+        const a = $(tv).find('a')
+        const name = a.find('.nav-link__value').text().trim()
+        const playerId = a.attr('data-player-id')
+          ?? ((a.attr('href') ?? '').match(/player=(\d+)/)?.[1])
+          ?? ''
+        if (name) players.push({ name, playerId })
+      })
+      if (ri === 0) { team1 = players; if (hasWon) winner = 1 }
+      else if (ri === 1) { team2 = players; if (hasWon) winner = 2 }
+    })
+
+    const scores: MatchEntry['scores'] = []
+    $(matchEl).find('.match__result ul.points').each((_, pts) => {
+      const cells = $(pts).find('.points__cell')
+      const t1 = parseInt(cells.eq(0).text().trim(), 10)
+      const t2 = parseInt(cells.eq(1).text().trim(), 10)
+      if (!isNaN(t1) && !isNaN(t2)) scores.push({ t1, t2 })
+    })
+
+    const msgText = $(matchEl).find('.match__message').text().trim()
+    const retired = !!msgText && /ret/i.test(msgText) && scores.length > 0
+    const walkover = !!msgText && !retired
+
+    const hasAnyName = [...team1, ...team2].some((p) => p.name.length > 0)
+    if (!hasAnyName) return
+
+    out.push({
+      draw: drawName,
+      drawNum: '',
+      round,
+      team1,
+      team2,
+      winner,
+      scores,
+      court: '',
+      walkover,
+      retired,
+      nowPlaying: false,
+    })
+  })
+
+  return out
+}
+
 export function parseStandings(html: string): StandingsRow[] {
   const $ = cheerio.load(html)
   const rows: StandingsRow[] = []

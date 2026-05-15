@@ -5,6 +5,7 @@ import {
   parseBracket,
   parseMatchesFull,
   parseRoundRobinMatches,
+  parseRoundRobinScheduleMatches,
   parseStandings,
   detectGroupedDraws,
   orderScheduleGroups,
@@ -139,18 +140,18 @@ export const batProvider: TournamentProvider = {
     return { eventName, playoff, playoffDrawNum: playoffDraw.drawNum, groups }
   },
   async refreshGroup(ref: TournamentRef, drawNum: string): Promise<GroupRefresh | null> {
-    const drawContentUrl = `https://bat.tournamentsoftware.com/tournament/${ref.id}/Draw/${drawNum}/GetDrawContent?tabindex=1&X-Requested-With=XMLHttpRequest`
+    const matchesUrl = `https://bat.tournamentsoftware.com/tournament/${ref.id}/Draw/${drawNum}/GetMatchesContent?tabindex=1`
     const standingsUrl = `https://bat.tournamentsoftware.com/tournament/${ref.id}/Draw/${drawNum}/GetStandings`
-    const [drawHtmlRes, standingsHtmlRes] = await Promise.allSettled([
-      fetchHtmlXhr('group', ref.id, drawNum, drawContentUrl),
+    const [matchesHtmlRes, standingsHtmlRes] = await Promise.allSettled([
+      fetchHtmlXhr('group-matches', ref.id, drawNum, matchesUrl),
       fetchHtmlXhr('standings', ref.id, drawNum, standingsUrl),
     ])
-    const drawHtml = drawHtmlRes.status === 'fulfilled' ? drawHtmlRes.value : null
+    const matchesHtml = matchesHtmlRes.status === 'fulfilled' ? matchesHtmlRes.value : null
     const standingsHtml = standingsHtmlRes.status === 'fulfilled' ? standingsHtmlRes.value : null
-    if (!drawHtml && !standingsHtml) return null
+    if (!matchesHtml && !standingsHtml) return null
     return {
       standings: standingsHtml ? parseStandings(standingsHtml) : [],
-      matches: drawHtml ? parseRoundRobinMatches(drawHtml, '') : [],
+      matches: matchesHtml ? parseRoundRobinScheduleMatches(matchesHtml, '') : [],
     }
   },
 }
