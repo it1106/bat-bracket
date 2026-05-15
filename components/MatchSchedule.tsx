@@ -224,7 +224,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     const finalMedal = isFinalRound(m.round)
     const live = liveByCourt ? matchLiveCourt(m, liveByCourt) : null
     const isLive = live !== null
-    const { done: doneScore, liveText } = scoreStr(m, scoreTr, live)
+    const { liveText } = scoreStr(m, scoreTr, live)
     const medal = (team: 1 | 2) => {
       if (m.winner !== team || !finalMedal) return null
       return <span className="ms-medal" aria-label="winner">🥇</span>
@@ -309,11 +309,32 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         ))}
       </div>
       <div className="ms-score ms-d">
-        {doneScore && <span>{doneScore}</span>}
-        {liveText && doneScore && <span>, </span>}
-        {/* key={liveText} forces a fresh DOM node on every value change so
-            the CSS animation replays from scratch. */}
-        {liveText && <span key={liveText} className="set-live">{liveText}</span>}
+        {(() => {
+          if (m.walkover) return <span>{t('walkover')}</span>
+          const sets = live?.setScores?.length ? liveCompleted : m.scores
+          if (sets.length === 0 && !liveText) return <span>{t('vsMatch')}</span>
+          return (
+            <>
+              {sets.map((s, i) => {
+                const t1Lost = m.winner !== null && s.t1 < s.t2
+                const t2Lost = m.winner !== null && s.t2 < s.t1
+                return (
+                  <span key={i}>
+                    {i > 0 && ', '}
+                    <span className={t1Lost ? 'ms-score-lost' : ''}>{s.t1}</span>
+                    -
+                    <span className={t2Lost ? 'ms-score-lost' : ''}>{s.t2}</span>
+                  </span>
+                )
+              })}
+              {m.retired && sets.length > 0 && <span> {t('retired')}</span>}
+              {liveText && sets.length > 0 && <span>, </span>}
+              {/* key={liveText} forces a fresh DOM node on every value change so
+                  the CSS animation replays from scratch. */}
+              {liveText && <span key={liveText} className="set-live">{liveText}</span>}
+            </>
+          )
+        })()}
       </div>
       <div className={`ms-team ms-team--2 ms-d${m.winner === 2 ? ' winner' : ''}`}>
         {m.team2.map((p, i) => (

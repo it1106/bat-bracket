@@ -1640,6 +1640,8 @@ body.no-highlight .ms-player-highlight {
   text-align: left;
 }
 
+.ms-score .ms-score-lost { color: var(--muted); font-weight: 500; }
+
 /* Mobile scoreboard: hidden on desktop */
 .ms-m { display: none; }
 
