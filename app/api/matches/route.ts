@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings } from '@/lib/scraper'
-import { cache as bracketCache, TTL_MS as BRACKET_TTL_MS, fetchAndCache, rawHtmlCache, makeBracketKey } from '@/lib/bracket-cache'
+import { cache as bracketCache, fetchAndCache, rawHtmlCache, siblingLookupCache, makeBracketKey } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
 import { readDayCache, writeDayCache, isDayComplete, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
@@ -65,15 +65,27 @@ async function enrichWithSiblings(
     Array.from(drawNums).map(async (drawNum) => {
       try {
         const key = makeBracketKey(tournamentId, drawNum)
-        const cached = bracketCache.get(key)
-        const fresh = cached && (cached.done || Date.now() - cached.ts < BRACKET_TTL_MS)
-        if (!fresh) await fetchAndCache(tournamentId, drawNum)
-        const html = rawHtmlCache.get(key)
+        // Only fetch if we have no HTML at all (cold start, never prewarmed).
+        // Sibling pairings don't track scores, so a 15-min-stale bracket gives
+        // the same answer — refetching here would multiply BAT load on every
+        // SignalR-triggered /api/matches?fresh=1.
+        let html = rawHtmlCache.get(key)
+        if (!html) {
+          await fetchAndCache(tournamentId, drawNum)
+          html = rawHtmlCache.get(key)
+        }
         if (!html) return
-        const pairs = parseBracketSiblings(html)
-        const lookup = new Map<string, string>()
-        for (const p of pairs) {
-          lookup.set(p.players.join(','), p.siblingPlayers.join(','))
+
+        const bracketTs = bracketCache.get(key)?.ts ?? 0
+        const cachedLookup = siblingLookupCache.get(key)
+        let lookup = cachedLookup && cachedLookup.ts === bracketTs ? cachedLookup.lookup : null
+        if (!lookup) {
+          const pairs = parseBracketSiblings(html)
+          lookup = new Map<string, string>()
+          for (const p of pairs) {
+            lookup.set(p.players.join(','), p.siblingPlayers.join(','))
+          }
+          if (lookup.size > 0) siblingLookupCache.set(key, { lookup, ts: bracketTs })
         }
         if (lookup.size > 0) siblingByDraw.set(drawNum, lookup)
       } catch {

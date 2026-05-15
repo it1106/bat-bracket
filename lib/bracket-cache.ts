@@ -26,6 +26,11 @@ export function extractPlayerClubs(html: string, guid: string): void {
 
 export const cache = new Map<string, { bracket: BracketData; ts: number; done?: boolean }>()
 export const rawHtmlCache = new Map<string, string>()
+// Round-1 sibling pairings derived from the bracket HTML. Stable for the
+// tournament's lifetime barring withdrawals, so we re-parse only when the
+// underlying bracket entry's `ts` advances. `ts` here mirrors `cache.get(key).ts`
+// at the moment the lookup was built.
+export const siblingLookupCache = new Map<string, { lookup: Map<string, string>; ts: number }>()
 export const TTL_MS = 15 * 60 * 1000 // 15 min
 
 const TIMEOUT_MS = 50000
