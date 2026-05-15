@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { readFullCache, isAllPast } from '@/lib/day-cache'
+import { readMeta } from '@/lib/tournament-meta'
 import { getTodayIso } from '@/lib/today'
 import { loadDiscovered } from '@/lib/discovery-store'
 import { mergeForApi, sortTournamentsForDropdown } from '@/lib/tournaments-merge'
@@ -24,17 +25,19 @@ function parseTournamentsTxt(): ParsedTxt {
   }
 }
 
-// One pass over the merged list: read each tournament's persisted full
-// schedule (if any) to derive startDateIso (first match-day) and the
-// auto-done flag. Both come from the same readFullCache call.
+// One pass over the merged list: derive startDateIso from the per-tournament
+// meta sidecar (written on every successful full-matches fetch, so active
+// tournaments expose a date too), falling back to the pinned full cache for
+// done tournaments that predate the sidecar. Auto-done still requires the
+// full cache since it needs every day's date to test isAllPast.
 async function annotateEntries(
   entries: TournamentInfo[],
   todayIso: string,
 ): Promise<TournamentInfo[]> {
   const out: TournamentInfo[] = []
   for (const e of entries) {
-    const cached = await readFullCache(e.id)
-    const startDateIso = cached?.days[0]?.dateIso
+    const [meta, cached] = await Promise.all([readMeta(e.id), readFullCache(e.id)])
+    const startDateIso = meta?.startDateIso ?? cached?.days[0]?.dateIso
     const autoDone = !e.done && cached ? isAllPast(cached, todayIso) : false
     const done = e.done || autoDone
     out.push({

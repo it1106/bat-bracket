@@ -6,6 +6,7 @@ import { readDayCache, writeDayCache, isDayComplete, readFullCache, writeFullCac
 import { resolveRef } from '@/lib/tournaments-registry'
 import { providerFor } from '@/lib/providers/resolve'
 import { getTodayIso } from '@/lib/today'
+import { persistMetaIfChanged } from '@/lib/tournament-meta'
 import type { MatchScheduleGroup, MatchEntry, MatchesData } from '@/lib/types'
 
 export const maxDuration = 30
@@ -202,6 +203,7 @@ export async function GET(request: Request) {
       // client backfills siblings by immediately fetching the per-day endpoint
       // for `currentDate`, which does run enrichWithSiblings.
       matchesFullCache.set(tournamentId, { data, ts: Date.now() })
+      void persistMetaIfChanged(tournamentId, data)
 
       if (isAllPast(data, todayIso)) {
         void writeFullCache(tournamentId, data)
