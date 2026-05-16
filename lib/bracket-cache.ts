@@ -8,8 +8,31 @@ import { providerFor } from '@/lib/providers/resolve'
 import { resolveRef } from '@/lib/tournaments-registry'
 import type { BracketData } from './types'
 
+interface BracketCacheState {
+  cache: Map<string, { bracket: BracketData; ts: number; done?: boolean }>
+  rawHtmlCache: Map<string, string>
+  playerClubCache: Map<string, string>
+  siblingLookupCache: Map<string, { lookup: Map<string, string>; ts: number }>
+  dirty: boolean
+  flushTimer: NodeJS.Timeout | null
+}
+
+// Shared state on globalThis so instrumentation (dynamic-import) and API routes
+// (static-import) see the same Maps even when Next.js bundles them into
+// separate webpack chunks. Without this, prewarm populates one Map and
+// /api/bracket reads from a different empty one.
+const globalState = globalThis as typeof globalThis & { __bracketCacheState?: BracketCacheState }
+const state: BracketCacheState = globalState.__bracketCacheState ??= {
+  cache: new Map(),
+  rawHtmlCache: new Map(),
+  playerClubCache: new Map(),
+  siblingLookupCache: new Map(),
+  dirty: false,
+  flushTimer: null,
+}
+
 // playerId → clubName, scoped per tournament as "{tournamentId}:{playerId}"
-export const playerClubCache = new Map<string, string>()
+export const playerClubCache = state.playerClubCache
 
 export function extractPlayerClubs(html: string, guid: string): void {
   const $ = cheerio.load(html)
@@ -26,13 +49,13 @@ export function extractPlayerClubs(html: string, guid: string): void {
   })
 }
 
-export const cache = new Map<string, { bracket: BracketData; ts: number; done?: boolean }>()
-export const rawHtmlCache = new Map<string, string>()
+export const cache = state.cache
+export const rawHtmlCache = state.rawHtmlCache
 // Round-1 sibling pairings derived from the bracket HTML. Stable for the
 // tournament's lifetime barring withdrawals, so we re-parse only when the
 // underlying bracket entry's `ts` advances. `ts` here mirrors `cache.get(key).ts`
 // at the moment the lookup was built.
-export const siblingLookupCache = new Map<string, { lookup: Map<string, string>; ts: number }>()
+export const siblingLookupCache = state.siblingLookupCache
 export const TTL_MS = 15 * 60 * 1000 // 15 min
 
 const TIMEOUT_MS = 50000
@@ -93,7 +116,7 @@ export async function fetchAndCache(guid: string, drawNum: string): Promise<Brac
   const bracket = await fetchBracket(guid, drawNum)
   const done = drawsCache.get(guid)?.done
   cache.set(makeBracketKey(guid, drawNum), { bracket, ts: Date.now(), ...(done && { done: true }) })
-  dirty = true
+  state.dirty = true
   return bracket
 }
 
@@ -109,9 +132,6 @@ interface PersistedEntry {
 
 const STORE_PATH = () => path.join(process.cwd(), '.cache', 'bracket-cache.json')
 const FLUSH_INTERVAL_MS = 5 * 60 * 1000
-
-let dirty = false
-let flushTimer: NodeJS.Timeout | null = null
 
 async function loadBracketStoreFromDisk(): Promise<number> {
   try {
@@ -144,8 +164,8 @@ async function loadBracketStoreFromDisk(): Promise<number> {
 }
 
 export async function flushBracketCache(): Promise<void> {
-  if (!dirty) return
-  dirty = false
+  if (!state.dirty) return
+  state.dirty = false
   const entries: PersistedEntry[] = []
   for (const [key, value] of Array.from(cache.entries())) {
     const html = rawHtmlCache.get(key)
@@ -160,7 +180,7 @@ export async function flushBracketCache(): Promise<void> {
     await fs.rename(tmp, file)
     console.log(`[bracket-cache] persisted ${entries.length} entries`)
   } catch (err) {
-    dirty = true
+    state.dirty = true
     const msg = err instanceof Error ? err.message : 'unknown'
     console.warn(`[bracket-cache] persist failed: ${msg}`)
     try { await fs.unlink(tmp) } catch { /* ignore */ }
@@ -173,7 +193,7 @@ export async function flushBracketCache(): Promise<void> {
 export async function prewarmBracketCache(): Promise<void> {
   const restored = await loadBracketStoreFromDisk()
   if (restored > 0) console.log(`[bracket-cache] restored ${restored} entries from disk`)
-  if (!flushTimer) flushTimer = setInterval(() => { void flushBracketCache() }, FLUSH_INTERVAL_MS)
+  if (!state.flushTimer) state.flushTimer = setInterval(() => { void flushBracketCache() }, FLUSH_INTERVAL_MS)
 
   for (const [tournamentId, entry] of Array.from(drawsCache.entries())) {
     if (entry.done) {
