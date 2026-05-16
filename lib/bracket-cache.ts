@@ -1,3 +1,5 @@
+import { promises as fs } from 'fs'
+import path from 'path'
 import * as cheerio from 'cheerio'
 import { parseBracket } from './scraper'
 import { cache as drawsCache } from './draws-cache'
@@ -91,13 +93,88 @@ export async function fetchAndCache(guid: string, drawNum: string): Promise<Brac
   const bracket = await fetchBracket(guid, drawNum)
   const done = drawsCache.get(guid)?.done
   cache.set(makeBracketKey(guid, drawNum), { bracket, ts: Date.now(), ...(done && { done: true }) })
+  dirty = true
   return bracket
 }
 
+// Disk persistence: survives restarts so cold boots don't re-hit BAT for every
+// known draw. Raw HTML is the source of truth — bracket data, club lookups,
+// and sibling lookups are all re-derived from it on load.
+interface PersistedEntry {
+  key: string
+  ts: number
+  done?: true
+  html: string
+}
+
+const STORE_PATH = () => path.join(process.cwd(), '.cache', 'bracket-cache.json')
+const FLUSH_INTERVAL_MS = 5 * 60 * 1000
+
+let dirty = false
+let flushTimer: NodeJS.Timeout | null = null
+
+async function loadBracketStoreFromDisk(): Promise<number> {
+  try {
+    const buf = await fs.readFile(STORE_PATH(), 'utf8')
+    const parsed = JSON.parse(buf) as { version?: number; entries?: PersistedEntry[] }
+    if (parsed?.version !== 1 || !Array.isArray(parsed.entries)) return 0
+    let loaded = 0
+    for (const entry of parsed.entries) {
+      const colon = entry.key.indexOf(':')
+      if (colon < 0) continue
+      const guid = entry.key.slice(0, colon)
+      try {
+        const bracket = parseBracket(entry.html)
+        if (!bracket.html) continue
+        rawHtmlCache.set(entry.key, entry.html)
+        cache.set(entry.key, { bracket, ts: entry.ts, ...(entry.done && { done: true as const }) })
+        extractPlayerClubs(entry.html, guid)
+        loaded++
+      } catch {
+        // skip corrupt entry
+      }
+    }
+    return loaded
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return 0
+    const msg = err instanceof Error ? err.message : 'unknown'
+    console.warn(`[bracket-cache] load failed: ${msg}`)
+    return 0
+  }
+}
+
+export async function flushBracketCache(): Promise<void> {
+  if (!dirty) return
+  dirty = false
+  const entries: PersistedEntry[] = []
+  for (const [key, value] of Array.from(cache.entries())) {
+    const html = rawHtmlCache.get(key)
+    if (!html) continue
+    entries.push({ key, ts: value.ts, ...(value.done && { done: true as const }), html })
+  }
+  const file = STORE_PATH()
+  const tmp = `${file}.tmp`
+  try {
+    await fs.mkdir(path.dirname(file), { recursive: true })
+    await fs.writeFile(tmp, JSON.stringify({ version: 1, savedAt: Date.now(), entries }), 'utf8')
+    await fs.rename(tmp, file)
+    console.log(`[bracket-cache] persisted ${entries.length} entries`)
+  } catch (err) {
+    dirty = true
+    const msg = err instanceof Error ? err.message : 'unknown'
+    console.warn(`[bracket-cache] persist failed: ${msg}`)
+    try { await fs.unlink(tmp) } catch { /* ignore */ }
+  }
+}
+
 // Pre-warm all brackets for all cached tournaments (called after draws pre-warm).
-// Skips tournaments marked done — finished brackets don't change, so paying the
-// pre-warm cost on every reload is wasted. They're still fetched on demand.
+// Restores from disk first so only genuinely new draws hit BAT; skips tournaments
+// marked done — finished brackets don't change.
 export async function prewarmBracketCache(): Promise<void> {
+  const restored = await loadBracketStoreFromDisk()
+  if (restored > 0) console.log(`[bracket-cache] restored ${restored} entries from disk`)
+  if (!flushTimer) flushTimer = setInterval(() => { void flushBracketCache() }, FLUSH_INTERVAL_MS)
+
   for (const [tournamentId, entry] of Array.from(drawsCache.entries())) {
     if (entry.done) {
       console.log(`[bracket-cache] skipped (done): ${tournamentId}`)
@@ -114,4 +191,5 @@ export async function prewarmBracketCache(): Promise<void> {
       }
     }
   }
+  await flushBracketCache()
 }
