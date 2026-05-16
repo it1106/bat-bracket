@@ -854,6 +854,11 @@ export default function Home() {
                 {t('excludeCompleted')}
               </label>
             </div>
+            {!selectedTournament && playerQuery.trim() && (
+              <div className="text-xs text-amber-600 dark:text-amber-400">
+                {t('pleaseSelectTournament')}
+              </div>
+            )}
           </div>
           )}
 
