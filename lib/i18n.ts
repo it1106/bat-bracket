@@ -383,7 +383,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     bracketRoundHint: 'กดที่รอบแข่งเพื่อกระชับตารางแข่ง',
     searchNotFound: 'ไม่พบข้อมูลที่ค้นหา นักกีฬาหรือทีมที่ค้นหาไม่มีการแข่งขันในวันนี้',
     searchHelp: 'ชื่อนักกีฬา ทีม หรือประเภทแข่งขัน สามารถใช้ & (and) หรือ | (or) ในการค้นหาเช่น kba & BS U15 จะแสดงผลทีมเกษมศักดิ์ฯ ในรายการ U15 เท่านั้น',
-    pleaseSelectTournament: 'เลือก Tournament จาก Dropdown',
+    pleaseSelectTournament: 'เลือกรายการแข่งขัน',
     customTab: 'กำหนดเอง',
     customTabCreate: 'สร้างชุดค้นหาส่วนตัว',
     customTabEdit: 'แก้ไขการค้นหา',
