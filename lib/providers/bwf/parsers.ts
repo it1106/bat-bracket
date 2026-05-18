@@ -150,22 +150,21 @@ export function parseDrawData(
   return out
 }
 
-// BWF labels tournament-local times with a "Z" suffix, so the UTC fields
-// of the parsed Date are the digits we want to show (no timezone shift).
-function formatMatchTimeUTC(iso: string | undefined): string | undefined {
-  if (!iso) return undefined
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return undefined
-  const hh = String(d.getUTCHours()).padStart(2, '0')
-  const mm = String(d.getUTCMinutes()).padStart(2, '0')
-  return `${hh}:${mm}`
+// BWF's matchTime is either "YYYY-MM-DD HH:MM:SS" (production, no TZ —
+// already tournament-local) or "YYYY-MM-DDTHH:MM:SSZ" (some fixtures).
+// In both shapes the HH:MM digits are the ones to display; pulling them
+// out by regex avoids any Date/TZ conversion that would shift the value.
+function formatMatchTime(raw: string | undefined): string | undefined {
+  if (!raw) return undefined
+  const m = raw.match(/(\d{2}):(\d{2})/)
+  return m ? `${m[1]}:${m[2]}` : undefined
 }
 
 function dayMatchToEntry(m: BwfMatch): MatchEntry {
   const winner = (m.winner === 1 || m.winner === 2 ? m.winner : null) as 1 | 2 | null
   const status = m.scoreStatus ?? 0
   const matchStatus = m.matchStatus ?? 'N'
-  const timeLabel = formatMatchTimeUTC(m.matchTime)
+  const timeLabel = formatMatchTime(m.matchTime)
   return {
     draw: m.drawName ?? '',
     drawNum: '',

@@ -143,6 +143,19 @@ describe('parseDayMatches', () => {
     expect((groups[1].matches[0] as { sequenceLabel?: string }).sequenceLabel).toBe('11:00')
   })
 
+  it('extracts HH:MM from production plain-datetime matchTime', () => {
+    const groups = parseDayMatches([
+      {
+        courtName: 'Court 1',
+        matchTime: '2026-05-19 09:00:00',
+        drawName: 'X', roundName: 'F', matchStatus: 'N', scoreStatus: 0,
+        team1: { players: [{ id: '1', nameDisplay: 'A' }] },
+        team2: { players: [{ id: '2', nameDisplay: 'B' }] },
+      },
+    ])
+    expect(groups[0].matches[0].sequenceLabel).toBe('09:00')
+  })
+
   it('omits sequenceLabel when matchTime is missing or malformed', () => {
     const groups = parseDayMatches([
       {
