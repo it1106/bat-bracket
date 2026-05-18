@@ -447,6 +447,8 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       )}
 
       {selectedDay !== 'stats' && !loading && (() => {
+        const filterActive = playerQuery.trim() !== '' || excludeCompleted
+        let total = 0
         const rendered = groups.map((group, gi) => {
           const queryFiltered = playerQuery
             ? group.matches.filter((m) => matchesQuery(m, playerQuery, playerClubMap))
@@ -455,6 +457,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             ? queryFiltered.filter((m) => m.winner === null)
             : queryFiltered
           if (filtered.length === 0) return null
+          total += filtered.length
 
           const headerText = group.type === 'court' ? group.court : group.time
 
@@ -475,6 +478,15 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         if (!hasVisible && groups.length > 0 && playerQuery.trim() !== '') {
           return (
             <div className="p-8 text-center text-gray-400 text-sm">{t('searchNotFound')}</div>
+          )
+        }
+        if (filterActive && hasVisible) {
+          const label = t('filterMatchCount').replace('{n}', String(total)).replace('{s}', total === 1 ? '' : 'es')
+          return (
+            <>
+              <div className="match-schedule__filter-count">{label}</div>
+              {rendered}
+            </>
           )
         }
         return rendered

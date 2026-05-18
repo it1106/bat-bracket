@@ -1405,6 +1405,13 @@ html[lang="th"] .pm-section-title {
   letter-spacing: 0.3px;
 }
 
+.match-schedule__filter-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 2px 6px;
+}
+
 .ms-seq {
   font-size: 12px;
   font-weight: 600;
