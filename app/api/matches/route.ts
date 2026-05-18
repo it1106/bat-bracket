@@ -11,11 +11,22 @@ import type { MatchScheduleGroup, MatchEntry, MatchesData } from '@/lib/types'
 
 export const maxDuration = 30
 
-const MATCHES_FULL_TTL_MS = 60_000
+// Full-schedule cache: feeds the day-list and group skeletons. Live updates
+// flow through the per-day path below, so this can be cached longer. BWF
+// pays N upstream hits per miss (one per tournament day), making short TTLs
+// especially expensive.
+const MATCHES_FULL_TTL_MS = 5 * 60_000
 const matchesFullCache = new Map<string, { data: MatchesData; ts: number }>()
 
-const MATCHES_DAY_TTL_MS = 60_000
+// Per-day cache TTL mirrors the Cache-Control logic below: past days are
+// immutable in practice, future days only update with schedule changes, and
+// today's matches need near-real-time freshness for the live scoreboard.
 const matchesDayCache = new Map<string, { data: Pick<MatchesData, 'groups'>; ts: number }>()
+function dayCacheTtlMs(dateIso: string, todayIso: string): number {
+  if (dateIso < todayIso) return 60 * 60_000 // past: 60 min
+  if (dateIso > todayIso) return 10 * 60_000 // future: 10 min
+  return 60_000                              // today: 60 s
+}
 
 // BAT uses Buddhist-year YYYYMMDD ("25690504"). Some callers may pass ISO
 // ("2026-05-04"). Normalize to ISO so date comparisons are valid.
@@ -140,7 +151,7 @@ export async function GET(request: Request) {
           })
         }
         const cached = matchesDayCache.get(memKey)
-        if (cached && Date.now() - cached.ts < MATCHES_DAY_TTL_MS) {
+        if (cached && Date.now() - cached.ts < dayCacheTtlMs(dateIso, todayIso)) {
           return NextResponse.json(cached.data, {
             headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=60' },
           })
