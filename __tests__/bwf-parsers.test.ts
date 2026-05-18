@@ -124,57 +124,48 @@ describe('parseDrawData', () => {
 })
 
 describe('parseDayMatches', () => {
-  it('maps day matches to MatchScheduleGroup[] grouped by court', () => {
+  it('maps day matches to MatchScheduleGroup[] grouped by time', () => {
     const groups = parseDayMatches(fixture('day-matches.json'))
     expect(groups).toHaveLength(2)
     expect(groups[0]).toMatchObject({
-      type: 'court',
-      court: 'Court 1',
+      type: 'time',
+      time: '10:00',
       matches: [
         expect.objectContaining({
           round: 'SF',
+          court: 'Court 1',
           team1: [{ name: 'Somchai Saetang', playerId: '111', country: 'THA' }],
           winner: 1,
-          sequenceLabel: '10:00',
         }),
       ],
     })
-    expect((groups[1] as { type: 'court'; court: string }).court).toBe('Court 2')
-    expect((groups[1].matches[0] as { sequenceLabel?: string }).sequenceLabel).toBe('11:00')
+    expect((groups[1] as { type: 'time'; time: string }).time).toBe('11:00')
+    expect(groups[1].matches[0].court).toBe('Court 2')
   })
 
   it('extracts HH:MM from production plain-datetime matchTime', () => {
     const groups = parseDayMatches([
-      {
-        courtName: 'Court 1',
-        matchTime: '2026-05-19 09:00:00',
-        drawName: 'X', roundName: 'F', matchStatus: 'N', scoreStatus: 0,
-        team1: { players: [{ id: '1', nameDisplay: 'A' }] },
-        team2: { players: [{ id: '2', nameDisplay: 'B' }] },
-      },
+      mkDayMatch({ time: '2026-05-19 09:00:00', court: 'Court 1', id: '1' }),
     ])
-    expect(groups[0].matches[0].sequenceLabel).toBe('09:00')
+    expect(groups[0]).toMatchObject({ type: 'time', time: '09:00' })
   })
 
-  it('omits sequenceLabel when matchTime is missing or malformed', () => {
+  it('orders time groups ascending and sorts matches by court within a group', () => {
     const groups = parseDayMatches([
-      {
-        courtName: 'Court 9',
-        drawName: 'X', roundName: 'F', matchStatus: 'N', scoreStatus: 0,
-        team1: { players: [{ id: '1', nameDisplay: 'A' }] },
-        team2: { players: [{ id: '2', nameDisplay: 'B' }] },
-      },
-      {
-        courtName: 'Court 9',
-        matchTime: 'not-a-date',
-        drawName: 'X', roundName: 'F', matchStatus: 'N', scoreStatus: 0,
-        team1: { players: [{ id: '3', nameDisplay: 'C' }] },
-        team2: { players: [{ id: '4', nameDisplay: 'D' }] },
-      },
+      mkDayMatch({ time: '2026-05-19 11:00:00', court: 'Court 3', id: '1' }),
+      mkDayMatch({ time: '2026-05-19 09:00:00', court: 'Court 2', id: '2' }),
+      mkDayMatch({ time: '2026-05-19 09:00:00', court: 'Court 1', id: '3' }),
     ])
-    expect(groups).toHaveLength(1)
-    expect(groups[0].matches[0].sequenceLabel).toBeUndefined()
-    expect(groups[0].matches[1].sequenceLabel).toBeUndefined()
+    expect(groups.map((g) => g.type === 'time' ? g.time : '')).toEqual(['09:00', '11:00'])
+    expect(groups[0].matches.map((m) => m.court)).toEqual(['Court 1', 'Court 2'])
+  })
+
+  it('groups matches with missing matchTime under empty time, sinks them to the end', () => {
+    const groups = parseDayMatches([
+      mkDayMatch({ court: 'Court 9', id: '1' }),
+      mkDayMatch({ time: '2026-05-19 09:00:00', court: 'Court 1', id: '2' }),
+    ])
+    expect(groups.map((g) => g.type === 'time' ? g.time : '')).toEqual(['09:00', ''])
   })
 
   it('returns empty array on non-array input', () => {
@@ -182,3 +173,13 @@ describe('parseDayMatches', () => {
     expect(parseDayMatches({})).toEqual([])
   })
 })
+
+function mkDayMatch(p: { time?: string; court?: string; id: string }) {
+  return {
+    courtName: p.court,
+    ...(p.time && { matchTime: p.time }),
+    drawName: 'X', roundName: 'F', matchStatus: 'N', scoreStatus: 0,
+    team1: { players: [{ id: p.id, nameDisplay: `P${p.id}A` }] },
+    team2: { players: [{ id: `${p.id}b`, nameDisplay: `P${p.id}B` }] },
+  }
+}

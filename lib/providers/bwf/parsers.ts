@@ -164,7 +164,6 @@ function dayMatchToEntry(m: BwfMatch): MatchEntry {
   const winner = (m.winner === 1 || m.winner === 2 ? m.winner : null) as 1 | 2 | null
   const status = m.scoreStatus ?? 0
   const matchStatus = m.matchStatus ?? 'N'
-  const timeLabel = formatMatchTime(m.matchTime)
   return {
     draw: m.drawName ?? '',
     drawNum: '',
@@ -179,25 +178,41 @@ function dayMatchToEntry(m: BwfMatch): MatchEntry {
     nowPlaying: NOW_PLAYING_STATUSES.has(matchStatus),
     ...(m.duration && { duration: m.duration }),
     ...(m.matchTime && { scheduledTime: m.matchTime }),
-    ...(timeLabel && { sequenceLabel: timeLabel }),
   }
+}
+
+// Trailing integer of court strings like "Court 1" is the natural sort key;
+// court names without a number sink to the end.
+function courtSortKey(court: string): number {
+  const m = court.match(/(\d+)\s*$/)
+  return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY
 }
 
 export function parseDayMatches(json: unknown): MatchScheduleGroup[] {
   if (!Array.isArray(json)) return []
-  const byCourt = new Map<string, MatchEntry[]>()
+  const byTime = new Map<string, { match: BwfMatch; entry: MatchEntry }[]>()
   for (const m of json as BwfMatch[]) {
     try {
-      const court = m.courtName ?? ''
-      if (!byCourt.has(court)) byCourt.set(court, [])
-      byCourt.get(court)!.push(dayMatchToEntry(m))
+      const time = formatMatchTime(m.matchTime) ?? ''
+      if (!byTime.has(time)) byTime.set(time, [])
+      byTime.get(time)!.push({ match: m, entry: dayMatchToEntry(m) })
     } catch (err) {
       console.warn('[bwf-parser] skipping day match:', err)
     }
   }
-  return Array.from(byCourt.entries()).map(([court, matches]) => ({
-    type: 'court' as const,
-    court,
-    matches,
-  }))
+  const entries = Array.from(byTime.entries())
+  entries.sort(([a], [b]) => {
+    // Empty time (missing matchTime) sinks to the bottom.
+    if (a === '' && b !== '') return 1
+    if (b === '' && a !== '') return -1
+    return a.localeCompare(b)
+  })
+  return entries.map(([time, items]) => {
+    items.sort((x, y) => courtSortKey(x.entry.court) - courtSortKey(y.entry.court))
+    return {
+      type: 'time' as const,
+      time,
+      matches: items.map((it) => it.entry),
+    }
+  })
 }
