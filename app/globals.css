@@ -325,6 +325,16 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
   vertical-align: middle;
 }
 
+.ms-flag {
+  width: 14px;
+  height: 14px;
+  object-fit: cover;
+  border-radius: 1px;
+  margin-right: 5px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .bk-dot {
   display: inline-block;
   width: 8px;

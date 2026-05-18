@@ -51,6 +51,8 @@ export interface MatchPlayer {
   // ISO-style country code (e.g. "THA", "IDN") from BWF team payloads. Absent
   // for BAT, where players are organized by club via playerClubCache instead.
   country?: string
+  // BWF-supplied flag image URL. Absent for BAT.
+  countryFlagUrl?: string
 }
 
 export interface MatchScore {

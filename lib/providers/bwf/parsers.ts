@@ -47,6 +47,7 @@ export function parseDraws(json: unknown): DrawInfo[] {
 interface BwfPlayer {
   id?: string | number
   nameDisplay?: string
+  countryFlagUrl?: string | null
 }
 
 interface BwfTeam {
@@ -87,11 +88,19 @@ const NOW_PLAYING_STATUSES = new Set(['C', 'P', 'W', 'H'])
 function mapPlayers(team: BwfTeam | undefined): MatchPlayer[] {
   if (!team?.players) return []
   const country = team.countryCode ?? undefined
-  return team.players.map((p) => ({
-    name: p.nameDisplay ?? '',
-    playerId: String(p.id ?? ''),
-    ...(country && { country }),
-  }))
+  const teamFlag = team.countryFlagUrl ?? undefined
+  return team.players.map((p, i) => {
+    // BWF carries the flag URL at the player level for mixed-country doubles,
+    // and at the team level for same-country teams; the first player inherits
+    // the team flag when absent (same fallback the bracket uses).
+    const flag = p.countryFlagUrl ?? (i === 0 ? teamFlag : undefined) ?? undefined
+    return {
+      name: p.nameDisplay ?? '',
+      playerId: String(p.id ?? ''),
+      ...(country && { country }),
+      ...(flag && { countryFlagUrl: flag }),
+    }
+  })
 }
 
 function mapScores(score: BwfMatch['score']): MatchScore[] {
