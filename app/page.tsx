@@ -591,6 +591,12 @@ export default function Home() {
     finally { setModalLoading(false) }
   }, [selectedTournament])
 
+  // BWF has no /api/player implementation, so the modal would just spin.
+  // Passing undefined also drops the .pm-player-link affordance everywhere.
+  const playerClickHandler = tournaments.find((x) => x.id === selectedTournament)?.provider === 'bwf'
+    ? undefined
+    : handlePlayerClick
+
   const handleModalClose = useCallback(() => {
     setModalProfile(null)
     setModalLoading(false)
@@ -1061,7 +1067,7 @@ export default function Home() {
               playerQuery={playerQuery}
               playerClubMap={playerClubMap}
               tournamentId={selectedTournament}
-              onPlayerClick={handlePlayerClick}
+              onPlayerClick={playerClickHandler}
               onRoundClick={handleRoundClick}
               bracketRef={bracketRef}
             />
@@ -1072,7 +1078,7 @@ export default function Home() {
               playerQuery={playerQuery}
               bracketRef={bracketRef}
               onRoundClick={handleRoundClick}
-              onPlayerClick={handlePlayerClick}
+              onPlayerClick={playerClickHandler}
               playerClubMap={playerClubMap}
             />
           )}
@@ -1092,7 +1098,7 @@ export default function Home() {
           onEventClick={handleOpenBracketAtRound}
           eventToPlayoffDrawNum={eventToPlayoffDrawNum}
           playerClubMap={playerClubMap}
-          onPlayerClick={handlePlayerClick}
+          onPlayerClick={playerClickHandler}
           onH2HClick={handleH2HClick}
           liveByCourt={liveByCourt}
           tournamentId={selectedTournament}
@@ -1116,7 +1122,7 @@ export default function Home() {
             highlightMatches={false}
             onEventClick={handleOpenBracketAtRound}
             playerClubMap={playerClubMap}
-            onPlayerClick={handlePlayerClick}
+            onPlayerClick={playerClickHandler}
             onH2HClick={handleH2HClick}
             liveByCourt={liveByCourt}
             tournamentId={selectedTournament}
@@ -1138,7 +1144,7 @@ export default function Home() {
           showJumpToNext={false}
           onEventClick={handleOpenBracketAtRound}
           playerClubMap={playerClubMap}
-          onPlayerClick={handlePlayerClick}
+          onPlayerClick={playerClickHandler}
           onH2HClick={handleH2HClick}
           liveByCourt={liveByCourt}
           tournamentId={selectedTournament}
@@ -1153,7 +1159,7 @@ export default function Home() {
           loading={modalLoading}
           onClose={handleModalClose}
           onH2HClick={handleH2HClick}
-          onPlayerClick={handlePlayerClick}
+          onPlayerClick={playerClickHandler}
         />
       )}
 
