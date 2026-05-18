@@ -37,6 +37,13 @@ describe('buildBracketHtml', () => {
     expect(html).toContain('https://example/tha.svg')
   })
 
+  it('formats the footer time as DD/MM/YY HH:MM', () => {
+    // M2 in the fixture is unplayed (winner=0) with matchTime 2026-05-19T11:00:00Z
+    const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
+    expect(html).toContain('<span class="bk-time">19/05/26 11:00</span>')
+    expect(html).not.toContain('2026-05-19T11:00:00Z')
+  })
+
   it('respects fromRound by slicing columns', () => {
     const fullHtml = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13', 0)
     const fromHtml = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13', 1)

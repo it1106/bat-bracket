@@ -14,6 +14,16 @@ function esc(s: string): string {
 
 const BK_CLOCK_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
 
+// BWF's matchTime arrives as either "YYYY-MM-DD HH:MM:SS" or
+// "YYYY-MM-DDTHH:MM:SSZ"; the digits in the string are already tournament-
+// local, so we pull them out by regex instead of going through Date.
+function formatBracketMatchTime(raw: string): string {
+  const m = raw.match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/)
+  if (!m) return raw
+  const [, yyyy, mm, dd, hh, mi] = m
+  return `${dd}/${mm}/${yyyy.slice(2)} ${hh}:${mi}`
+}
+
 function abbrevRound(name: string): string {
   const n = name.trim()
   if (/^final$/i.test(n)) return 'F'
@@ -176,7 +186,7 @@ export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0)
           ? `<div class="bk-footer">` +
             `<span class="bk-round-tag">${esc(abbrevRound(roundName))}</span>` +
             `<span class="bk-clock">${BK_CLOCK_SVG}</span>` +
-            `<span class="bk-time">${esc(match.matchTime)}</span>` +
+            `<span class="bk-time">${esc(formatBracketMatchTime(match.matchTime))}</span>` +
             `</div>`
           : ''
 
