@@ -57,8 +57,8 @@ describe('parseDrawData', () => {
     expect(finished.draw).toBe('BS U13')
     expect(finished.drawNum).toBe('11')
     expect(finished.round).toBe('SF')
-    expect(finished.team1[0]).toEqual({ name: 'Somchai Saetang', playerId: '111' })
-    expect(finished.team2[0]).toEqual({ name: 'Budi Putra', playerId: '222' })
+    expect(finished.team1[0]).toEqual({ name: 'Somchai Saetang', playerId: '111', country: 'THA' })
+    expect(finished.team2[0]).toEqual({ name: 'Budi Putra', playerId: '222', country: 'INA' })
     expect(finished.winner).toBe(1)
     expect(finished.scores).toEqual([{ t1: 21, t2: 15 }, { t1: 21, t2: 19 }])
     expect(finished.walkover).toBe(false)
@@ -133,7 +133,7 @@ describe('parseDayMatches', () => {
       matches: [
         expect.objectContaining({
           round: 'SF',
-          team1: [{ name: 'Somchai Saetang', playerId: '111' }],
+          team1: [{ name: 'Somchai Saetang', playerId: '111', country: 'THA' }],
           winner: 1,
         }),
       ],

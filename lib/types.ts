@@ -48,6 +48,9 @@ export interface ApiError {
 export interface MatchPlayer {
   name: string
   playerId: string
+  // ISO-style country code (e.g. "THA", "IDN") from BWF team payloads. Absent
+  // for BAT, where players are organized by club via playerClubCache instead.
+  country?: string
 }
 
 export interface MatchScore {

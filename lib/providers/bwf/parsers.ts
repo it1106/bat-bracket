@@ -86,9 +86,11 @@ const NOW_PLAYING_STATUSES = new Set(['C', 'P', 'W', 'H'])
 
 function mapPlayers(team: BwfTeam | undefined): MatchPlayer[] {
   if (!team?.players) return []
+  const country = team.countryCode ?? undefined
   return team.players.map((p) => ({
     name: p.nameDisplay ?? '',
     playerId: String(p.id ?? ''),
+    ...(country && { country }),
   }))
 }
 

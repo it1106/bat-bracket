@@ -88,7 +88,7 @@ function isFinalRound(round: string): boolean {
 }
 
 function playerMatchesQuery(
-  p: { name: string; playerId: string },
+  p: { name: string; playerId: string; country?: string },
   queries: string[],
   clubMap?: Record<string, string>,
 ): boolean {
@@ -96,6 +96,7 @@ function playerMatchesQuery(
   return queries.some((q) => {
     if (p.name.toLowerCase().includes(q)) return true
     if (clubMap && p.playerId && (clubMap[p.playerId] ?? '').toLowerCase().includes(q)) return true
+    if (p.country && p.country.toLowerCase().includes(q)) return true
     return false
   })
 }
