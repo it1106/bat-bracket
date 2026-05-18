@@ -150,10 +150,22 @@ export function parseDrawData(
   return out
 }
 
+// BWF labels tournament-local times with a "Z" suffix, so the UTC fields
+// of the parsed Date are the digits we want to show (no timezone shift).
+function formatMatchTimeUTC(iso: string | undefined): string | undefined {
+  if (!iso) return undefined
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return undefined
+  const hh = String(d.getUTCHours()).padStart(2, '0')
+  const mm = String(d.getUTCMinutes()).padStart(2, '0')
+  return `${hh}:${mm}`
+}
+
 function dayMatchToEntry(m: BwfMatch): MatchEntry {
   const winner = (m.winner === 1 || m.winner === 2 ? m.winner : null) as 1 | 2 | null
   const status = m.scoreStatus ?? 0
   const matchStatus = m.matchStatus ?? 'N'
+  const timeLabel = formatMatchTimeUTC(m.matchTime)
   return {
     draw: m.drawName ?? '',
     drawNum: '',
@@ -168,6 +180,7 @@ function dayMatchToEntry(m: BwfMatch): MatchEntry {
     nowPlaying: NOW_PLAYING_STATUSES.has(matchStatus),
     ...(m.duration && { duration: m.duration }),
     ...(m.matchTime && { scheduledTime: m.matchTime }),
+    ...(timeLabel && { sequenceLabel: timeLabel }),
   }
 }
 

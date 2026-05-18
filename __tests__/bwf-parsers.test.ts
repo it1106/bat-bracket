@@ -135,10 +135,33 @@ describe('parseDayMatches', () => {
           round: 'SF',
           team1: [{ name: 'Somchai Saetang', playerId: '111', country: 'THA' }],
           winner: 1,
+          sequenceLabel: '10:00',
         }),
       ],
     })
     expect((groups[1] as { type: 'court'; court: string }).court).toBe('Court 2')
+    expect((groups[1].matches[0] as { sequenceLabel?: string }).sequenceLabel).toBe('11:00')
+  })
+
+  it('omits sequenceLabel when matchTime is missing or malformed', () => {
+    const groups = parseDayMatches([
+      {
+        courtName: 'Court 9',
+        drawName: 'X', roundName: 'F', matchStatus: 'N', scoreStatus: 0,
+        team1: { players: [{ id: '1', nameDisplay: 'A' }] },
+        team2: { players: [{ id: '2', nameDisplay: 'B' }] },
+      },
+      {
+        courtName: 'Court 9',
+        matchTime: 'not-a-date',
+        drawName: 'X', roundName: 'F', matchStatus: 'N', scoreStatus: 0,
+        team1: { players: [{ id: '3', nameDisplay: 'C' }] },
+        team2: { players: [{ id: '4', nameDisplay: 'D' }] },
+      },
+    ])
+    expect(groups).toHaveLength(1)
+    expect(groups[0].matches[0].sequenceLabel).toBeUndefined()
+    expect(groups[0].matches[1].sequenceLabel).toBeUndefined()
   })
 
   it('returns empty array on non-array input', () => {
