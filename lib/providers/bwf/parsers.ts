@@ -85,6 +85,22 @@ interface BwfDrawDataResponse {
 
 const NOW_PLAYING_STATUSES = new Set(['C', 'P', 'W', 'H'])
 
+// BWF assigns a courtName only at call-to-court / play time, so an incomplete
+// non-walkover match holding a court is currently being played even when its
+// matchStatus hasn't transitioned into NOW_PLAYING_STATUSES. Treating these as
+// live anchors the schedule's "Up next" pill on the last court-assigned match
+// instead of falling back to the last completed one.
+function deriveNowPlaying(
+  matchStatus: string,
+  court: string,
+  winner: 1 | 2 | null,
+  walkover: boolean,
+): boolean {
+  if (NOW_PLAYING_STATUSES.has(matchStatus)) return true
+  if (court && winner === null && !walkover) return true
+  return false
+}
+
 function mapPlayers(team: BwfTeam | undefined): MatchPlayer[] {
   if (!team?.players) return []
   const country = team.countryCode ?? undefined
@@ -135,6 +151,8 @@ export function parseDrawData(
       const winner = (m.winner === 1 || m.winner === 2 ? m.winner : null) as 1 | 2 | null
       const status = m.scoreStatus ?? 0
       const matchStatus = m.matchStatus ?? 'N'
+      const court = m.courtName ?? ''
+      const walkover = status === 1
       const entry: MatchEntry = {
         draw: m.drawName ?? context.drawName,
         drawNum: context.drawNum,
@@ -143,10 +161,10 @@ export function parseDrawData(
         team2: mapPlayers(m.team2),
         winner,
         scores: mapScores(m.score),
-        court: m.courtName ?? '',
-        walkover: status === 1,
+        court,
+        walkover,
         retired: status === 2,
-        nowPlaying: NOW_PLAYING_STATUSES.has(matchStatus),
+        nowPlaying: deriveNowPlaying(matchStatus, court, winner, walkover),
         ...(m.duration && { duration: m.duration }),
         ...(m.matchTime && { scheduledTime: m.matchTime }),
       }
@@ -173,6 +191,8 @@ function dayMatchToEntry(m: BwfMatch): MatchEntry {
   const winner = (m.winner === 1 || m.winner === 2 ? m.winner : null) as 1 | 2 | null
   const status = m.scoreStatus ?? 0
   const matchStatus = m.matchStatus ?? 'N'
+  const court = m.courtName ?? ''
+  const walkover = status === 1
   return {
     draw: m.drawName ?? '',
     drawNum: '',
@@ -181,10 +201,10 @@ function dayMatchToEntry(m: BwfMatch): MatchEntry {
     team2: mapPlayers(m.team2),
     winner,
     scores: mapScores(m.score),
-    court: m.courtName ?? '',
-    walkover: status === 1,
+    court,
+    walkover,
     retired: status === 2,
-    nowPlaying: NOW_PLAYING_STATUSES.has(matchStatus),
+    nowPlaying: deriveNowPlaying(matchStatus, court, winner, walkover),
     ...(m.duration && { duration: m.duration }),
     ...(m.matchTime && { scheduledTime: m.matchTime }),
   }

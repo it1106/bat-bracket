@@ -89,6 +89,27 @@ describe('parseDrawData', () => {
     expect(matches[0].nowPlaying).toBe(true)
   })
 
+  it('marks nowPlaying when an incomplete match holds a court but matchStatus is not in the set', () => {
+    const matches = parseDrawData(
+      {
+        drawsize: 2, drawendcol: 2, gameTypeId: 1,
+        results: {
+          '0-0': {
+            match: {
+              team1: { players: [{ id: '1', nameDisplay: 'A' }] },
+              team2: { players: [{ id: '2', nameDisplay: 'B' }] },
+              winner: 0, score: [],
+              scoreStatus: 0, matchStatus: 'N',
+              roundName: 'F', drawName: 'X', courtName: 'Court 3',
+            },
+          },
+        }, matches: [],
+      },
+      { drawNum: '99', drawName: 'X' },
+    )
+    expect(matches[0].nowPlaying).toBe(true)
+  })
+
   it('marks walkover and retired correctly', () => {
     const wo = parseDrawData(
       {
