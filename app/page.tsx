@@ -718,7 +718,7 @@ export default function Home() {
           {/* Tournament selector */}
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between gap-2">
-              <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
+              <label className="text-[14px] font-semibold uppercase tracking-wide" style={{ color: 'var(--red)' }}>
                 {t('tournament')}
               </label>
               {tournaments.some((tn) => tn.done) && (
