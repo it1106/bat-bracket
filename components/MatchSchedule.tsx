@@ -129,13 +129,17 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
 
   // Time-grouped matches don't carry m.scheduledTime — only the parent
   // group.time has it. We index per-match here so the share capture can
-  // inject the scheduled time even for time-grouped matches.
+  // inject the scheduled time even for time-grouped matches. BWF's
+  // scheduledTime is the raw "YYYY-MM-DD HH:MM:SS"; the share stamp already
+  // renders the date separately, so collapse to HH:MM here.
   const matchTimeByKey = useMemo(() => {
     const map = new Map<string, string>()
     for (const g of groups) {
       for (const m of g.matches) {
-        const time = m.scheduledTime || (g.type === 'time' ? g.time : '')
-        if (time) map.set(matchKeyFor(m), time)
+        const raw = m.scheduledTime || (g.type === 'time' ? g.time : '')
+        if (!raw) continue
+        const hhmm = raw.match(/(\d{2}):(\d{2})/)
+        map.set(matchKeyFor(m), hhmm ? `${hhmm[1]}:${hhmm[2]}` : raw)
       }
     }
     return map
