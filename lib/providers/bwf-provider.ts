@@ -9,6 +9,7 @@ import {
   parseTournamentDetail,
   parseDraws,
   parseDayMatches,
+  parseDrawData,
 } from './bwf/parsers'
 import { buildBracketHtml } from './bwf/bracket-html'
 import type {
@@ -59,6 +60,16 @@ export const bwfProvider: TournamentProvider = {
     } catch (err) {
       console.warn('[bwf] getBracket failed:', err)
       return null
+    }
+  },
+  async getDrawMatches(ref, drawNum, drawName) {
+    try {
+      const { tmtId } = resolveOrThrow(ref)
+      const data = await fetchTournamentDrawData({ tmtId, drawId: drawNum })
+      return parseDrawData(data, { drawNum, drawName })
+    } catch (err) {
+      console.warn('[bwf] getDrawMatches failed:', err)
+      return []
     }
   },
   async getMatchesFull(ref): Promise<MatchesData | null> {

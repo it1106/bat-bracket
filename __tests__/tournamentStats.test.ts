@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { aggregate } from '@/lib/tournamentStats'
-import type { MatchesData, MatchScheduleGroup } from '@/lib/types'
+import type { MatchEntry, MatchesData, MatchScheduleGroup } from '@/lib/types'
 
 const FIX = path.join(__dirname, '..', 'fixtures')
 
@@ -156,5 +156,115 @@ describe('tournamentStats — empty', () => {
     expect(s.events).toEqual([])
     expect(s.clubMedals).toEqual([])
     expect(s.drama.marathon).toBeNull()
+  })
+})
+
+// Live tournament reality: per-day matches only surface the events that have
+// been scheduled so far (singles in early days), while the full draw roster
+// lists every event including doubles that start mid-week. The roster input
+// to aggregate() must drive both the events count and the multi-event player
+// count, otherwise the panel undercounts both for the first several days.
+describe('tournamentStats — roster augments live counts', () => {
+  function entry(draw: string, ids: string[]): MatchEntry {
+    return {
+      draw,
+      drawNum: '',
+      round: 'R1',
+      team1: [{ name: ids[0], playerId: ids[0] }],
+      team2: [{ name: ids[1], playerId: ids[1] }],
+      winner: null,
+      scores: [],
+      court: '',
+      walkover: false,
+      retired: false,
+      nowPlaying: false,
+    }
+  }
+  function doublesEntry(draw: string, ids: string[]): MatchEntry {
+    return {
+      draw,
+      drawNum: '',
+      round: 'R1',
+      team1: [
+        { name: ids[0], playerId: ids[0] },
+        { name: ids[1], playerId: ids[1] },
+      ],
+      team2: [
+        { name: ids[2], playerId: ids[2] },
+        { name: ids[3], playerId: ids[3] },
+      ],
+      winner: null,
+      scores: [],
+      court: '',
+      walkover: false,
+      retired: false,
+      nowPlaying: false,
+    }
+  }
+
+  const emptyData: MatchesData = {
+    days: [{ date: '20260519', label: '19/05', dateIso: '2026-05-19', hasMatches: true }],
+    currentDate: '20260519',
+    groups: [],
+  }
+  // Played-matches view: only MS-U13 has happened so far. P1 beats P2.
+  const dayGroups: MatchScheduleGroup[] = [{
+    type: 'time' as const,
+    time: '09:00',
+    matches: [{
+      draw: 'MS-U13', drawNum: '1', round: 'R1',
+      team1: [{ name: 'P1', playerId: 'P1' }],
+      team2: [{ name: 'P2', playerId: 'P2' }],
+      winner: 1, scores: [{ t1: 21, t2: 18 }, { t1: 21, t2: 15 }],
+      court: 'Court 1', walkover: false, retired: false, nowPlaying: false,
+      duration: '32 mins',
+    }],
+  }]
+  const days = new Map([['2026-05-19', dayGroups]])
+
+  it('without roster: events count and multi-event count reflect played matches only', () => {
+    const s = aggregate(emptyData, days, {})
+    expect(s.kpis.events).toBe(1)
+    expect(s.kpis.players).toBe(2)
+    expect(s.kpis.multiEventPlayers).toBe(0)
+    expect(s.events.map((e) => e.name)).toEqual(['MS-U13'])
+  })
+
+  it('with roster: events count covers all registered draws, multi-event picks up crossovers', () => {
+    // Full draw roster: 3 events. P1 is entered in MS-U13 + MD-U13 + XD-U13.
+    // P2 is in MS-U13 + MD-U13. P3, P4 are roster-only.
+    const roster = new Map<string, MatchEntry[]>([
+      ['MS-U13', [entry('MS-U13', ['P1', 'P2'])]],
+      ['MD-U13', [doublesEntry('MD-U13', ['P1', 'P2', 'P3', 'P4'])]],
+      ['XD-U13', [doublesEntry('XD-U13', ['P1', 'P5', 'P6', 'P7'])]],
+    ])
+    const s = aggregate(emptyData, days, {}, roster)
+    expect(s.kpis.events).toBe(3)
+    expect(s.kpis.players).toBe(7)
+    // P1 in 3 draws, P2 in 2 draws → 2 multi-event players
+    expect(s.kpis.multiEventPlayers).toBe(2)
+    // Matches/duration/decided stay played-only
+    expect(s.kpis.matches).toBe(1)
+    expect(s.kpis.decided).toBe(1)
+    expect(s.kpis.courtMinutes).toBe(32)
+    // Events table seeded with all roster events; MS-U13 carries the played match
+    const eventNames = s.events.map((e) => e.name).sort()
+    expect(eventNames).toEqual(['MD-U13', 'MS-U13', 'XD-U13'])
+    const ms = s.events.find((e) => e.name === 'MS-U13')!
+    expect(ms.matches).toBe(1)
+    expect(ms.decided).toBe(1)
+    const md = s.events.find((e) => e.name === 'MD-U13')!
+    expect(md.matches).toBe(0)
+  })
+
+  it('roster alone (no played matches) populates events and players', () => {
+    const roster = new Map<string, MatchEntry[]>([
+      ['WD-U17', [doublesEntry('WD-U17', ['A', 'B', 'C', 'D'])]],
+    ])
+    const s = aggregate(emptyData, new Map(), {}, roster)
+    expect(s.kpis.events).toBe(1)
+    expect(s.kpis.players).toBe(4)
+    expect(s.kpis.matches).toBe(0)
+    expect(s.events.map((e) => e.name)).toEqual(['WD-U17'])
   })
 })

@@ -4,7 +4,10 @@ import path from 'path'
 import { aggregate } from '@/lib/tournamentStats'
 import { readDayCache, readFullCache } from '@/lib/day-cache'
 import { readStatsCache, writeStatsCache, hashFullCacheBytes } from '@/lib/stats-cache'
-import type { MatchScheduleGroup, TournamentStats, MatchesData } from '@/lib/types'
+import { providerFor } from '@/lib/providers/resolve'
+import { resolveRef } from '@/lib/tournaments-registry'
+import { NotImplementedError } from '@/lib/providers/types'
+import type { MatchScheduleGroup, TournamentStats, MatchesData, MatchEntry } from '@/lib/types'
 
 export const maxDuration = 30
 
@@ -72,6 +75,44 @@ interface DayMap {
   groups: Map<string, MatchScheduleGroup[]>
   daysOnDisk: number
   daysFromMemory: number
+}
+
+// Pulls the registered roster for every draw in the tournament so events not
+// yet on the day schedule (typically doubles that start later in the week)
+// still show up in the events count, the events table, and the multi-event
+// player calculation. Returns null for providers that don't expose per-draw
+// match entries (BAT), which leaves aggregate() in its original behavior.
+async function fetchRosterByDraw(tournamentId: string): Promise<Map<string, MatchEntry[]> | null> {
+  const ref = resolveRef(tournamentId)
+  if (!ref) return null
+  const provider = providerFor(ref)
+  let draws
+  try {
+    draws = await provider.getDraws(ref)
+  } catch (err) {
+    console.warn(`[stats] getDraws failed for ${tournamentId}:`, err)
+    return null
+  }
+  if (draws.length === 0) return null
+
+  const roster = new Map<string, MatchEntry[]>()
+  const results = await Promise.allSettled(
+    draws.map((d) => provider.getDrawMatches(ref, d.drawNum, d.name)),
+  )
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i]
+    const draw = draws[i]
+    if (r.status === 'fulfilled') {
+      roster.set(draw.name, r.value)
+    } else {
+      // NotImplementedError from BAT is expected — short-circuit the whole
+      // pipeline so we don't return a half-populated roster that would skew
+      // the seeded events table.
+      if (r.reason instanceof NotImplementedError) return null
+      console.warn(`[stats] getDrawMatches failed for ${tournamentId} draw ${draw.drawNum}:`, r.reason)
+    }
+  }
+  return roster.size > 0 ? roster : null
 }
 
 async function assembleDayMap(
@@ -197,9 +238,14 @@ export async function GET(request: Request) {
       }
     }
 
-    const dayMap = await assembleDayMap(origin, tournamentId, fullData)
-    const clubs = await fetchClubs(origin, tournamentId)
-    const stats = aggregate(fullData, dayMap.groups, clubs)
+    const [dayMap, clubs, rosterByDraw] = await Promise.all([
+      assembleDayMap(origin, tournamentId, fullData),
+      fetchClubs(origin, tournamentId),
+      // Past tournaments already have every event covered by played matches,
+      // so the roster adds no information — skip the fetch.
+      isAllPast ? Promise.resolve(null) : fetchRosterByDraw(tournamentId),
+    ])
+    const stats = aggregate(fullData, dayMap.groups, clubs, rosterByDraw ?? undefined)
     const full: TournamentStats = {
       tournamentId,
       generatedAt: new Date().toISOString(),

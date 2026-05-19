@@ -70,6 +70,9 @@ export const batProvider: TournamentProvider = {
     const html = await res.text()
     return parseBracket(html)
   },
+  async getDrawMatches(): Promise<MatchEntry[]> {
+    throw new NotImplementedError('getDrawMatches', 'bat')
+  },
   async getMatchesFull(ref: TournamentRef): Promise<MatchesData | null> {
     const headers = {
       ...HEADERS,

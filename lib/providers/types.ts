@@ -14,6 +14,10 @@ export interface TournamentProvider {
   getMeta(ref: TournamentRef): Promise<TournamentInfo | null>
   getDraws(ref: TournamentRef): Promise<DrawInfo[]>
   getBracket(ref: TournamentRef, drawNum: string, fromRound?: number): Promise<BracketData | null>
+  // Structured match entries for a single draw, including unplayed roster
+  // slots. Used by /api/stats to build the full event/player roster even when
+  // no per-day matches have been published yet for the draw.
+  getDrawMatches(ref: TournamentRef, drawNum: string, drawName: string): Promise<MatchEntry[]>
   getMatchesFull(ref: TournamentRef): Promise<MatchesData | null>
   getDayMatches(ref: TournamentRef, dateIso: string): Promise<MatchScheduleGroup[]>
   getPlayer(ref: TournamentRef, playerId: string): Promise<PlayerProfile | null>

@@ -76,7 +76,10 @@ function isSemiFinal(round: string): boolean {
   return longRoundL(round, 'en') === 'Semi Final'
 }
 
-function buildKpis(ctxs: MatchCtx[]): StatsKpis {
+function buildKpis(
+  ctxs: MatchCtx[],
+  rosterByDraw?: Map<string, MatchEntry[]>,
+): StatsKpis {
   let matches = 0, decided = 0, walkovers = 0, retired = 0, nowPlaying = 0
   let courtMinutes = 0, durationCount = 0, durationSum = 0
   let threeSetterDecided = 0
@@ -106,6 +109,28 @@ function buildKpis(ctxs: MatchCtx[]): StatsKpis {
         const set = playerEvents.get(p.playerId) ?? new Set<string>()
         set.add(match.draw)
         playerEvents.set(p.playerId, set)
+      }
+    }
+  }
+
+  // Roster augments events and players from registered entries (the full draw
+  // sheet), so the headline counts include events whose matches haven't been
+  // scheduled yet — and crucially, multi-event players whose secondary draws
+  // (typically doubles, scheduled later in the week) haven't surfaced in the
+  // per-day match feed. Match-volume stats above stay sourced from ctxs only.
+  if (rosterByDraw) {
+    for (const [drawName, entries] of Array.from(rosterByDraw)) {
+      if (drawName) events.add(drawName)
+      for (const m of entries) {
+        for (const p of [...m.team1, ...m.team2]) {
+          if (!p.playerId) continue
+          players.add(p.playerId)
+          if (drawName) {
+            const set = playerEvents.get(p.playerId) ?? new Set<string>()
+            set.add(drawName)
+            playerEvents.set(p.playerId, set)
+          }
+        }
       }
     }
   }
@@ -165,13 +190,27 @@ function eventRank(name: string): number {
   return EVENT_RANK.get(name) ?? 999
 }
 
-function buildEvents(ctxs: MatchCtx[]): ComputedStats['events'] {
+function buildEvents(
+  ctxs: MatchCtx[],
+  rosterByDraw?: Map<string, MatchEntry[]>,
+): ComputedStats['events'] {
   interface Acc {
     matches: number; threeSetters: number; walkovers: number; decided: number;
     durSum: number; durCount: number;
     lastFinal: MatchEntry | null;
   }
   const byEvent = new Map<string, Acc>()
+  // Seed with roster draws so events whose matches haven't been scheduled yet
+  // still appear in the table (with zero-filled stats).
+  if (rosterByDraw) {
+    for (const drawName of Array.from(rosterByDraw.keys())) {
+      if (!drawName) continue
+      byEvent.set(drawName, {
+        matches: 0, threeSetters: 0, walkovers: 0, decided: 0,
+        durSum: 0, durCount: 0, lastFinal: null,
+      })
+    }
+  }
   for (const { match } of ctxs) {
     if (!match.draw) continue
     // Grouped events: aggregate all "<event> - Group X" + the <event> playoff
@@ -510,14 +549,16 @@ export function aggregate(
   data: MatchesData,
   dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
   clubs: Record<string, string>,
+  rosterByDraw?: Map<string, MatchEntry[]>,
 ): ComputedStats {
   const ctxs: MatchCtx[] = Array.from(iterateMatches(data, dayGroupsByDate))
-  if (ctxs.length === 0) return { ...EMPTY }
+  const rosterSize = rosterByDraw ? rosterByDraw.size : 0
+  if (ctxs.length === 0 && rosterSize === 0) return { ...EMPTY }
   const { clubMedals, multiGoldPlayers } = buildClubMedalsAndMultiGold(ctxs, clubs)
   return {
-    kpis: buildKpis(ctxs),
+    kpis: buildKpis(ctxs, rosterByDraw),
     dailyVolume: buildDailyVolume(data, ctxs),
-    events: buildEvents(ctxs),
+    events: buildEvents(ctxs, rosterByDraw),
     drama: buildDrama(ctxs),
     topPlayers: buildTopPlayers(ctxs, clubs),
     courtUtilization: buildCourtUtilization(ctxs),
