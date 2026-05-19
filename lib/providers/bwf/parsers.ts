@@ -101,6 +101,16 @@ function deriveNowPlaying(
   return false
 }
 
+// BWF returns duration as bare minutes ("42"). The schedule renders
+// m.duration verbatim, so attach the unit here for parity with the BAT
+// provider's "23m" labels — BWF stays human-readable as "42 mins".
+function formatDuration(raw: string | undefined): string | undefined {
+  if (!raw) return undefined
+  const trimmed = raw.trim()
+  if (!trimmed) return undefined
+  return /^\d+$/.test(trimmed) ? `${trimmed} mins` : trimmed
+}
+
 function mapPlayers(team: BwfTeam | undefined): MatchPlayer[] {
   if (!team?.players) return []
   const country = team.countryCode ?? undefined
@@ -165,7 +175,7 @@ export function parseDrawData(
         walkover,
         retired: status === 2,
         nowPlaying: deriveNowPlaying(matchStatus, court, winner, walkover),
-        ...(m.duration && { duration: m.duration }),
+        ...(formatDuration(m.duration) && { duration: formatDuration(m.duration)! }),
         ...(m.matchTime && { scheduledTime: m.matchTime }),
       }
       out.push(entry)
@@ -206,7 +216,7 @@ function dayMatchToEntry(m: BwfMatch, drawNumByName: Map<string, string>): Match
     walkover,
     retired: status === 2,
     nowPlaying: deriveNowPlaying(matchStatus, court, winner, walkover),
-    ...(m.duration && { duration: m.duration }),
+    ...(formatDuration(m.duration) && { duration: formatDuration(m.duration)! }),
     ...(m.matchTime && { scheduledTime: m.matchTime }),
   }
 }

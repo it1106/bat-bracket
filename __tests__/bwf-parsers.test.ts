@@ -64,7 +64,7 @@ describe('parseDrawData', () => {
     expect(finished.walkover).toBe(false)
     expect(finished.retired).toBe(false)
     expect(finished.court).toBe('Court 1')
-    expect(finished.duration).toBe('42')
+    expect(finished.duration).toBe('42 mins')
     expect(finished.nowPlaying).toBe(false)
   })
 

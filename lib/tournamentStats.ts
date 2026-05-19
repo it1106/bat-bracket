@@ -29,7 +29,10 @@ const EMPTY: ComputedStats = {
 
 export function parseDurationMinutes(raw: string | undefined): number {
   if (!raw) return 0
-  const m = raw.trim().match(/^(?:(\d+)h\s*)?(?:(\d+)m)?$/)
+  const trimmed = raw.trim()
+  const minsForm = trimmed.match(/^(\d+)\s*(?:mins?|minutes?)$/i)
+  if (minsForm) return parseInt(minsForm[1], 10)
+  const m = trimmed.match(/^(?:(\d+)h\s*)?(?:(\d+)m)?$/)
   if (!m) return 0
   return parseInt(m[1] ?? '0', 10) * 60 + parseInt(m[2] ?? '0', 10)
 }
