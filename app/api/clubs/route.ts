@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { cache as drawsCache, fetchAndCache as fetchDrawsAndCache } from '@/lib/draws-cache'
-import { playerClubCache, cache as bracketCache, fetchBracket, makeBracketKey } from '@/lib/bracket-cache'
+import {
+  playerClubCache,
+  cache as bracketCache,
+  fetchBracket,
+  fetchTournamentPlayerClubs,
+  makeBracketKey,
+} from '@/lib/bracket-cache'
 
 export const maxDuration = 60
 
@@ -18,7 +24,13 @@ export async function GET(request: Request) {
   const tid = tournamentId.toLowerCase()
   const prefix = `${tid}:`
 
-  if (!fullyWalked.has(tid)) {
+  // Try the /Players roster page first — one HTTP call covers every
+  // registered player, including those the bracket-row scan misses
+  // because they haven't been slotted into a displayed match yet. The
+  // bracket walk is the fallback when this endpoint is unavailable.
+  const rosterOk = await fetchTournamentPlayerClubs(tid)
+
+  if (!rosterOk && !fullyWalked.has(tid)) {
     let draws = drawsCache.get(tid)?.draws
     if (!draws) {
       try { draws = await fetchDrawsAndCache(tid) } catch {

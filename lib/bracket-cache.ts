@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import * as cheerio from 'cheerio'
-import { parseBracket } from './scraper'
+import { parseBracket, parsePlayersPage } from './scraper'
 import { cache as drawsCache } from './draws-cache'
 import { batFetch } from './bat-fetch'
 import { providerFor } from '@/lib/providers/resolve'
@@ -47,6 +47,50 @@ export function extractPlayerClubs(html: string, guid: string): void {
       if (playerId && club) playerClubCache.set(`${prefix}:${playerId}`, club)
     })
   })
+}
+
+// Per-tournament guard so we only POST to /Players/GetPlayersContent once
+// per process. The roster doesn't change mid-tournament in any meaningful
+// way; if the call fails we leave this unset so a later retry can succeed.
+const playerRosterFetched = new Set<string>()
+
+// Pulls the full player roster (including everyone the bracket scan would
+// miss because they haven't been slotted into a displayed row yet) and
+// merges their clubs into playerClubCache. One HTTP call per tournament
+// per process lifetime \u2014 much cheaper than the per-draw bracket walk.
+export async function fetchTournamentPlayerClubs(guid: string): Promise<boolean> {
+  const g = guid.toLowerCase()
+  if (playerRosterFetched.has(g)) return true
+  const url = `https://bat.tournamentsoftware.com/tournament/${g}/Players/GetPlayersContent`
+  try {
+    const res = await batFetch('players', url, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Length': '0',
+        'Referer': `https://bat.tournamentsoftware.com/tournament/${g}/players`,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      body: '',
+    })
+    if (!res.ok) return false
+    const html = await res.text()
+    const prefix = `${g}:`
+    let count = 0
+    for (const { playerId, club } of parsePlayersPage(html)) {
+      if (playerId && club) {
+        playerClubCache.set(`${prefix}${playerId}`, club)
+        count++
+      }
+    }
+    playerRosterFetched.add(g)
+    console.log(`[bracket-cache] players roster: ${g} +${count} clubs`)
+    return true
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    console.warn(`[bracket-cache] players roster failed for ${g}: ${msg}`)
+    return false
+  }
 }
 
 export const cache = state.cache

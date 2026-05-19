@@ -60,6 +60,25 @@ export function parseTournamentMeta(html: string): TournamentInfo | null {
   return rawTitle ? { id: '', name: rawTitle } : null
 }
 
+// Parses the BAT /Players/GetPlayersContent AJAX response. Every registered
+// player appears once with their club (or empty string if unaffiliated).
+// More complete than the per-bracket .match__row scan, which misses anyone
+// who hasn't been slotted into a displayed match row yet.
+export function parsePlayersPage(html: string): Array<{ playerId: string; club: string }> {
+  const $ = cheerio.load(html)
+  const out: Array<{ playerId: string; club: string }> = []
+  $('.media__content').each((_, el) => {
+    const href = $(el).find('a.media__link[href*="player="]').first().attr('href') ?? ''
+    const m = href.match(/player=(\d+)/)
+    if (!m) return
+    const playerId = m[1]
+    const club = $(el).find('.media__content-subinfo .nav-link__value').first()
+      .text().replace(/ /g, ' ').replace(/\s+/g, ' ').trim()
+    out.push({ playerId, club })
+  })
+  return out
+}
+
 export function parseTournamentDraws(html: string): DrawInfo[] {
   const $ = cheerio.load(html)
   const results: DrawInfo[] = []
