@@ -65,10 +65,12 @@ export const bwfProvider: TournamentProvider = {
     try {
       const entry = resolveOrThrow(ref)
       const days = enumerateDays(entry.startDateIso, entry.endDateIso)
+      const drawsJson = await fetchTournamentDraws({ tmtId: entry.tmtId })
+      const draws = parseDraws(drawsJson)
       const allGroups: MatchScheduleGroup[] = []
       for (const dateIso of days) {
         const json = await fetchDayMatches({ tournamentCode: entry.tournamentCode, date: dateIso })
-        const groups = parseDayMatches(json)
+        const groups = parseDayMatches(json, draws)
         allGroups.push(...groups)
       }
       return {
@@ -86,8 +88,11 @@ export const bwfProvider: TournamentProvider = {
   async getDayMatches(ref, dateIso) {
     try {
       const entry = resolveOrThrow(ref)
-      const json = await fetchDayMatches({ tournamentCode: entry.tournamentCode, date: dateIso })
-      return parseDayMatches(json)
+      const [json, drawsJson] = await Promise.all([
+        fetchDayMatches({ tournamentCode: entry.tournamentCode, date: dateIso }),
+        fetchTournamentDraws({ tmtId: entry.tmtId }),
+      ])
+      return parseDayMatches(json, parseDraws(drawsJson))
     } catch (err) {
       console.warn('[bwf] getDayMatches failed:', err)
       return []

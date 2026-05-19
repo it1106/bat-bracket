@@ -187,15 +187,16 @@ function formatMatchTime(raw: string | undefined): string | undefined {
   return m ? `${m[1]}:${m[2]}` : undefined
 }
 
-function dayMatchToEntry(m: BwfMatch): MatchEntry {
+function dayMatchToEntry(m: BwfMatch, drawNumByName: Map<string, string>): MatchEntry {
   const winner = (m.winner === 1 || m.winner === 2 ? m.winner : null) as 1 | 2 | null
   const status = m.scoreStatus ?? 0
   const matchStatus = m.matchStatus ?? 'N'
   const court = m.courtName ?? ''
   const walkover = status === 1
+  const drawName = m.drawName ?? ''
   return {
-    draw: m.drawName ?? '',
-    drawNum: '',
+    draw: drawName,
+    drawNum: drawNumByName.get(drawName) ?? '',
     round: m.roundName ?? '',
     team1: mapPlayers(m.team1),
     team2: mapPlayers(m.team2),
@@ -217,14 +218,19 @@ function courtSortKey(court: string): number {
   return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY
 }
 
-export function parseDayMatches(json: unknown): MatchScheduleGroup[] {
+export function parseDayMatches(json: unknown, draws: DrawInfo[] = []): MatchScheduleGroup[] {
   if (!Array.isArray(json)) return []
+  // Day-match payloads carry the draw name ("BS U13") but no draw id, so build
+  // a name→drawNum lookup from the tournament's draws response. Without this
+  // the schedule's event chips can't deep-link to the bracket view.
+  const drawNumByName = new Map<string, string>()
+  for (const d of draws) if (d.name) drawNumByName.set(d.name, d.drawNum)
   const byTime = new Map<string, { match: BwfMatch; entry: MatchEntry }[]>()
   for (const m of json as BwfMatch[]) {
     try {
       const time = formatMatchTime(m.matchTime) ?? ''
       if (!byTime.has(time)) byTime.set(time, [])
-      byTime.get(time)!.push({ match: m, entry: dayMatchToEntry(m) })
+      byTime.get(time)!.push({ match: m, entry: dayMatchToEntry(m, drawNumByName) })
     } catch (err) {
       console.warn('[bwf-parser] skipping day match:', err)
     }

@@ -164,6 +164,16 @@ describe('parseDayMatches', () => {
     expect(groups[1].matches[0].court).toBe('Court 2')
   })
 
+  it('resolves drawNum on day matches via the supplied draws lookup', () => {
+    const draws = [
+      { drawNum: '11', name: 'BS U13', size: '32', type: 'Main' },
+      { drawNum: '12', name: 'GS U13', size: '32', type: 'Main' },
+    ]
+    const groups = parseDayMatches(fixture('day-matches.json'), draws)
+    expect(groups[0].matches[0].drawNum).toBe('11')
+    expect(groups[0].matches[0].draw).toBe('BS U13')
+  })
+
   it('extracts HH:MM from production plain-datetime matchTime', () => {
     const groups = parseDayMatches([
       mkDayMatch({ time: '2026-05-19 09:00:00', court: 'Court 1', id: '1' }),
