@@ -203,6 +203,24 @@ describe('parseDayMatches', () => {
     expect(parseDayMatches(null)).toEqual([])
     expect(parseDayMatches({})).toEqual([])
   })
+
+  it('keeps completed matches whose duration is a number (BWF production shape)', () => {
+    const groups = parseDayMatches([
+      {
+        matchTime: '2026-05-19 09:00:00', courtName: 'Court 1',
+        drawName: 'MS-U13', roundName: 'R128', matchStatus: 'F', scoreStatus: 0,
+        winner: 1, duration: 25,
+        score: [{ home: 21, away: 19 }, { home: 21, away: 13 }],
+        team1: { players: [{ id: '1', nameDisplay: 'A' }] },
+        team2: { players: [{ id: '2', nameDisplay: 'B' }] },
+      },
+    ])
+    expect(groups).toHaveLength(1)
+    const match = groups[0].matches[0]
+    expect(match.winner).toBe(1)
+    expect(match.scores).toEqual([{ t1: 21, t2: 19 }, { t1: 21, t2: 13 }])
+    expect(match.duration).toBe('25 mins')
+  })
 })
 
 function mkDayMatch(p: { time?: string; court?: string; id: string }) {

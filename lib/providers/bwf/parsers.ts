@@ -70,7 +70,7 @@ interface BwfMatch {
   courtName?: string | null
   oopRound?: number
   matchTime?: string
-  duration?: string
+  duration?: string | number
   code?: string
   matchTypeId?: number
 }
@@ -101,11 +101,14 @@ function deriveNowPlaying(
   return false
 }
 
-// BWF returns duration as bare minutes ("42"). The schedule renders
-// m.duration verbatim, so attach the unit here for parity with the BAT
-// provider's "23m" labels — BWF stays human-readable as "42 mins".
-function formatDuration(raw: string | undefined): string | undefined {
-  if (!raw) return undefined
+// BWF returns duration as bare minutes — sometimes a number (25), sometimes a
+// numeric string ("42"). The schedule renders m.duration verbatim, so attach
+// the "mins" unit here for parity with BAT's "23m" labels. Tolerating both
+// shapes is critical: a missed branch threw inside parseDayMatches's try/catch
+// and silently dropped every completed match from the day schedule.
+function formatDuration(raw: string | number | undefined): string | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined
+  if (typeof raw === 'number') return Number.isFinite(raw) && raw > 0 ? `${raw} mins` : undefined
   const trimmed = raw.trim()
   if (!trimmed) return undefined
   return /^\d+$/.test(trimmed) ? `${trimmed} mins` : trimmed
