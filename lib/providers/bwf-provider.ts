@@ -26,6 +26,24 @@ function resolveOrThrow(ref: TournamentRef) {
   return entry
 }
 
+// Short-window memo for the tournament-draws payload. getBracket and
+// getDayMatches both need the draw list on every call, but it barely changes
+// during play — second-by-second polling was the largest avoidable share of
+// vue-tournament-draws hits. Keyed by (tmtId, tmtType, tmtTab); 5 min is well
+// inside how often draws actually change (rarely) and well below how often
+// schedule polls fire (every few seconds during active play).
+const DRAWS_MEMO_TTL_MS = 5 * 60 * 1000
+const drawsMemo = new Map<string, { json: unknown; ts: number }>()
+
+async function getDrawsJson(tmtId: number, tmtType = 0, tmtTab = 'draw'): Promise<unknown> {
+  const key = `${tmtId}:${tmtType}:${tmtTab}`
+  const hit = drawsMemo.get(key)
+  if (hit && Date.now() - hit.ts < DRAWS_MEMO_TTL_MS) return hit.json
+  const json = await fetchTournamentDraws({ tmtId, tmtType, tmtTab })
+  drawsMemo.set(key, { json, ts: Date.now() })
+  return json
+}
+
 export const bwfProvider: TournamentProvider = {
   tag: 'bwf',
   async getMeta(ref) {
@@ -41,7 +59,7 @@ export const bwfProvider: TournamentProvider = {
   async getDraws(ref) {
     try {
       const { tmtId } = resolveOrThrow(ref)
-      const json = await fetchTournamentDraws({ tmtId })
+      const json = await getDrawsJson(tmtId)
       return parseDraws(json)
     } catch (err) {
       console.warn('[bwf] getDraws failed:', err)
@@ -51,7 +69,7 @@ export const bwfProvider: TournamentProvider = {
   async getBracket(ref, drawNum, fromRound = 0) {
     try {
       const { tmtId } = resolveOrThrow(ref)
-      const drawsJson = await fetchTournamentDraws({ tmtId })
+      const drawsJson = await getDrawsJson(tmtId)
       const drawInfo = parseDraws(drawsJson).find((d) => d.drawNum === drawNum)
       const drawName = drawInfo?.name ?? drawNum
       const data = await fetchTournamentDrawData({ tmtId, drawId: drawNum })
@@ -76,7 +94,7 @@ export const bwfProvider: TournamentProvider = {
     try {
       const entry = resolveOrThrow(ref)
       const days = enumerateDays(entry.startDateIso, entry.endDateIso)
-      const drawsJson = await fetchTournamentDraws({ tmtId: entry.tmtId })
+      const drawsJson = await getDrawsJson(entry.tmtId)
       const draws = parseDraws(drawsJson)
       const allGroups: MatchScheduleGroup[] = []
       for (const dateIso of days) {
@@ -101,7 +119,7 @@ export const bwfProvider: TournamentProvider = {
       const entry = resolveOrThrow(ref)
       const [json, drawsJson] = await Promise.all([
         fetchDayMatches({ tournamentCode: entry.tournamentCode, date: dateIso }),
-        fetchTournamentDraws({ tmtId: entry.tmtId }),
+        getDrawsJson(entry.tmtId),
       ])
       return parseDayMatches(json, parseDraws(drawsJson))
     } catch (err) {
