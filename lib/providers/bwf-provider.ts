@@ -12,6 +12,7 @@ import {
   parseDrawData,
 } from './bwf/parsers'
 import { buildBracketHtml } from './bwf/bracket-html'
+import { getTodayIso } from '@/lib/today'
 import type {
   MatchesData,
   MatchScheduleGroup, MatchEntry, PlayerProfile, H2HData,
@@ -106,7 +107,7 @@ export const bwfProvider: TournamentProvider = {
         days: days.map((dateIso) => ({
           date: dateIso, label: `${dateIso.slice(8)}/${dateIso.slice(5, 7)}`, dateIso, hasMatches: true,
         })),
-        currentDate: days[0] ?? '',
+        currentDate: pickCurrentDate(days),
         groups: allGroups,
       }
     } catch (err) {
@@ -132,6 +133,16 @@ export const bwfProvider: TournamentProvider = {
   async getLiveScore(): Promise<MatchEntry | null> { throw new NotImplementedError('getLiveScore', 'bwf') },
   async getEventBundle(): Promise<EventBundle | null> { throw new NotImplementedError('getEventBundle', 'bwf') },
   async refreshGroup(): Promise<GroupRefresh | null> { throw new NotImplementedError('refreshGroup', 'bwf') },
+}
+
+// Default the schedule's selected tab to today when the tournament is live;
+// otherwise clamp to the nearest end (first day for upcoming, last for past).
+function pickCurrentDate(days: string[]): string {
+  if (days.length === 0) return ''
+  const today = getTodayIso()
+  if (days.includes(today)) return today
+  if (today < days[0]) return days[0]
+  return days[days.length - 1]
 }
 
 function enumerateDays(startIso: string, endIso: string): string[] {
