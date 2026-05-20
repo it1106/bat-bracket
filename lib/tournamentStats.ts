@@ -547,29 +547,13 @@ function buildClubMedalsAndMultiGold(
   return { clubMedals, multiGoldPlayers }
 }
 
-function buildClubRosters(
-  ctxs: MatchCtx[],
-  clubs: Record<string, string>,
-  rosterByDraw?: Map<string, MatchEntry[]>,
-): StatsClubRoster[] {
-  const playerToClub = new Map<string, string>()
-  const consider = (pid: string) => {
-    if (!pid || playerToClub.has(pid)) return
-    const club = clubs[pid]
-    if (club) playerToClub.set(pid, club)
-  }
-  for (const { match } of ctxs) {
-    for (const p of [...match.team1, ...match.team2]) consider(p.playerId)
-  }
-  if (rosterByDraw) {
-    for (const entries of Array.from(rosterByDraw.values())) {
-      for (const m of entries) {
-        for (const p of [...m.team1, ...m.team2]) consider(p.playerId)
-      }
-    }
-  }
+function buildClubRosters(clubs: Record<string, string>): StatsClubRoster[] {
+  // The clubs map is playerId -> club for every player registered in the
+  // tournament (built by walking brackets in /api/clubs). One entry per
+  // player, so club counts collapse straight from the values.
   const countByClub = new Map<string, number>()
-  for (const club of Array.from(playerToClub.values())) {
+  for (const club of Object.values(clubs)) {
+    if (!club) continue
     countByClub.set(club, (countByClub.get(club) ?? 0) + 1)
   }
   return Array.from(countByClub.entries())
@@ -585,7 +569,9 @@ export function aggregate(
 ): ComputedStats {
   const ctxs: MatchCtx[] = Array.from(iterateMatches(data, dayGroupsByDate))
   const rosterSize = rosterByDraw ? rosterByDraw.size : 0
-  if (ctxs.length === 0 && rosterSize === 0) return { ...EMPTY }
+  // clubRosters is derived purely from the clubs map (playerId -> club), so
+  // it's meaningful even before any match is scheduled — register-then-show.
+  if (ctxs.length === 0 && rosterSize === 0) return { ...EMPTY, clubRosters: buildClubRosters(clubs) }
   const { clubMedals, multiGoldPlayers } = buildClubMedalsAndMultiGold(ctxs, clubs)
   return {
     kpis: buildKpis(ctxs, rosterByDraw),
@@ -596,7 +582,7 @@ export function aggregate(
     courtUtilization: buildCourtUtilization(ctxs),
     clubMedals,
     multiGoldPlayers,
-    clubRosters: buildClubRosters(ctxs, clubs, rosterByDraw),
+    clubRosters: buildClubRosters(clubs),
     integrity: buildIntegrity(ctxs),
   }
 }
