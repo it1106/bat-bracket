@@ -28,20 +28,43 @@ const PRIME_TTL_MS = 30 * 60_000
 // in-flight evaluates pile up and exhaust container memory.
 const REQUEST_TIMEOUT_MS = 30_000
 
-let context: DriverContext | null = null
-let apiPage: DriverPage | null = null
-let token: string | null = null
-let lastPrime = 0
-let primePromise: Promise<void> | null = null
-let driver: ChromiumDriver | null = null
-
-export function _resetForTesting(): void {
-  context = null; apiPage = null; token = null; lastPrime = 0; primePromise = null; driver = null
+interface BwfCfState {
+  context: DriverContext | null
+  apiPage: DriverPage | null
+  token: string | null
+  lastPrime: number
+  primePromise: Promise<void> | null
+  driver: ChromiumDriver | null
 }
 
-export function _setDriverForTesting(d: ChromiumDriver): void { driver = d }
+// Shared singleton on globalThis. Without this, Next.js bundles instrumentation
+// (dynamic-import) and API routes (static-import) into separate chunks, each
+// with its own `context` variable — instrumentation primes Browser A, the
+// first API request sees its own null context and primes Browser B, and both
+// chromiums stay alive (each module only knows about its own). Same pattern
+// as bracket-cache.ts.
+const globalState = globalThis as typeof globalThis & { __bwfCf?: BwfCfState }
+const state: BwfCfState = globalState.__bwfCf ??= {
+  context: null,
+  apiPage: null,
+  token: null,
+  lastPrime: 0,
+  primePromise: null,
+  driver: null,
+}
 
-export const _internals = { getToken: () => token, getLastPrime: () => lastPrime }
+export function _resetForTesting(): void {
+  state.context = null
+  state.apiPage = null
+  state.token = null
+  state.lastPrime = 0
+  state.primePromise = null
+  state.driver = null
+}
+
+export function _setDriverForTesting(d: ChromiumDriver): void { state.driver = d }
+
+export const _internals = { getToken: () => state.token, getLastPrime: () => state.lastPrime }
 
 async function getRealDriver(): Promise<ChromiumDriver> {
   const { chromium } = await import('playwright-core')
@@ -92,26 +115,26 @@ async function getRealDriver(): Promise<ChromiumDriver> {
 }
 
 async function prime(): Promise<void> {
-  if (!driver) driver = await getRealDriver()
-  if (context) { try { await context.close() } catch {} }
-  context = await driver.launch()
-  apiPage = await context.newPage()
-  await apiPage.goto(PRIMER_URL)
-  const html = await apiPage.content()
+  if (!state.driver) state.driver = await getRealDriver()
+  if (state.context) { try { await state.context.close() } catch {} }
+  state.context = await state.driver.launch()
+  state.apiPage = await state.context.newPage()
+  await state.apiPage.goto(PRIMER_URL)
+  const html = await state.apiPage.content()
   const t = extractTokenFromHtml(html)
   if (!t) throw new Error('cannot extract token from primer page')
-  token = t
-  lastPrime = Date.now()
-  console.log('[bwf-cf] primed: token=' + (token ? 'extracted' : 'missing'))
+  state.token = t
+  state.lastPrime = Date.now()
+  console.log('[bwf-cf] primed: token=' + (state.token ? 'extracted' : 'missing'))
 }
 
 async function refreshToken(): Promise<void> {
-  if (!apiPage) throw new Error('no apiPage')
-  await apiPage.goto(PRIMER_URL)
-  const html = await apiPage.content()
+  if (!state.apiPage) throw new Error('no apiPage')
+  await state.apiPage.goto(PRIMER_URL)
+  const html = await state.apiPage.content()
   const t = extractTokenFromHtml(html)
   if (!t) throw new Error('cannot extract token on refresh')
-  token = t
+  state.token = t
 }
 
 // Re-prime when the context is missing OR the current browser has aged out
@@ -119,12 +142,12 @@ async function refreshToken(): Promise<void> {
 // (403) trigger a full re-prime in request(). Browser close is now correct
 // (see getRealDriver) so age-based recycling no longer leaks processes.
 export async function primeIfNeeded(): Promise<void> {
-  if (context && Date.now() - lastPrime < PRIME_TTL_MS) return
-  if (primePromise) return primePromise
-  primePromise = (async () => {
-    try { await prime() } finally { primePromise = null }
+  if (state.context && Date.now() - state.lastPrime < PRIME_TTL_MS) return
+  if (state.primePromise) return state.primePromise
+  state.primePromise = (async () => {
+    try { await prime() } finally { state.primePromise = null }
   })()
-  return primePromise
+  return state.primePromise
 }
 
 interface FetchArg { url: string; method: string; token: string; body?: unknown; timeoutMs: number }
@@ -139,7 +162,7 @@ export async function request<T = unknown>(
   const url = `https://extranet-lv.bwfbadminton.com${path}`
   const start = Date.now()
 
-  const doFetch = async (): Promise<FetchResult> => apiPage!.evaluate(
+  const doFetch = async (): Promise<FetchResult> => state.apiPage!.evaluate(
     async (arg: unknown) => {
       const { url: u, method: m, token: tok, body: b, timeoutMs } = arg as FetchArg
       const controller = new AbortController()
@@ -158,7 +181,7 @@ export async function request<T = unknown>(
         clearTimeout(timer)
       }
     },
-    { url, method, token: token!, body, timeoutMs: REQUEST_TIMEOUT_MS } as unknown,
+    { url, method, token: state.token!, body, timeoutMs: REQUEST_TIMEOUT_MS } as unknown,
   )
 
   let res = await doFetch()
@@ -185,23 +208,11 @@ export async function request<T = unknown>(
 
 export async function fetchPageHtml(url: string): Promise<string> {
   await primeIfNeeded()
-  const page = await context!.newPage()
+  const page = await state.context!.newPage()
   try {
     await page.goto(url)
     return await page.content()
   } finally {
     await page.close()
-  }
-}
-
-if (process.env.NODE_ENV !== 'test' && typeof globalThis !== 'undefined') {
-  const g = globalThis as unknown as { __bwfCf?: { context: typeof context; apiPage: typeof apiPage; token: typeof token; lastPrime: typeof lastPrime } }
-  if (g.__bwfCf) {
-    context = g.__bwfCf.context
-    apiPage = g.__bwfCf.apiPage
-    token = g.__bwfCf.token
-    lastPrime = g.__bwfCf.lastPrime
-  } else {
-    g.__bwfCf = { context, apiPage, token, lastPrime }
   }
 }
