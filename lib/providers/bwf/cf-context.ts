@@ -17,6 +17,12 @@ export interface DriverPage {
 }
 
 const PRIMER_URL = 'https://bwfbadminton.com/calendar/'
+// Chromium's own heap grows under repeated apiPage.evaluate() calls (the
+// page-context fetch we use for the CF bypass) — observed ~5 MB / 20 s in
+// prod under tournament load. Cap the browser's lifetime and let the next
+// request relaunch a fresh one. close() now actually tears down the browser
+// process (see getRealDriver below), so this no longer leaks like it used to.
+const PRIME_TTL_MS = 30 * 60_000
 // Per-request timeout for BWF API calls executed inside the Playwright page.
 // Without this, a stalled upstream (seen hanging 3+ minutes in prod) lets
 // in-flight evaluates pile up and exhaust container memory.
@@ -93,13 +99,12 @@ async function refreshToken(): Promise<void> {
   token = t
 }
 
-// Prime once on first use and then reuse the same Chromium for the life of
-// the worker. Auth failures (401) refresh just the token via refreshToken();
-// CF challenges (403) trigger a full re-prime in request(). There's no
-// periodic timer here — every relaunch was leaking the previous browser
-// process. pm2's max_memory_restart catches the rare worker-level leak.
+// Re-prime when the context is missing OR the current browser has aged out
+// (PRIME_TTL_MS). Auth failures (401) refresh just the token; CF challenges
+// (403) trigger a full re-prime in request(). Browser close is now correct
+// (see getRealDriver) so age-based recycling no longer leaks processes.
 export async function primeIfNeeded(): Promise<void> {
-  if (context) return
+  if (context && Date.now() - lastPrime < PRIME_TTL_MS) return
   if (primePromise) return primePromise
   primePromise = (async () => {
     try { await prime() } finally { primePromise = null }
