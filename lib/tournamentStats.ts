@@ -5,6 +5,7 @@ import type {
   MatchScheduleGroup,
   MatchesData,
   StatsClubMedalist,
+  StatsClubRoster,
   StatsCourtTimePlayer,
   StatsKpis,
   StatsMatchRef,
@@ -24,6 +25,7 @@ const EMPTY: ComputedStats = {
   courtUtilization: [],
   clubMedals: [],
   multiGoldPlayers: [],
+  clubRosters: [],
   integrity: { walkoverByEvent: [], threeSetterByEvent: [] },
 }
 
@@ -545,6 +547,36 @@ function buildClubMedalsAndMultiGold(
   return { clubMedals, multiGoldPlayers }
 }
 
+function buildClubRosters(
+  ctxs: MatchCtx[],
+  clubs: Record<string, string>,
+  rosterByDraw?: Map<string, MatchEntry[]>,
+): StatsClubRoster[] {
+  const playerToClub = new Map<string, string>()
+  const consider = (pid: string) => {
+    if (!pid || playerToClub.has(pid)) return
+    const club = clubs[pid]
+    if (club) playerToClub.set(pid, club)
+  }
+  for (const { match } of ctxs) {
+    for (const p of [...match.team1, ...match.team2]) consider(p.playerId)
+  }
+  if (rosterByDraw) {
+    for (const entries of Array.from(rosterByDraw.values())) {
+      for (const m of entries) {
+        for (const p of [...m.team1, ...m.team2]) consider(p.playerId)
+      }
+    }
+  }
+  const countByClub = new Map<string, number>()
+  for (const club of Array.from(playerToClub.values())) {
+    countByClub.set(club, (countByClub.get(club) ?? 0) + 1)
+  }
+  return Array.from(countByClub.entries())
+    .map(([club, players]) => ({ club, players }))
+    .sort((a, b) => b.players - a.players || a.club.localeCompare(b.club))
+}
+
 export function aggregate(
   data: MatchesData,
   dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
@@ -564,6 +596,7 @@ export function aggregate(
     courtUtilization: buildCourtUtilization(ctxs),
     clubMedals,
     multiGoldPlayers,
+    clubRosters: buildClubRosters(ctxs, clubs, rosterByDraw),
     integrity: buildIntegrity(ctxs),
   }
 }

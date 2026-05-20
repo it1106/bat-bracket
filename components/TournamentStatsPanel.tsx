@@ -318,6 +318,29 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
         </table>
       </section>
 
+      {/* Club / Team rosters */}
+      {stats.clubRosters.length > 0 && (
+        <section className="stats-section">
+          <h2>{t('statsSectionClubRosters')}</h2>
+          <table className="stats-table">
+            <thead><tr>
+              <th></th>
+              <th>{t('statsColClub')}</th>
+              <th className="stats-num">{t('statsColPlayers')}</th>
+            </tr></thead>
+            <tbody>
+              {stats.clubRosters.map((c, i) => (
+                <tr key={c.club}>
+                  <td className="stats-rank">{i + 1}</td>
+                  <td>{c.club}</td>
+                  <td className="stats-num">{fmt(c.players)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       {/* Matches per day */}
       <section className="stats-section">
         <h2>{t('statsSectionMatchesPerDay')}</h2>

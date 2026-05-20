@@ -33,6 +33,7 @@ describe('stats-cache', () => {
     courtUtilization: [],
     clubMedals: [],
     multiGoldPlayers: [],
+    clubRosters: [],
     integrity: { walkoverByEvent: [], threeSetterByEvent: [] },
   })
 

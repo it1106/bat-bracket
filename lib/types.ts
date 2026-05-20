@@ -280,6 +280,11 @@ export interface StatsMultiGoldPlayer {
   events: string[]
 }
 
+export interface StatsClubRoster {
+  club: string
+  players: number
+}
+
 export interface StatsIntegrityWalkover {
   event: string
   walkovers: number
@@ -306,6 +311,7 @@ export interface ComputedStats {
   courtUtilization: StatsCourt[]
   clubMedals: StatsClubMedal[]
   multiGoldPlayers: StatsMultiGoldPlayer[]
+  clubRosters: StatsClubRoster[]
   integrity: StatsIntegrity
 }
 
