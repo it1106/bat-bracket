@@ -18,6 +18,10 @@ export interface DriverPage {
 
 const PRIME_TTL_MS = 25 * 60_000
 const PRIMER_URL = 'https://bwfbadminton.com/calendar/'
+// Per-request timeout for BWF API calls executed inside the Playwright page.
+// Without this, a stalled upstream (seen hanging 3+ minutes in prod) lets
+// in-flight evaluates pile up and exhaust container memory.
+const REQUEST_TIMEOUT_MS = 30_000
 
 let context: DriverContext | null = null
 let apiPage: DriverPage | null = null
@@ -88,7 +92,7 @@ export async function primeIfNeeded(): Promise<void> {
   return primePromise
 }
 
-interface FetchArg { url: string; method: string; token: string; body?: unknown }
+interface FetchArg { url: string; method: string; token: string; body?: unknown; timeoutMs: number }
 interface FetchResult { status: number; data?: unknown }
 
 export async function request<T = unknown>(
@@ -102,17 +106,24 @@ export async function request<T = unknown>(
 
   const doFetch = async (): Promise<FetchResult> => apiPage!.evaluate(
     async (arg: unknown) => {
-      const { url: u, method: m, token: tok, body: b } = arg as FetchArg
-      const r = await fetch(u, {
-        method: m,
-        headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
-        body: b !== undefined ? JSON.stringify(b) : undefined,
-      })
-      let data: unknown = null
-      try { data = await r.json() } catch { /* non-JSON */ }
-      return { status: r.status, data }
+      const { url: u, method: m, token: tok, body: b, timeoutMs } = arg as FetchArg
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), timeoutMs)
+      try {
+        const r = await fetch(u, {
+          method: m,
+          headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+          body: b !== undefined ? JSON.stringify(b) : undefined,
+          signal: controller.signal,
+        })
+        let data: unknown = null
+        try { data = await r.json() } catch { /* non-JSON */ }
+        return { status: r.status, data }
+      } finally {
+        clearTimeout(timer)
+      }
     },
-    { url, method, token: token!, body } as unknown,
+    { url, method, token: token!, body, timeoutMs: REQUEST_TIMEOUT_MS } as unknown,
   )
 
   let res = await doFetch()
