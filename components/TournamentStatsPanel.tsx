@@ -319,7 +319,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       </section>
 
       {/* Club / Team rosters */}
-      {stats.clubRosters.length > 0 && (
+      {(stats.clubRosters ?? []).length > 0 && (
         <section className="stats-section">
           <h2>{t('statsSectionClubRosters')}</h2>
           <table className="stats-table">
@@ -329,7 +329,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               <th className="stats-num">{t('statsColPlayers')}</th>
             </tr></thead>
             <tbody>
-              {stats.clubRosters.map((c, i) => (
+              {(stats.clubRosters ?? []).map((c, i) => (
                 <tr key={c.club}>
                   <td className="stats-rank">{i + 1}</td>
                   <td>{c.club}</td>
@@ -342,7 +342,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       )}
 
       {/* Country rosters (BWF: no clubs, players grouped by country code) */}
-      {stats.clubRosters.length === 0 && stats.countryRosters.length > 0 && (
+      {(stats.clubRosters ?? []).length === 0 && (stats.countryRosters ?? []).length > 0 && (
         <section className="stats-section">
           <h2>{t('statsSectionCountryRosters')}</h2>
           <table className="stats-table">
@@ -352,7 +352,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               <th className="stats-num">{t('statsColPlayers')}</th>
             </tr></thead>
             <tbody>
-              {stats.countryRosters.map((c, i) => (
+              {(stats.countryRosters ?? []).map((c, i) => (
                 <tr key={c.country}>
                   <td className="stats-rank">{i + 1}</td>
                   <td>{c.country}</td>
