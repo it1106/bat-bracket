@@ -10,18 +10,28 @@ export async function register() {
     const { runDiscoveryCycle, buildDefaultDeps } = await import('./lib/discovery-runner')
     const { getBangkokHour } = await import('./lib/today')
 
+    const { listAllTournaments } = await import('./lib/tournaments-registry')
+
     ;(async () => {
       await prewarmMatchesFullCache()
       await prewarmDrawsCache()
       await prewarmBracketCache()
       await prewarmEventBundleCache()
       // BWF: prime Chromium context so first user request doesn't pay cold-start.
-      try {
-        const { primeIfNeeded } = await import('./lib/providers/bwf/cf-context')
-        await primeIfNeeded()
-        console.log('[instrumentation] BWF CF context primed')
-      } catch (err) {
-        console.warn('[instrumentation] BWF prime failed (BWF tournaments will 503 until manual retry):', err)
+      // Skip if no BWF tournament is currently active — Chromium otherwise sits
+      // around using ~250-500 MB for nothing. The first real BWF request will
+      // prime lazily via primeIfNeeded() if one ever comes in.
+      const hasActiveBwf = listAllTournaments().some((t) => t.provider === 'bwf' && !t.done)
+      if (!hasActiveBwf) {
+        console.log('[instrumentation] BWF prime skipped (no active BWF tournament)')
+      } else {
+        try {
+          const { primeIfNeeded } = await import('./lib/providers/bwf/cf-context')
+          await primeIfNeeded()
+          console.log('[instrumentation] BWF CF context primed')
+        } catch (err) {
+          console.warn('[instrumentation] BWF prime failed (BWF tournaments will 503 until manual retry):', err)
+        }
       }
     })().catch((err) => console.warn('[instrumentation] prewarm error:', err))
 
