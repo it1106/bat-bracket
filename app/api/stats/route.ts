@@ -41,12 +41,22 @@ async function fetchJsonFromOrigin<T>(origin: string, urlPath: string): Promise<
   }
 }
 
-async function fetchClubs(origin: string, tournamentId: string): Promise<Record<string, string>> {
-  const data = await fetchJsonFromOrigin<Record<string, string>>(
-    origin,
-    `/api/clubs?tournament=${encodeURIComponent(tournamentId)}`,
-  )
-  return data ?? {}
+async function fetchClubs(
+  origin: string,
+  tournamentId: string,
+): Promise<{ clubs: Record<string, string>; names: Record<string, string> }> {
+  // /api/clubs returns the flat playerId→club map by default; ?with=names
+  // wraps it as { clubs, names } so the roster tooltip can show player names.
+  // Accept either shape so older mocks/edge caches keep working.
+  const data = await fetchJsonFromOrigin<
+    | Record<string, string>
+    | { clubs: Record<string, string>; names: Record<string, string> }
+  >(origin, `/api/clubs?tournament=${encodeURIComponent(tournamentId)}&with=names`)
+  if (!data) return { clubs: {}, names: {} }
+  if ('clubs' in data && 'names' in data) {
+    return { clubs: data.clubs ?? {}, names: data.names ?? {} }
+  }
+  return { clubs: data as Record<string, string>, names: {} }
 }
 
 // When the full schedule isn't pinned to disk yet (mid-tournament), borrow
@@ -240,14 +250,15 @@ export async function GET(request: Request) {
       }
     }
 
-    const [dayMap, clubs, rosterByDraw] = await Promise.all([
+    const [dayMap, clubsResp, rosterByDraw] = await Promise.all([
       assembleDayMap(origin, tournamentId, fullData),
       fetchClubs(origin, tournamentId),
       // Past tournaments already have every event covered by played matches,
       // so the roster adds no information — skip the fetch.
       isAllPast ? Promise.resolve(null) : fetchRosterByDraw(tournamentId),
     ])
-    const stats = aggregate(fullData, dayMap.groups, clubs, rosterByDraw ?? undefined)
+    const { clubs, names } = clubsResp
+    const stats = aggregate(fullData, dayMap.groups, clubs, rosterByDraw ?? undefined, names)
     const full: TournamentStats = {
       tournamentId,
       generatedAt: new Date().toISOString(),

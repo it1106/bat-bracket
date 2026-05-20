@@ -333,7 +333,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
                 <tr key={c.club}>
                   <td className="stats-rank">{i + 1}</td>
                   <td>{c.club}</td>
-                  <td className="stats-num">{fmt(c.players)}</td>
+                  <td className="stats-num"><RosterCell count={c.players} members={c.members} /></td>
                 </tr>
               ))}
             </tbody>
@@ -356,7 +356,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
                 <tr key={c.country}>
                   <td className="stats-rank">{i + 1}</td>
                   <td>{c.country}</td>
-                  <td className="stats-num">{fmt(c.players)}</td>
+                  <td className="stats-num"><RosterCell count={c.players} members={c.members} /></td>
                 </tr>
               ))}
             </tbody>
@@ -430,6 +430,22 @@ interface DramaCardProps {
 // but a stale v3 envelope or a non-numeric marker like [Q]/[WC] could still
 // slip through to the popover.
 const stripSeedSuffix = (name: string): string => name.replace(/\s*\[[^\]]*\]\s*$/, '').trim()
+
+function RosterCell({ count, members }: { count: number; members?: string[] }) {
+  // Hover tooltip listing player names (sorted, scrolls when long). Mirrors
+  // MedalCell's keyboard affordances: tabIndex + focus-within for non-mouse.
+  if (!members || members.length === 0) return <>{fmt(count)}</>
+  return (
+    <span className="stats-roster-cell" tabIndex={0}>
+      {fmt(count)}
+      <span className="stats-roster-tip" role="tooltip">
+        {members.map((name, i) => (
+          <span className="stats-roster-tip-row" key={`${i}-${name}`}>{name}</span>
+        ))}
+      </span>
+    </span>
+  )
+}
 
 function MedalCell({
   count,

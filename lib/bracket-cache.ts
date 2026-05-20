@@ -21,6 +21,7 @@ interface BracketCacheState {
   cache: Map<string, BracketCacheEntry>
   rawHtmlCache: Map<string, string>
   playerClubCache: Map<string, string>
+  playerNameCache: Map<string, string>
   siblingLookupCache: Map<string, { lookup: Map<string, string>; ts: number }>
   dirty: boolean
   flushTimer: NodeJS.Timeout | null
@@ -35,6 +36,7 @@ const state: BracketCacheState = globalState.__bracketCacheState ??= {
   cache: new Map(),
   rawHtmlCache: new Map(),
   playerClubCache: new Map(),
+  playerNameCache: new Map(),
   siblingLookupCache: new Map(),
   dirty: false,
   flushTimer: null,
@@ -42,6 +44,10 @@ const state: BracketCacheState = globalState.__bracketCacheState ??= {
 
 // playerId → clubName, scoped per tournament as "{tournamentId}:{playerId}"
 export const playerClubCache = state.playerClubCache
+// playerId → displayName, same key scheme. Populated alongside
+// playerClubCache from the bracket walk and the /Players roster page so the
+// stats page can label players in club-roster tooltips.
+export const playerNameCache = state.playerNameCache
 
 export function extractPlayerClubs(html: string, guid: string): void {
   const $ = cheerio.load(html)
@@ -53,7 +59,10 @@ export function extractPlayerClubs(html: string, guid: string): void {
     $(row).find('a[data-player-id]').each((i, a) => {
       const playerId = $(a).attr('data-player-id') ?? ''
       const club = clubs[i] ?? clubs[0] ?? ''
-      if (playerId && club) playerClubCache.set(`${prefix}:${playerId}`, club)
+      const name = $(a).text().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim()
+      const key = `${prefix}:${playerId}`
+      if (playerId && club) playerClubCache.set(key, club)
+      if (playerId && name) playerNameCache.set(key, name)
     })
   })
 }
@@ -86,11 +95,13 @@ export async function fetchTournamentPlayerClubs(guid: string): Promise<boolean>
     const html = await res.text()
     const prefix = `${g}:`
     let count = 0
-    for (const { playerId, club } of parsePlayersPage(html)) {
+    for (const { playerId, club, name } of parsePlayersPage(html)) {
+      const key = `${prefix}${playerId}`
       if (playerId && club) {
-        playerClubCache.set(`${prefix}${playerId}`, club)
+        playerClubCache.set(key, club)
         count++
       }
+      if (playerId && name) playerNameCache.set(key, name)
     }
     playerRosterFetched.add(g)
     console.log(`[bracket-cache] players roster: ${g} +${count} clubs`)

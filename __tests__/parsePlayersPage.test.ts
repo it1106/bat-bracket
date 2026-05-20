@@ -40,12 +40,12 @@ const SAMPLE_HTML = `
 `
 
 describe('parsePlayersPage', () => {
-  it('extracts playerId + club from the AJAX roster html', () => {
+  it('extracts playerId + club + name from the AJAX roster html', () => {
     const out = parsePlayersPage(SAMPLE_HTML)
     expect(out).toEqual([
-      { playerId: '1420', club: 'รร.เทศบาลท่าโขลง 1' },
-      { playerId: '1197', club: 'รร.อัสสัมชัญคอนแวนต์สีลม' },
-      { playerId: '999', club: '' },
+      { playerId: '1420', club: 'รร.เทศบาลท่าโขลง 1', name: 'JAWAHAR RAGHU' },
+      { playerId: '1197', club: 'รร.อัสสัมชัญคอนแวนต์สีลม', name: 'RUAN TAIYA' },
+      { playerId: '999', club: '', name: 'NO CLUB PLAYER' },
     ])
   })
 

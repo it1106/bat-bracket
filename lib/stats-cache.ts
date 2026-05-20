@@ -20,9 +20,10 @@ function statsPath(tournamentId: string): string {
 // MS-MD-WS-WD-XD / BS-BD-GS-GD-XD plus U7), so v4 envelopes have the wrong
 // in-tooltip order. v6 adds clubRosters and countryRosters — without it the
 // client crashes on `.length` of undefined when rendering past tournaments.
+// v7 adds members[] (player names) to each roster row for the hover tooltip.
 // Bumping the version invalidates older envelopes so they get recomputed.
 export interface StatsCacheEnvelope {
-  version: 6
+  version: 7
   sourceVersion: string
   // Set to true only when every day in fullData.days had a disk-cache hit at
   // write time. Older envelopes (or those written with partial coverage) are
@@ -36,7 +37,7 @@ export async function readStatsCache(tournamentId: string): Promise<StatsCacheEn
   try {
     const buf = await fs.readFile(statsPath(tournamentId), 'utf8')
     const parsed = JSON.parse(buf) as StatsCacheEnvelope
-    if (parsed.version !== 6) return null
+    if (parsed.version !== 7) return null
     if (parsed.coverageComplete !== true) return null
     return parsed
   } catch {
@@ -53,7 +54,7 @@ export async function writeStatsCache(
   const tmp = `${file}.tmp`
   try {
     await fs.mkdir(path.dirname(file), { recursive: true })
-    const payload: StatsCacheEnvelope = { version: 6, ...envelope }
+    const payload: StatsCacheEnvelope = { version: 7, ...envelope }
     await fs.writeFile(tmp, JSON.stringify(payload), 'utf8')
     await fs.rename(tmp, file)
     console.log(`[stats-cache] wrote tournament=${tournamentId}`)

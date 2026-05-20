@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { cache as drawsCache, fetchAndCache as fetchDrawsAndCache } from '@/lib/draws-cache'
 import {
   playerClubCache,
+  playerNameCache,
   cache as bracketCache,
   fetchBracket,
   fetchTournamentPlayerClubs,
@@ -55,18 +56,31 @@ export async function GET(request: Request) {
     if (allFetched) fullyWalked.add(tid)
   }
 
-  const result: Record<string, string> = {}
+  const clubs: Record<string, string> = {}
   playerClubCache.forEach((club, key) => {
-    if (key.startsWith(prefix)) result[key.slice(prefix.length)] = club
+    if (key.startsWith(prefix)) clubs[key.slice(prefix.length)] = club
   })
+
+  // Opt-in richer response with player names too, used by the stats roster
+  // tooltip. Default shape (playerId -> club) stays backward-compatible for
+  // the schedule view in app/page.tsx.
+  const withNames = searchParams.get('with') === 'names'
+  let body: Record<string, string> | { clubs: Record<string, string>; names: Record<string, string> } = clubs
+  if (withNames) {
+    const names: Record<string, string> = {}
+    playerNameCache.forEach((name, key) => {
+      if (key.startsWith(prefix)) names[key.slice(prefix.length)] = name
+    })
+    body = { clubs, names }
+  }
 
   // CDN-cache the response so repeat requests don't re-walk every bracket.
   // The full walk is the expensive part (20-40 cheerio parses on cold start);
   // serving from edge cache means the function never runs on hits.
   // Skip the cache header when the result is empty so transient upstream
   // failures (e.g. draws fetch fell through to {}) don't lock in 1 h of zeros.
-  const isEmpty = Object.keys(result).length === 0
-  return NextResponse.json(result, {
+  const isEmpty = Object.keys(clubs).length === 0
+  return NextResponse.json(body, {
     headers: isEmpty
       ? { 'Cache-Control': 'no-store' }
       : { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' },

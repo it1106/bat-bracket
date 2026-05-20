@@ -2233,6 +2233,46 @@ html.dark .ms-match--next-opp {
 /* Don't render the popover in shared screenshots — only the count matters. */
 .stats-share-capture .stats-medal-tip { display: none !important; }
 
+.stats-roster-cell {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+  outline: none;
+}
+.stats-roster-tip {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  max-width: 280px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  font-weight: normal;
+  text-align: left;
+  white-space: normal;
+}
+.stats-roster-cell:hover .stats-roster-tip,
+.stats-roster-cell:focus .stats-roster-tip,
+.stats-roster-cell:focus-within .stats-roster-tip {
+  display: flex;
+}
+.stats-roster-tip-row {
+  line-height: 1.4;
+  color: var(--fg);
+}
+.stats-share-capture .stats-roster-tip { display: none !important; }
+
 .stats-court-row {
   display: grid;
   grid-template-columns: 50px 1fr 70px;

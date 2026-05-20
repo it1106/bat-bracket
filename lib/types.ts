@@ -283,11 +283,13 @@ export interface StatsMultiGoldPlayer {
 export interface StatsClubRoster {
   club: string
   players: number
+  members: string[]
 }
 
 export interface StatsCountryRoster {
   country: string
   players: number
+  members: string[]
 }
 
 export interface StatsIntegrityWalkover {
