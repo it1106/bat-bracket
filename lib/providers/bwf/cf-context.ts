@@ -60,16 +60,31 @@ async function getRealDriver(): Promise<ChromiumDriver> {
     async launch() {
       const browser = await chromium.launch({ args: launchArgs, executablePath, headless: true })
       const ctx = await browser.newContext(ctxOpts)
-      // Wrap close() so it also tears down the Browser. The original code
-      // returned `ctx` directly; closing a BrowserContext leaves the
-      // underlying Chromium process running, and on the 25-min reprime cycle
-      // those processes piled up until one ballooned to 2 GB+ RSS and OOM'd
-      // the container.
+      // browser.process() is documented public API but not on the static type
+      // in this playwright-core version. Cast narrowly to access it.
+      const pid = (browser as unknown as { process?: () => { pid?: number } | null }).process?.()?.pid
+      // Wrap close() so it tears down the Browser AND force-kills the
+      // process group. Observed in prod: after `browser.close()` returns,
+      // renderer children stay alive (still parented to Node) and pile up
+      // across recycle cycles — one such orphan ballooned past 2 GB. Playwright
+      // launches chromium in its own process group, so killing -pid reaps the
+      // whole tree.
       return {
         async newPage() { return (await ctx.newPage()) as unknown as DriverPage },
         async close() {
           try { await ctx.close() } catch {}
-          try { await browser.close() } catch {}
+          try {
+            await Promise.race([
+              browser.close(),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('browser.close timeout')), 5000),
+              ),
+            ])
+          } catch {}
+          if (pid && pid > 1) {
+            try { process.kill(-pid, 'SIGKILL') } catch {}
+            try { process.kill(pid, 'SIGKILL') } catch {}
+          }
         },
       }
     },
