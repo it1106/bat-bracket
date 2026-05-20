@@ -174,6 +174,7 @@ function emptyStats(tournamentId: string): TournamentStats {
     clubMedals: [],
     multiGoldPlayers: [],
     clubRosters: [],
+    countryRosters: [],
     integrity: { walkoverByEvent: [], threeSetterByEvent: [] },
   }
 }

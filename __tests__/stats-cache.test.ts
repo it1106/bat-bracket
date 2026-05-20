@@ -34,6 +34,7 @@ describe('stats-cache', () => {
     clubMedals: [],
     multiGoldPlayers: [],
     clubRosters: [],
+    countryRosters: [],
     integrity: { walkoverByEvent: [], threeSetterByEvent: [] },
   })
 

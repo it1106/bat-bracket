@@ -168,6 +168,8 @@ export type TKey =
   | 'statsSectionCourtUtilization'
   | 'statsSectionClubMedals'
   | 'statsSectionClubRosters'
+  | 'statsSectionCountryRosters'
+  | 'statsColCountry'
   | 'statsColPlayers'
   | 'statsSectionMultiGold'
   | 'statsSectionIntegrity'
@@ -295,6 +297,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionCourtUtilization: 'Court utilization',
     statsSectionClubMedals: 'Top clubs by medals',
     statsSectionClubRosters: 'Club / Team',
+    statsSectionCountryRosters: 'Country',
+    statsColCountry: 'Country',
     statsColPlayers: 'Players',
     statsSectionMultiGold: 'Players with multiple gold medals',
     statsSectionIntegrity: 'Other stats',
@@ -421,6 +425,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionCourtUtilization: 'การใช้งานสนาม',
     statsSectionClubMedals: 'สโมสรยอดเยี่ยม (เรียงตามเหรียญรางวัล)',
     statsSectionClubRosters: 'สโมสร / ทีม',
+    statsSectionCountryRosters: 'ประเทศ',
+    statsColCountry: 'ประเทศ',
     statsColPlayers: 'จำนวนผู้เล่น',
     statsSectionMultiGold: 'นักกีฬาที่ได้เหรียญทองมากกว่า 1 เหรียญ',
     statsSectionIntegrity: 'สถิติอื่น ๆ',

@@ -341,6 +341,29 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
         </section>
       )}
 
+      {/* Country rosters (BWF: no clubs, players grouped by country code) */}
+      {stats.clubRosters.length === 0 && stats.countryRosters.length > 0 && (
+        <section className="stats-section">
+          <h2>{t('statsSectionCountryRosters')}</h2>
+          <table className="stats-table">
+            <thead><tr>
+              <th></th>
+              <th>{t('statsColCountry')}</th>
+              <th className="stats-num">{t('statsColPlayers')}</th>
+            </tr></thead>
+            <tbody>
+              {stats.countryRosters.map((c, i) => (
+                <tr key={c.country}>
+                  <td className="stats-rank">{i + 1}</td>
+                  <td>{c.country}</td>
+                  <td className="stats-num">{fmt(c.players)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       {/* Matches per day */}
       <section className="stats-section">
         <h2>{t('statsSectionMatchesPerDay')}</h2>

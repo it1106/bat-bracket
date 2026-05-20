@@ -6,6 +6,7 @@ import type {
   MatchesData,
   StatsClubMedalist,
   StatsClubRoster,
+  StatsCountryRoster,
   StatsCourtTimePlayer,
   StatsKpis,
   StatsMatchRef,
@@ -26,6 +27,7 @@ const EMPTY: ComputedStats = {
   clubMedals: [],
   multiGoldPlayers: [],
   clubRosters: [],
+  countryRosters: [],
   integrity: { walkoverByEvent: [], threeSetterByEvent: [] },
 }
 
@@ -561,6 +563,37 @@ function buildClubRosters(clubs: Record<string, string>): StatsClubRoster[] {
     .sort((a, b) => b.players - a.players || a.club.localeCompare(b.club))
 }
 
+function buildCountryRosters(
+  ctxs: MatchCtx[],
+  rosterByDraw?: Map<string, MatchEntry[]>,
+): StatsCountryRoster[] {
+  // BWF carries the country code on each MatchPlayer. Walk every unique
+  // playerId we know about (scheduled matches + draw rosters), keep the
+  // first country seen, then count.
+  const playerToCountry = new Map<string, string>()
+  const consider = (pid: string, country: string | undefined) => {
+    if (!pid || !country) return
+    if (!playerToCountry.has(pid)) playerToCountry.set(pid, country)
+  }
+  for (const { match } of ctxs) {
+    for (const p of [...match.team1, ...match.team2]) consider(p.playerId, p.country)
+  }
+  if (rosterByDraw) {
+    for (const entries of Array.from(rosterByDraw.values())) {
+      for (const m of entries) {
+        for (const p of [...m.team1, ...m.team2]) consider(p.playerId, p.country)
+      }
+    }
+  }
+  const countByCountry = new Map<string, number>()
+  for (const country of Array.from(playerToCountry.values())) {
+    countByCountry.set(country, (countByCountry.get(country) ?? 0) + 1)
+  }
+  return Array.from(countByCountry.entries())
+    .map(([country, players]) => ({ country, players }))
+    .sort((a, b) => b.players - a.players || a.country.localeCompare(b.country))
+}
+
 export function aggregate(
   data: MatchesData,
   dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
@@ -571,7 +604,9 @@ export function aggregate(
   const rosterSize = rosterByDraw ? rosterByDraw.size : 0
   // clubRosters is derived purely from the clubs map (playerId -> club), so
   // it's meaningful even before any match is scheduled — register-then-show.
-  if (ctxs.length === 0 && rosterSize === 0) return { ...EMPTY, clubRosters: buildClubRosters(clubs) }
+  if (ctxs.length === 0 && rosterSize === 0) {
+    return { ...EMPTY, clubRosters: buildClubRosters(clubs), countryRosters: buildCountryRosters(ctxs, rosterByDraw) }
+  }
   const { clubMedals, multiGoldPlayers } = buildClubMedalsAndMultiGold(ctxs, clubs)
   return {
     kpis: buildKpis(ctxs, rosterByDraw),
@@ -583,6 +618,7 @@ export function aggregate(
     clubMedals,
     multiGoldPlayers,
     clubRosters: buildClubRosters(clubs),
+    countryRosters: buildCountryRosters(ctxs, rosterByDraw),
     integrity: buildIntegrity(ctxs),
   }
 }
