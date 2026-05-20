@@ -53,8 +53,12 @@ async function fetchClubs(
     | { clubs: Record<string, string>; names: Record<string, string> }
   >(origin, `/api/clubs?tournament=${encodeURIComponent(tournamentId)}&with=names`)
   if (!data) return { clubs: {}, names: {} }
-  if ('clubs' in data && 'names' in data) {
-    return { clubs: data.clubs ?? {}, names: data.names ?? {} }
+  const maybe = data as { clubs?: unknown; names?: unknown }
+  if (maybe.clubs && typeof maybe.clubs === 'object' && maybe.names && typeof maybe.names === 'object') {
+    return {
+      clubs: maybe.clubs as Record<string, string>,
+      names: maybe.names as Record<string, string>,
+    }
   }
   return { clubs: data as Record<string, string>, names: {} }
 }
