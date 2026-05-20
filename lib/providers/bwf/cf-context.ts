@@ -4,9 +4,14 @@ export interface ChromiumDriver {
   launch(): Promise<DriverContext>
 }
 
+export interface DriverCookie { name: string; value: string; domain: string; path: string }
+
 export interface DriverContext {
   newPage(): Promise<DriverPage>
   close(): Promise<void>
+  // Optional: real driver implements this so the Node-fetch spike can
+  // borrow CF cookies. Mock drivers in tests don't need to provide it.
+  cookies?(): Promise<DriverCookie[]>
 }
 
 export interface DriverPage {
@@ -71,6 +76,10 @@ async function getRealDriver(): Promise<ChromiumDriver> {
           try { await ctx.close() } catch {}
           try { await browser.close() } catch {}
         },
+        async cookies() {
+          const raw = await ctx.cookies()
+          return raw.map((c) => ({ name: c.name, value: c.value, domain: c.domain, path: c.path }))
+        },
       }
     },
   }
@@ -88,6 +97,57 @@ async function prime(): Promise<void> {
   token = t
   lastPrime = Date.now()
   console.log('[bwf-cf] primed: token=' + (token ? 'extracted' : 'missing'))
+  // One-shot spike: see if a Node fetch using the CF cookies extracted from
+  // Chromium gets past Cloudflare. If yes, we can replace apiPage.evaluate()
+  // (the main CPU sink) with native fetch. Result logs to [spike-node-fetch].
+  if (!spikeRan) {
+    spikeRan = true
+    void runNodeFetchSpike()
+  }
+}
+
+let spikeRan = false
+
+async function runNodeFetchSpike(): Promise<void> {
+  if (!context || !token) return
+  if (typeof context.cookies !== 'function') {
+    console.log('[spike-node-fetch] driver does not expose cookies()')
+    return
+  }
+  try {
+    const cookies = await context.cookies()
+    const relevant = cookies.filter((c) => c.domain.includes('bwfbadminton.com'))
+    const cookieHeader = relevant.map((c) => `${c.name}=${c.value}`).join('; ')
+    // Same endpoint we hit dozens of times per hour via apiPage.evaluate.
+    const tournamentCode = '6E65C36E-497D-42D2-8F4E-78A2D30D9893'
+    const date = new Date().toISOString().slice(0, 10)
+    const url = `https://extranet-lv.bwfbadminton.com/api/tournaments/day-matches?tournamentCode=${tournamentCode}&date=${date}&order=2&court=0`
+    const start = Date.now()
+    const r = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Origin: 'https://bwfbadminton.com',
+        Referer: 'https://bwfbadminton.com/',
+        Cookie: cookieHeader,
+      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+    const ms = Date.now() - start
+    const text = await r.text()
+    const preview = text.slice(0, 160).replace(/\s+/g, ' ')
+    const cfRay = r.headers.get('cf-ray') ?? ''
+    const cfCacheStatus = r.headers.get('cf-cache-status') ?? ''
+    console.log(
+      `[spike-node-fetch] status=${r.status} ms=${ms} bytes=${text.length} cookies=${relevant.length}` +
+      ` cf-ray=${cfRay} cf-cache=${cfCacheStatus} preview=${JSON.stringify(preview)}`,
+    )
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    console.warn(`[spike-node-fetch] error: ${msg}`)
+  }
 }
 
 async function refreshToken(): Promise<void> {
