@@ -16,7 +16,6 @@ export interface DriverPage {
   close(): Promise<void>
 }
 
-const PRIME_TTL_MS = 25 * 60_000
 const PRIMER_URL = 'https://bwfbadminton.com/calendar/'
 // Per-request timeout for BWF API calls executed inside the Playwright page.
 // Without this, a stalled upstream (seen hanging 3+ minutes in prod) lets
@@ -55,7 +54,18 @@ async function getRealDriver(): Promise<ChromiumDriver> {
     async launch() {
       const browser = await chromium.launch({ args: launchArgs, executablePath, headless: true })
       const ctx = await browser.newContext(ctxOpts)
-      return ctx as unknown as DriverContext
+      // Wrap close() so it also tears down the Browser. The original code
+      // returned `ctx` directly; closing a BrowserContext leaves the
+      // underlying Chromium process running, and on the 25-min reprime cycle
+      // those processes piled up until one ballooned to 2 GB+ RSS and OOM'd
+      // the container.
+      return {
+        async newPage() { return (await ctx.newPage()) as unknown as DriverPage },
+        async close() {
+          try { await ctx.close() } catch {}
+          try { await browser.close() } catch {}
+        },
+      }
     },
   }
 }
@@ -83,8 +93,13 @@ async function refreshToken(): Promise<void> {
   token = t
 }
 
+// Prime once on first use and then reuse the same Chromium for the life of
+// the worker. Auth failures (401) refresh just the token via refreshToken();
+// CF challenges (403) trigger a full re-prime in request(). There's no
+// periodic timer here — every relaunch was leaking the previous browser
+// process. pm2's max_memory_restart catches the rare worker-level leak.
 export async function primeIfNeeded(): Promise<void> {
-  if (context && Date.now() - lastPrime < PRIME_TTL_MS) return
+  if (context) return
   if (primePromise) return primePromise
   primePromise = (async () => {
     try { await prime() } finally { primePromise = null }
