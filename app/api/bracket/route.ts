@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { cache, TTL_MS, makeBracketKey, fetchAndCache, fetchBracketFromRound, rawHtmlCache } from '@/lib/bracket-cache'
+import { cache, ttlMsFor, makeBracketKey, fetchAndCache, fetchBracketFromRound, rawHtmlCache } from '@/lib/bracket-cache'
 import { parseBracket } from '@/lib/scraper'
 
 export const maxDuration = 60
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
   }
 
   const cached = cache.get(key)
-  if (cached && (cached.done || Date.now() - cached.ts < TTL_MS)) {
+  if (cached && (cached.done || Date.now() - cached.ts < ttlMsFor(cached))) {
     return NextResponse.json(fromRound > 0 ? parseBracket(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket)
   }
 

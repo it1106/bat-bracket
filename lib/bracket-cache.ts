@@ -8,8 +8,17 @@ import { providerFor } from '@/lib/providers/resolve'
 import { resolveRef } from '@/lib/tournaments-registry'
 import type { BracketData } from './types'
 
+export interface BracketCacheEntry {
+  bracket: BracketData
+  ts: number
+  done?: boolean
+  // True iff every match in the rendered bracket has a declared winner.
+  // Computed at write time so the per-request TTL check stays O(1).
+  static?: boolean
+}
+
 interface BracketCacheState {
-  cache: Map<string, { bracket: BracketData; ts: number; done?: boolean }>
+  cache: Map<string, BracketCacheEntry>
   rawHtmlCache: Map<string, string>
   playerClubCache: Map<string, string>
   siblingLookupCache: Map<string, { lookup: Map<string, string>; ts: number }>
@@ -100,7 +109,39 @@ export const rawHtmlCache = state.rawHtmlCache
 // underlying bracket entry's `ts` advances. `ts` here mirrors `cache.get(key).ts`
 // at the moment the lookup was built.
 export const siblingLookupCache = state.siblingLookupCache
-export const TTL_MS = 15 * 60 * 1000 // 15 min
+// Tiered TTLs by draw activity.
+//   live   = at least one match still has no winner → poll on a tight cycle
+//            so users see results soon after a match finishes.
+//   static = every rendered match has a winner → bracket can only change via
+//            an admin score correction; safe to cache much longer.
+// Tournament-level `done` (set on the cache entry) takes precedence and is
+// served from cache indefinitely.
+export const LIVE_TTL_MS = 30 * 60 * 1000  // 30 min
+export const STATIC_TTL_MS = 4 * 60 * 60 * 1000  // 4 h
+// Back-compat: callers that imported TTL_MS get the live value.
+export const TTL_MS = LIVE_TTL_MS
+
+// Cheap HTML pattern check on `BracketData.html` (built by `parseBracket`).
+// Every match emits exactly two `<div class="bk-row…">` rows; exactly one of
+// them gains the `winner` class once a result (incl. walkovers) is in. If
+// (rows / 2) === winners, every match is decided.
+export function isBracketStatic(html: string): boolean {
+  if (!html) return false
+  let rowCount = 0
+  let winnerCount = 0
+  const re = /<div class="bk-row( winner)?"/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(html)) !== null) {
+    rowCount++
+    if (m[1]) winnerCount++
+  }
+  if (rowCount === 0) return false
+  return rowCount === winnerCount * 2
+}
+
+export function ttlMsFor(entry: BracketCacheEntry): number {
+  return entry.static ? STATIC_TTL_MS : LIVE_TTL_MS
+}
 
 const TIMEOUT_MS = 50000
 
@@ -159,7 +200,13 @@ export async function fetchBracketFromRound(guid: string, drawNum: string, fromR
 export async function fetchAndCache(guid: string, drawNum: string): Promise<BracketData> {
   const bracket = await fetchBracket(guid, drawNum)
   const done = drawsCache.get(guid)?.done
-  cache.set(makeBracketKey(guid, drawNum), { bracket, ts: Date.now(), ...(done && { done: true }) })
+  const isStatic = isBracketStatic(bracket.html)
+  cache.set(makeBracketKey(guid, drawNum), {
+    bracket,
+    ts: Date.now(),
+    ...(done && { done: true }),
+    ...(isStatic && { static: true }),
+  })
   state.dirty = true
   return bracket
 }
@@ -190,8 +237,14 @@ async function loadBracketStoreFromDisk(): Promise<number> {
       try {
         const bracket = parseBracket(entry.html)
         if (!bracket.html) continue
+        const isStatic = isBracketStatic(bracket.html)
         rawHtmlCache.set(entry.key, entry.html)
-        cache.set(entry.key, { bracket, ts: entry.ts, ...(entry.done && { done: true as const }) })
+        cache.set(entry.key, {
+          bracket,
+          ts: entry.ts,
+          ...(entry.done && { done: true as const }),
+          ...(isStatic && { static: true as const }),
+        })
         extractPlayerClubs(entry.html, guid)
         loaded++
       } catch {
