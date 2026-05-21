@@ -1350,7 +1350,7 @@ html[lang="th"] .pm-section-title {
 .match-schedule {
   background: var(--bg);
   min-height: calc(100vh - 97px);
-  padding: 16px 50px;
+  padding: 16px 35px;
   max-width: 1000px;
 }
 
