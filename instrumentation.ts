@@ -58,6 +58,25 @@ export async function register() {
       }
       setTimeout(tick, 30_000)
       setInterval(tick, 15 * 60 * 1000)
+
+      // BWF Chromium recycle heartbeat. primeIfNeeded() only fires on the
+      // first request after PRIME_TTL_MS — so during idle periods the heap
+      // can drift past the cap unnoticed, get whacked by max_memory_restart
+      // when the next traffic burst lands, and produce a reload-overlap
+      // memory spike. This setInterval pokes it every 5 min so any expired
+      // TTL gets honored regardless of demand.
+      const bwfRecycleTick = async () => {
+        const hasActiveBwf = listAllTournaments().some((t) => t.provider === 'bwf' && !t.done)
+        if (!hasActiveBwf) return
+        try {
+          const { primeIfNeeded } = await import('./lib/providers/bwf/cf-context')
+          await primeIfNeeded()
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'unknown'
+          console.warn(`[bwf-recycle] tick failed: ${msg}`)
+        }
+      }
+      setInterval(bwfRecycleTick, 5 * 60 * 1000)
     }
   }
 }

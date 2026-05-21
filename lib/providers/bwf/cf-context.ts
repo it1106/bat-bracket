@@ -22,7 +22,12 @@ const PRIMER_URL = 'https://bwfbadminton.com/calendar/'
 // prod under tournament load. Cap the browser's lifetime and let the next
 // request relaunch a fresh one. close() now actually tears down the browser
 // process (see getRealDriver below), so this no longer leaks like it used to.
-const PRIME_TTL_MS = 30 * 60_000
+// Bumped from 30 min to 15 min: at sustained tournament load (~15 MB/min),
+// the half-hour ceiling let RSS drift past 2 GiB before recycle, which
+// triggered PM2's max_memory_restart and the resulting reload-overlap caused
+// the late-evening container-memory peaks. Pairs with a 15-min recycle
+// heartbeat in instrumentation.ts so idle periods can't dodge the cap.
+const PRIME_TTL_MS = 15 * 60_000
 // Per-request timeout for BWF API calls executed inside the Playwright page.
 // Without this, a stalled upstream (seen hanging 3+ minutes in prod) lets
 // in-flight evaluates pile up and exhaust container memory.
