@@ -358,7 +358,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     matchHistory: 'ประวัติการพบกัน',
     yob: 'ปีเกิด',
     bye: 'บาย',
-    walkover: 'ชนะบาย',
+    walkover: 'บาย',
     retired: 'ถอน',
     live: 'สด',
     nowPlaying: 'กำลังแข่ง',
