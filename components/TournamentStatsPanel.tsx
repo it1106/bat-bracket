@@ -307,7 +307,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               <tr key={e.name}>
                 <td className="stats-evname">{e.name}</td>
                 <td className="stats-num">{e.matches}</td>
-                <td className="stats-num">{fmt(e.players)}</td>
+                <td className="stats-num">{fmt(e.players ?? 0)}</td>
                 <td className="stats-num">{e.decided === 0 ? '0%' : pct(e.threeSetters / e.decided)}</td>
                 <td className="stats-num">{formatMinutes(e.avgMinutes, lang)}</td>
                 <td className="stats-winner-cell">

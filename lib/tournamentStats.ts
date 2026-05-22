@@ -182,8 +182,11 @@ function buildDailyVolume(
   return rows
 }
 
-const OPEN_ORDER = ['MS', 'MD', 'WS', 'WD', 'XD'] as const
-const DISCIPLINES = ['BS', 'BD', 'GS', 'GD', 'XD'] as const
+// Display order: singles before doubles within each section, then mixed.
+// Open events first (MS, WS, MD, WD, XD), then age-group disciplines
+// (BS, GS, BD, GD, XD) cycled from U19 down to U7.
+const OPEN_ORDER = ['MS', 'WS', 'MD', 'WD', 'XD'] as const
+const DISCIPLINES = ['BS', 'GS', 'BD', 'GD', 'XD'] as const
 const AGE_BANDS = [19, 17, 15, 13, 11, 9, 7] as const
 
 const EVENT_RANK = (() => {
