@@ -93,7 +93,11 @@ function buildKpis(
 
   for (const { match, durationMinutes } of ctxs) {
     matches++
-    if (match.draw) events.add(match.draw)
+    // Collapse "<event> - Group X" into the parent event so grouped formats
+    // (SAT NSDF, KBA leagues) don't multi-count each group as its own event.
+    // Mirrors the keying used in buildEvents.
+    const eventKey = match.eventName ?? match.draw
+    if (eventKey) events.add(eventKey)
     if (match.walkover) walkovers++
     if (match.retired) retired++
     if (match.nowPlaying) nowPlaying++
@@ -109,9 +113,9 @@ function buildKpis(
     for (const p of [...match.team1, ...match.team2]) {
       if (!p.playerId) continue
       players.add(p.playerId)
-      if (match.draw) {
+      if (eventKey) {
         const set = playerEvents.get(p.playerId) ?? new Set<string>()
-        set.add(match.draw)
+        set.add(eventKey)
         playerEvents.set(p.playerId, set)
       }
     }

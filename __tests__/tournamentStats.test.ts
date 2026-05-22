@@ -268,3 +268,41 @@ describe('tournamentStats — roster augments live counts', () => {
     expect(s.events.map((e) => e.name)).toEqual(['WD-U17'])
   })
 })
+
+// SAT NSDF-style grouped tournaments split each event into N round-robin
+// groups whose draw names are "<event> - Group X". match.eventName carries
+// the parent event so buildEvents collapses them; buildKpis must do the
+// same or the headline events count inflates by the group multiplier
+// (e.g. 20 events × 8 groups → "160 events" in the panel).
+describe('tournamentStats — grouped events collapse to parent', () => {
+  const data: MatchesData = {
+    days: [{ date: '20260525', label: '25/05', dateIso: '2026-05-25', hasMatches: true }],
+    currentDate: '20260525',
+    groups: [],
+  }
+  function gm(draw: string, eventName: string, p1: string, p2: string): MatchEntry {
+    return {
+      draw, drawNum: '', round: 'R1', eventName,
+      team1: [{ name: p1, playerId: p1 }],
+      team2: [{ name: p2, playerId: p2 }],
+      winner: null, scores: [],
+      court: '', walkover: false, retired: false, nowPlaying: false,
+    }
+  }
+  const dayGroups: MatchScheduleGroup[] = [{
+    type: 'time' as const,
+    time: '09:00',
+    matches: [
+      gm('BS U17 - Group A', 'BS U17', 'P1', 'P2'),
+      gm('BS U17 - Group B', 'BS U17', 'P3', 'P4'),
+      gm('GS U17 - Group A', 'GS U17', 'P5', 'P6'),
+    ],
+  }]
+  const days = new Map([['2026-05-25', dayGroups]])
+
+  it('counts the parent event once across all groups', () => {
+    const s = aggregate(data, days, {})
+    expect(s.kpis.events).toBe(2)
+    expect(s.events.map((e) => e.name).sort()).toEqual(['BS U17', 'GS U17'])
+  })
+})
