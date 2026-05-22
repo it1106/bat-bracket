@@ -231,6 +231,60 @@ function courtSortKey(court: string): number {
   return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY
 }
 
+// "Followed by" tournaments queue multiple matches on the same court under a
+// single (or absent) matchTime — the source publishes a per-court order of
+// play rather than a time grid. Any court appearing twice in the same time
+// slot is the signal: that day's schedule should render court-grouped (like
+// BAT's court headers) instead of time-grouped.
+function shouldUseCourtGrouping(matches: BwfMatch[]): boolean {
+  const seen = new Map<string, number>()
+  for (const m of matches) {
+    const court = m.courtName ?? ''
+    if (!court) continue
+    const time = formatMatchTime(m.matchTime) ?? ''
+    const key = `${court}|${time}`
+    const n = (seen.get(key) ?? 0) + 1
+    if (n > 1) return true
+    seen.set(key, n)
+  }
+  return false
+}
+
+function groupByCourtFollowedBy(
+  matches: BwfMatch[],
+  drawNumByName: Map<string, string>,
+): MatchScheduleGroup[] {
+  const byCourt = new Map<string, { match: BwfMatch; entry: MatchEntry }[]>()
+  for (const m of matches) {
+    try {
+      const court = m.courtName ?? ''
+      const entry = dayMatchToEntry(m, drawNumByName)
+      if (m.oopRound != null) {
+        const time = formatMatchTime(m.matchTime)
+        entry.sequenceLabel = time ? `M${m.oopRound} · ${time}` : `M${m.oopRound}`
+      }
+      if (!byCourt.has(court)) byCourt.set(court, [])
+      byCourt.get(court)!.push({ match: m, entry })
+    } catch (err) {
+      console.warn('[bwf-parser] skipping day match:', err)
+    }
+  }
+  const entries = Array.from(byCourt.entries())
+  entries.sort(([a], [b]) => {
+    if (a === '' && b !== '') return 1
+    if (b === '' && a !== '') return -1
+    return courtSortKey(a) - courtSortKey(b)
+  })
+  return entries.map(([court, items]) => {
+    items.sort((x, y) => (x.match.oopRound ?? Number.POSITIVE_INFINITY) - (y.match.oopRound ?? Number.POSITIVE_INFINITY))
+    return {
+      type: 'court' as const,
+      court,
+      matches: items.map((it) => it.entry),
+    }
+  })
+}
+
 export function parseDayMatches(json: unknown, draws: DrawInfo[] = []): MatchScheduleGroup[] {
   if (!Array.isArray(json)) return []
   // Day-match payloads carry the draw name ("BS U13") but no draw id, so build
@@ -238,8 +292,12 @@ export function parseDayMatches(json: unknown, draws: DrawInfo[] = []): MatchSch
   // the schedule's event chips can't deep-link to the bracket view.
   const drawNumByName = new Map<string, string>()
   for (const d of draws) if (d.name) drawNumByName.set(d.name, d.drawNum)
+  const matches = json as BwfMatch[]
+  if (shouldUseCourtGrouping(matches)) {
+    return groupByCourtFollowedBy(matches, drawNumByName)
+  }
   const byTime = new Map<string, { match: BwfMatch; entry: MatchEntry }[]>()
-  for (const m of json as BwfMatch[]) {
+  for (const m of matches) {
     try {
       const time = formatMatchTime(m.matchTime) ?? ''
       if (!byTime.has(time)) byTime.set(time, [])
