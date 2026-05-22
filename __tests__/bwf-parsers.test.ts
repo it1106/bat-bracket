@@ -204,57 +204,6 @@ describe('parseDayMatches', () => {
     expect(parseDayMatches({})).toEqual([])
   })
 
-  it('switches to court-grouping when any court has multiple matches in the same time slot', () => {
-    const groups = parseDayMatches([
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 1', id: '1', oop: 1 }),
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 1', id: '2', oop: 2 }),
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 2', id: '3', oop: 1 }),
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 2', id: '4', oop: 2 }),
-    ])
-    expect(groups).toHaveLength(2)
-    expect(groups[0]).toMatchObject({ type: 'court', court: 'Court 1' })
-    expect(groups[1]).toMatchObject({ type: 'court', court: 'Court 2' })
-    expect(groups[0].matches.map((m) => m.sequenceLabel)).toEqual(['M1 · 09:00', 'M2 · 09:00'])
-  })
-
-  it('sorts matches within a court group by oopRound ascending', () => {
-    const groups = parseDayMatches([
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 1', id: 'b', oop: 3 }),
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 1', id: 'a', oop: 1 }),
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 1', id: 'c', oop: 2 }),
-    ])
-    expect(groups[0].type).toBe('court')
-    expect(groups[0].matches.map((m) => m.sequenceLabel)).toEqual(['M1 · 09:00', 'M2 · 09:00', 'M3 · 09:00'])
-  })
-
-  it('court-grouping omits the time portion of sequenceLabel when matchTime is absent', () => {
-    const groups = parseDayMatches([
-      mkDayMatch({ court: 'Court 1', id: '1', oop: 1 }),
-      mkDayMatch({ court: 'Court 1', id: '2', oop: 2 }),
-    ])
-    expect(groups[0].type).toBe('court')
-    expect(groups[0].matches.map((m) => m.sequenceLabel)).toEqual(['M1', 'M2'])
-  })
-
-  it('court groups sort by trailing court number ascending', () => {
-    const groups = parseDayMatches([
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 3', id: '1', oop: 1 }),
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 3', id: '2', oop: 2 }),
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 1', id: '3', oop: 1 }),
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 1', id: '4', oop: 2 }),
-    ])
-    expect(groups.map((g) => g.type === 'court' ? g.court : '')).toEqual(['Court 1', 'Court 3'])
-  })
-
-  it('keeps time-grouping when every (court, time) pair is unique', () => {
-    const groups = parseDayMatches([
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 1', id: '1' }),
-      mkDayMatch({ time: '2026-05-23 09:00:00', court: 'Court 2', id: '2' }),
-      mkDayMatch({ time: '2026-05-23 10:00:00', court: 'Court 1', id: '3' }),
-    ])
-    expect(groups.every((g) => g.type === 'time')).toBe(true)
-  })
-
   it('keeps completed matches whose duration is a number (BWF production shape)', () => {
     const groups = parseDayMatches([
       {
@@ -274,11 +223,10 @@ describe('parseDayMatches', () => {
   })
 })
 
-function mkDayMatch(p: { time?: string; court?: string; id: string; oop?: number }) {
+function mkDayMatch(p: { time?: string; court?: string; id: string }) {
   return {
     courtName: p.court,
     ...(p.time && { matchTime: p.time }),
-    ...(p.oop != null && { oopRound: p.oop }),
     drawName: 'X', roundName: 'F', matchStatus: 'N', scoreStatus: 0,
     team1: { players: [{ id: p.id, nameDisplay: `P${p.id}A` }] },
     team2: { players: [{ id: `${p.id}b`, nameDisplay: `P${p.id}B` }] },
