@@ -253,8 +253,13 @@ describe('tournamentStats — roster augments live counts', () => {
     const ms = s.events.find((e) => e.name === 'MS-U13')!
     expect(ms.matches).toBe(1)
     expect(ms.decided).toBe(1)
+    expect(ms.players).toBe(2)
     const md = s.events.find((e) => e.name === 'MD-U13')!
     expect(md.matches).toBe(0)
+    // Roster-seeded count: MD-U13 has 4 entrants, XD-U13 has 4.
+    expect(md.players).toBe(4)
+    const xd = s.events.find((e) => e.name === 'XD-U13')!
+    expect(xd.players).toBe(4)
   })
 
   it('roster alone (no played matches) populates events and players', () => {
@@ -266,6 +271,7 @@ describe('tournamentStats — roster augments live counts', () => {
     expect(s.kpis.players).toBe(4)
     expect(s.kpis.matches).toBe(0)
     expect(s.events.map((e) => e.name)).toEqual(['WD-U17'])
+    expect(s.events[0].players).toBe(4)
   })
 })
 
@@ -304,5 +310,10 @@ describe('tournamentStats — grouped events collapse to parent', () => {
     const s = aggregate(data, days, {})
     expect(s.kpis.events).toBe(2)
     expect(s.events.map((e) => e.name).sort()).toEqual(['BS U17', 'GS U17'])
+    // Unique-player count rolls up across groups too: BS U17 sees P1–P4.
+    const bs = s.events.find((e) => e.name === 'BS U17')!
+    expect(bs.players).toBe(4)
+    const gs = s.events.find((e) => e.name === 'GS U17')!
+    expect(gs.players).toBe(2)
   })
 })

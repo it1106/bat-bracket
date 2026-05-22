@@ -205,18 +205,28 @@ function buildEvents(
   interface Acc {
     matches: number; threeSetters: number; walkovers: number; decided: number;
     durSum: number; durCount: number;
+    players: Set<string>;
     lastFinal: MatchEntry | null;
   }
+  const newAcc = (): Acc => ({
+    matches: 0, threeSetters: 0, walkovers: 0, decided: 0,
+    durSum: 0, durCount: 0, players: new Set<string>(), lastFinal: null,
+  })
   const byEvent = new Map<string, Acc>()
   // Seed with roster draws so events whose matches haven't been scheduled yet
   // still appear in the table (with zero-filled stats).
   if (rosterByDraw) {
-    for (const drawName of Array.from(rosterByDraw.keys())) {
+    for (const [drawName, entries] of Array.from(rosterByDraw)) {
       if (!drawName) continue
-      byEvent.set(drawName, {
-        matches: 0, threeSetters: 0, walkovers: 0, decided: 0,
-        durSum: 0, durCount: 0, lastFinal: null,
-      })
+      const a = byEvent.get(drawName) ?? newAcc()
+      // Seed the unique-player set from the registered entries so the count is
+      // meaningful before any match has been played.
+      for (const m of entries) {
+        for (const p of [...m.team1, ...m.team2]) {
+          if (p.playerId) a.players.add(p.playerId)
+        }
+      }
+      byEvent.set(drawName, a)
     }
   }
   for (const { match } of ctxs) {
@@ -227,10 +237,7 @@ function buildEvents(
     // match the regex, so its own name is used (which IS the parent name) and
     // both feed into the same accumulator key.
     const key = match.eventName ?? match.draw
-    const a = byEvent.get(key) ?? {
-      matches: 0, threeSetters: 0, walkovers: 0, decided: 0,
-      durSum: 0, durCount: 0, lastFinal: null,
-    }
+    const a = byEvent.get(key) ?? newAcc()
     a.matches++
     if (match.walkover) a.walkovers++
     if (match.winner !== null && !match.walkover) {
@@ -239,6 +246,9 @@ function buildEvents(
     }
     const d = parseDurationMinutes(match.duration)
     if (d > 0) { a.durSum += d; a.durCount++ }
+    for (const p of [...match.team1, ...match.team2]) {
+      if (p.playerId) a.players.add(p.playerId)
+    }
     if (match.winner !== null && !match.walkover && isFinal(match.round)) {
       a.lastFinal = match
     }
@@ -261,6 +271,7 @@ function buildEvents(
       walkovers: a.walkovers,
       decided: a.decided,
       avgMinutes: a.durCount === 0 ? 0 : a.durSum / a.durCount,
+      players: a.players.size,
       winner,
       winnerSeed,
     }

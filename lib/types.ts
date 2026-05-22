@@ -219,6 +219,7 @@ export interface StatsEventRow {
   walkovers: number
   decided: number
   avgMinutes: number
+  players: number
   winner: string[]
   winnerSeed?: string
 }

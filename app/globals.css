@@ -2360,7 +2360,8 @@ html.dark .ms-match--next-opp {
   .stats-event-list td.stats-evname { font-weight: 700; font-size: 13px; flex: 0 0 auto; }
   .stats-event-list td:nth-child(2),
   .stats-event-list td:nth-child(3),
-  .stats-event-list td:nth-child(4) {
+  .stats-event-list td:nth-child(4),
+  .stats-event-list td:nth-child(5) {
     font-size: 12px;
     color: var(--muted);
     flex: 0 0 auto;
@@ -2368,9 +2369,11 @@ html.dark .ms-match--next-opp {
   .stats-event-list td:nth-child(2)::before { content: ' - '; opacity: 0.5; }
   .stats-event-list td:nth-child(2)::after { content: ' matches'; opacity: 0.7; }
   .stats-event-list td:nth-child(3)::before { content: ', '; opacity: 0.5; }
-  .stats-event-list td:nth-child(3)::after { content: ' 3-set'; opacity: 0.7; }
-  .stats-event-list td:nth-child(4)::before { content: ', avg '; opacity: 0.5; }
-  .stats-event-list td:nth-child(4)::after { content: ' mins'; opacity: 0.7; }
+  .stats-event-list td:nth-child(3)::after { content: ' players'; opacity: 0.7; }
+  .stats-event-list td:nth-child(4)::before { content: ', '; opacity: 0.5; }
+  .stats-event-list td:nth-child(4)::after { content: ' 3-set'; opacity: 0.7; }
+  .stats-event-list td:nth-child(5)::before { content: ', avg '; opacity: 0.5; }
+  .stats-event-list td:nth-child(5)::after { content: ' mins'; opacity: 0.7; }
   .stats-event-list td.stats-winner-cell {
     flex: 1 0 100%;
     color: var(--fg);

@@ -297,6 +297,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           <thead><tr>
             <th>{t('statsSectionEvents')}</th>
             <th className="stats-num">{t('statsColMatches')}</th>
+            <th className="stats-num">{t('statsColPlayers')}</th>
             <th className="stats-num">{t('statsCol3Set')}</th>
             <th className="stats-num">{t('statsColAvg')}</th>
             <th>{t('statsColWinner')}</th>
@@ -306,6 +307,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               <tr key={e.name}>
                 <td className="stats-evname">{e.name}</td>
                 <td className="stats-num">{e.matches}</td>
+                <td className="stats-num">{fmt(e.players)}</td>
                 <td className="stats-num">{e.decided === 0 ? '0%' : pct(e.threeSetters / e.decided)}</td>
                 <td className="stats-num">{formatMinutes(e.avgMinutes, lang)}</td>
                 <td className="stats-winner-cell">
