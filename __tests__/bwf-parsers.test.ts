@@ -242,6 +242,30 @@ describe('parseDayMatches', () => {
     expect(groups.map((g) => g.type === 'court' ? g.court : '')).toEqual(['Court 01', 'Court 03'])
   })
 
+  it('does not mark queued followed-by matches as nowPlaying (BWF pre-assigns courts)', () => {
+    const groups = parseDayMatches([
+      // matchStatus 'N', winner 0, court pre-assigned — would trip the
+      // court-assignment heuristic on a time-grid day. In followed-by mode,
+      // every queued match looks like this, so we must trust matchStatus.
+      mkDayMatch({ time: '2026-05-23 10:00:00', court: 'Court 01', id: '1', oop: 1, oopText: 'Starting at 10:00 AM' }),
+      mkDayMatch({ time: '2026-05-23 10:30:00', court: 'Court 01', id: '2', oop: 2, oopText: 'Followed by' }),
+    ])
+    expect(groups[0].matches.every((m) => m.nowPlaying === false)).toBe(true)
+  })
+
+  it('still marks nowPlaying via matchStatus in followed-by mode', () => {
+    const groups = parseDayMatches([
+      {
+        matchTime: '2026-05-23 10:00:00', courtName: 'Court 01',
+        oopRound: 1, oopText: 'Starting at 10:00 AM',
+        drawName: 'X', roundName: 'F', matchStatus: 'C', scoreStatus: 0,
+        team1: { players: [{ id: '1', nameDisplay: 'A' }] },
+        team2: { players: [{ id: '2', nameDisplay: 'B' }] },
+      },
+    ])
+    expect(groups[0].matches[0].nowPlaying).toBe(true)
+  })
+
   it('falls back to oopText alone when oopRound is absent', () => {
     const groups = parseDayMatches([
       mkDayMatch({ court: 'Court 01', id: '1', oopText: 'Followed by' }),

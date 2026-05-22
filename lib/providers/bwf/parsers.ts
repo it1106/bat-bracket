@@ -86,18 +86,22 @@ interface BwfDrawDataResponse {
 
 const NOW_PLAYING_STATUSES = new Set(['C', 'P', 'W', 'H'])
 
-// BWF assigns a courtName only at call-to-court / play time, so an incomplete
-// non-walkover match holding a court is currently being played even when its
-// matchStatus hasn't transitioned into NOW_PLAYING_STATUSES. Treating these as
-// live anchors the schedule's "Up next" pill on the last court-assigned match
-// instead of falling back to the last completed one.
+// BWF assigns a courtName only at call-to-court / play time on time-grid
+// days, so an incomplete non-walkover match holding a court is currently
+// being played even when its matchStatus hasn't transitioned into
+// NOW_PLAYING_STATUSES. That heuristic is inverted in "Followed by" mode
+// (oopText set): BWF pre-assigns every queued match to a court hours
+// upfront, which would otherwise light up the whole day as live. In
+// followed-by mode, trust matchStatus alone.
 function deriveNowPlaying(
   matchStatus: string,
   court: string,
   winner: 1 | 2 | null,
   walkover: boolean,
+  oopText: string | null | undefined,
 ): boolean {
   if (NOW_PLAYING_STATUSES.has(matchStatus)) return true
+  if (oopText) return false
   if (court && winner === null && !walkover) return true
   return false
 }
@@ -178,7 +182,7 @@ export function parseDrawData(
         court,
         walkover,
         retired: status === 2,
-        nowPlaying: deriveNowPlaying(matchStatus, court, winner, walkover),
+        nowPlaying: deriveNowPlaying(matchStatus, court, winner, walkover, null),
         ...(formatDuration(m.duration) && { duration: formatDuration(m.duration)! }),
         ...(m.matchTime && { scheduledTime: m.matchTime }),
       }
@@ -219,7 +223,7 @@ function dayMatchToEntry(m: BwfMatch, drawNumByName: Map<string, string>): Match
     court,
     walkover,
     retired: status === 2,
-    nowPlaying: deriveNowPlaying(matchStatus, court, winner, walkover),
+    nowPlaying: deriveNowPlaying(matchStatus, court, winner, walkover, m.oopText ?? null),
     ...(formatDuration(m.duration) && { duration: formatDuration(m.duration)! }),
     ...(m.matchTime && { scheduledTime: m.matchTime }),
   }
