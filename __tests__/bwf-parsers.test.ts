@@ -204,6 +204,61 @@ describe('parseDayMatches', () => {
     expect(parseDayMatches({})).toEqual([])
   })
 
+  it('switches to court-grouping when any match carries oopText (BWF "Followed by" mode)', () => {
+    const groups = parseDayMatches([
+      mkDayMatch({ time: '2026-05-23 10:00:00', court: 'Court 01', id: '1', oop: 1, oopText: 'Starting at 10:00 AM' }),
+      mkDayMatch({ time: '2026-05-23 10:30:00', court: 'Court 01', id: '2', oop: 2, oopText: 'Followed by' }),
+      mkDayMatch({ time: '2026-05-23 10:00:00', court: 'Court 02', id: '3', oop: 1, oopText: 'Starting at 10:00 AM' }),
+      mkDayMatch({ time: '2026-05-23 10:30:00', court: 'Court 02', id: '4', oop: 2, oopText: 'Followed by' }),
+    ])
+    expect(groups).toHaveLength(2)
+    expect(groups[0]).toMatchObject({ type: 'court', court: 'Court 01' })
+    expect(groups[1]).toMatchObject({ type: 'court', court: 'Court 02' })
+    expect(groups[0].matches.map((m) => m.sequenceLabel)).toEqual([
+      '1. Starting at 10:00 AM',
+      '2. Followed by',
+    ])
+  })
+
+  it('sorts court-mode matches within a group by oopRound ascending', () => {
+    const groups = parseDayMatches([
+      mkDayMatch({ time: '2026-05-23 11:30:00', court: 'Court 01', id: 'c', oop: 4, oopText: 'Followed by' }),
+      mkDayMatch({ time: '2026-05-23 10:00:00', court: 'Court 01', id: 'a', oop: 1, oopText: 'Starting at 10:00 AM' }),
+      mkDayMatch({ time: '2026-05-23 10:30:00', court: 'Court 01', id: 'b', oop: 2, oopText: 'Followed by' }),
+    ])
+    expect(groups[0].type).toBe('court')
+    expect(groups[0].matches.map((m) => m.sequenceLabel)).toEqual([
+      '1. Starting at 10:00 AM',
+      '2. Followed by',
+      '4. Followed by',
+    ])
+  })
+
+  it('court groups sort by trailing court number ascending', () => {
+    const groups = parseDayMatches([
+      mkDayMatch({ time: '2026-05-23 10:00:00', court: 'Court 03', id: '1', oop: 1, oopText: 'Starting at 10:00 AM' }),
+      mkDayMatch({ time: '2026-05-23 10:00:00', court: 'Court 01', id: '2', oop: 1, oopText: 'Starting at 10:00 AM' }),
+    ])
+    expect(groups.map((g) => g.type === 'court' ? g.court : '')).toEqual(['Court 01', 'Court 03'])
+  })
+
+  it('falls back to oopText alone when oopRound is absent', () => {
+    const groups = parseDayMatches([
+      mkDayMatch({ court: 'Court 01', id: '1', oopText: 'Followed by' }),
+    ])
+    expect(groups[0].matches[0].sequenceLabel).toBe('Followed by')
+  })
+
+  it('keeps time-grouping when no match has oopText (regular time grid day)', () => {
+    const groups = parseDayMatches([
+      mkDayMatch({ time: '2026-05-19 09:00:00', court: 'Court 1', id: '1' }),
+      mkDayMatch({ time: '2026-05-19 09:00:00', court: 'Court 2', id: '2' }),
+      mkDayMatch({ time: '2026-05-19 10:00:00', court: 'Court 1', id: '3' }),
+    ])
+    expect(groups.every((g) => g.type === 'time')).toBe(true)
+    expect(groups[0].matches[0].sequenceLabel).toBeUndefined()
+  })
+
   it('keeps completed matches whose duration is a number (BWF production shape)', () => {
     const groups = parseDayMatches([
       {
@@ -223,10 +278,12 @@ describe('parseDayMatches', () => {
   })
 })
 
-function mkDayMatch(p: { time?: string; court?: string; id: string }) {
+function mkDayMatch(p: { time?: string; court?: string; id: string; oop?: number; oopText?: string }) {
   return {
     courtName: p.court,
     ...(p.time && { matchTime: p.time }),
+    ...(p.oop != null && { oopRound: p.oop }),
+    ...(p.oopText && { oopText: p.oopText }),
     drawName: 'X', roundName: 'F', matchStatus: 'N', scoreStatus: 0,
     team1: { players: [{ id: p.id, nameDisplay: `P${p.id}A` }] },
     team2: { players: [{ id: `${p.id}b`, nameDisplay: `P${p.id}B` }] },

@@ -69,6 +69,7 @@ interface BwfMatch {
   drawName?: string
   courtName?: string | null
   oopRound?: number
+  oopText?: string | null
   matchTime?: string
   duration?: string | number
   code?: string
@@ -231,6 +232,46 @@ function courtSortKey(court: string): number {
   return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY
 }
 
+// BWF's `oopText` is the order-of-play subheader the source renders on its
+// schedule page ("Starting at 10:00 AM" on a court's first match, "Followed
+// by" on every subsequent match). It's only populated on days BWF publishes
+// per-court — time-grid days return null for every match. Mirrors BAT's
+// court-group subheaders, so we use it as both the mode switch and the
+// sequenceLabel content (prefixed with `${oopRound}. ` like BAT does).
+function groupByCourtFollowedBy(
+  matches: BwfMatch[],
+  drawNumByName: Map<string, string>,
+): MatchScheduleGroup[] {
+  const byCourt = new Map<string, { match: BwfMatch; entry: MatchEntry }[]>()
+  for (const m of matches) {
+    try {
+      const court = m.courtName ?? ''
+      const entry = dayMatchToEntry(m, drawNumByName)
+      if (m.oopText) {
+        entry.sequenceLabel = m.oopRound != null ? `${m.oopRound}. ${m.oopText}` : m.oopText
+      }
+      if (!byCourt.has(court)) byCourt.set(court, [])
+      byCourt.get(court)!.push({ match: m, entry })
+    } catch (err) {
+      console.warn('[bwf-parser] skipping day match:', err)
+    }
+  }
+  const entries = Array.from(byCourt.entries())
+  entries.sort(([a], [b]) => {
+    if (a === '' && b !== '') return 1
+    if (b === '' && a !== '') return -1
+    return courtSortKey(a) - courtSortKey(b)
+  })
+  return entries.map(([court, items]) => {
+    items.sort((x, y) => (x.match.oopRound ?? Number.POSITIVE_INFINITY) - (y.match.oopRound ?? Number.POSITIVE_INFINITY))
+    return {
+      type: 'court' as const,
+      court,
+      matches: items.map((it) => it.entry),
+    }
+  })
+}
+
 export function parseDayMatches(json: unknown, draws: DrawInfo[] = []): MatchScheduleGroup[] {
   if (!Array.isArray(json)) return []
   // Day-match payloads carry the draw name ("BS U13") but no draw id, so build
@@ -238,8 +279,12 @@ export function parseDayMatches(json: unknown, draws: DrawInfo[] = []): MatchSch
   // the schedule's event chips can't deep-link to the bracket view.
   const drawNumByName = new Map<string, string>()
   for (const d of draws) if (d.name) drawNumByName.set(d.name, d.drawNum)
+  const matches = json as BwfMatch[]
+  if (matches.some((m) => m.oopText)) {
+    return groupByCourtFollowedBy(matches, drawNumByName)
+  }
   const byTime = new Map<string, { match: BwfMatch; entry: MatchEntry }[]>()
-  for (const m of json as BwfMatch[]) {
+  for (const m of matches) {
     try {
       const time = formatMatchTime(m.matchTime) ?? ''
       if (!byTime.has(time)) byTime.set(time, [])
