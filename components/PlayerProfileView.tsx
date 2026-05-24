@@ -103,10 +103,18 @@ export default function PlayerProfileView({ record }: Props) {
           <h2>Recent form</h2>
           <div className="pp-form-strip">
             {record.recentForm.map((r, i) => {
-              const cls = r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W' ? 'pp-w' : 'pp-l'
+              const won = r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W'
+              const cls = won ? 'pp-w' : 'pp-l'
               const wo = r.outcome.startsWith('WO') || r.outcome.startsWith('RET')
-              return <div key={i} className={`pp-form-cell ${wo ? 'pp-wo' : cls}`} title={`${r.outcome} ${r.eventName}`}>
-                {r.outcome.startsWith('WO') ? 'WO' : r.outcome.startsWith('RET') ? 'RT' : r.outcome === 'W' ? 'W' : 'L'}
+              const verbPrefix = won ? 'def.' : 'lost to'
+              const opp = r.opponents.length > 0 ? r.opponents.join(' / ') : '—'
+              const scoreLine = r.scores.length > 0
+                ? r.scores.map(s => `${s.t1}-${s.t2}`).join(', ')
+                : (r.outcome.startsWith('WO') ? 'walkover' : r.outcome.startsWith('RET') ? 'retired' : '')
+              const partnerLine = r.partners.length > 0 ? ` (w/ ${r.partners.join(' / ')})` : ''
+              const tip = `${verbPrefix} ${opp}${partnerLine}\n${scoreLine}\n${r.eventName} · ${r.round}`
+              return <div key={i} className={`pp-form-cell ${wo ? 'pp-wo' : cls}`} title={tip}>
+                {r.outcome.startsWith('WO') ? 'WO' : r.outcome.startsWith('RET') ? 'RT' : won ? 'W' : 'L'}
               </div>
             })}
           </div>
