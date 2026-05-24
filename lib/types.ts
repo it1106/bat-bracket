@@ -357,3 +357,177 @@ export interface EventBundle {
   playoffDrawNum: string
   groups: GroupData[]
 }
+
+// ─── Deep player stats ─────────────────────────────────────
+
+export interface PlayerKey {
+  provider: ProviderTag
+  slug: string
+}
+
+export interface PlayerMatchRef {
+  tournamentId: string
+  tournamentName: string
+  tournamentDateIso: string
+  eventId: string
+  eventName: string
+  drawNum: string
+  round: string
+  partners: string[]
+  opponents: string[]
+  opponentSlugs: string[]
+  partnerSlugs: string[]
+  scores: MatchScore[]
+  outcome: 'W' | 'L' | 'WO-W' | 'WO-L' | 'RET-W' | 'RET-L'
+  durationMinutes?: number
+  scheduledDateIso?: string
+}
+
+export type Discipline = 'singles' | 'doubles' | 'mixed'
+
+export interface PlayerEventResult {
+  tournamentId: string
+  eventId: string
+  eventName: string
+  discipline: Discipline
+  bestFinish: 'Champion' | 'F' | 'SF' | 'QF' | 'R16' | 'R32' | 'R64' | 'R128' | 'RR'
+  wins: number
+  losses: number
+}
+
+export interface DisciplineSummary {
+  wins: number
+  losses: number
+  titles: number
+  finals: number
+  semis: number
+}
+
+export interface OpponentRecord {
+  slug: string
+  name: string
+  meetings: number
+  wins: number
+  losses: number
+  lastRound: string
+  lastEvent: string
+}
+
+export interface PartnerRecord {
+  slug: string
+  name: string
+  matchesTogether: number
+  wins: number
+  losses: number
+  primaryEvent: string
+}
+
+export interface PlayerRanks {
+  titles?: number
+  wins?: number
+  winPct?: number
+  courtTime?: number
+  threeSetterWins?: number
+  comebackWins?: number
+  matchesLast90?: number
+  tournamentsEntered?: number
+  bestSingles?: number
+  bestDoubles?: number
+  bestMixed?: number
+  deciderRecord?: number
+}
+
+export interface PlayerRecord {
+  key: PlayerKey
+  displayName: string
+  altNames: string[]
+  clubs: string[]
+  country?: string
+  totals: {
+    matches: number
+    wins: number
+    losses: number
+    walkoversReceived: number
+    walkoversGiven: number
+    retirementsReceived: number
+    retirementsGiven: number
+  }
+  byDiscipline: {
+    singles: DisciplineSummary
+    doubles: DisciplineSummary
+    mixed: DisciplineSummary
+  }
+  titles: PlayerEventResult[]
+  finals: PlayerEventResult[]
+  semis: PlayerEventResult[]
+  tournaments: Array<{
+    tournamentId: string
+    tournamentName: string
+    tournamentDateIso: string
+    events: PlayerEventResult[]
+  }>
+  recentForm: PlayerMatchRef[]
+  matchCharacter: {
+    courtMinutes: number
+    avgMatchMinutes: number
+    longestMatchMinutes: number
+    longestMatchRef: PlayerMatchRef | null
+    threeSetterCount: number
+    threeSetterRate: number
+    threeSetterWins: number
+    comebackWins: number
+    comebackWinRef: PlayerMatchRef | null
+    matchesLast90: number
+  }
+  opponents: OpponentRecord[]
+  partners: PartnerRecord[]
+  ranks: PlayerRanks
+}
+
+export interface PlayerIndex {
+  version: 1
+  provider: ProviderTag
+  generatedAt: string
+  sourceVersion: string
+  sources: Array<{ tournamentId: string; tournamentName: string; tournamentDateIso: string }>
+  totalPlayers: number
+  totalMatches: number
+  players: Record<string, PlayerRecord>
+}
+
+export interface LeaderboardEntry {
+  rank: number
+  slug: string
+  name: string
+  primaryClub: string
+  value: number
+  display: string
+  qualifier?: string
+}
+
+export type LeaderboardCategory = 'headline' | 'discipline' | 'character' | 'activity'
+
+export interface LeaderboardBoard {
+  id: string
+  titleKey: string
+  icon: string
+  category: LeaderboardCategory
+  qualifier?: string
+  entries: LeaderboardEntry[]
+}
+
+export interface Leaderboards {
+  version: 1
+  provider: ProviderTag
+  generatedAt: string
+  sourceVersion: string
+  boards: LeaderboardBoard[]
+}
+
+export interface PlayerIndexTournamentInput {
+  tournamentId: string
+  tournamentName: string
+  tournamentDateIso: string
+  data: MatchesData
+  clubs: Record<string, string>
+}
