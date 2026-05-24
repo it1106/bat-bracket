@@ -57,4 +57,25 @@ describe('buildIndex — single tournament', () => {
       expect(losses).toBe(p.totals.losses)
     }
   })
+
+  it('groups matches into tournaments[] and events[]', () => {
+    const { index } = buildIndex('bat', [toyota])
+    const p = Object.values(index.players).find(r => r.totals.matches > 1)!
+    expect(p.tournaments.length).toBe(1)
+    const t0 = p.tournaments[0]
+    expect(t0.tournamentId).toBe('TOYOTA')
+    expect(t0.events.length).toBeGreaterThan(0)
+    for (const e of t0.events) {
+      expect(['singles','doubles','mixed']).toContain(e.discipline)
+      expect(['Champion','F','SF','QF','R16','R32','R64','R128','RR']).toContain(e.bestFinish)
+      expect(e.wins + e.losses).toBeGreaterThan(0)
+    }
+  })
+
+  it('marks Champion when a player won a match labeled Final', () => {
+    const { index } = buildIndex('bat', [toyota])
+    const champions = Object.values(index.players).filter(p =>
+      p.tournaments.some(t => t.events.some(e => e.bestFinish === 'Champion')))
+    expect(champions.length).toBeGreaterThan(0)
+  })
 })

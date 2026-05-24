@@ -4,8 +4,12 @@
 import type {
   Discipline, MatchEntry, ProviderTag,
   PlayerIndex, PlayerRecord, PlayerMatchRef, PlayerIndexTournamentInput,
-  Leaderboards, DisciplineSummary,
+  Leaderboards, DisciplineSummary, PlayerEventResult,
 } from './types'
+
+interface PerPlayerScratch {
+  refs: PlayerMatchRef[]
+}
 
 const SEED_PREFIX_RE = /^\s*(?:\[[^\]]*\]|\([^)]*\))\s*/
 
@@ -117,12 +121,14 @@ export function buildIndex(
 ): { index: PlayerIndex; leaderboards: Leaderboards } {
 
   const records = new Map<string, PlayerRecord>()
+  const scratches = new Map<string, PerPlayerScratch>()
   const clubCounts = new Map<string, Map<string, number>>()
   const nameCounts = new Map<string, Map<string, number>>()
   let totalMatches = 0
 
   function registerSide(m: MatchEntry, side: 1 | 2, t: PlayerIndexTournamentInput): void {
     const team = side === 1 ? m.team1 : m.team2
+    const opp = side === 1 ? m.team2 : m.team1
     if (!team || team.length === 0) return
     const outcome = matchOutcome(side, m)
     for (const p of team) {
@@ -133,6 +139,8 @@ export function buildIndex(
         rec = emptyRecord(provider, slug, p.name)
         records.set(slug, rec)
       }
+      let scratch = scratches.get(slug)
+      if (!scratch) { scratch = { refs: [] }; scratches.set(slug, scratch) }
       bump(nameCounts, slug, p.name)
       const club = p.playerId ? t.clubs[p.playerId] : undefined
       if (club) bump(clubCounts, slug, club)
@@ -150,6 +158,26 @@ export function buildIndex(
         if (outcome === 'WO-L') rec.totals.walkoversGiven++
         if (outcome === 'RET-L') rec.totals.retirementsGiven++
       }
+
+      const partners = team.filter(x => x !== p).map(x => x.name)
+      const partnerSlugs = team.filter(x => x !== p).map(x => nameToSlug(x.name)).filter(Boolean)
+      const opponents = (opp || []).map(x => x.name)
+      const opponentSlugs = (opp || []).map(x => nameToSlug(x.name)).filter(Boolean)
+      scratch.refs.push({
+        tournamentId: t.tournamentId,
+        tournamentName: tournamentNameFor(t),
+        tournamentDateIso: t.tournamentDateIso,
+        eventId: m.eventId || '',
+        eventName: m.eventName || '',
+        drawNum: m.drawNum,
+        round: normalizeRound(m.round),
+        partners, partnerSlugs,
+        opponents, opponentSlugs,
+        scores: (m.scores || []).map(s => side === 1 ? s : { t1: s.t2, t2: s.t1 }),
+        outcome,
+        durationMinutes: parseDurationToMinutes(m.duration),
+        scheduledDateIso: m.scheduledTime,
+      })
     }
   }
 
@@ -176,6 +204,70 @@ export function buildIndex(
       rec.clubs = [...clubs.entries()]
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
         .map(([c]) => c)
+    }
+  }
+
+  const ROUND_ORDER = ['Final','SF','QF','R16','R32','R64','R128','RR']
+  function bestFinishFor(refs: PlayerMatchRef[]): PlayerEventResult['bestFinish'] {
+    if (refs.some(r => r.round === 'Final' && (r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W'))) return 'Champion'
+    const present = new Set(refs.map(r => r.round))
+    for (const r of ROUND_ORDER) if (present.has(r)) return r as PlayerEventResult['bestFinish']
+    return 'RR'
+  }
+
+  for (const [slug, rec] of records) {
+    const refs = scratches.get(slug)?.refs || []
+    const byTournament = new Map<string, Map<string, PlayerMatchRef[]>>()
+    for (const r of refs) {
+      let evMap = byTournament.get(r.tournamentId)
+      if (!evMap) { evMap = new Map(); byTournament.set(r.tournamentId, evMap) }
+      const k = `${r.eventId}|${r.eventName}`
+      const arr = evMap.get(k) || []
+      arr.push(r); evMap.set(k, arr)
+    }
+    for (const t of tournaments) {
+      const evMap = byTournament.get(t.tournamentId)
+      if (!evMap) continue
+      const events: PlayerEventResult[] = []
+      for (const [k, eventRefs] of evMap) {
+        const [eventId, eventName] = k.split('|')
+        const teamSize = eventRefs[0]?.partners.length === 0 ? 1 : 2
+        const finish = bestFinishFor(eventRefs)
+        let wins = 0, losses = 0
+        for (const er of eventRefs) {
+          if (er.outcome === 'W' || er.outcome === 'WO-W' || er.outcome === 'RET-W') wins++
+          else losses++
+        }
+        events.push({
+          tournamentId: t.tournamentId,
+          eventId, eventName,
+          discipline: classifyDiscipline(teamSize, eventName),
+          bestFinish: finish,
+          wins, losses,
+        })
+      }
+      events.sort((a, b) => {
+        const ai = a.bestFinish === 'Champion' ? -1 : ROUND_ORDER.indexOf(a.bestFinish)
+        const bi = b.bestFinish === 'Champion' ? -1 : ROUND_ORDER.indexOf(b.bestFinish)
+        return ai - bi || a.eventName.localeCompare(b.eventName)
+      })
+      rec.tournaments.push({
+        tournamentId: t.tournamentId,
+        tournamentName: tournamentNameFor(t),
+        tournamentDateIso: t.tournamentDateIso,
+        events,
+      })
+      for (const e of events) {
+        if (e.bestFinish === 'Champion') {
+          rec.titles.push(e); rec.byDiscipline[e.discipline].titles++
+        }
+        if (e.bestFinish === 'Champion' || e.bestFinish === 'F') {
+          rec.finals.push(e); rec.byDiscipline[e.discipline].finals++
+        }
+        if (e.bestFinish === 'Champion' || e.bestFinish === 'F' || e.bestFinish === 'SF') {
+          rec.semis.push(e); rec.byDiscipline[e.discipline].semis++
+        }
+      }
     }
   }
 
