@@ -31,6 +31,7 @@ export default function PlayerProfileView({ record }: Props) {
     : 0
   return (
     <div className="pp-page">
+      <Link href="/" className="pp-back">← Home</Link>
       <div className="pp-hdr">
         <h1>{record.displayName}</h1>
         <div className="pp-meta">

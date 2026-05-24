@@ -21,6 +21,7 @@ export default function LeaderboardsView({ leaderboards }: Props) {
   if (leaderboards.boards.length === 0) {
     return (
       <div className="lb-page">
+        <Link href="/" className="pp-back">← Home</Link>
         <div className="lb-hdr"><h1>🏆 Leaderboards</h1></div>
         <div className="lb-empty">No leaderboards yet — add a completed tournament to get started.</div>
       </div>
@@ -29,6 +30,7 @@ export default function LeaderboardsView({ leaderboards }: Props) {
   const visible = leaderboards.boards.filter(b => b.category === active)
   return (
     <div className="lb-page">
+      <Link href="/" className="pp-back">← Home</Link>
       <div className="lb-hdr">
         <h1>🏆 Leaderboards</h1>
         <div className="lb-sub">Provider: {leaderboards.provider.toUpperCase()} · {leaderboards.boards.length} boards</div>

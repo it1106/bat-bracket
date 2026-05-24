@@ -2466,6 +2466,11 @@ html.dark .ms-match--next-opp {
 
 /* ── Deep player stats: profile page (.pp-*) ── */
 .pp-page { max-width: 880px; margin: 0 auto; padding: 16px; }
+.pp-back { display: inline-flex; align-items: center; gap: 4px;
+  margin-bottom: 12px; padding: 6px 12px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--fg); font-size: 13px; font-weight: 600; text-decoration: none; }
+.pp-back:hover { background: var(--bg); }
 .pp-hdr { background: var(--surface); border: 1px solid var(--border);
   border-radius: 14px; padding: 18px 18px 14px; margin-bottom: 14px; }
 .pp-hdr h1 { margin: 0; font-size: 22px; font-weight: 700; }
