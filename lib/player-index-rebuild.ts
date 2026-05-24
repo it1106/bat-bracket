@@ -12,7 +12,26 @@ import type { ProviderTag, PlayerIndexTournamentInput, MatchesData, MatchSchedul
 const PROVIDERS: ProviderTag[] = ['bat', 'bwf']
 let inflight: Promise<{ rebuilt: ProviderTag[]; skipped: ProviderTag[] }> | null = null
 
-export async function rebuildAll(): Promise<{ rebuilt: ProviderTag[]; skipped: ProviderTag[] }> {
+// Fetches one day's match groups through the local /api/matches route, which
+// pins a complete past day to .cache/days. Used to fill day caches that haven't
+// been pinned by user traffic yet (e.g. a fresh server). `date` is the raw
+// Buddhist-year token the matches route expects (MatchDay.date).
+export type EnsureDay = (tournamentId: string, dateBuddhist: string) => Promise<MatchScheduleGroup[] | null>
+
+export function makeOriginDayFetcher(origin: string): EnsureDay {
+  return async (tournamentId, dateBuddhist) => {
+    try {
+      const res = await fetch(`${origin}/api/matches?tournament=${encodeURIComponent(tournamentId)}&date=${dateBuddhist}`)
+      if (!res.ok) return null
+      const data = await res.json() as { groups?: MatchScheduleGroup[] }
+      return data.groups ?? null
+    } catch {
+      return null
+    }
+  }
+}
+
+export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ rebuilt: ProviderTag[]; skipped: ProviderTag[] }> {
   if (inflight) return inflight
   inflight = (async () => {
     const rebuilt: ProviderTag[] = []
@@ -47,7 +66,13 @@ export async function rebuildAll(): Promise<{ rebuilt: ProviderTag[]; skipped: P
           for (const d of full.days || []) {
             if (!d.dateIso) continue
             const day = await readDayCache(entry.id, d.dateIso)
-            if (day?.groups) allGroups.push(...day.groups)
+            if (day?.groups) { allGroups.push(...day.groups); continue }
+            // Day not pinned yet (fresh server): fetch through the matches route,
+            // which pins it for next time. No-op when no fetcher is supplied.
+            if (opts?.ensureDay && d.date) {
+              const groups = await opts.ensureDay(entry.id, d.date)
+              if (groups) allGroups.push(...groups)
+            }
           }
           if (allGroups.length === 0 && full.groups?.length) {
             allGroups.push(...full.groups)

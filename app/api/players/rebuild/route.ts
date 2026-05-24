@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { rebuildAll } from '@/lib/player-index-rebuild'
+import { rebuildAll, makeOriginDayFetcher } from '@/lib/player-index-rebuild'
 
 export const maxDuration = 60
 
@@ -9,6 +9,7 @@ export async function POST(req: Request) {
   if (!process.env.PLAYERS_REBUILD_TOKEN || auth !== expected) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-  const result = await rebuildAll()
+  const origin = new URL(req.url).origin
+  const result = await rebuildAll({ ensureDay: makeOriginDayFetcher(origin) })
   return NextResponse.json(result)
 }

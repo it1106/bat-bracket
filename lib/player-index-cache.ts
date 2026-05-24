@@ -9,8 +9,22 @@ export function __setPlayersRootForTesting(dir: string): void { root = dir }
 function indexPath(p: ProviderTag): string { return path.join(root, `index-${p}.json`) }
 function lbPath(p: ProviderTag): string { return path.join(root, `leaderboards-${p}.json`) }
 
-async function readJson<T>(file: string): Promise<T | null> {
-  try { return JSON.parse(await fs.readFile(file, 'utf8')) as T } catch { return null }
+// Parsed-result memo keyed by file mtime. The index is ~10 MB; re-parsing it on
+// every /api/players/exists (one per modal open) and every profile view is
+// wasteful. Reuse the parse until the file's mtime changes (i.e. a rebuild).
+const parseMemo = new Map<string, { mtimeMs: number; value: unknown }>()
+
+async function readJsonMemo<T>(file: string): Promise<T | null> {
+  try {
+    const st = await fs.stat(file)
+    const hit = parseMemo.get(file)
+    if (hit && hit.mtimeMs === st.mtimeMs) return hit.value as T
+    const value = JSON.parse(await fs.readFile(file, 'utf8')) as T
+    parseMemo.set(file, { mtimeMs: st.mtimeMs, value })
+    return value
+  } catch {
+    return null
+  }
 }
 
 async function writeJson(file: string, obj: unknown): Promise<void> {
@@ -26,7 +40,7 @@ async function writeJson(file: string, obj: unknown): Promise<void> {
 }
 
 export async function readIndexCache(provider: ProviderTag): Promise<PlayerIndex | null> {
-  const out = await readJson<PlayerIndex>(indexPath(provider))
+  const out = await readJsonMemo<PlayerIndex>(indexPath(provider))
   if (!out || out.version !== 1) return null
   return out
 }
@@ -36,7 +50,7 @@ export async function writeIndexCache(idx: PlayerIndex): Promise<void> {
 }
 
 export async function readLeaderboardsCache(provider: ProviderTag): Promise<Leaderboards | null> {
-  const out = await readJson<Leaderboards>(lbPath(provider))
+  const out = await readJsonMemo<Leaderboards>(lbPath(provider))
   if (!out || out.version !== 1) return null
   return out
 }

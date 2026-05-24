@@ -1,4 +1,7 @@
-jest.mock('../lib/player-index-rebuild', () => ({ rebuildAll: jest.fn() }))
+jest.mock('../lib/player-index-rebuild', () => ({
+  rebuildAll: jest.fn(),
+  makeOriginDayFetcher: jest.fn(() => jest.fn()),
+}))
 import { rebuildAll } from '@/lib/player-index-rebuild'
 import { POST } from '@/app/api/players/rebuild/route'
 
