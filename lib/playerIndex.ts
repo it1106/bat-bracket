@@ -172,8 +172,11 @@ export function buildIndex(
         tournamentId: t.tournamentId,
         tournamentName: tournamentNameFor(t),
         tournamentDateIso: t.tournamentDateIso,
-        eventId: m.eventId || '',
-        eventName: m.eventName || '',
+        // BAT match data carries no eventId/eventName; the draw label
+        // ("XD U17") and drawNum are the event discriminators there.
+        // BWF supplies eventId/eventName directly, so prefer those.
+        eventId: m.eventId || m.drawNum || '',
+        eventName: m.eventName || m.draw || '',
         drawNum: m.drawNum,
         round: normalizeRound(m.round),
         partners, partnerSlugs,
