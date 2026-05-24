@@ -45,8 +45,8 @@ describe('tournaments registry', () => {
   it('lists all tournaments with provider tags', () => {
     const all = listAllTournaments()
     expect(all).toEqual(expect.arrayContaining([
-      { id: 'BBBB2222-2222-3333-4444-555555555555', provider: 'bat', done: false },
-      { id: 'AAAA1111-2222-3333-4444-555555555555', provider: 'bwf', done: false },
+      expect.objectContaining({ id: 'BBBB2222-2222-3333-4444-555555555555', provider: 'bat', done: false }),
+      expect.objectContaining({ id: 'AAAA1111-2222-3333-4444-555555555555', provider: 'bwf', done: false }),
     ]))
   })
 

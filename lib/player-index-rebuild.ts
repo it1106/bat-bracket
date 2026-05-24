@@ -56,7 +56,7 @@ export async function rebuildAll(): Promise<{ rebuilt: ProviderTag[]; skipped: P
 
           inputs.push({
             tournamentId: entry.id,
-            tournamentName: entry.id,
+            tournamentName: entry.name || entry.id,
             tournamentDateIso: full.days?.[0]?.dateIso || '',
             data: mergedData,
             clubs: clubs || {},

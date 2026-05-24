@@ -4,7 +4,7 @@ import { parseTournamentsTxt } from '@/lib/tournaments-txt'
 import { listAllSidecar } from '@/lib/providers/bwf/sidecar'
 import type { TournamentRef, ProviderTag } from '@/lib/types'
 
-interface RegistryEntry extends TournamentRef { done: boolean }
+interface RegistryEntry extends TournamentRef { done: boolean; name?: string }
 
 let entries: RegistryEntry[] = []
 let byGuid: Map<string, RegistryEntry> = new Map()
@@ -27,6 +27,7 @@ function buildNow(): void {
         id: e.id.toUpperCase(),
         provider: e.provider ?? 'bat',
         done: e.done ?? false,
+        name: e.name,
       }
       entries.push(ref)
       byGuid.set(ref.id, ref)
@@ -34,7 +35,7 @@ function buildNow(): void {
     for (const s of listAllSidecar()) {
       const id = s.tournamentCode.toUpperCase()
       if (!byGuid.has(id)) {
-        const ref: RegistryEntry = { id, provider: 'bwf', done: false }
+        const ref: RegistryEntry = { id, provider: 'bwf', done: false, name: s.name }
         entries.push(ref)
         byGuid.set(id, ref)
       }
