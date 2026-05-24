@@ -15,6 +15,11 @@ describe('nameToSlug', () => {
     expect(nameToSlug('(SE) Wisut B.')).toBe('wisut_b.')
   })
 
+  it('strips a trailing seed bracket (BAT convention)', () => {
+    expect(nameToSlug('Anuwat Phromsorn [1]')).toBe('anuwat_phromsorn')
+    expect(nameToSlug('ปริญญา พุฒิไพรสกุล [1]')).toBe(encodeURIComponent('ปริญญา') + '_' + encodeURIComponent('พุฒิไพรสกุล'))
+  })
+
   it('collapses internal whitespace runs to single underscore', () => {
     expect(nameToSlug('  Paiboon    Khampoom ')).toBe('paiboon_khampoom')
   })

@@ -12,13 +12,18 @@ interface PerPlayerScratch {
 }
 
 const SEED_PREFIX_RE = /^\s*(?:\[[^\]]*\]|\([^)]*\))\s*/
+const SEED_SUFFIX_RE = /\s*(?:\[[^\]]*\]|\([^)]*\))\s*$/
+
+export function stripSeed(raw: string): string {
+  return (raw || '').replace(SEED_PREFIX_RE, '').replace(SEED_SUFFIX_RE, '').trim()
+}
 
 export function nameToSlug(raw: string): string {
   if (!raw) return ''
-  let s = raw.replace(SEED_PREFIX_RE, '').trim()
+  const s = stripSeed(raw)
   if (!s) return ''
-  s = s.toLowerCase()
-  const parts = s.split(/\s+/).filter(Boolean)
+  const lower = s.toLowerCase()
+  const parts = lower.split(/\s+/).filter(Boolean)
   return parts.map(p => encodeURIComponent(p)).join('_')
 }
 
@@ -195,8 +200,10 @@ export function buildIndex(
   for (const [slug, rec] of Array.from(records.entries())) {
     const names = nameCounts.get(slug)
     if (names) {
+      // Pick the most-common literal name, then strip seed markers from it.
+      // Keep the seed-bearing variants in altNames so the raw form is still discoverable.
       const sorted = Array.from(names.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-      rec.displayName = sorted[0][0]
+      rec.displayName = stripSeed(sorted[0][0]) || sorted[0][0]
       rec.altNames = sorted.slice(1).map(([n]) => n)
     }
     const clubs = clubCounts.get(slug)

@@ -1,13 +1,13 @@
 import { createHash } from 'crypto'
 import { listDoneByProvider } from '@/lib/tournaments-registry'
-import { readFullCache } from '@/lib/day-cache'
+import { readFullCache, readDayCache } from '@/lib/day-cache'
 import { readClubsCache, writeClubsCache } from '@/lib/clubs-cache'
 import { playerClubCache, fetchTournamentPlayerClubs } from '@/lib/bracket-cache'
 import {
   readIndexCache, writeIndexCache, writeLeaderboardsCache,
 } from '@/lib/player-index-cache'
 import { buildIndex } from '@/lib/playerIndex'
-import type { ProviderTag, PlayerIndexTournamentInput } from '@/lib/types'
+import type { ProviderTag, PlayerIndexTournamentInput, MatchesData, MatchScheduleGroup } from '@/lib/types'
 
 const PROVIDERS: ProviderTag[] = ['bat', 'bwf']
 let inflight: Promise<{ rebuilt: ProviderTag[]; skipped: ProviderTag[] }> | null = null
@@ -40,11 +40,25 @@ export async function rebuildAll(): Promise<{ rebuilt: ProviderTag[]; skipped: P
               clubs = fresh
             }
           }
+
+          // Walk all per-day caches and union groups so the aggregator sees every match.
+          // .cache/full/<id>.json only holds the currentDate's groups.
+          const allGroups: MatchScheduleGroup[] = []
+          for (const d of full.days || []) {
+            if (!d.dateIso) continue
+            const day = await readDayCache(entry.id, d.dateIso)
+            if (day?.groups) allGroups.push(...day.groups)
+          }
+          if (allGroups.length === 0 && full.groups?.length) {
+            allGroups.push(...full.groups)
+          }
+          const mergedData: MatchesData = { ...full, groups: allGroups }
+
           inputs.push({
             tournamentId: entry.id,
             tournamentName: entry.id,
             tournamentDateIso: full.days?.[0]?.dateIso || '',
-            data: full,
+            data: mergedData,
             clubs: clubs || {},
           })
         }
