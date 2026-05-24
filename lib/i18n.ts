@@ -86,6 +86,7 @@ export type TKey =
   | 'loadingPlayer'
   | 'loadingH2H'
   | 'exportJpg'
+  | 'overview'
   | 'bracket'
   | 'matchSchedule'
   | 'winner'
@@ -244,6 +245,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     loadingPlayer: 'Loading player profile…',
     loadingH2H: 'Loading H2H data…',
     exportJpg: '↓ Export JPG',
+    overview: 'Overview',
     bracket: 'Bracket',
     matchSchedule: 'Match Schedule',
     winner: 'Winner',
@@ -424,6 +426,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     loadingPlayer: 'กำลังโหลดข้อมูลนักกีฬา…',
     loadingH2H: 'กำลังโหลดข้อมูล Head-to-Head…',
     exportJpg: '↓ บันทึกรูปภาพ',
+    overview: 'ภาพรวม',
     bracket: 'ตารางแข่ง',
     matchSchedule: 'ตารางเวลา',
     winner: 'ผู้ชนะ',

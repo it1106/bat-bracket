@@ -104,7 +104,7 @@ function prefetchFutureDayHasMatches(
   }
 }
 
-type ViewMode = 'bracket' | 'matches' | 'live' | 'custom'
+type ViewMode = 'overview' | 'bracket' | 'matches' | 'live' | 'custom'
 
 export default function Home() {
   const { lang, toggleLang, t } = useLanguage()
@@ -140,6 +140,7 @@ export default function Home() {
   const [customModalMode, setCustomModalMode] = useState<'create' | 'edit'>('create')
   const [customModalEditId, setCustomModalEditId] = useState<string | null>(null)
   const [customTabsEditMode, setCustomTabsEditMode] = useState(false)
+  const [overviewNotes, setOverviewNotes] = useState<string[]>([])
   const [matchDays, setMatchDays] = useState<MatchDay[]>([])
   const [selectedDay, setSelectedDay] = useState('')
   const [matchGroups, setMatchGroups] = useState<MatchScheduleGroup[]>([])
@@ -369,6 +370,7 @@ export default function Home() {
     setMatchDays([])
     setMatchGroups([])
     setSelectedDay('')
+    setOverviewNotes([])
     setViewMode('matches')
     if (!id) return
 
@@ -383,6 +385,15 @@ export default function Home() {
       .then(r => r.json())
       .then((data: Record<string, string>) => { if (data && !('error' in data)) setPlayerClubMap(data) })
       .catch(() => {})
+
+    // Fetch overview notes for BAT tournaments (non-BWF)
+    const tournamentProvider = t?.provider
+    if (tournamentProvider !== 'bwf') {
+      fetch(`/api/overview?tournament=${encodeURIComponent(id)}`)
+        .then(r => r.json())
+        .then((data: { notes?: string[] }) => { if (data?.notes) setOverviewNotes(data.notes) })
+        .catch(() => {})
+    }
 
     const [drawsResult, matchesResult] = await Promise.allSettled([
       fetch(`/api/draws?id=${encodeURIComponent(id)}`).then(safeJson),
@@ -928,6 +939,18 @@ export default function Home() {
       {/* View mode tabs */}
       {selectedTournament && (
         <div ref={customTabStripRef} className="flex items-center gap-0 px-5 py-0 bg-[var(--surface)] border-b border-[var(--border)]">
+          {overviewNotes.length > 0 && (
+            <button
+              onClick={() => setViewMode('overview')}
+              className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+                viewMode === 'overview'
+                  ? 'border-[var(--brand)] text-[var(--brand-fg)]'
+                  : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
+              }`}
+            >
+              {t('overview')}
+            </button>
+          )}
           <button
             onClick={() => setViewMode('bracket')}
             className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
@@ -1032,6 +1055,19 @@ export default function Home() {
       {error && (
         <div className="m-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
+        </div>
+      )}
+
+      {/* Overview view */}
+      {viewMode === 'overview' && (
+        <div className="px-5 py-4 max-w-2xl">
+          {overviewNotes.map((html, i) => (
+            <div
+              key={i}
+              className="mb-4 p-4 rounded-lg border border-[var(--info-border,var(--border))] bg-[var(--info-bg)] text-[var(--info-fg)] text-sm leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          ))}
         </div>
       )}
 

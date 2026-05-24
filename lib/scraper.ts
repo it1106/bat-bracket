@@ -60,6 +60,31 @@ export function parseTournamentMeta(html: string): TournamentInfo | null {
   return rawTitle ? { id: '', name: rawTitle } : null
 }
 
+// Parses tournament overview page, extracting info alert HTML blocks.
+// Returns sanitized inner HTML of each .alert--info.js-alert found.
+export function parseOverviewNotes(html: string): string[] {
+  const $ = cheerio.load(html)
+  const notes: string[] = []
+  $('div.alert.alert--info.js-alert').each((_, el) => {
+    const inner = $(el).find('.alert__body-inner')
+    if (!inner.length) return
+    // Remove elements that shouldn't render (buttons, scripts, etc.)
+    inner.find('button, script, style').remove()
+    inner.find('*').each((__, node) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const attrs: Record<string, string> = (node as any).attribs ?? {}
+      for (const attr of Object.keys(attrs)) {
+        if (attr.startsWith('on') || ['id', 'class', 'aria-expanded', 'aria-controls', 'data-toggle', 'data-target'].includes(attr)) {
+          $(node).removeAttr(attr)
+        }
+      }
+    })
+    const content = inner.html()?.trim()
+    if (content) notes.push(content)
+  })
+  return notes
+}
+
 // Parses the BAT /Players/GetPlayersContent AJAX response. Every registered
 // player appears once with their club (or empty string if unaffiliated).
 // More complete than the per-bracket .match__row scan, which misses anyone
