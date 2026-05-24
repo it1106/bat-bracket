@@ -132,10 +132,15 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
   try { return await inflight } finally { inflight = null }
 }
 
+// Bump when the PlayerRecord/Leaderboard shape changes so a deploy forces a
+// rebuild even though the underlying tournament data is unchanged. (sourceVersion
+// otherwise only reflects input data, so a pure code change would be skipped.)
+const SCHEMA_VERSION = 2
+
 function computeSourceVersion(inputs: PlayerIndexTournamentInput[]): string {
   const sig = [...inputs]
     .sort((a, b) => a.tournamentId.localeCompare(b.tournamentId))
     .map(i => `${i.tournamentId}:${JSON.stringify(i.data).length}:${Object.keys(i.clubs).length}`)
     .join('|')
-  return createHash('sha256').update(sig).digest('hex')
+  return createHash('sha256').update(`v${SCHEMA_VERSION}|${sig}`).digest('hex')
 }

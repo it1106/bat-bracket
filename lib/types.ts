@@ -476,6 +476,7 @@ export interface PlayerRecord {
     threeSetterRate: number
     threeSetterWins: number
     comebackWins: number
+    firstGameLost: number
     comebackWinRef: PlayerMatchRef | null
     matchesLast90: number
   }

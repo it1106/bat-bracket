@@ -2533,6 +2533,7 @@ html.dark .pp-ev-chip.pp-champ { background: rgba(212,175,55,0.18);
 .pp-char-label { font-size: 11px; color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.05em; }
 .pp-char-value { font-size: 17px; font-weight: 700; margin-top: 4px; }
+.pp-char-pct { font-size: 13px; font-weight: 600; color: var(--win-fg); }
 .pp-char-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
 .pp-ppl-list { display: grid; gap: 8px; }
 .pp-ppl-row { display: grid; grid-template-columns: 1fr auto auto;

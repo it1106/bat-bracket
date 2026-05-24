@@ -141,12 +141,22 @@ export default function PlayerProfileView({ record }: Props) {
           </div>
           <div className="pp-char-card">
             <div className="pp-char-label">Comeback wins</div>
-            <div className="pp-char-value">{record.matchCharacter.comebackWins}</div>
-            <div className="pp-char-sub">Lost game 1, won the match</div>
+            <div className="pp-char-value">
+              {record.matchCharacter.comebackWins}
+              {record.matchCharacter.firstGameLost > 0 && (
+                <span className="pp-char-pct"> · {Math.round((record.matchCharacter.comebackWins / record.matchCharacter.firstGameLost) * 100)}%</span>
+              )}
+            </div>
+            <div className="pp-char-sub">won {record.matchCharacter.comebackWins} of {record.matchCharacter.firstGameLost} after dropping game 1</div>
           </div>
           <div className="pp-char-card">
             <div className="pp-char-label">Three-setter wins</div>
-            <div className="pp-char-value">{record.matchCharacter.threeSetterWins}</div>
+            <div className="pp-char-value">
+              {record.matchCharacter.threeSetterWins}
+              {record.matchCharacter.threeSetterCount > 0 && (
+                <span className="pp-char-pct"> · {Math.round((record.matchCharacter.threeSetterWins / record.matchCharacter.threeSetterCount) * 100)}%</span>
+              )}
+            </div>
             <div className="pp-char-sub">of {record.matchCharacter.threeSetterCount} three-setters played</div>
           </div>
         </div>

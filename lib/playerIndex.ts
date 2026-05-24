@@ -85,7 +85,7 @@ function emptyRecord(provider: ProviderTag, slug: string, name: string): PlayerR
       courtMinutes: 0, avgMatchMinutes: 0,
       longestMatchMinutes: 0, longestMatchRef: null,
       threeSetterCount: 0, threeSetterRate: 0, threeSetterWins: 0,
-      comebackWins: 0, comebackWinRef: null,
+      comebackWins: 0, firstGameLost: 0, comebackWinRef: null,
       matchesLast90: 0,
     },
     opponents: [], partners: [],
@@ -300,6 +300,7 @@ export function buildIndex(
     let longestRef: PlayerMatchRef | null = null
     let comebackRef: PlayerMatchRef | null = null
     let comebackWins = 0
+    let firstGameLost = 0
     let matchesLast90 = 0
     let withDuration = 0
 
@@ -313,15 +314,16 @@ export function buildIndex(
         threeSetters++
         if (r.outcome === 'W') threeWins++
       }
-      if (r.outcome === 'W' && r.scores.length === 3) {
-        const firstSet = r.scores[0]
-        if (firstSet && firstSet.t1 < firstSet.t2) {
-          comebackWins++
-          if (!comebackRef ||
-              (r.round === 'Final' && comebackRef.round !== 'Final') ||
-              (r.scheduledDateIso || '') > (comebackRef.scheduledDateIso || '')) {
-            comebackRef = r
-          }
+      // Did the player drop the opening game? (basis for comeback rate)
+      const g1 = r.scores[0]
+      const droppedG1 = !!g1 && g1.t1 < g1.t2
+      if (droppedG1 && isDecided) firstGameLost++
+      if (r.outcome === 'W' && r.scores.length === 3 && droppedG1) {
+        comebackWins++
+        if (!comebackRef ||
+            (r.round === 'Final' && comebackRef.round !== 'Final') ||
+            (r.scheduledDateIso || '') > (comebackRef.scheduledDateIso || '')) {
+          comebackRef = r
         }
       }
       if (nowMs && r.scheduledDateIso) {
@@ -338,6 +340,7 @@ export function buildIndex(
     rec.matchCharacter.threeSetterRate = decided > 0 ? threeSetters / decided : 0
     rec.matchCharacter.threeSetterWins = threeWins
     rec.matchCharacter.comebackWins = comebackWins
+    rec.matchCharacter.firstGameLost = firstGameLost
     rec.matchCharacter.comebackWinRef = comebackRef
     rec.matchCharacter.matchesLast90 = matchesLast90
 

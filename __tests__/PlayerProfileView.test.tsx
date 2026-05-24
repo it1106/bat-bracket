@@ -23,7 +23,7 @@ const sample: PlayerRecord = {
   recentForm: [],
   matchCharacter: { courtMinutes: 1102, avgMatchMinutes: 31, longestMatchMinutes: 74,
     longestMatchRef: null, threeSetterCount: 10, threeSetterRate: 0.28,
-    threeSetterWins: 6, comebackWins: 3, comebackWinRef: null, matchesLast90: 12 },
+    threeSetterWins: 6, comebackWins: 3, firstGameLost: 5, comebackWinRef: null, matchesLast90: 12 },
   opponents: [], partners: [],
   ranks: { titles: 18, wins: 34 },
 }
