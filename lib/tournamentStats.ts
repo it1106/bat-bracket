@@ -381,6 +381,10 @@ function buildDrama(ctxs: MatchCtx[]): ComputedStats['drama'] {
 function buildTopPlayers(ctxs: MatchCtx[], clubs: Record<string, string>): ComputedStats['topPlayers'] {
   interface Rec { name: string; wins: number; losses: number }
   const tally = new Map<string, Rec>()
+  // BWF payloads carry no clubs but tag each MatchPlayer with a country code
+  // (e.g. "THA", "IDN"). Remember the first country seen per playerId so we
+  // can fall back to it when the clubs map is empty.
+  const countryByPid = new Map<string, string>()
   for (const { match } of ctxs) {
     if (match.winner === null || match.walkover) continue
     const winSide = match.winner
@@ -389,15 +393,22 @@ function buildTopPlayers(ctxs: MatchCtx[], clubs: Record<string, string>): Compu
       const r = tally.get(p.playerId) ?? { name: p.name, wins: 0, losses: 0 }
       if (winSide === 1) r.wins++; else r.losses++
       tally.set(p.playerId, r)
+      if (p.country && !countryByPid.has(p.playerId)) countryByPid.set(p.playerId, p.country)
     }
     for (const p of match.team2) {
       if (!p.playerId) continue
       const r = tally.get(p.playerId) ?? { name: p.name, wins: 0, losses: 0 }
       if (winSide === 2) r.wins++; else r.losses++
       tally.set(p.playerId, r)
+      if (p.country && !countryByPid.has(p.playerId)) countryByPid.set(p.playerId, p.country)
     }
   }
-  const clubOf = (pid: string) => (clubs[pid] ?? '').trim() || '—'
+  const clubOf = (pid: string) => {
+    const c = (clubs[pid] ?? '').trim()
+    if (c) return c
+    const country = (countryByPid.get(pid) ?? '').trim()
+    return country || '—'
+  }
   const rows = Array.from(tally.entries()).map(([playerId, r]) => {
     const { plain, seed } = extractSeed(r.name)
     return { playerId, name: plain, seed, club: clubOf(playerId), wins: r.wins, losses: r.losses }
