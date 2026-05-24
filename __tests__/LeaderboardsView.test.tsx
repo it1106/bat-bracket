@@ -2,7 +2,11 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import LeaderboardsView from '@/components/LeaderboardsView'
+import { LanguageProvider } from '@/lib/LanguageContext'
 import type { Leaderboards } from '@/lib/types'
+
+const renderLB = (lb: Leaderboards) =>
+  render(<LanguageProvider><LeaderboardsView leaderboards={lb} /></LanguageProvider>)
 
 const sample: Leaderboards = {
   version: 1, provider: 'bat', generatedAt: 'T', sourceVersion: 'v',
@@ -19,20 +23,20 @@ const sample: Leaderboards = {
 
 describe('LeaderboardsView', () => {
   it('renders all category tabs', () => {
-    render(<LeaderboardsView leaderboards={sample} />)
+    renderLB(sample)
     expect(screen.getByText(/Headline/i)).toBeTruthy()
     expect(screen.getByText(/Character/i)).toBeTruthy()
   })
 
   it('renders entries for the default tab', () => {
-    render(<LeaderboardsView leaderboards={sample} />)
+    renderLB(sample)
     expect(screen.getByText('Anuwat')).toBeTruthy()
     expect(screen.getByText('12')).toBeTruthy()
   })
 
   it('renders empty-state when no boards', () => {
     const empty: Leaderboards = { ...sample, boards: [] }
-    render(<LeaderboardsView leaderboards={empty} />)
+    renderLB(empty)
     expect(screen.getByText(/no leaderboards/i)).toBeTruthy()
   })
 })

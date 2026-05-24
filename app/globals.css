@@ -2569,6 +2569,21 @@ html.dark .pp-ev-chip.pp-champ { background: rgba(212,175,55,0.18);
 .lb-card-ico { margin-right: 6px; }
 .lb-card-qual { font-size: 10px; color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.lb-help { position: relative; display: inline-block; margin-left: 5px; vertical-align: middle; }
+.lb-help-btn { width: 15px; height: 15px; border-radius: 999px; padding: 0;
+  border: 1px solid var(--border); background: var(--bg); color: var(--muted);
+  font-size: 10px; font-weight: 700; line-height: 1; cursor: pointer; }
+.lb-help-btn:hover { color: var(--fg); border-color: var(--muted); }
+.lb-help-tip { display: none; position: absolute; left: 0; top: calc(100% + 6px);
+  z-index: 20; width: 220px; padding: 8px 10px; border-radius: 8px;
+  background: var(--fg); color: var(--bg); font-size: 11px; font-weight: 400;
+  line-height: 1.45; text-transform: none; letter-spacing: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+.lb-help:hover .lb-help-tip, .lb-help-open .lb-help-tip { display: block; }
+/* Flip to the right edge for cards in the right column so the tip isn't clipped. */
+@media (min-width: 641px) {
+  .lb-grid > .lb-card:nth-child(even) .lb-help-tip { left: auto; right: 0; }
+}
 .lb-row { display: grid; grid-template-columns: 22px 1fr auto;
   gap: 8px; align-items: center; padding: 5px 0;
   border-top: 1px solid var(--row-sep); font-size: 13px;

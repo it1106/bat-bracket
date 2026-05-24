@@ -1,28 +1,44 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useLanguage } from '@/lib/LanguageContext'
 import type { Leaderboards, LeaderboardCategory } from '@/lib/types'
+import type { TKey } from '@/lib/i18n'
 
 interface Props { leaderboards: Leaderboards }
 
-const CATEGORIES: Array<{ id: LeaderboardCategory; label: string }> = [
-  { id: 'headline', label: 'Headline' },
-  { id: 'discipline', label: 'Discipline' },
-  { id: 'character', label: 'Character' },
-  { id: 'activity', label: 'Activity' },
+const CATEGORIES: Array<{ id: LeaderboardCategory; key: TKey }> = [
+  { id: 'headline', key: 'lbHeadline' },
+  { id: 'discipline', key: 'lbDiscipline' },
+  { id: 'character', key: 'lbCharacter' },
+  { id: 'activity', key: 'lbActivity' },
 ]
 
-function humanize(titleKey: string): string {
-  return titleKey.replace(/^lb/, '').replace(/([A-Z])/g, ' $1').trim()
-}
-
 export default function LeaderboardsView({ leaderboards }: Props) {
+  const { t } = useLanguage()
   const [active, setActive] = useState<LeaderboardCategory>('headline')
+  const [openHelp, setOpenHelp] = useState<string | null>(null)
+  const helpRef = useRef<HTMLSpanElement | null>(null)
+
+  // Close a click-opened tooltip when tapping elsewhere (mobile).
+  useEffect(() => {
+    if (!openHelp) return
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (helpRef.current && !helpRef.current.contains(e.target as Node)) setOpenHelp(null)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('touchstart', onDown)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('touchstart', onDown)
+    }
+  }, [openHelp])
+
   if (leaderboards.boards.length === 0) {
     return (
       <div className="lb-page">
         <Link href="/" className="pp-back">← Home</Link>
-        <div className="lb-hdr"><h1>🏆 Leaderboards</h1></div>
+        <div className="lb-hdr"><h1>🏆 {t('leaderboards')}</h1></div>
         <div className="lb-empty">No leaderboards yet — add a completed tournament to get started.</div>
       </div>
     )
@@ -32,24 +48,41 @@ export default function LeaderboardsView({ leaderboards }: Props) {
     <div className="lb-page">
       <Link href="/" className="pp-back">← Home</Link>
       <div className="lb-hdr">
-        <h1>🏆 Leaderboards</h1>
-        <div className="lb-sub">Provider: {leaderboards.provider.toUpperCase()} · {leaderboards.boards.length} boards</div>
+        <h1>🏆 {t('leaderboards')}</h1>
+        <div className="lb-sub">{leaderboards.provider.toUpperCase()} · {leaderboards.boards.length} boards</div>
       </div>
       <div className="lb-tabs">
         {CATEGORIES.map(c => (
           <button key={c.id}
             className={`lb-tab ${active === c.id ? 'lb-active' : ''}`}
             onClick={() => setActive(c.id)}>
-            {c.label}
+            {t(c.key)}
           </button>
         ))}
       </div>
       <div className="lb-grid">
-        {visible.map(b => (
+        {visible.map(b => {
+          const helpKey = `${b.titleKey}Help` as TKey
+          const isOpen = openHelp === b.id
+          return (
           <div key={b.id} className="lb-card" id={b.id}>
             <h3>
-              <span><span className="lb-card-ico">{b.icon}</span>{humanize(b.titleKey)}</span>
-              {b.qualifier && <span className="lb-card-qual">{b.qualifier}</span>}
+              <span>
+                <span className="lb-card-ico">{b.icon}</span>{t(b.titleKey as TKey)}
+                <span
+                  ref={isOpen ? helpRef : undefined}
+                  className={`lb-help ${isOpen ? 'lb-help-open' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="lb-help-btn"
+                    aria-label={t(helpKey)}
+                    onClick={(e) => { e.preventDefault(); setOpenHelp(isOpen ? null : b.id) }}
+                  >?</button>
+                  <span className="lb-help-tip" role="tooltip">{t(helpKey)}</span>
+                </span>
+              </span>
+              {b.qualifier && <span className="lb-card-qual">{t(b.qualifier as TKey)}</span>}
             </h3>
             {b.entries.length === 0 ? (
               <div className="lb-empty" style={{ padding: '12px 0' }}>—</div>
@@ -65,7 +98,7 @@ export default function LeaderboardsView({ leaderboards }: Props) {
               </Link>
             ))}
           </div>
-        ))}
+        )})}
       </div>
     </div>
   )

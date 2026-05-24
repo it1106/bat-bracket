@@ -217,6 +217,10 @@ export type TKey =
   | 'lbThreeSetterWins' | 'lbComebackWins' | 'lbDeciderRecord'
   | 'lbMatchesLast90' | 'lbTournamentsEntered'
   | 'min20' | 'min10' | 'min5'
+  | 'lbMostTitlesHelp' | 'lbMostWinsHelp' | 'lbHighestWinPctHelp' | 'lbMostCourtTimeHelp'
+  | 'lbBestSinglesHelp' | 'lbBestDoublesHelp' | 'lbBestMixedHelp'
+  | 'lbThreeSetterWinsHelp' | 'lbComebackWinsHelp' | 'lbDeciderRecordHelp'
+  | 'lbMatchesLast90Help' | 'lbTournamentsEnteredHelp'
 
 const dict: Record<Lang, Record<TKey, string>> = {
   en: {
@@ -386,6 +390,18 @@ const dict: Record<Lang, Record<TKey, string>> = {
     min20: 'min 20 matches',
     min10: 'min 10 matches',
     min5: 'min 5 deciders',
+    lbMostTitlesHelp: 'Number of events won (champion) across all included tournaments.',
+    lbMostWinsHelp: 'Total matches won across all included tournaments.',
+    lbHighestWinPctHelp: 'Share of matches won, among players with at least 20 matches played.',
+    lbMostCourtTimeHelp: 'Total time spent on court, summed across all matches with a recorded duration.',
+    lbBestSinglesHelp: 'Matches won in singles events. Requires at least 10 singles matches.',
+    lbBestDoublesHelp: 'Matches won in doubles events. Requires at least 10 doubles matches.',
+    lbBestMixedHelp: 'Matches won in mixed-doubles events. Requires at least 10 mixed matches.',
+    lbThreeSetterWinsHelp: 'Matches won that went the full three games.',
+    lbComebackWinsHelp: 'Matches won after losing the first game.',
+    lbDeciderRecordHelp: 'Win rate in matches that reached a deciding third game. Requires at least 5 deciders.',
+    lbMatchesLast90Help: 'Matches played in the last 90 days.',
+    lbTournamentsEnteredHelp: 'Number of distinct tournaments entered.',
   },
   th: {
     appTitle1: 'BAT',
@@ -554,6 +570,18 @@ const dict: Record<Lang, Record<TKey, string>> = {
     min20: 'อย่างน้อย 20 แมตช์',
     min10: 'อย่างน้อย 10 แมตช์',
     min5: 'อย่างน้อย 5 เซตตัดสิน',
+    lbMostTitlesHelp: 'จำนวนรายการที่ชนะเลิศ (เป็นแชมป์) รวมจากทุกทัวร์นาเมนต์ที่นับรวม',
+    lbMostWinsHelp: 'จำนวนแมตช์ที่ชนะทั้งหมด รวมจากทุกทัวร์นาเมนต์ที่นับรวม',
+    lbHighestWinPctHelp: 'เปอร์เซ็นต์การชนะ เฉพาะผู้เล่นที่ลงแข่งอย่างน้อย 20 แมตช์',
+    lbMostCourtTimeHelp: 'เวลารวมที่อยู่ในสนาม นับจากทุกแมตช์ที่มีการบันทึกเวลา',
+    lbBestSinglesHelp: 'จำนวนแมตช์ที่ชนะในประเภทเดี่ยว ต้องลงเดี่ยวอย่างน้อย 10 แมตช์',
+    lbBestDoublesHelp: 'จำนวนแมตช์ที่ชนะในประเภทคู่ ต้องลงคู่อย่างน้อย 10 แมตช์',
+    lbBestMixedHelp: 'จำนวนแมตช์ที่ชนะในประเภทคู่ผสม ต้องลงคู่ผสมอย่างน้อย 10 แมตช์',
+    lbThreeSetterWinsHelp: 'จำนวนแมตช์ที่ชนะโดยเล่นครบสามเกม',
+    lbComebackWinsHelp: 'จำนวนแมตช์ที่ชนะหลังจากแพ้เกมแรก',
+    lbDeciderRecordHelp: 'อัตราการชนะในแมตช์ที่ต้องตัดสินด้วยเกมที่สาม ต้องมีเกมตัดสินอย่างน้อย 5 ครั้ง',
+    lbMatchesLast90Help: 'จำนวนแมตช์ที่ลงแข่งใน 90 วันที่ผ่านมา',
+    lbTournamentsEnteredHelp: 'จำนวนทัวร์นาเมนต์ที่เข้าร่วม (ไม่ซ้ำ)',
   },
 }
 
