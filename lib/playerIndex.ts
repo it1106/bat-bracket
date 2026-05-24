@@ -139,12 +139,14 @@ export function buildIndex(
       if (p.country && !rec.country) rec.country = p.country
 
       rec.totals.matches++
+      const disc = classifyDiscipline(team.length, m.eventName || '')
+      const bucket = rec.byDiscipline[disc]
       if (outcome === 'W' || outcome === 'WO-W' || outcome === 'RET-W') {
-        rec.totals.wins++
+        rec.totals.wins++; bucket.wins++
         if (outcome === 'WO-W') rec.totals.walkoversReceived++
         if (outcome === 'RET-W') rec.totals.retirementsReceived++
       } else {
-        rec.totals.losses++
+        rec.totals.losses++; bucket.losses++
         if (outcome === 'WO-L') rec.totals.walkoversGiven++
         if (outcome === 'RET-L') rec.totals.retirementsGiven++
       }

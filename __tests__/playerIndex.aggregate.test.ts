@@ -47,4 +47,14 @@ describe('buildIndex — single tournament', () => {
     const clubsSeen = new Set(Object.values(index.players).flatMap(p => p.clubs))
     expect(clubsSeen.has('SIAM Wireless BC')).toBe(true)
   })
+
+  it('splits totals into byDiscipline buckets', () => {
+    const { index } = buildIndex('bat', [toyota])
+    for (const p of Object.values(index.players)) {
+      const wins = p.byDiscipline.singles.wins + p.byDiscipline.doubles.wins + p.byDiscipline.mixed.wins
+      const losses = p.byDiscipline.singles.losses + p.byDiscipline.doubles.losses + p.byDiscipline.mixed.losses
+      expect(wins).toBe(p.totals.wins)
+      expect(losses).toBe(p.totals.losses)
+    }
+  })
 })
