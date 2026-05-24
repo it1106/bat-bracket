@@ -151,8 +151,10 @@ export function buildIndex(
       if (club) bump(clubCounts, slug, club)
       if (p.country && !rec.country) rec.country = p.country
 
+      // BAT has no eventName; the discipline-bearing label is m.draw ("XD U15").
+      const eventLabel = m.eventName || m.draw || ''
       rec.totals.matches++
-      const disc = classifyDiscipline(team.length, m.eventName || '')
+      const disc = classifyDiscipline(team.length, eventLabel)
       const bucket = rec.byDiscipline[disc]
       if (outcome === 'W' || outcome === 'WO-W' || outcome === 'RET-W') {
         rec.totals.wins++; bucket.wins++

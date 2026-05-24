@@ -48,6 +48,13 @@ describe('buildIndex — single tournament', () => {
     expect(clubsSeen.has('SIAM Wireless BC')).toBe(true)
   })
 
+  it('classifies XD draws as mixed even when eventName is absent (BAT uses m.draw)', () => {
+    const { index } = buildIndex('bat', [toyota])
+    const mixedMatches = Object.values(index.players)
+      .reduce((s, p) => s + p.byDiscipline.mixed.wins + p.byDiscipline.mixed.losses, 0)
+    expect(mixedMatches).toBeGreaterThan(0)
+  })
+
   it('splits totals into byDiscipline buckets', () => {
     const { index } = buildIndex('bat', [toyota])
     for (const p of Object.values(index.players)) {
