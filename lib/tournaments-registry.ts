@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { parseTournamentsTxt } from '@/lib/tournaments-txt'
 import { listAllSidecar } from '@/lib/providers/bwf/sidecar'
-import type { TournamentRef, ProviderTag } from '@/lib/types'
+import type { TournamentRef } from '@/lib/types'
 
 interface RegistryEntry extends TournamentRef { done: boolean; name?: string }
 
@@ -63,9 +63,4 @@ export function resolveRef(id: string): TournamentRef | null {
 export function listAllTournaments(): RegistryEntry[] {
   ensureFresh()
   return [...entries]
-}
-
-export function listDoneByProvider(provider: ProviderTag): RegistryEntry[] {
-  ensureFresh()
-  return entries.filter(e => e.provider === provider && e.done)
 }

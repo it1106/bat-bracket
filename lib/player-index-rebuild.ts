@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { listDoneByProvider } from '@/lib/tournaments-registry'
+import { listAllTournaments } from '@/lib/tournaments-registry'
 import { readFullCache, readDayCache } from '@/lib/day-cache'
 import { readClubsCache, writeClubsCache } from '@/lib/clubs-cache'
 import { playerClubCache, fetchTournamentPlayerClubs } from '@/lib/bracket-cache'
@@ -38,11 +38,14 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
     const skipped: ProviderTag[] = []
     for (const provider of PROVIDERS) {
       try {
-        const done = listDoneByProvider(provider)
-        if (done.length === 0) { skipped.push(provider); continue }
+        // A tournament belongs in the index once it's entirely in the past,
+        // which is exactly when .cache/full/<id>.json gets pinned. We don't
+        // require the manual [done] marker — any registry tournament with a
+        // pinned full cache is complete and stable enough to aggregate.
+        const candidates = listAllTournaments().filter(e => e.provider === provider)
 
         const inputs: PlayerIndexTournamentInput[] = []
-        for (const entry of done) {
+        for (const entry of candidates) {
           const full = await readFullCache(entry.id)
           if (!full) continue
 
@@ -87,6 +90,9 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
             clubs: clubs || {},
           })
         }
+
+        // No past tournaments for this provider — don't clobber any prior index.
+        if (inputs.length === 0) { skipped.push(provider); continue }
 
         const sv = computeSourceVersion(inputs)
         const existing = await readIndexCache(provider)

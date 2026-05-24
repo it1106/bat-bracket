@@ -1,7 +1,7 @@
 jest.mock('../lib/tournaments-registry', () => ({
-  listDoneByProvider: jest.fn(),
+  listAllTournaments: jest.fn(),
 }))
-jest.mock('../lib/day-cache', () => ({ readFullCache: jest.fn() }))
+jest.mock('../lib/day-cache', () => ({ readFullCache: jest.fn(), readDayCache: jest.fn() }))
 jest.mock('../lib/clubs-cache', () => ({
   readClubsCache: jest.fn(),
   writeClubsCache: jest.fn(),
@@ -16,9 +16,9 @@ jest.mock('../lib/player-index-cache', () => ({
   writeLeaderboardsCache: jest.fn(),
 }))
 
-import { listDoneByProvider } from '@/lib/tournaments-registry'
+import { listAllTournaments } from '@/lib/tournaments-registry'
 import { readFullCache } from '@/lib/day-cache'
-import { readClubsCache, writeClubsCache } from '@/lib/clubs-cache'
+import { readClubsCache } from '@/lib/clubs-cache'
 import { fetchTournamentPlayerClubs } from '@/lib/bracket-cache'
 import { readIndexCache, writeIndexCache, writeLeaderboardsCache } from '@/lib/player-index-cache'
 import { rebuildAll } from '@/lib/player-index-rebuild'
@@ -26,17 +26,23 @@ import { rebuildAll } from '@/lib/player-index-rebuild'
 describe('rebuildAll', () => {
   beforeEach(() => { jest.resetAllMocks() })
 
-  it('returns skipped for providers with no done tournaments', async () => {
-    ;(listDoneByProvider as jest.Mock).mockReturnValue([])
+  it('skips providers with no registry tournaments', async () => {
+    ;(listAllTournaments as jest.Mock).mockReturnValue([])
     const out = await rebuildAll()
     expect(out.rebuilt).toEqual([])
-    expect(out.skipped).toEqual(['bat','bwf'])
+    expect(out.skipped).toEqual(['bat', 'bwf'])
   })
 
-  it('rebuilds when a done tournament with a full cache is present', async () => {
-    ;(listDoneByProvider as jest.Mock).mockImplementation((p) => p === 'bat'
-      ? [{ id: 'ID1', provider: 'bat', done: true }]
-      : [])
+  it('skips a provider whose tournaments have no pinned full cache', async () => {
+    ;(listAllTournaments as jest.Mock).mockReturnValue([{ id: 'ID0', provider: 'bat', done: false }])
+    ;(readFullCache as jest.Mock).mockResolvedValue(null)
+    const out = await rebuildAll()
+    expect(out.skipped).toContain('bat')
+    expect(writeIndexCache).not.toHaveBeenCalled()
+  })
+
+  it('includes a past tournament with a full cache even without the [done] marker', async () => {
+    ;(listAllTournaments as jest.Mock).mockReturnValue([{ id: 'ID1', provider: 'bat', done: false }])
     ;(readFullCache as jest.Mock).mockResolvedValue({ days: [], groups: [], currentDate: '2026-05-01' })
     ;(readClubsCache as jest.Mock).mockResolvedValue({})
     ;(readIndexCache as jest.Mock).mockResolvedValue(null)
@@ -47,7 +53,7 @@ describe('rebuildAll', () => {
   })
 
   it('fetches clubs when no clubs cache exists', async () => {
-    ;(listDoneByProvider as jest.Mock).mockImplementation((p) => p === 'bat' ? [{ id: 'ID2', provider: 'bat', done: true }] : [])
+    ;(listAllTournaments as jest.Mock).mockReturnValue([{ id: 'ID2', provider: 'bat', done: false }])
     ;(readFullCache as jest.Mock).mockResolvedValue({ days: [], groups: [], currentDate: '2026-05-01' })
     ;(readClubsCache as jest.Mock).mockResolvedValue(null)
     ;(fetchTournamentPlayerClubs as jest.Mock).mockResolvedValue(true)
