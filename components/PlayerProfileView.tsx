@@ -145,9 +145,9 @@ export default function PlayerProfileView({ record }: Props) {
             <div className="pp-char-sub">Lost game 1, won the match</div>
           </div>
           <div className="pp-char-card">
-            <div className="pp-char-label">Walkovers</div>
-            <div className="pp-char-value">{record.totals.walkoversReceived} ↘</div>
-            <div className="pp-char-sub">received · {record.totals.walkoversGiven} given · {record.totals.retirementsReceived} ret. received</div>
+            <div className="pp-char-label">Three-setter wins</div>
+            <div className="pp-char-value">{record.matchCharacter.threeSetterWins}</div>
+            <div className="pp-char-sub">of {record.matchCharacter.threeSetterCount} three-setters played</div>
           </div>
         </div>
       </div>
