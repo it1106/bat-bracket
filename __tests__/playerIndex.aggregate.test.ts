@@ -107,4 +107,22 @@ describe('buildIndex — single tournament', () => {
       expect(p.matchCharacter.threeSetterRate).toBeLessThanOrEqual(1)
     }
   })
+
+  it('lists opponents with consistent counts', () => {
+    const { index } = buildIndex('bat', [toyota])
+    const p = Object.values(index.players).find(r => r.opponents.length > 0)
+    expect(p).toBeDefined()
+    if (p) {
+      for (const o of p.opponents) expect(o.wins + o.losses).toBe(o.meetings)
+    }
+  })
+
+  it('lists no partners for purely singles players', () => {
+    const { index } = buildIndex('bat', [toyota])
+    for (const p of Object.values(index.players)) {
+      const totalDoublesMatches = p.byDiscipline.doubles.wins + p.byDiscipline.doubles.losses +
+        p.byDiscipline.mixed.wins + p.byDiscipline.mixed.losses
+      if (totalDoublesMatches === 0) expect(p.partners.length).toBe(0)
+    }
+  })
 })

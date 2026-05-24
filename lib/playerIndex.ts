@@ -330,6 +330,51 @@ export function buildIndex(
     rec.matchCharacter.comebackWins = comebackWins
     rec.matchCharacter.comebackWinRef = comebackRef
     rec.matchCharacter.matchesLast90 = matchesLast90
+
+    // Opponents
+    const oppMap = new Map<string, { name: string; meetings: number; wins: number; losses: number; lastRound: string; lastEvent: string; lastIso: string }>()
+    for (const r of refs) {
+      for (let i = 0; i < r.opponentSlugs.length; i++) {
+        const oslug = r.opponentSlugs[i]
+        const oname = r.opponents[i] || ''
+        if (!oslug) continue
+        let acc = oppMap.get(oslug)
+        if (!acc) { acc = { name: oname, meetings: 0, wins: 0, losses: 0, lastRound: r.round, lastEvent: r.eventName, lastIso: r.scheduledDateIso || '' }; oppMap.set(oslug, acc) }
+        acc.meetings++
+        if (r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W') acc.wins++
+        else acc.losses++
+        if ((r.scheduledDateIso || '') > acc.lastIso) {
+          acc.lastIso = r.scheduledDateIso || ''; acc.lastRound = r.round; acc.lastEvent = r.eventName
+        }
+      }
+    }
+    rec.opponents = [...oppMap.entries()]
+      .map(([slug, a]) => ({ slug, name: a.name, meetings: a.meetings, wins: a.wins, losses: a.losses, lastRound: a.lastRound, lastEvent: a.lastEvent }))
+      .sort((a, b) => b.meetings - a.meetings || b.wins - a.wins || a.slug.localeCompare(b.slug))
+      .slice(0, 12)
+
+    // Partners
+    const partMap = new Map<string, { name: string; matches: number; wins: number; losses: number; events: Map<string, number> }>()
+    for (const r of refs) {
+      for (let i = 0; i < r.partnerSlugs.length; i++) {
+        const pslug = r.partnerSlugs[i]
+        const pname = r.partners[i] || ''
+        if (!pslug) continue
+        let acc = partMap.get(pslug)
+        if (!acc) { acc = { name: pname, matches: 0, wins: 0, losses: 0, events: new Map() }; partMap.set(pslug, acc) }
+        acc.matches++
+        if (r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W') acc.wins++
+        else acc.losses++
+        acc.events.set(r.eventName, (acc.events.get(r.eventName) || 0) + 1)
+      }
+    }
+    rec.partners = [...partMap.entries()]
+      .map(([slug, a]) => {
+        const primaryEvent = [...a.events.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] || ''
+        return { slug, name: a.name, matchesTogether: a.matches, wins: a.wins, losses: a.losses, primaryEvent }
+      })
+      .sort((a, b) => b.matchesTogether - a.matchesTogether || b.wins - a.wins || a.slug.localeCompare(b.slug))
+      .slice(0, 12)
   }
 
   const sources = tournaments.map(t => ({
