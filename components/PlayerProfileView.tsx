@@ -104,18 +104,22 @@ export default function PlayerProfileView({ record }: Props) {
           <div className="pp-form-strip">
             {record.recentForm.map((r, i) => {
               const won = r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W'
-              const cls = won ? 'pp-w' : 'pp-l'
-              const wo = r.outcome.startsWith('WO') || r.outcome.startsWith('RET')
+              const label = won ? 'W'
+                : r.outcome === 'WO-L' ? 'WO'
+                : r.outcome === 'RET-L' ? 'RT'
+                : 'L'
+              const cls = won ? 'pp-w' : (label === 'WO' || label === 'RT' ? 'pp-wo' : 'pp-l')
               const verbPrefix = won ? 'def.' : 'lost to'
               const opp = r.opponents.length > 0 ? r.opponents.join(' / ') : '—'
               const scoreLine = r.scores.length > 0
                 ? r.scores.map(s => `${s.t1}-${s.t2}`).join(', ')
                 : (r.outcome.startsWith('WO') ? 'walkover' : r.outcome.startsWith('RET') ? 'retired' : '')
               const partnerLine = r.partners.length > 0 ? ` (w/ ${r.partners.join(' / ')})` : ''
-              const tip = `${verbPrefix} ${opp}${partnerLine}\n${scoreLine}\n${r.eventName} · ${r.round}`
-              return <div key={i} className={`pp-form-cell ${wo ? 'pp-wo' : cls}`} title={tip}>
-                {r.outcome.startsWith('WO') ? 'WO' : r.outcome.startsWith('RET') ? 'RT' : won ? 'W' : 'L'}
-              </div>
+              const dateLine = r.scheduledDateIso
+                ? `${r.tournamentName} · ${r.scheduledDateIso.slice(0, 10)}`
+                : r.tournamentName
+              const tip = `${verbPrefix} ${opp}${partnerLine}\n${scoreLine}\n${r.eventName} · ${r.round}\n${dateLine}`
+              return <div key={i} className={`pp-form-cell ${cls}`} title={tip}>{label}</div>
             })}
           </div>
         </div>
