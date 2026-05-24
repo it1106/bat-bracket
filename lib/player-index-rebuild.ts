@@ -1,5 +1,6 @@
 import { createHash } from 'crypto'
 import { listAllTournaments } from '@/lib/tournaments-registry'
+import { loadDiscovered } from '@/lib/discovery-store'
 import { readFullCache, readDayCache } from '@/lib/day-cache'
 import { readClubsCache, writeClubsCache } from '@/lib/clubs-cache'
 import { playerClubCache, fetchTournamentPlayerClubs } from '@/lib/bracket-cache'
@@ -40,12 +41,24 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
       try {
         // A tournament belongs in the index once it's entirely in the past,
         // which is exactly when .cache/full/<id>.json gets pinned. We don't
-        // require the manual [done] marker — any registry tournament with a
-        // pinned full cache is complete and stable enough to aggregate.
-        const candidates = listAllTournaments().filter(e => e.provider === provider)
+        // require the manual [done] marker — any tournament with a pinned full
+        // cache is complete and stable enough to aggregate. Candidates come
+        // from both the manual registry and the auto-discovered set (e.g.
+        // กีฬาเยาวชนแห่งชาติ), which is BAT-only.
+        const candidates = new Map<string, { id: string; name?: string }>()
+        for (const e of listAllTournaments()) {
+          if (e.provider === provider) candidates.set(e.id.toUpperCase(), { id: e.id, name: e.name })
+        }
+        if (provider === 'bat') {
+          const disc = await loadDiscovered()
+          for (const e of disc.entries) {
+            const key = e.id.toUpperCase()
+            if (!candidates.has(key)) candidates.set(key, { id: key, name: e.name })
+          }
+        }
 
         const inputs: PlayerIndexTournamentInput[] = []
-        for (const entry of candidates) {
+        for (const entry of Array.from(candidates.values())) {
           const full = await readFullCache(entry.id)
           if (!full) continue
 

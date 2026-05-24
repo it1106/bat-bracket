@@ -1,6 +1,9 @@
 jest.mock('../lib/tournaments-registry', () => ({
   listAllTournaments: jest.fn(),
 }))
+jest.mock('../lib/discovery-store', () => ({
+  loadDiscovered: jest.fn(async () => ({ version: 1, entries: [] })),
+}))
 jest.mock('../lib/day-cache', () => ({ readFullCache: jest.fn(), readDayCache: jest.fn() }))
 jest.mock('../lib/clubs-cache', () => ({
   readClubsCache: jest.fn(),
@@ -17,6 +20,7 @@ jest.mock('../lib/player-index-cache', () => ({
 }))
 
 import { listAllTournaments } from '@/lib/tournaments-registry'
+import { loadDiscovered } from '@/lib/discovery-store'
 import { readFullCache } from '@/lib/day-cache'
 import { readClubsCache } from '@/lib/clubs-cache'
 import { fetchTournamentPlayerClubs } from '@/lib/bracket-cache'
@@ -24,7 +28,10 @@ import { readIndexCache, writeIndexCache, writeLeaderboardsCache } from '@/lib/p
 import { rebuildAll } from '@/lib/player-index-rebuild'
 
 describe('rebuildAll', () => {
-  beforeEach(() => { jest.resetAllMocks() })
+  beforeEach(() => {
+    jest.resetAllMocks()
+    ;(loadDiscovered as jest.Mock).mockResolvedValue({ version: 1, entries: [] })
+  })
 
   it('skips providers with no registry tournaments', async () => {
     ;(listAllTournaments as jest.Mock).mockReturnValue([])
@@ -50,6 +57,20 @@ describe('rebuildAll', () => {
     expect(out.rebuilt).toContain('bat')
     expect(writeIndexCache).toHaveBeenCalled()
     expect(writeLeaderboardsCache).toHaveBeenCalled()
+  })
+
+  it('includes a discovered (non-registry) tournament that has a full cache', async () => {
+    ;(listAllTournaments as jest.Mock).mockReturnValue([])
+    ;(loadDiscovered as jest.Mock).mockResolvedValue({
+      version: 1,
+      entries: [{ id: 'DISC1', name: 'National Youth Games', hasBracket: true, discoveredAt: '', lastSeenOnUpcomingAt: '' }],
+    })
+    ;(readFullCache as jest.Mock).mockResolvedValue({ days: [], groups: [], currentDate: '2026-05-01' })
+    ;(readClubsCache as jest.Mock).mockResolvedValue({})
+    ;(readIndexCache as jest.Mock).mockResolvedValue(null)
+    const out = await rebuildAll()
+    expect(out.rebuilt).toContain('bat')
+    expect(writeIndexCache).toHaveBeenCalled()
   })
 
   it('fetches clubs when no clubs cache exists', async () => {
