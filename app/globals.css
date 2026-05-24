@@ -2522,11 +2522,18 @@ html.dark .ms-match--next-opp {
 html.dark .pp-ev-chip.pp-champ { background: rgba(212,175,55,0.18);
   border-color: rgba(212,175,55,0.5); color: #fde68a; }
 .pp-form-strip { display: flex; gap: 4px; flex-wrap: wrap; }
-.pp-form-cell { width: 28px; height: 28px; border-radius: 6px;
-  display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; }
+.pp-form-cell { position: relative; width: 28px; height: 28px; border-radius: 6px;
+  display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff;
+  cursor: pointer; }
 .pp-form-cell.pp-w { background: #16a34a; }
 .pp-form-cell.pp-l { background: var(--red); }
 .pp-form-cell.pp-wo { background: var(--muted); font-size: 10px; }
+.pp-form-tip { display: none; position: absolute; left: 0; top: calc(100% + 6px);
+  z-index: 20; width: 220px; padding: 8px 10px; border-radius: 8px;
+  background: var(--fg); color: var(--bg); font-size: 11px; font-weight: 400;
+  line-height: 1.45; text-align: left; white-space: pre-line;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+.pp-form-cell:hover .pp-form-tip, .pp-form-cell.pp-form-open .pp-form-tip { display: block; }
 .pp-char-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .pp-char-card { padding: 10px 12px; border-radius: 10px;
   background: var(--score-bg); border: 1px solid var(--border); }

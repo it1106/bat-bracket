@@ -166,9 +166,11 @@ export function buildIndex(
         if (outcome === 'RET-L') rec.totals.retirementsGiven++
       }
 
-      const partners = team.filter(x => x !== p).map(x => x.name)
+      // Display names: strip the trailing seed marker ("[5]") so opponent/partner
+      // lists and the form tooltip match the seed-free profile display names.
+      const partners = team.filter(x => x !== p).map(x => stripSeed(x.name))
       const partnerSlugs = team.filter(x => x !== p).map(x => nameToSlug(x.name)).filter(Boolean)
-      const opponents = (opp || []).map(x => x.name)
+      const opponents = (opp || []).map(x => stripSeed(x.name))
       const opponentSlugs = (opp || []).map(x => nameToSlug(x.name)).filter(Boolean)
       scratch.refs.push({
         tournamentId: t.tournamentId,

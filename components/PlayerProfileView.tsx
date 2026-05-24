@@ -1,5 +1,5 @@
 'use client'
-import React from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import type { PlayerRecord, PlayerRanks } from '@/lib/types'
 
@@ -29,6 +29,23 @@ export default function PlayerProfileView({ record }: Props) {
   const winPct = record.totals.matches > 0
     ? Math.round((record.totals.wins / record.totals.matches) * 100)
     : 0
+
+  // Recent-form tooltips: hover (desktop) or tap-toggle (mobile).
+  const [openForm, setOpenForm] = useState<number | null>(null)
+  const formStripRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (openForm === null) return
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (formStripRef.current && !formStripRef.current.contains(e.target as Node)) setOpenForm(null)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('touchstart', onDown)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('touchstart', onDown)
+    }
+  }, [openForm])
+
   return (
     <div className="pp-page">
       <Link href="/" className="pp-back">← Home</Link>
@@ -102,7 +119,7 @@ export default function PlayerProfileView({ record }: Props) {
       {record.recentForm.length > 0 && (
         <div className="pp-section">
           <h2>Recent form</h2>
-          <div className="pp-form-strip">
+          <div className="pp-form-strip" ref={formStripRef}>
             {record.recentForm.map((r, i) => {
               const won = r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W'
               const label = won ? 'W'
@@ -120,7 +137,17 @@ export default function PlayerProfileView({ record }: Props) {
                 ? `${r.tournamentName} · ${r.scheduledDateIso.slice(0, 10)}`
                 : r.tournamentName
               const tip = `${verbPrefix} ${opp}${partnerLine}\n${scoreLine}\n${r.eventName} · ${r.round}\n${dateLine}`
-              return <div key={i} className={`pp-form-cell ${cls}`} title={tip}>{label}</div>
+              const isOpen = openForm === i
+              return (
+                <span
+                  key={i}
+                  className={`pp-form-cell ${cls} ${isOpen ? 'pp-form-open' : ''}`}
+                  onClick={() => setOpenForm(isOpen ? null : i)}
+                >
+                  {label}
+                  <span className="pp-form-tip" role="tooltip">{tip}</span>
+                </span>
+              )
             })}
           </div>
         </div>
