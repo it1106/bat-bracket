@@ -184,7 +184,7 @@ export function buildIndex(
         scores: (m.scores || []).map(s => side === 1 ? s : { t1: s.t2, t2: s.t1 }),
         outcome,
         durationMinutes: parseDurationToMinutes(m.duration),
-        scheduledDateIso: m.scheduledTime,
+        scheduledDateIso: m.dateIso || m.scheduledTime,
       })
     }
   }

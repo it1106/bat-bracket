@@ -77,21 +77,28 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
           }
 
           // Walk all per-day caches and union groups so the aggregator sees every match.
-          // .cache/full/<id>.json only holds the currentDate's groups.
+          // .cache/full/<id>.json only holds the currentDate's groups. Stamp each
+          // match with its day's calendar date (BAT entries carry no usable date),
+          // which the aggregator uses for recent-form ordering and the date label.
+          const stamp = (groups: MatchScheduleGroup[], dateIso: string): MatchScheduleGroup[] => {
+            for (const g of groups) for (const m of g.matches) m.dateIso = dateIso
+            return groups
+          }
           const allGroups: MatchScheduleGroup[] = []
           for (const d of full.days || []) {
             if (!d.dateIso) continue
             const day = await readDayCache(entry.id, d.dateIso)
-            if (day?.groups) { allGroups.push(...day.groups); continue }
+            if (day?.groups) { allGroups.push(...stamp(day.groups, d.dateIso)); continue }
             // Day not pinned yet (fresh server): fetch through the matches route,
             // which pins it for next time. No-op when no fetcher is supplied.
             if (opts?.ensureDay && d.date) {
               const groups = await opts.ensureDay(entry.id, d.date)
-              if (groups) allGroups.push(...groups)
+              if (groups) allGroups.push(...stamp(groups, d.dateIso))
             }
           }
           if (allGroups.length === 0 && full.groups?.length) {
-            allGroups.push(...full.groups)
+            const todayIso = full.days?.find(d => d.date === full.currentDate)?.dateIso || ''
+            allGroups.push(...stamp(full.groups, todayIso))
           }
           const mergedData: MatchesData = { ...full, groups: allGroups }
 
@@ -135,7 +142,7 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
 // Bump when the PlayerRecord/Leaderboard shape changes so a deploy forces a
 // rebuild even though the underlying tournament data is unchanged. (sourceVersion
 // otherwise only reflects input data, so a pure code change would be skipped.)
-const SCHEMA_VERSION = 2
+const SCHEMA_VERSION = 3
 
 function computeSourceVersion(inputs: PlayerIndexTournamentInput[]): string {
   const sig = [...inputs]

@@ -75,6 +75,9 @@ export interface MatchEntry {
   nowPlaying: boolean
   scheduledTime?: string
   scheduledDateLabel?: string
+  // Calendar date (YYYY-MM-DD) of the match, stamped from the owning day cache
+  // during player-index aggregation. Not populated on the live schedule path.
+  dateIso?: string
   sequenceLabel?: string
   h2hUrl?: string
   eventId?: string
