@@ -1160,6 +1160,7 @@ export default function Home() {
           onClose={handleModalClose}
           onH2HClick={handleH2HClick}
           onPlayerClick={playerClickHandler}
+          provider={tournaments.find((x) => x.id === selectedTournament)?.provider}
         />
       )}
 

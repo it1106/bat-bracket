@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { PlayerProfile, MatchEntry } from '@/lib/types'
+import type { PlayerProfile, MatchEntry, ProviderTag } from '@/lib/types'
 import { useLanguage } from '@/lib/LanguageContext'
 import { pct } from '@/lib/playerStats'
 
@@ -11,6 +11,7 @@ interface Props {
   onClose: () => void
   onH2HClick?: (h2hUrl: string, m: MatchEntry) => void
   onPlayerClick?: (playerId: string) => void
+  provider?: ProviderTag
 }
 
 
@@ -21,10 +22,11 @@ function scoreStr(entry: MatchEntry, tr: { walkover: string; vsMatch: string; re
   return entry.retired ? `${s} ${tr.retired}` : s
 }
 
-export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick }: Props) {
+export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick, provider }: Props) {
   const { t, abbrevRound, lang } = useLanguage()
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const [activeEventIds, setActiveEventIds] = useState<Set<string>>(new Set())
+  const [fullProfile, setFullProfile] = useState<{ slug: string; provider: ProviderTag } | null>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -32,7 +34,17 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  useEffect(() => { setActiveEventIds(new Set()) }, [profile?.playerId])
+  useEffect(() => { setActiveEventIds(new Set()); setFullProfile(null) }, [profile?.playerId])
+
+  useEffect(() => {
+    if (!profile?.name) return
+    const p: ProviderTag = provider ?? 'bat'
+    const url = `/api/players/exists?provider=${p}&name=${encodeURIComponent(profile.name)}`
+    fetch(url)
+      .then(r => r.json())
+      .then(d => { if (d?.exists && d?.slug) setFullProfile({ slug: d.slug, provider: p }) })
+      .catch(() => { /* silent — modal still works without the link */ })
+  }, [profile?.name, provider])
 
   const toggleEvent = (id: string) => {
     setActiveEventIds((prev) => {
@@ -72,6 +84,11 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                 <div className="pm-club">
                   {[profile.club, profile.yob ? `${t('yob')}: ${profile.yob}` : ''].filter(Boolean).join(' · ')}
                 </div>
+              )}
+              {fullProfile && (
+                <a href={`/player/${fullProfile.provider}/${fullProfile.slug}`} className="pm-full-profile-link">
+                  {t('viewFullProfile')} →
+                </a>
               )}
               {profile.stats && (() => {
                 const s = profile.stats
