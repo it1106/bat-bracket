@@ -78,4 +78,33 @@ describe('buildIndex — single tournament', () => {
       p.tournaments.some(t => t.events.some(e => e.bestFinish === 'Champion')))
     expect(champions.length).toBeGreaterThan(0)
   })
+
+  it('populates recentForm sorted newest first, max 10 entries', () => {
+    const { index } = buildIndex('bat', [toyota])
+    for (const p of Object.values(index.players)) {
+      expect(p.recentForm.length).toBeLessThanOrEqual(10)
+      for (let i = 1; i < p.recentForm.length; i++) {
+        const prev = p.recentForm[i-1].scheduledDateIso || ''
+        const curr = p.recentForm[i].scheduledDateIso || ''
+        expect(prev >= curr).toBe(true)
+      }
+    }
+  })
+
+  it('computes courtMinutes and longestMatchMinutes consistently', () => {
+    const { index } = buildIndex('bat', [toyota])
+    const p = Object.values(index.players).find(r => r.matchCharacter.courtMinutes > 0)
+    if (p && p.matchCharacter.courtMinutes > 0) {
+      expect(p.matchCharacter.avgMatchMinutes).toBeLessThanOrEqual(p.matchCharacter.courtMinutes)
+      expect(p.matchCharacter.longestMatchMinutes).toBeGreaterThanOrEqual(p.matchCharacter.avgMatchMinutes)
+    }
+  })
+
+  it('threeSetterRate is between 0 and 1', () => {
+    const { index } = buildIndex('bat', [toyota])
+    for (const p of Object.values(index.players)) {
+      expect(p.matchCharacter.threeSetterRate).toBeGreaterThanOrEqual(0)
+      expect(p.matchCharacter.threeSetterRate).toBeLessThanOrEqual(1)
+    }
+  })
 })

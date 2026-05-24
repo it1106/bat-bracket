@@ -271,6 +271,67 @@ export function buildIndex(
     }
   }
 
+  // Match character pass
+  const NINETY_DAYS_MS = 90 * 86400 * 1000
+  let maxIso = ''
+  for (const sc of scratches.values()) for (const r of sc.refs) if ((r.scheduledDateIso || '') > maxIso) maxIso = (r.scheduledDateIso || '')
+  const nowMs = maxIso ? Date.parse(maxIso) : 0
+
+  for (const [slug, rec] of records) {
+    const refs = scratches.get(slug)?.refs || []
+    if (refs.length === 0) continue
+
+    rec.recentForm = [...refs]
+      .sort((a, b) => (b.scheduledDateIso || '').localeCompare(a.scheduledDateIso || ''))
+      .slice(0, 10)
+
+    let totalMin = 0, decided = 0, threeSetters = 0, threeWins = 0
+    let longest = 0
+    let longestRef: PlayerMatchRef | null = null
+    let comebackRef: PlayerMatchRef | null = null
+    let comebackWins = 0
+    let matchesLast90 = 0
+    let withDuration = 0
+
+    for (const r of refs) {
+      const dm = r.durationMinutes || 0
+      if (dm > 0) { totalMin += dm; withDuration++ }
+      if (dm > longest) { longest = dm; longestRef = r }
+      const isDecided = r.outcome === 'W' || r.outcome === 'L'
+      if (isDecided) decided++
+      if (r.scores.length === 3) {
+        threeSetters++
+        if (r.outcome === 'W') threeWins++
+      }
+      if (r.outcome === 'W' && r.scores.length === 3) {
+        const firstSet = r.scores[0]
+        if (firstSet && firstSet.t1 < firstSet.t2) {
+          comebackWins++
+          if (!comebackRef ||
+              (r.round === 'Final' && comebackRef.round !== 'Final') ||
+              (r.scheduledDateIso || '') > (comebackRef.scheduledDateIso || '')) {
+            comebackRef = r
+          }
+        }
+      }
+      if (nowMs && r.scheduledDateIso) {
+        const ts = Date.parse(r.scheduledDateIso)
+        if (!isNaN(ts) && (nowMs - ts) <= NINETY_DAYS_MS) matchesLast90++
+      }
+    }
+
+    rec.matchCharacter.courtMinutes = totalMin
+    rec.matchCharacter.avgMatchMinutes = withDuration > 0 ? Math.round(totalMin / withDuration) : 0
+    rec.matchCharacter.longestMatchMinutes = longest
+    rec.matchCharacter.longestMatchRef = longestRef
+    rec.matchCharacter.threeSetterCount = threeSetters
+    rec.matchCharacter.threeSetterRate = decided > 0 ? threeSetters / decided : 0
+    rec.matchCharacter.threeSetterWins = threeWins
+    rec.matchCharacter.comebackWins = comebackWins
+    rec.matchCharacter.comebackWinRef = comebackRef
+    rec.matchCharacter.matchesLast90 = matchesLast90
+  }
+
   const sources = tournaments.map(t => ({
     tournamentId: t.tournamentId,
     tournamentName: tournamentNameFor(t),
