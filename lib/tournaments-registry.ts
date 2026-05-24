@@ -63,3 +63,8 @@ export function listAllTournaments(): RegistryEntry[] {
   ensureFresh()
   return [...entries]
 }
+
+export function listDoneByProvider(provider: ProviderTag): RegistryEntry[] {
+  ensureFresh()
+  return entries.filter(e => e.provider === provider && e.done)
+}
