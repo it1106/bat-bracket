@@ -192,16 +192,16 @@ export function buildIndex(
     }
   }
 
-  for (const [slug, rec] of records) {
+  for (const [slug, rec] of Array.from(records.entries())) {
     const names = nameCounts.get(slug)
     if (names) {
-      const sorted = [...names.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      const sorted = Array.from(names.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       rec.displayName = sorted[0][0]
       rec.altNames = sorted.slice(1).map(([n]) => n)
     }
     const clubs = clubCounts.get(slug)
     if (clubs) {
-      rec.clubs = [...clubs.entries()]
+      rec.clubs = Array.from(clubs.entries())
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
         .map(([c]) => c)
     }
@@ -215,7 +215,7 @@ export function buildIndex(
     return 'RR'
   }
 
-  for (const [slug, rec] of records) {
+  for (const [slug, rec] of Array.from(records.entries())) {
     const refs = scratches.get(slug)?.refs || []
     const byTournament = new Map<string, Map<string, PlayerMatchRef[]>>()
     for (const r of refs) {
@@ -229,7 +229,7 @@ export function buildIndex(
       const evMap = byTournament.get(t.tournamentId)
       if (!evMap) continue
       const events: PlayerEventResult[] = []
-      for (const [k, eventRefs] of evMap) {
+      for (const [k, eventRefs] of Array.from(evMap.entries())) {
         const [eventId, eventName] = k.split('|')
         const teamSize = eventRefs[0]?.partners.length === 0 ? 1 : 2
         const finish = bestFinishFor(eventRefs)
@@ -274,10 +274,10 @@ export function buildIndex(
   // Match character pass
   const NINETY_DAYS_MS = 90 * 86400 * 1000
   let maxIso = ''
-  for (const sc of scratches.values()) for (const r of sc.refs) if ((r.scheduledDateIso || '') > maxIso) maxIso = (r.scheduledDateIso || '')
+  for (const sc of Array.from(scratches.values())) for (const r of sc.refs) if ((r.scheduledDateIso || '') > maxIso) maxIso = (r.scheduledDateIso || '')
   const nowMs = maxIso ? Date.parse(maxIso) : 0
 
-  for (const [slug, rec] of records) {
+  for (const [slug, rec] of Array.from(records.entries())) {
     const refs = scratches.get(slug)?.refs || []
     if (refs.length === 0) continue
 
@@ -348,7 +348,7 @@ export function buildIndex(
         }
       }
     }
-    rec.opponents = [...oppMap.entries()]
+    rec.opponents = Array.from(oppMap.entries())
       .map(([slug, a]) => ({ slug, name: a.name, meetings: a.meetings, wins: a.wins, losses: a.losses, lastRound: a.lastRound, lastEvent: a.lastEvent }))
       .sort((a, b) => b.meetings - a.meetings || b.wins - a.wins || a.slug.localeCompare(b.slug))
       .slice(0, 12)
@@ -368,9 +368,9 @@ export function buildIndex(
         acc.events.set(r.eventName, (acc.events.get(r.eventName) || 0) + 1)
       }
     }
-    rec.partners = [...partMap.entries()]
+    rec.partners = Array.from(partMap.entries())
       .map(([slug, a]) => {
-        const primaryEvent = [...a.events.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] || ''
+        const primaryEvent = Array.from(a.events.entries()).sort((x, y) => y[1] - x[1])[0]?.[0] || ''
         return { slug, name: a.name, matchesTogether: a.matches, wins: a.wins, losses: a.losses, primaryEvent }
       })
       .sort((a, b) => b.matchesTogether - a.matchesTogether || b.wins - a.wins || a.slug.localeCompare(b.slug))
@@ -384,7 +384,7 @@ export function buildIndex(
   }))
 
   const players: Record<string, PlayerRecord> = {}
-  for (const [slug, rec] of records) players[slug] = rec
+  for (const [slug, rec] of Array.from(records.entries())) players[slug] = rec
 
   const index: PlayerIndex = {
     version: 1, provider,

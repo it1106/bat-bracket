@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { parseTournamentsTxt } from '@/lib/tournaments-txt'
 import { listAllSidecar } from '@/lib/providers/bwf/sidecar'
-import type { TournamentRef } from '@/lib/types'
+import type { TournamentRef, ProviderTag } from '@/lib/types'
 
 interface RegistryEntry extends TournamentRef { done: boolean }
 
