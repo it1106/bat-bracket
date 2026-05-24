@@ -879,6 +879,12 @@ export default function Home() {
                 {t('exportJpg')}
               </button>
             )}
+            <a
+              href="/leaderboards"
+              title={t('leaderboards')}
+              aria-label={t('leaderboards')}
+              className="inline-flex items-center justify-center w-[30px] h-[28px] rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] text-sm"
+            >🏆</a>
             <AlertBell
               alerts={alerts}
               onDismiss={() => setAlerts(dismissAlerts())}
@@ -1160,6 +1166,7 @@ export default function Home() {
           onClose={handleModalClose}
           onH2HClick={handleH2HClick}
           onPlayerClick={playerClickHandler}
+          provider={tournaments.find((x) => x.id === selectedTournament)?.provider}
         />
       )}
 

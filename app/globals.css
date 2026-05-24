@@ -2463,3 +2463,137 @@ html.dark .ms-match--next-opp {
 @media (prefers-reduced-motion: reduce) {
   .alert-bell-pulse { animation: none; opacity: 0; }
 }
+
+/* ── Deep player stats: profile page (.pp-*) ── */
+.pp-page { max-width: 880px; margin: 0 auto; padding: 16px; }
+.pp-back { display: inline-flex; align-items: center; gap: 4px;
+  margin-bottom: 12px; padding: 6px 12px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--fg); font-size: 13px; font-weight: 600; text-decoration: none; }
+.pp-back:hover { background: var(--bg); }
+.pp-hdr { background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 18px 14px; margin-bottom: 14px; }
+.pp-hdr h1 { margin: 0; font-size: 22px; font-weight: 700; }
+.pp-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px;
+  color: var(--muted); font-size: 13px; }
+.pp-meta strong { color: var(--fg); font-weight: 600; }
+.pp-badges { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.pp-rank-badge { display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px 5px 8px; border-radius: 999px;
+  background: var(--info-bg); color: var(--info-fg); font-size: 12px;
+  font-weight: 600; text-decoration: none; border: 1px solid transparent; }
+.pp-rank-badge:hover { border-color: var(--info-fg); }
+.pp-rank-badge .pp-rk { background: var(--info-fg); color: var(--surface);
+  border-radius: 999px; padding: 2px 7px; font-size: 11px; font-weight: 700; }
+.pp-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 8px; margin-bottom: 14px; }
+.pp-kpi { background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 10px; text-align: center; }
+.pp-kpi-num { font-size: 22px; font-weight: 700; color: var(--brand-fg); line-height: 1; }
+.pp-kpi-lbl { font-size: 11px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-top: 6px; }
+@media (max-width: 520px) { .pp-kpi-row { grid-template-columns: repeat(2, 1fr); } }
+.pp-section { background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+.pp-section h2 { margin: 0 0 12px; font-size: 14px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.pp-disc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.pp-disc { padding: 10px 12px; border-radius: 10px; background: var(--score-bg);
+  border: 1px solid var(--border); }
+.pp-disc-name { font-size: 12px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.05em; }
+.pp-disc-wl { font-size: 18px; font-weight: 700; margin-top: 4px; }
+.pp-disc-pct { font-size: 12px; color: var(--win-fg); font-weight: 600; }
+.pp-disc-ttl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.pp-tour { padding: 12px 0; border-bottom: 1px solid var(--row-sep); }
+.pp-tour:last-child { border-bottom: none; }
+.pp-tour-name-row { display: flex; justify-content: space-between;
+  align-items: baseline; gap: 12px; }
+.pp-tour-name { font-weight: 600; font-size: 14px; }
+.pp-tour-date { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.pp-events { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pp-ev-chip { display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: 999px; background: var(--score-bg);
+  border: 1px solid var(--border); font-size: 12px; }
+.pp-ev-chip-finish { font-weight: 700; color: var(--brand-fg); }
+.pp-ev-chip-wl { color: var(--win-fg); font-weight: 600; font-size: 11px; }
+.pp-ev-chip.pp-champ { background: linear-gradient(135deg, #fff7d6, #fde68a);
+  border-color: #facc15; color: #78350f; }
+html.dark .pp-ev-chip.pp-champ { background: rgba(212,175,55,0.18);
+  border-color: rgba(212,175,55,0.5); color: #fde68a; }
+.pp-form-strip { display: flex; gap: 4px; flex-wrap: wrap; }
+.pp-form-cell { width: 28px; height: 28px; border-radius: 6px;
+  display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; }
+.pp-form-cell.pp-w { background: #16a34a; }
+.pp-form-cell.pp-l { background: var(--red); }
+.pp-form-cell.pp-wo { background: var(--muted); font-size: 10px; }
+.pp-char-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.pp-char-card { padding: 10px 12px; border-radius: 10px;
+  background: var(--score-bg); border: 1px solid var(--border); }
+.pp-char-label { font-size: 11px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.05em; }
+.pp-char-value { font-size: 17px; font-weight: 700; margin-top: 4px; }
+.pp-char-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.pp-ppl-list { display: grid; gap: 8px; }
+.pp-ppl-row { display: grid; grid-template-columns: 1fr auto auto;
+  gap: 12px; align-items: center; padding: 8px 12px;
+  background: var(--score-bg); border: 1px solid var(--border); border-radius: 8px;
+  text-decoration: none; color: inherit; }
+.pp-ppl-name { font-size: 13px; font-weight: 500; }
+.pp-ppl-met { font-size: 11px; color: var(--muted); }
+.pp-ppl-wl { font-size: 12px; font-weight: 700; }
+.pp-ppl-wl .pp-w { color: var(--win-fg); }
+.pp-ppl-wl .pp-l { color: var(--red); }
+.pp-source-note { font-size: 11px; color: var(--muted); margin-top: 18px;
+  text-align: center; padding-bottom: 24px; }
+
+/* ── Deep player stats: leaderboards page (.lb-*) ── */
+.lb-page { max-width: 1080px; margin: 0 auto; padding: 16px; }
+.lb-hdr { background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px; margin-bottom: 14px; text-align: center; }
+.lb-hdr h1 { margin: 0; color: var(--brand-fg); font-size: 22px; }
+.lb-hdr .lb-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.lb-tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.lb-tab { padding: 6px 12px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 12px; cursor: pointer; font-weight: 600; color: var(--fg);
+  text-decoration: none; }
+.lb-tab.lb-active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.lb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .lb-grid { grid-template-columns: 1fr; } }
+.lb-card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px; }
+.lb-card h3 { margin: 0 0 10px; font-size: 13px;
+  display: flex; align-items: center; justify-content: space-between; }
+.lb-card-ico { margin-right: 6px; }
+.lb-card-qual { font-size: 10px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.lb-row { display: grid; grid-template-columns: 22px 1fr auto;
+  gap: 8px; align-items: center; padding: 5px 0;
+  border-top: 1px solid var(--row-sep); font-size: 13px;
+  text-decoration: none; color: var(--fg); }
+.lb-row:first-of-type { border-top: none; }
+.lb-row .lb-rk { font-weight: 700; color: var(--muted); font-size: 11px; text-align: right; }
+.lb-row .lb-rk.lb-r1 { color: #d4af37; }
+.lb-row .lb-rk.lb-r2 { color: #c0c0c0; }
+.lb-row .lb-rk.lb-r3 { color: #cd7f32; }
+.lb-row .lb-club { font-size: 10px; color: var(--muted); }
+.lb-row .lb-val { font-weight: 700; color: var(--brand-fg); font-size: 13px; }
+.lb-empty { text-align: center; color: var(--muted); padding: 40px 0; }
+
+/* ── Home: Leaderboards card ── */
+.home-leaderboards-card { display: flex; justify-content: space-between; align-items: center;
+  gap: 10px; padding: 14px 16px; border: 1px solid var(--brand);
+  border-radius: 14px; background: var(--surface); margin: 12px 0;
+  text-decoration: none; color: var(--fg); }
+.home-lb-ic { width: 36px; height: 36px; border-radius: 10px;
+  background: var(--brand); color: #fff; display: grid; place-items: center; font-size: 18px; }
+.home-leaderboards-card strong { font-weight: 700; font-size: 14px; display: block; }
+.home-leaderboards-card small { font-size: 11px; color: var(--muted); }
+
+/* ── PlayerModal: full-profile link ── */
+.pm-full-profile-link { display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 10px; padding: 7px 12px;
+  background: var(--info-bg); color: var(--info-fg); border-radius: 8px;
+  font-size: 12px; font-weight: 600; text-decoration: none; }
+.pm-full-profile-link:hover { filter: brightness(0.95); }

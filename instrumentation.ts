@@ -12,11 +12,26 @@ export async function register() {
 
     const { listAllTournaments } = await import('./lib/tournaments-registry')
 
+    const { rebuildAll, makeOriginDayFetcher } = await import('./lib/player-index-rebuild')
+
     ;(async () => {
       await prewarmMatchesFullCache()
       await prewarmDrawsCache()
       await prewarmBracketCache()
       await prewarmEventBundleCache()
+
+      // Build the cross-tournament player index from the now-warm caches.
+      // ensureDay self-fetches any day not yet pinned (fresh server) via the
+      // local matches route. Idempotent: skips providers whose sourceVersion
+      // is unchanged, so reboots with a warm cache are cheap.
+      try {
+        const port = process.env.PORT || '3000'
+        const origin = `http://127.0.0.1:${port}`
+        const result = await rebuildAll({ ensureDay: makeOriginDayFetcher(origin) })
+        console.log(`[player-index] boot rebuild: ${JSON.stringify(result)}`)
+      } catch (err) {
+        console.warn('[player-index] boot rebuild failed:', err)
+      }
       // BWF: prime Chromium context so first user request doesn't pay cold-start.
       // Skip if no BWF tournament is currently active — Chromium otherwise sits
       // around using ~250-500 MB for nothing. The first real BWF request will

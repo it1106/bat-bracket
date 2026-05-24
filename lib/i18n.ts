@@ -192,6 +192,31 @@ export type TKey =
   | 'alertsNewTournaments'
   | 'alertsNewSchedule'
   | 'alertsBellAria'
+  | 'viewFullProfile'
+  | 'playerProfile'
+  | 'byDiscipline'
+  | 'singles' | 'doubles' | 'mixed'
+  | 'tournamentHistory'
+  | 'recentForm'
+  | 'matchCharacter'
+  | 'frequentOpponents'
+  | 'frequentPartners'
+  | 'courtTime'
+  | 'avgMatch'
+  | 'longestMatch'
+  | 'threeSetterRate'
+  | 'comebackWins'
+  | 'walkoversReceived'
+  | 'walkoversGiven'
+  | 'champion'
+  | 'leaderboards'
+  | 'leaderboardsSub'
+  | 'lbHeadline' | 'lbDiscipline' | 'lbCharacter' | 'lbActivity'
+  | 'lbMostTitles' | 'lbMostWins' | 'lbHighestWinPct' | 'lbMostCourtTime'
+  | 'lbBestSingles' | 'lbBestDoubles' | 'lbBestMixed'
+  | 'lbThreeSetterWins' | 'lbComebackWins' | 'lbDeciderRecord'
+  | 'lbMatchesLast90' | 'lbTournamentsEntered'
+  | 'min20' | 'min10' | 'min5'
 
 const dict: Record<Lang, Record<TKey, string>> = {
   en: {
@@ -321,6 +346,46 @@ const dict: Record<Lang, Record<TKey, string>> = {
     alertsNewTournaments: 'New tournaments',
     alertsNewSchedule: 'New Schedule Published',
     alertsBellAria: 'Notifications',
+    viewFullProfile: 'View full profile',
+    playerProfile: 'Player Profile',
+    byDiscipline: 'By discipline',
+    singles: 'Singles',
+    doubles: 'Doubles',
+    mixed: 'Mixed',
+    tournamentHistory: 'Tournament history',
+    recentForm: 'Recent form',
+    matchCharacter: 'Match character',
+    frequentOpponents: 'Frequent opponents',
+    frequentPartners: 'Frequent partners',
+    courtTime: 'Court time',
+    avgMatch: 'Avg match',
+    longestMatch: 'Longest match',
+    threeSetterRate: 'Three-setter rate',
+    comebackWins: 'Comeback wins',
+    walkoversReceived: 'Walkovers received',
+    walkoversGiven: 'Walkovers given',
+    champion: 'Champion',
+    leaderboards: 'Leaderboards',
+    leaderboardsSub: 'Career titles · wins · win % · court time',
+    lbHeadline: 'Headline',
+    lbDiscipline: 'Discipline',
+    lbCharacter: 'Character',
+    lbActivity: 'Activity',
+    lbMostTitles: 'Most Titles',
+    lbMostWins: 'Most Wins',
+    lbHighestWinPct: 'Highest Win %',
+    lbMostCourtTime: 'Most Court Time',
+    lbBestSingles: 'Best Singles',
+    lbBestDoubles: 'Best Doubles',
+    lbBestMixed: 'Best Mixed',
+    lbThreeSetterWins: 'Three-setter Wins',
+    lbComebackWins: 'Comeback Wins',
+    lbDeciderRecord: 'Decider Record',
+    lbMatchesLast90: 'Matches (last 90 days)',
+    lbTournamentsEntered: 'Tournaments Entered',
+    min20: 'min 20 matches',
+    min10: 'min 10 matches',
+    min5: 'min 5 deciders',
   },
   th: {
     appTitle1: 'BAT',
@@ -449,6 +514,46 @@ const dict: Record<Lang, Record<TKey, string>> = {
     alertsNewTournaments: 'ทัวร์นาเมนต์ใหม่',
     alertsNewSchedule: 'ประกาศเวลาแข่งใหม่',
     alertsBellAria: 'การแจ้งเตือน',
+    viewFullProfile: 'ดูโปรไฟล์เต็ม',
+    playerProfile: 'โปรไฟล์ผู้เล่น',
+    byDiscipline: 'แยกตามประเภท',
+    singles: 'เดี่ยว',
+    doubles: 'คู่',
+    mixed: 'คู่ผสม',
+    tournamentHistory: 'ประวัติการแข่ง',
+    recentForm: 'ฟอร์มล่าสุด',
+    matchCharacter: 'ลักษณะการแข่ง',
+    frequentOpponents: 'คู่ต่อสู้ที่พบบ่อย',
+    frequentPartners: 'คู่ที่เล่นด้วยกันบ่อย',
+    courtTime: 'เวลาในสนาม',
+    avgMatch: 'แมตช์เฉลี่ย',
+    longestMatch: 'แมตช์ยาวที่สุด',
+    threeSetterRate: 'อัตราเกมสามเซต',
+    comebackWins: 'ชนะแบบพลิกกลับมา',
+    walkoversReceived: 'ได้บาย',
+    walkoversGiven: 'ให้บาย',
+    champion: 'แชมป์',
+    leaderboards: 'ตารางอันดับ',
+    leaderboardsSub: 'แชมป์ · ชนะ · เปอร์เซ็นต์ชนะ · เวลาในสนาม',
+    lbHeadline: 'หลัก',
+    lbDiscipline: 'ประเภท',
+    lbCharacter: 'ลักษณะ',
+    lbActivity: 'กิจกรรม',
+    lbMostTitles: 'แชมป์มากที่สุด',
+    lbMostWins: 'ชนะมากที่สุด',
+    lbHighestWinPct: 'เปอร์เซ็นต์ชนะสูงสุด',
+    lbMostCourtTime: 'เวลาในสนามมากที่สุด',
+    lbBestSingles: 'เดี่ยวยอดเยี่ยม',
+    lbBestDoubles: 'คู่ยอดเยี่ยม',
+    lbBestMixed: 'คู่ผสมยอดเยี่ยม',
+    lbThreeSetterWins: 'ชนะสามเซต',
+    lbComebackWins: 'ชนะพลิกกลับมา',
+    lbDeciderRecord: 'สถิติเซตตัดสิน',
+    lbMatchesLast90: 'แมตช์ (90 วันล่าสุด)',
+    lbTournamentsEntered: 'จำนวนทัวร์ที่เข้า',
+    min20: 'อย่างน้อย 20 แมตช์',
+    min10: 'อย่างน้อย 10 แมตช์',
+    min5: 'อย่างน้อย 5 เซตตัดสิน',
   },
 }
 
