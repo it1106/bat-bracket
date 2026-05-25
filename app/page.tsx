@@ -11,7 +11,6 @@ import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
 import Link from 'next/link'
 import { useLongPress } from '@/lib/useLongPress'
-import { consumeIntentionalNav, setIntentionalNav } from '@/lib/nav-intent'
 import { usePointerReorder } from '@/lib/usePointerReorder'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import {
@@ -221,13 +220,6 @@ export default function Home() {
     }
   }, [liveByCourt, selectedTournament, selectedDay])
 
-  useEffect(() => {
-    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
-    if (!selectedTournament || !isMobile) return
-    const handler = (e: BeforeUnloadEvent) => { if (!consumeIntentionalNav()) e.preventDefault() }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [selectedTournament])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -902,7 +894,6 @@ export default function Home() {
               title={t('leaderboards')}
               aria-label={t('leaderboards')}
               className="inline-flex items-center justify-center w-[30px] h-[28px] rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] text-sm"
-              onClick={setIntentionalNav}
             >🏆</Link>
             <AlertBell
               alerts={alerts}
