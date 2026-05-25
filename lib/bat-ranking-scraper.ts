@@ -16,7 +16,7 @@ function playerLinkText(cell: string): string {
 
 // Extract text from the last <a> in a cell (used for club column)
 function lastLinkText(cell: string): string {
-  const matches = [...cell.matchAll(/<a\s[^>]*>([\s\S]*?)<\/a>/gi)]
+  const matches = Array.from(cell.matchAll(/<a\s[^>]*>([\s\S]*?)<\/a>/gi))
   if (matches.length === 0) return stripTags(cell)
   return stripTags(matches[matches.length - 1][1])
 }
@@ -55,7 +55,7 @@ function parseRulerTable(tableHtml: string): { eventName: string; entries: BatRa
 
     // Club: last <a> in the row (the club link is the last anchor)
     // We need to get the last <td> in the row for the club
-    const tds = [...row.matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/gi)]
+    const tds = Array.from(row.matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/gi))
     const club = tds.length > 0 ? lastLinkText(tds[tds.length - 1][1]) : ''
 
     entries.push({ rank, name, slug: nameToSlug(name), club, points: isNaN(points) ? 0 : points })
