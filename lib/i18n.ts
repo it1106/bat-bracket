@@ -379,7 +379,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     leaderboards: 'Leaderboards',
     leaderboardsSub: 'Career titles · wins · win % · court time',
     lbHeadline: 'Headline',
-    lbDiscipline: 'Discipline',
+    lbDiscipline: 'Event',
     lbCharacter: 'Character',
     lbActivity: 'Activity',
     lbRanking: 'Ranking',
