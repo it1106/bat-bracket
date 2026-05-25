@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio'
 import { getTodayIso } from './today'
-import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch, MatchPlayer, MatchScore, StandingsRow, SeedEvent, SeedEntry } from './types'
+import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch, MatchPlayer, MatchScore, StandingsRow, SeedEvent } from './types'
 
 function extractId(url: string): string {
   const match = url.match(/\/tournament\/([^/]+)/)
