@@ -1,5 +1,6 @@
 import { batFetch } from '@/lib/bat-fetch'
 import { parseOverviewNotes, parseSeedEntries } from '@/lib/scraper'
+import { eventRank } from '@/lib/tournamentStats'
 import type { TournamentOverview } from '@/lib/types'
 
 const HEADERS = {
@@ -21,9 +22,16 @@ export async function fetchAndCache(id: string, done = false): Promise<Tournamen
     ? parseOverviewNotes(await overviewRes.value.text())
     : []
 
-  const seedEvents = seedsRes.status === 'fulfilled' && seedsRes.value.ok
+  const rawSeeds = seedsRes.status === 'fulfilled' && seedsRes.value.ok
     ? parseSeedEntries(await seedsRes.value.text())
     : []
+  // Strip " - Main Draw" / " - Qualifying" suffixes to get the canonical
+  // event key (e.g. "BS U15") that eventRank recognises.
+  const seedEvents = rawSeeds.slice().sort((a, b) => {
+    const keyA = a.eventName.replace(/ - .*$/, '').trim()
+    const keyB = b.eventName.replace(/ - .*$/, '').trim()
+    return eventRank(keyA) - eventRank(keyB)
+  })
 
   const data: TournamentOverview = { notes, seedEvents }
   cache.set(id, { data, ts: Date.now(), ...(done && { done: true }) })

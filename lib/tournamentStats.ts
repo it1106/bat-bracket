@@ -197,7 +197,7 @@ const EVENT_RANK = (() => {
   return map
 })()
 
-function eventRank(name: string): number {
+export function eventRank(name: string): number {
   return EVENT_RANK.get(name) ?? 999
 }
 

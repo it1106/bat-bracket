@@ -432,7 +432,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     exportJpg: '↓ บันทึกรูปภาพ',
     overview: 'ภาพรวม',
     tournamentInformation: 'ข้อมูลการแข่งขัน',
-    seededEntries: 'ซีดรายการ',
+    seededEntries: 'การวางมือ',
     bracket: 'ตารางแข่ง',
     matchSchedule: 'ตารางเวลา',
     winner: 'ผู้ชนะ',
