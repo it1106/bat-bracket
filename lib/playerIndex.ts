@@ -186,6 +186,10 @@ function emptyRecord(provider: ProviderTag, slug: string, name: string): PlayerR
 
 function parseDurationToMinutes(raw?: string): number | undefined {
   if (!raw) return undefined
+  // "25 mins" or "25 min" (BWF format)
+  const mins = raw.match(/^(\d+)\s*mins?$/i)
+  if (mins) { const v = parseInt(mins[1], 10); return v > 0 ? v : undefined }
+  // "1h 30m" or "45m" (BAT format)
   const m = raw.match(/(?:(\d+)h)?\s*(?:(\d+)m)?/)
   if (!m) return undefined
   const h = parseInt(m[1] || '0', 10)
