@@ -51,7 +51,7 @@ export default function PlayerProfileView({ record, batRanking }: Props) {
 
   return (
     <div className="pp-page">
-      <Link href="/" className="pp-back">← Home</Link>
+      <Link href="/leaderboards" className="pp-back">← Leaderboards</Link>
       <div className="pp-hdr">
         <h1>{record.displayName}</h1>
         <div className="pp-meta">
