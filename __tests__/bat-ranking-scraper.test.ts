@@ -1,4 +1,4 @@
-import { parseBatRanking, parseCategoryList, parseCategoryPage } from '@/lib/bat-ranking-scraper'
+import { parseBatRanking, parseCategoryList, parseCategoryPage, eventCodeFromName } from '@/lib/bat-ranking-scraper'
 
 // Fixture matches the actual bat.tournamentsoftware.com/ranking/ranking.aspx?rid=188 structure.
 // There is ONE <table class="ruler"> containing all events. Events are separated by
@@ -174,5 +174,26 @@ describe('parseCategoryPage', () => {
     expect(entries[0].rank).toBe(1)
     expect(entries[0].name).toBe('ปาณชัย บุญมาก')
     expect(entries[0].points).toBe(146240)
+  })
+})
+
+describe('eventCodeFromName', () => {
+  it('distinguishes Men from Women (Women contains "Men")', () => {
+    expect(eventCodeFromName("U23 Men's singles")).toBe('U23_MS')
+    expect(eventCodeFromName("U23 Women's singles")).toBe('U23_WS')
+    expect(eventCodeFromName("U23 Men's doubles")).toBe('U23_MD')
+    expect(eventCodeFromName("U23 Women's doubles")).toBe('U23_WD')
+  })
+
+  it('handles Boys/Girls junior naming', () => {
+    expect(eventCodeFromName("U17 Boys singles")).toBe('U17_MS')
+    expect(eventCodeFromName("U17 Girls singles")).toBe('U17_WS')
+    expect(eventCodeFromName("U13 Boys doubles")).toBe('U13_MD')
+    expect(eventCodeFromName("U13 Girls doubles")).toBe('U13_WD')
+  })
+
+  it('handles Mixed doubles', () => {
+    expect(eventCodeFromName("U23 Mixed doubles")).toBe('U23_MXD')
+    expect(eventCodeFromName("U15 Mixed doubles")).toBe('U15_MXD')
   })
 })

@@ -49,11 +49,12 @@ export function eventCodeFromName(name: string): string {
   const ageMatch = upper.match(/\b(U\d+)\b/)
   const age = ageMatch ? ageMatch[1] : ''
   let disc = 'XX'
+  // NOTE: check WOMEN/GIRL before MEN/BOY — "WOMEN" contains "MEN"
   if (/(MIXED|XD)/.test(upper)) disc = 'MXD'
-  else if (/(MEN|BOY)/.test(upper) && /(DOUBLE)/.test(upper)) disc = 'MD'
   else if (/(WOME|GIRL)/.test(upper) && /(DOUBLE)/.test(upper)) disc = 'WD'
-  else if (/(MEN|BOY)/.test(upper)) disc = 'MS'
+  else if (/(MEN|BOY)/.test(upper) && /(DOUBLE)/.test(upper)) disc = 'MD'
   else if (/(WOME|GIRL)/.test(upper)) disc = 'WS'
+  else if (/(MEN|BOY)/.test(upper)) disc = 'MS'
   return age ? `${age}_${disc}` : disc
 }
 
