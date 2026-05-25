@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { PlayerIndex, Leaderboards, ProviderTag } from './types'
+import type { PlayerIndex, Leaderboards, ProviderTag, PlayerIdentityMap } from './types'
 
 let root = path.join(process.cwd(), '.cache', 'players')
 
@@ -8,6 +8,7 @@ export function __setPlayersRootForTesting(dir: string): void { root = dir }
 
 function indexPath(p: ProviderTag): string { return path.join(root, `index-${p}.json`) }
 function lbPath(p: ProviderTag): string { return path.join(root, `leaderboards-${p}.json`) }
+function identityMapPath(): string { return path.join(root, 'player-identity-map.json') }
 
 // Parsed-result memo keyed by file mtime. The index is ~10 MB; re-parsing it on
 // every /api/players/exists (one per modal open) and every profile view is
@@ -57,4 +58,12 @@ export async function readLeaderboardsCache(provider: ProviderTag): Promise<Lead
 
 export async function writeLeaderboardsCache(lb: Leaderboards): Promise<void> {
   await writeJson(lbPath(lb.provider), lb)
+}
+
+export async function readIdentityMap(): Promise<PlayerIdentityMap | null> {
+  return readJsonMemo<PlayerIdentityMap>(identityMapPath())
+}
+
+export async function writeIdentityMap(map: PlayerIdentityMap): Promise<void> {
+  await writeJson(identityMapPath(), map)
 }

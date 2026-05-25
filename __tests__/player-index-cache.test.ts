@@ -4,9 +4,10 @@ import path from 'path'
 import {
   readIndexCache, writeIndexCache,
   readLeaderboardsCache, writeLeaderboardsCache,
+  readIdentityMap, writeIdentityMap,
   __setPlayersRootForTesting,
 } from '@/lib/player-index-cache'
-import type { PlayerIndex, Leaderboards } from '@/lib/types'
+import type { PlayerIndex, Leaderboards, PlayerIdentityMap } from '@/lib/types'
 
 const emptyIndex = (provider: 'bat'|'bwf'): PlayerIndex => ({
   version: 1, provider, generatedAt: 'T', sourceVersion: 'v1',
@@ -42,5 +43,23 @@ describe('player-index-cache', () => {
     await writeLeaderboardsCache(emptyLb('bwf'))
     const out = await readLeaderboardsCache('bwf')
     expect(out?.boards).toEqual([])
+  })
+
+  it('returns null for identity map when file is missing', async () => {
+    expect(await readIdentityMap()).toBeNull()
+  })
+
+  it('round-trips an identity map', async () => {
+    const map: PlayerIdentityMap = {
+      generatedAt: '2026-05-25T00:00:00.000Z',
+      matches: [
+        { batSlug: 'bat_slug', bwfSlug: 'bwf_slug', confidence: 0.92, method: 'fuzzy' },
+        { batSlug: 'other', bwfSlug: 'other_bwf', confidence: 0.80, method: 'fuzzy', override: true },
+      ],
+    }
+    await writeIdentityMap(map)
+    const out = await readIdentityMap()
+    expect(out?.matches).toHaveLength(2)
+    expect(out?.matches[1].override).toBe(true)
   })
 })
