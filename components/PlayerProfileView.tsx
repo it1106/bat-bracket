@@ -3,7 +3,10 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import type { PlayerRecord, PlayerRanks } from '@/lib/types'
 
-interface Props { record: PlayerRecord }
+interface Props {
+  record: PlayerRecord
+  batRanking?: import('@/lib/types').BatRankingPlayerRank[]
+}
 
 function fmtPct(n: number): string { return `${Math.round(n * 100)}%` }
 function fmtHM(min: number): string {
@@ -25,7 +28,7 @@ const RANK_LABELS: Array<[keyof PlayerRanks, string, string]> = [
   ['threeSetterWins', '🔥', 'Three-setter Wins'],
 ]
 
-export default function PlayerProfileView({ record }: Props) {
+export default function PlayerProfileView({ record, batRanking }: Props) {
   const winPct = record.totals.matches > 0
     ? Math.round((record.totals.wins / record.totals.matches) * 100)
     : 0
@@ -69,6 +72,20 @@ export default function PlayerProfileView({ record }: Props) {
         </div>
       </div>
 
+      {batRanking && batRanking.length > 0 && (
+        <div className="pp-section pp-ranking-section">
+          <h2>Current Ranking</h2>
+          <div className="pp-ranking-list">
+            {batRanking.map(r => (
+              <div key={r.eventName} className="pp-ranking-row">
+                <span className="pp-ranking-event">{r.eventName}</span>
+                <span className="pp-ranking-pos">#{r.rank}</span>
+                <span className="pp-ranking-pts">{r.points.toLocaleString()} pts</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="pp-kpi-row">
         <div className="pp-kpi"><div className="pp-kpi-num">{record.totals.wins}</div><div className="pp-kpi-lbl">Wins</div></div>
         <div className="pp-kpi"><div className="pp-kpi-num">{record.totals.losses}</div><div className="pp-kpi-lbl">Losses</div></div>
