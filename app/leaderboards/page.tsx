@@ -5,12 +5,11 @@ import type { Leaderboards } from '@/lib/types'
 const EMPTY: Leaderboards = { version: 1, provider: 'bat', generatedAt: 'never', sourceVersion: '', boards: [] }
 
 export default async function LeaderboardsPage() {
-  const [bat, bwf, combined] = await Promise.all([
+  const [bat, bwf] = await Promise.all([
     readLeaderboardsCache('bat'),
     readLeaderboardsCache('bwf'),
-    readLeaderboardsCache('combined'),
   ])
-  const providers: Leaderboards[] = [bat, bwf, combined].filter(Boolean) as Leaderboards[]
+  const providers: Leaderboards[] = [bat, bwf].filter(Boolean) as Leaderboards[]
   return <LeaderboardsView leaderboards={providers.length ? providers : [EMPTY]} />
 }
 
