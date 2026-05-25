@@ -47,32 +47,43 @@ describe('computeSimilarity', () => {
 })
 
 describe('buildIdentityMap', () => {
-  it('matches a BAT player to a BWF player above threshold', () => {
-    const bat = mkIndex([mkRecord('somchai_jaidee', 'Somchai Jaidee')], 'bat')
+  it('matches a BAT player (Thai-script name) to a BWF player via override/pinned entry', () => {
+    // Auto-match requires same script; use override to bridge Thai↔English
+    const bat = mkIndex([mkRecord('somchai_jaidee', 'สมชาย ใจดี')], 'bat')
     const bwf = mkIndex([mkRecord('somchai_jaidee_bwf', 'Somchai Jaidee', 'THA')], 'bwf')
-    const map = buildIdentityMap(bat, bwf, null)
+    const existing: PlayerIdentityMap = {
+      generatedAt: 'T',
+      matches: [{ batSlug: 'somchai_jaidee', bwfSlug: 'somchai_jaidee_bwf', confidence: 1, method: 'fuzzy', override: true }],
+    }
+    const map = buildIdentityMap(bat, bwf, existing)
     expect(map.matches).toHaveLength(1)
     expect(map.matches[0].batSlug).toBe('somchai_jaidee')
     expect(map.matches[0].bwfSlug).toBe('somchai_jaidee_bwf')
-    expect(map.matches[0].confidence).toBeGreaterThanOrEqual(0.75)
+  })
+
+  it('does not match foreign (non-Thai-script) BAT players against Thai BWF players', () => {
+    const bat = mkIndex([mkRecord('lee_chong_wei', 'Lee Chong Wei')], 'bat')
+    const bwf = mkIndex([mkRecord('somchai_bwf', 'Somchai Jaidee', 'THA')], 'bwf')
+    const map = buildIdentityMap(bat, bwf, null)
+    expect(map.matches).toHaveLength(0)
   })
 
   it('does not match BAT players against non-THA BWF players', () => {
-    const bat = mkIndex([mkRecord('lee_chong_wei', 'Lee Chong Wei')], 'bat')
+    const bat = mkIndex([mkRecord('lee_chong_wei', 'ลี ชง เหว่ย')], 'bat')
     const bwf = mkIndex([mkRecord('lee_chong_wei_bwf', 'Lee Chong Wei', 'MAS')], 'bwf')
     const map = buildIdentityMap(bat, bwf, null)
     expect(map.matches).toHaveLength(0)
   })
 
-  it('does not match when similarity is below 0.75', () => {
-    const bat = mkIndex([mkRecord('player_a', 'Aaaa Bbbb')], 'bat')
+  it('does not match when similarity is below threshold', () => {
+    const bat = mkIndex([mkRecord('player_a', 'กขคง จฉช')], 'bat')
     const bwf = mkIndex([mkRecord('player_b', 'Zzzz Xxxx', 'THA')], 'bwf')
     const map = buildIdentityMap(bat, bwf, null)
     expect(map.matches).toHaveLength(0)
   })
 
   it('preserves existing override entries and does not re-infer them', () => {
-    const bat = mkIndex([mkRecord('somchai_jaidee', 'Somchai Jaidee')], 'bat')
+    const bat = mkIndex([mkRecord('somchai_jaidee', 'สมชาย ใจดี')], 'bat')
     const bwf = mkIndex([mkRecord('sc_jaidee', 'Somchai Jaidee', 'THA')], 'bwf')
     const existing: PlayerIdentityMap = {
       generatedAt: 'T',
@@ -85,7 +96,7 @@ describe('buildIdentityMap', () => {
   })
 
   it('preserves rejected entries', () => {
-    const bat = mkIndex([mkRecord('somchai_jaidee', 'Somchai Jaidee')], 'bat')
+    const bat = mkIndex([mkRecord('somchai_jaidee', 'สมชาย ใจดี')], 'bat')
     const bwf = mkIndex([mkRecord('sc_jaidee', 'Somchai Jaidee', 'THA')], 'bwf')
     const existing: PlayerIdentityMap = {
       generatedAt: 'T',

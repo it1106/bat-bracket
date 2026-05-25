@@ -36,24 +36,28 @@ function jaroWinkler(s1: string, s2: string): number {
   return j + prefix * 0.1 * (1 - j)
 }
 
-function bestTokenPairScore(a: string, b: string): number {
+// Average best-match score for each token in the shorter name against all tokens in the longer name.
+// Much stricter than single-best-pair: "ying" vs "yingluck kokarat" scores ~0.55, not 0.90.
+function alignedTokenScore(a: string, b: string): number {
   const ta = a.split(/\s+/).filter(Boolean)
   const tb = b.split(/\s+/).filter(Boolean)
-  let best = 0
-  for (const x of ta) for (const y of tb) {
-    const s = jaroWinkler(x, y)
-    if (s > best) best = s
+  const [shorter, longer] = ta.length <= tb.length ? [ta, tb] : [tb, ta]
+  let total = 0
+  for (const x of shorter) {
+    let best = 0
+    for (const y of longer) { const s = jaroWinkler(x, y); if (s > best) best = s }
+    total += best
   }
-  return best
+  return total / shorter.length
 }
 
 export function computeSimilarity(a: string, b: string): number {
   const al = a.toLowerCase().trim()
   const bl = b.toLowerCase().trim()
-  return Math.max(jaroWinkler(al, bl), bestTokenPairScore(al, bl))
+  return Math.max(jaroWinkler(al, bl), alignedTokenScore(al, bl))
 }
 
-const THRESHOLD = 0.75
+const THRESHOLD = 0.82
 
 export function buildIdentityMap(
   batIndex: PlayerIndex,
@@ -72,8 +76,11 @@ export function buildIdentityMap(
 
   for (const batPlayer of Object.values(batIndex.players)) {
     if (pinned.has(batPlayer.key.slug)) continue
+    // Only match BAT players who have Thai-script names; skip foreign players
+    const allBatNames = [batPlayer.displayName, ...batPlayer.altNames].filter(Boolean)
+    if (!allBatNames.some(n => /[ก-ฮ]/.test(n))) continue
 
-    const batNames = [batPlayer.displayName, ...batPlayer.altNames].filter(Boolean)
+    const batNames = allBatNames
     let bestScore = 0
     let bestBwfSlug = ''
 
