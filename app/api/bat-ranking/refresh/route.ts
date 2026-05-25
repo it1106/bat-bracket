@@ -1,16 +1,34 @@
 import { NextResponse } from 'next/server'
 import { batFetch } from '@/lib/bat-fetch'
 import { parseCategoryList, parseCategoryPage, parsePublishDate, eventCodeFromName } from '@/lib/bat-ranking-scraper'
-import { writeBatRankingCache } from '@/lib/bat-ranking-cache'
+import { readBatRankingCache, writeBatRankingCache } from '@/lib/bat-ranking-cache'
 import type { BatRankingEvent } from '@/lib/types'
 
 const BASE_URL = 'https://bat.tournamentsoftware.com/ranking'
 const OVERVIEW_URL = `${BASE_URL}/ranking.aspx?rid=188`
 const UA = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' }
+const TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
-export async function POST() {
+export async function POST(req: Request) {
+  const force = new URL(req.url).searchParams.get('force') === 'true'
+
+  if (!force) {
+    const cached = await readBatRankingCache()
+    if (cached) {
+      const ageMs = Date.now() - new Date(cached.scrapedAt).getTime()
+      if (ageMs < TTL_MS) {
+        const ageHours = (ageMs / 3_600_000).toFixed(1)
+        return NextResponse.json({
+          skipped: true,
+          reason: `cached data is only ${ageHours}h old (TTL 24h). Use ?force=true to override.`,
+          scrapedAt: cached.scrapedAt,
+          eventsFound: cached.events.length,
+        })
+      }
+    }
+  }
+
   try {
-    // Step 1: fetch overview to get publish date and category list
     const overviewRes = await batFetch('ranking-overview', OVERVIEW_URL, { headers: UA })
     if (!overviewRes.ok) {
       return NextResponse.json({ error: `upstream ${overviewRes.status}` }, { status: 502 })
@@ -23,7 +41,6 @@ export async function POST() {
       return NextResponse.json({ error: 'no categories found on overview page' }, { status: 502 })
     }
 
-    // Step 2: fetch each category page (top 50 per event)
     const events: BatRankingEvent[] = []
     for (const cat of categories) {
       const url = `${BASE_URL}/category.aspx?id=51771&category=${cat.id}&ps=50`
