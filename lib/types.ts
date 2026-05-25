@@ -523,6 +523,7 @@ export interface LeaderboardEntry {
   display: string
   qualifier?: string
   provider?: ProviderTag   // per-entry override for profile link; used by combined leaderboard
+  extra?: string           // optional secondary stat shown between name and value
 }
 
 export type LeaderboardCategory = 'headline' | 'discipline' | 'character' | 'activity' | 'ranking'
@@ -550,6 +551,7 @@ export interface BatRankingEntry {
   slug: string
   club: string
   points: number
+  tournaments: number
 }
 
 export interface BatRankingEvent {

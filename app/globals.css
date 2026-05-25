@@ -2601,12 +2601,14 @@ html.dark .pp-ev-chip.pp-champ { background: rgba(212,175,55,0.18);
   gap: 8px; align-items: center; padding: 5px 0;
   border-top: 1px solid var(--row-sep); font-size: 13px;
   text-decoration: none; color: var(--fg); }
+.lb-row-extra { grid-template-columns: 22px 1fr auto auto; }
 .lb-row:first-of-type { border-top: none; }
 .lb-row .lb-rk { font-weight: 700; color: var(--muted); font-size: 11px; text-align: right; }
 .lb-row .lb-rk.lb-r1 { color: #d4af37; }
 .lb-row .lb-rk.lb-r2 { color: #c0c0c0; }
 .lb-row .lb-rk.lb-r3 { color: #cd7f32; }
 .lb-row .lb-club { font-size: 10px; color: var(--muted); }
+.lb-row .lb-extra { font-size: 11px; color: var(--muted); }
 .lb-row .lb-val { font-weight: 700; color: var(--brand-fg); font-size: 13px; }
 .lb-empty { text-align: center; color: var(--muted); padding: 40px 0; }
 

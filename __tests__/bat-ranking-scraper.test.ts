@@ -81,6 +81,13 @@ describe('parseBatRanking', () => {
     expect(result.events[1].entries[0].points).toBe(6340)
   })
 
+  it('parses tournaments count (td between points and club)', () => {
+    const result = parseBatRanking(SAMPLE_HTML)
+    expect(result.events[0].entries[0].tournaments).toBe(13)
+    expect(result.events[0].entries[1].tournaments).toBe(7)
+    expect(result.events[1].entries[0].tournaments).toBe(5)
+  })
+
   it('parses club from the last td link', () => {
     const result = parseBatRanking(SAMPLE_HTML)
     expect(result.events[0].entries[0].club).toBe('Vayu Badminton Club')

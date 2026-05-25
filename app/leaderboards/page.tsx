@@ -13,6 +13,7 @@ function rankingEventToBoard(ev: BatRankingEvent): LeaderboardBoard {
     primaryClub: e.club,
     value: e.points,
     display: e.points.toLocaleString() + ' pts',
+    extra: `${e.tournaments} tn`,
   }))
   return {
     id: `ranking-${ev.eventCode.toLowerCase()}`,

@@ -122,12 +122,13 @@ export default function LeaderboardsView({ leaderboards }: Props) {
               <div className="lb-empty" style={{ padding: '12px 0' }}>—</div>
             ) : b.entries.map(e => (
               <Link key={e.slug} href={`/player/${e.provider ?? lb.provider}/${e.slug}`}
-                prefetch={false} className="lb-row">
+                prefetch={false} className={`lb-row${e.extra ? ' lb-row-extra' : ''}`}>
                 <div className={`lb-rk ${e.rank === 1 ? 'lb-r1' : e.rank === 2 ? 'lb-r2' : e.rank === 3 ? 'lb-r3' : ''}`}>{e.rank}</div>
                 <div>
                   <div>{e.name}</div>
                   <div className="lb-club">{e.primaryClub}</div>
                 </div>
+                {e.extra && <div className="lb-extra">{e.extra}</div>}
                 <div className="lb-val">{e.display}</div>
               </Link>
             ))}

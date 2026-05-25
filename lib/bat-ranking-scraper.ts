@@ -35,10 +35,19 @@ function parseEntries(html: string, limit = 50): BatRankingEntry[] {
     const name = playerLinkText(row)
     if (!name) continue
 
+    // Row layout (right-side columns): ... <td class="right rankingpoints">pts</td>
+    // <td class="right">tournaments</td> <td><a>club</a></td>
     const tds = Array.from(row.matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/gi))
     const club = tds.length > 0 ? lastLinkText(tds[tds.length - 1][1]) : ''
+    const tournaments = tds.length >= 2
+      ? parseInt(stripTags(tds[tds.length - 2][1]).replace(/[^\d]/g, ''), 10) || 0
+      : 0
 
-    entries.push({ rank, name, slug: nameToSlug(name), club, points: isNaN(points) ? 0 : points })
+    entries.push({
+      rank, name, slug: nameToSlug(name), club,
+      points: isNaN(points) ? 0 : points,
+      tournaments,
+    })
     if (entries.length >= limit) break
   }
   return entries
