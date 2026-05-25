@@ -12,6 +12,7 @@ const CATEGORIES: Array<{ id: LeaderboardCategory; key: TKey }> = [
   { id: 'discipline', key: 'lbDiscipline' },
   { id: 'character', key: 'lbCharacter' },
   { id: 'activity', key: 'lbActivity' },
+  { id: 'ranking', key: 'lbRanking' },
 ]
 
 const PROVIDER_LABELS: Record<ProviderTag, string> = {

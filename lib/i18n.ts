@@ -214,7 +214,8 @@ export type TKey =
   | 'champion'
   | 'leaderboards'
   | 'leaderboardsSub'
-  | 'lbHeadline' | 'lbDiscipline' | 'lbCharacter' | 'lbActivity'
+  | 'lbHeadline' | 'lbDiscipline' | 'lbCharacter' | 'lbActivity' | 'lbRanking'
+  | 'currentRanking'
   | 'lbMostTitles' | 'lbMostWins' | 'lbHighestWinPct' | 'lbMostCourtTime'
   | 'lbBestSingles' | 'lbBestDoubles' | 'lbBestMixed'
   | 'lbThreeSetterWins' | 'lbComebackWins' | 'lbDeciderRecord'
@@ -381,6 +382,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbDiscipline: 'Discipline',
     lbCharacter: 'Character',
     lbActivity: 'Activity',
+    lbRanking: 'Ranking',
+    currentRanking: 'Current Ranking',
     lbMostTitles: 'Most Titles',
     lbMostWins: 'Most Wins',
     lbHighestWinPct: 'Highest Win %',
@@ -564,6 +567,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbDiscipline: 'ประเภท',
     lbCharacter: 'ลักษณะ',
     lbActivity: 'กิจกรรม',
+    lbRanking: 'อันดับ',
+    currentRanking: 'อันดับปัจจุบัน',
     lbMostTitles: 'แชมป์มากที่สุด',
     lbMostWins: 'ชนะมากที่สุด',
     lbHighestWinPct: 'เปอร์เซ็นต์ชนะสูงสุด',
