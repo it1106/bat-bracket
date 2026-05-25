@@ -1,4 +1,4 @@
-import { parseBatRanking } from '@/lib/bat-ranking-scraper'
+import { parseBatRanking, parseCategoryList, parseCategoryPage } from '@/lib/bat-ranking-scraper'
 
 // Fixture matches the actual bat.tournamentsoftware.com/ranking/ranking.aspx?rid=188 structure.
 // There is ONE <table class="ruler"> containing all events. Events are separated by
@@ -133,5 +133,46 @@ ${rows}
 </table></body></html>`
     const result = parseBatRanking(html)
     expect(result.events).toEqual([])
+  })
+})
+
+describe('parseCategoryList', () => {
+  it('extracts category id and name pairs from overview page', () => {
+    const result = parseCategoryList(SAMPLE_HTML)
+    expect(result.length).toBe(2)
+    expect(result[0]).toEqual({ id: '5694', name: "U23 Men's singles" })
+    expect(result[1]).toEqual({ id: '5695', name: "U23 Women's singles" })
+  })
+
+  it('deduplicates category IDs (More links share same ID)', () => {
+    const html = `<table>
+<th colspan="9"><a href="category.aspx?id=1&category=99">U17 Boys singles</a></th>
+<th class="right"><a href="category.aspx?id=1&category=99">More</a></th>
+</table>`
+    const result = parseCategoryList(html)
+    expect(result.length).toBe(1)
+    expect(result[0].name).toBe('U17 Boys singles')
+  })
+})
+
+describe('parseCategoryPage', () => {
+  it('parses entries from a single-event category page', () => {
+    const html = `<table class="ruler">
+<tr>
+  <th colspan="2">Rank</th><th>Player</th><th>Points</th>
+</tr>
+<tr>
+  <td class="rank"><div style="">1</div></td><td>&nbsp;</td><td>&nbsp;</td>
+  <td><a href="player.aspx?id=1&player=123">ปาณชัย บุญมาก</a></td>
+  <td></td><td></td><td class="left">2008</td>
+  <td class="right rankingpoints">146240</td><td>13</td>
+  <td><a href="club.aspx">Vayu Badminton Club</a></td>
+</tr>
+</table>`
+    const entries = parseCategoryPage(html)
+    expect(entries.length).toBe(1)
+    expect(entries[0].rank).toBe(1)
+    expect(entries[0].name).toBe('ปาณชัย บุญมาก')
+    expect(entries[0].points).toBe(146240)
   })
 })
