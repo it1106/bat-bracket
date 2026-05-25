@@ -27,14 +27,13 @@ export default function LeaderboardsView({ leaderboards }: Props) {
   const [active, setActive] = useState<LeaderboardCategory>('headline')
   const [openHelp, setOpenHelp] = useState<string | null>(null)
   const helpRef = useRef<HTMLSpanElement | null>(null)
-  const tabsRef = useRef<HTMLDivElement | null>(null)
   const didMountRef = useRef(false)
 
   // Switching tabs (esp. away from Ranking with 34 boards) leaves the viewport
-  // scrolled into dead space below the new, shorter grid. Scroll back to tabs.
+  // scrolled into dead space below the new, shorter grid.
   useEffect(() => {
     if (!didMountRef.current) { didMountRef.current = true; return }
-    tabsRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' })
+    window.scrollTo(0, 0)
   }, [active])
 
   // Close a click-opened tooltip when tapping elsewhere (mobile).
@@ -86,10 +85,7 @@ export default function LeaderboardsView({ leaderboards }: Props) {
           ))}
         </div>
       )}
-      <div style={{ position: 'sticky', top: 0, zIndex: 100, background: 'yellow', color: 'black', padding: '4px 8px', fontSize: '12px', fontFamily: 'monospace' }}>
-        DEBUG: active={active} · visible={visible.length} · total={lb.boards.length}
-      </div>
-      <div className="lb-tabs" ref={tabsRef}>
+      <div className="lb-tabs">
         {CATEGORIES.map(c => (
           <button key={c.id}
             className={`lb-tab ${active === c.id ? 'lb-active' : ''}`}
