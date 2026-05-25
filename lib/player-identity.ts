@@ -1,0 +1,96 @@
+import type { PlayerIndex, PlayerIdentityMap, IdentityMatch } from './types'
+
+function jaro(s1: string, s2: string): number {
+  if (s1 === s2) return 1
+  const l1 = s1.length, l2 = s2.length
+  if (l1 === 0 || l2 === 0) return 0
+  const matchDist = Math.max(Math.floor(Math.max(l1, l2) / 2) - 1, 0)
+  const s1m = new Array<boolean>(l1).fill(false)
+  const s2m = new Array<boolean>(l2).fill(false)
+  let matches = 0
+  for (let i = 0; i < l1; i++) {
+    const start = Math.max(0, i - matchDist)
+    const end = Math.min(i + matchDist + 1, l2)
+    for (let j = start; j < end; j++) {
+      if (s2m[j] || s1[i] !== s2[j]) continue
+      s1m[i] = true; s2m[j] = true; matches++; break
+    }
+  }
+  if (matches === 0) return 0
+  let trans = 0, k = 0
+  for (let i = 0; i < l1; i++) {
+    if (!s1m[i]) continue
+    while (!s2m[k]) k++
+    if (s1[i] !== s2[k]) trans++
+    k++
+  }
+  return (matches / l1 + matches / l2 + (matches - trans / 2) / matches) / 3
+}
+
+function jaroWinkler(s1: string, s2: string): number {
+  const j = jaro(s1, s2)
+  let prefix = 0
+  for (let i = 0; i < Math.min(4, s1.length, s2.length); i++) {
+    if (s1[i] === s2[i]) prefix++; else break
+  }
+  return j + prefix * 0.1 * (1 - j)
+}
+
+function bestTokenPairScore(a: string, b: string): number {
+  const ta = a.split(/\s+/).filter(Boolean)
+  const tb = b.split(/\s+/).filter(Boolean)
+  let best = 0
+  for (const x of ta) for (const y of tb) {
+    const s = jaroWinkler(x, y)
+    if (s > best) best = s
+  }
+  return best
+}
+
+export function computeSimilarity(a: string, b: string): number {
+  const al = a.toLowerCase().trim()
+  const bl = b.toLowerCase().trim()
+  return Math.max(jaroWinkler(al, bl), bestTokenPairScore(al, bl))
+}
+
+const THRESHOLD = 0.75
+
+export function buildIdentityMap(
+  batIndex: PlayerIndex,
+  bwfIndex: PlayerIndex,
+  existing: PlayerIdentityMap | null,
+): PlayerIdentityMap {
+  // Preserve overrides and rejections; they take precedence over fresh inference
+  const pinned = new Map<string, IdentityMatch>()
+  for (const m of existing?.matches ?? []) {
+    if (m.override || m.rejected) pinned.set(m.batSlug, m)
+  }
+
+  const bwfTha = Object.values(bwfIndex.players).filter(p => p.country === 'THA')
+
+  const matches: IdentityMatch[] = [...pinned.values()]
+
+  for (const batPlayer of Object.values(batIndex.players)) {
+    if (pinned.has(batPlayer.key.slug)) continue
+
+    const batNames = [batPlayer.displayName, ...batPlayer.altNames].filter(Boolean)
+    let bestScore = 0
+    let bestBwfSlug = ''
+
+    for (const bwfPlayer of bwfTha) {
+      const bwfNames = [bwfPlayer.displayName, ...bwfPlayer.altNames].filter(Boolean)
+      for (const bn of batNames) {
+        for (const wn of bwfNames) {
+          const score = computeSimilarity(bn, wn)
+          if (score > bestScore) { bestScore = score; bestBwfSlug = bwfPlayer.key.slug }
+        }
+      }
+    }
+
+    if (bestScore >= THRESHOLD && bestBwfSlug) {
+      matches.push({ batSlug: batPlayer.key.slug, bwfSlug: bestBwfSlug, confidence: bestScore, method: 'fuzzy' })
+    }
+  }
+
+  return { generatedAt: '__GENERATED_AT__', matches }
+}
