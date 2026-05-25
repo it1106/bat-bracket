@@ -17,6 +17,8 @@ jest.mock('../lib/player-index-cache', () => ({
   readIndexCache: jest.fn(),
   writeIndexCache: jest.fn(),
   writeLeaderboardsCache: jest.fn(),
+  readIdentityMap: jest.fn(),
+  writeIdentityMap: jest.fn(),
 }))
 
 import { listAllTournaments } from '@/lib/tournaments-registry'
@@ -24,20 +26,24 @@ import { loadDiscovered } from '@/lib/discovery-store'
 import { readFullCache } from '@/lib/day-cache'
 import { readClubsCache } from '@/lib/clubs-cache'
 import { fetchTournamentPlayerClubs } from '@/lib/bracket-cache'
-import { readIndexCache, writeIndexCache, writeLeaderboardsCache } from '@/lib/player-index-cache'
+import { readIndexCache, writeIndexCache, writeLeaderboardsCache, readIdentityMap, writeIdentityMap } from '@/lib/player-index-cache'
 import { rebuildAll } from '@/lib/player-index-rebuild'
 
 describe('rebuildAll', () => {
   beforeEach(() => {
     jest.resetAllMocks()
     ;(loadDiscovered as jest.Mock).mockResolvedValue({ version: 1, entries: [] })
+    ;(readIdentityMap as jest.Mock).mockResolvedValue(null)
+    ;(writeIdentityMap as jest.Mock).mockResolvedValue(undefined)
   })
 
   it('skips providers with no registry tournaments', async () => {
     ;(listAllTournaments as jest.Mock).mockReturnValue([])
     const out = await rebuildAll()
     expect(out.rebuilt).toEqual([])
-    expect(out.skipped).toEqual(['bat', 'bwf'])
+    expect(out.skipped).toContain('bat')
+    expect(out.skipped).toContain('bwf')
+    expect(out.skipped).toContain('combined')
   })
 
   it('skips a provider whose tournaments have no pinned full cache', async () => {
@@ -81,5 +87,21 @@ describe('rebuildAll', () => {
     ;(readIndexCache as jest.Mock).mockResolvedValue(null)
     await rebuildAll()
     expect(fetchTournamentPlayerClubs).toHaveBeenCalledWith('id2')
+  })
+
+  it('builds combined index when both bat and bwf rebuild', async () => {
+    ;(listAllTournaments as jest.Mock).mockReturnValue([
+      { id: 'ID_BAT', provider: 'bat', done: false },
+      { id: 'ID_BWF', provider: 'bwf', done: false },
+    ])
+    ;(readFullCache as jest.Mock).mockResolvedValue({ days: [], groups: [], currentDate: '2026-05-01' })
+    ;(readClubsCache as jest.Mock).mockResolvedValue({})
+    ;(readIndexCache as jest.Mock).mockResolvedValue(null)
+    const out = await rebuildAll()
+    expect(out.rebuilt).toContain('combined')
+    expect(writeIdentityMap).toHaveBeenCalled()
+    expect(writeLeaderboardsCache).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'combined' })
+    )
   })
 })

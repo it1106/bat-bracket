@@ -6,9 +6,12 @@ import { readClubsCache, writeClubsCache } from '@/lib/clubs-cache'
 import { playerClubCache, fetchTournamentPlayerClubs } from '@/lib/bracket-cache'
 import {
   readIndexCache, writeIndexCache, writeLeaderboardsCache,
+  readIdentityMap, writeIdentityMap,
 } from '@/lib/player-index-cache'
 import { buildIndex } from '@/lib/playerIndex'
-import type { ProviderTag, PlayerIndexTournamentInput, MatchesData, MatchScheduleGroup } from '@/lib/types'
+import { buildIdentityMap } from '@/lib/player-identity'
+import { buildCombinedIndex, combinedSourceVersion } from '@/lib/player-index-merge'
+import type { ProviderTag, PlayerIndex, PlayerIndexTournamentInput, MatchesData, MatchScheduleGroup } from '@/lib/types'
 
 const PROVIDERS: ProviderTag[] = ['bat', 'bwf']
 let inflight: Promise<{ rebuilt: ProviderTag[]; skipped: ProviderTag[] }> | null = null
@@ -37,6 +40,7 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
   inflight = (async () => {
     const rebuilt: ProviderTag[] = []
     const skipped: ProviderTag[] = []
+    const builtIndexes = new Map<ProviderTag, PlayerIndex>()
     for (const provider of PROVIDERS) {
       try {
         // A tournament belongs in the index once it's entirely in the past,
@@ -125,6 +129,7 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
         index.sourceVersion = sv
         leaderboards.sourceVersion = sv
 
+        builtIndexes.set(provider, index)
         await writeIndexCache(index)
         await writeLeaderboardsCache(leaderboards)
         rebuilt.push(provider)
@@ -134,6 +139,41 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
         skipped.push(provider)
       }
     }
+
+    // Combined step: runs if both bat and bwf indexes are available
+    try {
+      const batIdx = builtIndexes.get('bat') ?? await readIndexCache('bat')
+      const bwfIdx = builtIndexes.get('bwf') ?? await readIndexCache('bwf')
+      if (batIdx && bwfIdx) {
+        const existingMap = await readIdentityMap()
+        const identityMap = buildIdentityMap(batIdx, bwfIdx, existingMap)
+        identityMap.generatedAt = new Date().toISOString()
+        await writeIdentityMap(identityMap)
+
+        const sv = combinedSourceVersion(batIdx.sourceVersion, bwfIdx.sourceVersion)
+        const existingCombined = await readIndexCache('combined')
+        if (existingCombined && existingCombined.sourceVersion === sv) {
+          skipped.push('combined')
+        } else {
+          const { index, leaderboards } = buildCombinedIndex(batIdx, bwfIdx, identityMap)
+          const now = new Date().toISOString()
+          index.generatedAt = now
+          leaderboards.generatedAt = now
+          index.sourceVersion = sv
+          leaderboards.sourceVersion = sv
+          await writeIndexCache(index)
+          await writeLeaderboardsCache(leaderboards)
+          rebuilt.push('combined')
+        }
+      } else {
+        skipped.push('combined')
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown'
+      console.log(`[player-index-rebuild] failed provider=combined err=${msg}`)
+      skipped.push('combined')
+    }
+
     return { rebuilt, skipped }
   })()
   try { return await inflight } finally { inflight = null }
