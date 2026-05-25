@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import type { PlayerRecord, PlayerRanks } from '@/lib/types'
+import type { PlayerRecord, PlayerRanks, PlayerStats, WLRecord } from '@/lib/types'
 
 interface Props {
   record: PlayerRecord
@@ -19,6 +19,11 @@ function disciplinePct(s: { wins: number; losses: number }): string {
   const total = s.wins + s.losses
   return total === 0 ? '—' : `${Math.round((s.wins / total) * 100)}%`
 }
+function wlPct(r: WLRecord): number | null {
+  const total = r.wins + r.losses
+  return total === 0 ? null : Math.round((r.wins / total) * 100)
+}
+function wl(r: WLRecord): string { return `${r.wins}–${r.losses}` }
 
 const RANK_LABELS: Array<[keyof PlayerRanks, string, string]> = [
   ['titles', '🏆', 'Most Titles'],
@@ -40,6 +45,18 @@ export default function PlayerProfileView({ record, batRanking }: Props) {
     if (window.history.length > 1) router.back()
     else router.push('/leaderboards')
   }
+
+  // Live extras (career/YTD stats + YOB) scraped from the BAT global profile.
+  const [extra, setExtra] = useState<{ yob: string; stats: PlayerStats } | null>(null)
+  useEffect(() => {
+    if (record.key.provider !== 'bat') return
+    const ctrl = new AbortController()
+    fetch(`/api/players/profile-extra?provider=bat&slug=${encodeURIComponent(record.key.slug)}`, { signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.stats) setExtra({ yob: d.yob ?? '', stats: d.stats }) })
+      .catch(() => { /* non-fatal */ })
+    return () => ctrl.abort()
+  }, [record.key.provider, record.key.slug])
 
   // Recent-form tooltips: hover (desktop) or tap-toggle (mobile).
   const [openForm, setOpenForm] = useState<number | null>(null)
@@ -64,6 +81,7 @@ export default function PlayerProfileView({ record, batRanking }: Props) {
         <h1>{record.displayName}</h1>
         <div className="pp-meta">
           {record.clubs[0] && <span>🏛 <strong>{record.clubs[0]}</strong></span>}
+          {extra?.yob && <span>🎂 <strong>{extra.yob}</strong></span>}
           {record.country && <span>🌐 <strong>{record.country}</strong></span>}
           <span>🏸 <strong>{record.tournaments.length}</strong> tournaments · {record.totals.matches} matches</span>
         </div>
@@ -101,6 +119,38 @@ export default function PlayerProfileView({ record, batRanking }: Props) {
         <div className="pp-kpi"><div className="pp-kpi-num">{winPct}%</div><div className="pp-kpi-lbl">Win Rate</div></div>
         <div className="pp-kpi"><div className="pp-kpi-num">{record.titles.length}</div><div className="pp-kpi-lbl">Titles</div></div>
       </div>
+
+      {extra?.stats && (
+        <div className="pp-section">
+          <h2>BAT record <span className="pp-stats-note">career (this year)</span></h2>
+          <div className="pp-stats-banner">
+            <div className="pp-stats-banner-label">Total</div>
+            <div className="pp-stats-banner-value">
+              <span className="pp-stats-career">{wl(extra.stats.total.career)}</span>
+              <span className="pp-stats-ytd">({wl(extra.stats.total.ytd)})</span>
+            </div>
+            {(() => {
+              const p = wlPct(extra.stats.total.career)
+              return p === null ? null : (
+                <div className="pp-stats-bar"><div className="pp-stats-bar-fill" style={{ width: `${p}%` }} /></div>
+              )
+            })()}
+          </div>
+          <div className="pp-stats-cells">
+            {(['singles', 'doubles', 'mixed'] as const).map(k => {
+              const p = wlPct(extra.stats[k].career)
+              return (
+                <div key={k} className="pp-stats-cell">
+                  <div className="pp-stats-cell-label">{k}</div>
+                  <div className="pp-stats-cell-value">{wl(extra.stats[k].career)}</div>
+                  <div className="pp-stats-cell-ytd">({wl(extra.stats[k].ytd)})</div>
+                  {p !== null && <div className="pp-stats-cell-pct">{p}%</div>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="pp-section">
         <h2>By discipline</h2>

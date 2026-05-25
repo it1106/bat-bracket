@@ -461,6 +461,9 @@ export interface PlayerRecord {
   altNames: string[]
   clubs: string[]
   country?: string
+  // A (tournamentId, playerId) pair from the player's most recent match, used to
+  // reach their BAT global profile for live stats/YOB. BAT only; absent for BWF.
+  sampleRef?: { tournamentId: string; playerId: string }
   totals: {
     matches: number
     wins: number
@@ -571,6 +574,18 @@ export interface BatRankingPlayerRank {
   rank: number
   points: number
   tournaments: number
+}
+
+// Live-scraped extras from a player's BAT global profile (career/YTD stats + YOB).
+export interface PlayerProfileExtra {
+  scrapedAt: string
+  yob: string
+  stats: PlayerStats
+}
+
+export interface PlayerProfileExtraCache {
+  version: 1
+  players: Record<string, PlayerProfileExtra>
 }
 
 export interface PlayerIndexTournamentInput {

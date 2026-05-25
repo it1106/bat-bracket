@@ -9,6 +9,7 @@ import type {
 
 interface PerPlayerScratch {
   refs: PlayerMatchRef[]
+  sampleRefDateIso?: string  // tournament date of the currently-stored rec.sampleRef
 }
 
 const SEED_PREFIX_RE = /^\s*(?:\[[^\]]*\]|\([^)]*\))\s*/
@@ -245,6 +246,13 @@ export function buildIndex(
       const club = p.playerId ? t.clubs[p.playerId] : undefined
       if (club) bump(clubCounts, slug, club)
       if (p.country && !rec.country) rec.country = p.country
+
+      // Keep a (tournamentId, playerId) pair from the most recent tournament so
+      // the profile page can reach this player's BAT global profile for live stats.
+      if (p.playerId && (!scratch.sampleRefDateIso || t.tournamentDateIso > scratch.sampleRefDateIso)) {
+        rec.sampleRef = { tournamentId: t.tournamentId, playerId: p.playerId }
+        scratch.sampleRefDateIso = t.tournamentDateIso
+      }
 
       // BAT has no eventName; the discipline-bearing label is m.draw ("XD U15").
       const eventLabel = m.eventName || m.draw || ''

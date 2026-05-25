@@ -8,6 +8,11 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
 }))
 
+// PlayerProfileView fetches /api/players/profile-extra on mount; stub it.
+beforeAll(() => {
+  global.fetch = jest.fn(() => Promise.resolve({ ok: false, json: async () => ({}) })) as unknown as typeof fetch
+})
+
 function emptyDisc() { return { wins: 0, losses: 0, titles: 0, finals: 0, semis: 0 } }
 
 const sample: PlayerRecord = {
