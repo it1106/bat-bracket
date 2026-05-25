@@ -1,6 +1,7 @@
 'use client'
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import type { PlayerRecord, PlayerRanks } from '@/lib/types'
 
 interface Props {
@@ -29,9 +30,16 @@ const RANK_LABELS: Array<[keyof PlayerRanks, string, string]> = [
 ]
 
 export default function PlayerProfileView({ record, batRanking }: Props) {
+  const router = useRouter()
   const winPct = record.totals.matches > 0
     ? Math.round((record.totals.wins / record.totals.matches) * 100)
     : 0
+
+  const goBack = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (window.history.length > 1) router.back()
+    else router.push('/leaderboards')
+  }
 
   // Recent-form tooltips: hover (desktop) or tap-toggle (mobile).
   const [openForm, setOpenForm] = useState<number | null>(null)
@@ -51,7 +59,7 @@ export default function PlayerProfileView({ record, batRanking }: Props) {
 
   return (
     <div className="pp-page">
-      <Link href="/leaderboards" className="pp-back">← Leaderboards</Link>
+      <a href="/leaderboards" className="pp-back" onClick={goBack}>← Back</a>
       <div className="pp-hdr">
         <h1>{record.displayName}</h1>
         <div className="pp-meta">
