@@ -64,6 +64,97 @@ export function classifyDiscipline(teamSize: number, eventName: string): Discipl
 
 const FIXED_GENERATED_AT = '__GENERATED_AT__'
 
+export function buildLeaderboards(
+  provider: ProviderTag,
+  players: Record<string, PlayerRecord>,
+): Leaderboards {
+  const leaderboards: Leaderboards = {
+    version: 1, provider,
+    generatedAt: FIXED_GENERATED_AT,
+    sourceVersion: '',
+    boards: [],
+  }
+
+  type Spec = {
+    id: string; titleKey: string; icon: string;
+    category: LeaderboardBoard['category']; qualifier?: string;
+    qualifies: (p: PlayerRecord) => boolean;
+    value: (p: PlayerRecord) => number;
+    display: (n: number, p: PlayerRecord) => string;
+    rankField: keyof PlayerRanks;
+  }
+  const fmtPct = (n: number) => `${Math.round(n * 100)}%`
+  const fmtHours = (n: number) => {
+    if (n < 60) return `${n}m`
+    const h = Math.floor(n / 60); const m = n % 60
+    return m === 0 ? `${h}h` : `${h}h ${m}m`
+  }
+  const fmtInt = (n: number) => `${n}`
+
+  const specs: Spec[] = [
+    { id: 'headline.titles', titleKey: 'lbMostTitles', icon: '🏆', category: 'headline',
+      qualifies: () => true, value: p => p.titles.length, display: fmtInt, rankField: 'titles' },
+    { id: 'headline.wins', titleKey: 'lbMostWins', icon: '🥇', category: 'headline',
+      qualifies: () => true, value: p => p.totals.wins, display: fmtInt, rankField: 'wins' },
+    { id: 'headline.winPct', titleKey: 'lbHighestWinPct', icon: '📊', category: 'headline', qualifier: 'min20',
+      qualifies: p => p.totals.matches >= 20,
+      value: p => p.totals.wins / Math.max(1, p.totals.matches),
+      display: fmtPct, rankField: 'winPct' },
+    { id: 'headline.courtTime', titleKey: 'lbMostCourtTime', icon: '⏱', category: 'headline',
+      qualifies: p => p.matchCharacter.courtMinutes > 0,
+      value: p => p.matchCharacter.courtMinutes, display: fmtHours, rankField: 'courtTime' },
+    { id: 'discipline.singles.wins', titleKey: 'lbBestSingles', icon: '🎯', category: 'discipline', qualifier: 'min10',
+      qualifies: p => (p.byDiscipline.singles.wins + p.byDiscipline.singles.losses) >= 10,
+      value: p => p.byDiscipline.singles.wins, display: fmtInt, rankField: 'bestSingles' },
+    { id: 'discipline.doubles.wins', titleKey: 'lbBestDoubles', icon: '🤝', category: 'discipline', qualifier: 'min10',
+      qualifies: p => (p.byDiscipline.doubles.wins + p.byDiscipline.doubles.losses) >= 10,
+      value: p => p.byDiscipline.doubles.wins, display: fmtInt, rankField: 'bestDoubles' },
+    { id: 'discipline.mixed.wins', titleKey: 'lbBestMixed', icon: '🧑‍🤝‍🧑', category: 'discipline', qualifier: 'min10',
+      qualifies: p => (p.byDiscipline.mixed.wins + p.byDiscipline.mixed.losses) >= 10,
+      value: p => p.byDiscipline.mixed.wins, display: fmtInt, rankField: 'bestMixed' },
+    { id: 'character.threeSetterWins', titleKey: 'lbThreeSetterWins', icon: '🔥', category: 'character',
+      qualifies: () => true, value: p => p.matchCharacter.threeSetterWins, display: fmtInt, rankField: 'threeSetterWins' },
+    { id: 'character.comebacks', titleKey: 'lbComebackWins', icon: '🔁', category: 'character',
+      qualifies: () => true, value: p => p.matchCharacter.comebackWins, display: fmtInt, rankField: 'comebackWins' },
+    { id: 'character.deciderRecord', titleKey: 'lbDeciderRecord', icon: '⚖️', category: 'character', qualifier: 'min5',
+      qualifies: p => p.matchCharacter.threeSetterCount >= 5,
+      value: p => p.matchCharacter.threeSetterWins / Math.max(1, p.matchCharacter.threeSetterCount),
+      display: fmtPct, rankField: 'deciderRecord' },
+    { id: 'activity.matchesLast90', titleKey: 'lbMatchesLast90', icon: '📅', category: 'activity',
+      qualifies: p => p.matchCharacter.matchesLast90 > 0,
+      value: p => p.matchCharacter.matchesLast90, display: fmtInt, rankField: 'matchesLast90' },
+    { id: 'activity.tournamentsEntered', titleKey: 'lbTournamentsEntered', icon: '🏟', category: 'activity',
+      qualifies: () => true, value: p => p.tournaments.length, display: fmtInt, rankField: 'tournamentsEntered' },
+  ]
+
+  const boards: LeaderboardBoard[] = []
+  const playerList = Object.values(players)
+  for (const spec of specs) {
+    const scored = playerList
+      .filter(spec.qualifies)
+      .map(p => ({ p, v: spec.value(p) }))
+      .filter(x => x.v > 0)
+      .sort((a, b) => b.v - a.v || a.p.key.slug.localeCompare(b.p.key.slug))
+      .slice(0, 25)
+    const entries = scored.map((x, i) => ({
+      rank: i + 1,
+      slug: x.p.key.slug,
+      name: x.p.displayName,
+      primaryClub: x.p.clubs[0] || x.p.country || '',
+      value: x.v,
+      display: spec.display(x.v, x.p),
+      qualifier: spec.qualifier,
+    }))
+    boards.push({ id: spec.id, titleKey: spec.titleKey, icon: spec.icon, category: spec.category, qualifier: spec.qualifier, entries })
+    for (const e of entries) {
+      players[e.slug].ranks[spec.rankField] = e.rank
+    }
+  }
+
+  leaderboards.boards = boards
+  return leaderboards
+}
+
 function emptyDisc(): DisciplineSummary {
   return { wins: 0, losses: 0, titles: 0, finals: 0, semis: 0 }
 }
@@ -413,91 +504,7 @@ export function buildIndex(
     players,
   }
 
-  const leaderboards: Leaderboards = {
-    version: 1, provider,
-    generatedAt: FIXED_GENERATED_AT,
-    sourceVersion: '',
-    boards: [],
-  }
-
-  // Leaderboards
-  type Spec = {
-    id: string; titleKey: string; icon: string;
-    category: LeaderboardBoard['category']; qualifier?: string;
-    qualifies: (p: PlayerRecord) => boolean;
-    value: (p: PlayerRecord) => number;
-    display: (n: number, p: PlayerRecord) => string;
-    rankField: keyof PlayerRanks;
-  }
-  const fmtPct = (n: number) => `${Math.round(n * 100)}%`
-  const fmtHours = (n: number) => {
-    if (n < 60) return `${n}m`
-    const h = Math.floor(n / 60); const m = n % 60
-    return m === 0 ? `${h}h` : `${h}h ${m}m`
-  }
-  const fmtInt = (n: number) => `${n}`
-
-  const specs: Spec[] = [
-    { id: 'headline.titles', titleKey: 'lbMostTitles', icon: '🏆', category: 'headline',
-      qualifies: () => true, value: p => p.titles.length, display: fmtInt, rankField: 'titles' },
-    { id: 'headline.wins', titleKey: 'lbMostWins', icon: '🥇', category: 'headline',
-      qualifies: () => true, value: p => p.totals.wins, display: fmtInt, rankField: 'wins' },
-    { id: 'headline.winPct', titleKey: 'lbHighestWinPct', icon: '📊', category: 'headline', qualifier: 'min20',
-      qualifies: p => p.totals.matches >= 20,
-      value: p => p.totals.wins / Math.max(1, p.totals.matches),
-      display: fmtPct, rankField: 'winPct' },
-    { id: 'headline.courtTime', titleKey: 'lbMostCourtTime', icon: '⏱', category: 'headline',
-      qualifies: p => p.matchCharacter.courtMinutes > 0,
-      value: p => p.matchCharacter.courtMinutes, display: fmtHours, rankField: 'courtTime' },
-    { id: 'discipline.singles.wins', titleKey: 'lbBestSingles', icon: '🎯', category: 'discipline', qualifier: 'min10',
-      qualifies: p => (p.byDiscipline.singles.wins + p.byDiscipline.singles.losses) >= 10,
-      value: p => p.byDiscipline.singles.wins, display: fmtInt, rankField: 'bestSingles' },
-    { id: 'discipline.doubles.wins', titleKey: 'lbBestDoubles', icon: '🤝', category: 'discipline', qualifier: 'min10',
-      qualifies: p => (p.byDiscipline.doubles.wins + p.byDiscipline.doubles.losses) >= 10,
-      value: p => p.byDiscipline.doubles.wins, display: fmtInt, rankField: 'bestDoubles' },
-    { id: 'discipline.mixed.wins', titleKey: 'lbBestMixed', icon: '🧑‍🤝‍🧑', category: 'discipline', qualifier: 'min10',
-      qualifies: p => (p.byDiscipline.mixed.wins + p.byDiscipline.mixed.losses) >= 10,
-      value: p => p.byDiscipline.mixed.wins, display: fmtInt, rankField: 'bestMixed' },
-    { id: 'character.threeSetterWins', titleKey: 'lbThreeSetterWins', icon: '🔥', category: 'character',
-      qualifies: () => true, value: p => p.matchCharacter.threeSetterWins, display: fmtInt, rankField: 'threeSetterWins' },
-    { id: 'character.comebacks', titleKey: 'lbComebackWins', icon: '🔁', category: 'character',
-      qualifies: () => true, value: p => p.matchCharacter.comebackWins, display: fmtInt, rankField: 'comebackWins' },
-    { id: 'character.deciderRecord', titleKey: 'lbDeciderRecord', icon: '⚖️', category: 'character', qualifier: 'min5',
-      qualifies: p => p.matchCharacter.threeSetterCount >= 5,
-      value: p => p.matchCharacter.threeSetterWins / Math.max(1, p.matchCharacter.threeSetterCount),
-      display: fmtPct, rankField: 'deciderRecord' },
-    { id: 'activity.matchesLast90', titleKey: 'lbMatchesLast90', icon: '📅', category: 'activity',
-      qualifies: p => p.matchCharacter.matchesLast90 > 0,
-      value: p => p.matchCharacter.matchesLast90, display: fmtInt, rankField: 'matchesLast90' },
-    { id: 'activity.tournamentsEntered', titleKey: 'lbTournamentsEntered', icon: '🏟', category: 'activity',
-      qualifies: () => true, value: p => p.tournaments.length, display: fmtInt, rankField: 'tournamentsEntered' },
-  ]
-
-  const boards: LeaderboardBoard[] = []
-  const playerList = Object.values(players)
-  for (const spec of specs) {
-    const scored = playerList
-      .filter(spec.qualifies)
-      .map(p => ({ p, v: spec.value(p) }))
-      .filter(x => x.v > 0)
-      .sort((a, b) => b.v - a.v || a.p.key.slug.localeCompare(b.p.key.slug))
-      .slice(0, 25)
-    const entries = scored.map((x, i) => ({
-      rank: i + 1,
-      slug: x.p.key.slug,
-      name: x.p.displayName,
-      primaryClub: x.p.clubs[0] || x.p.country || '',
-      value: x.v,
-      display: spec.display(x.v, x.p),
-      qualifier: spec.qualifier,
-    }))
-    boards.push({ id: spec.id, titleKey: spec.titleKey, icon: spec.icon, category: spec.category, qualifier: spec.qualifier, entries })
-    for (const e of entries) {
-      players[e.slug].ranks[spec.rankField] = e.rank
-    }
-  }
-
-  leaderboards.boards = boards
+  const leaderboards = buildLeaderboards(provider, players)
 
   return { index, leaderboards }
 }
