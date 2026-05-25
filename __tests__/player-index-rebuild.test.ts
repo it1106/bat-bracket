@@ -19,6 +19,7 @@ jest.mock('../lib/player-index-cache', () => ({
   writeLeaderboardsCache: jest.fn(),
   readIdentityMap: jest.fn(),
   writeIdentityMap: jest.fn(),
+  readPlayerLinks: jest.fn().mockResolvedValue([]),
 }))
 
 import { listAllTournaments } from '@/lib/tournaments-registry'

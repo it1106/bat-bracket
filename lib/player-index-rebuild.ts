@@ -6,7 +6,7 @@ import { readClubsCache, writeClubsCache } from '@/lib/clubs-cache'
 import { playerClubCache, fetchTournamentPlayerClubs } from '@/lib/bracket-cache'
 import {
   readIndexCache, writeIndexCache, writeLeaderboardsCache,
-  readIdentityMap, writeIdentityMap,
+  readIdentityMap, writeIdentityMap, readPlayerLinks,
 } from '@/lib/player-index-cache'
 import { buildIndex } from '@/lib/playerIndex'
 import { buildIdentityMap } from '@/lib/player-identity'
@@ -146,7 +146,8 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
       const bwfIdx = builtIndexes.get('bwf') ?? await readIndexCache('bwf')
       if (batIdx && bwfIdx) {
         const existingMap = await readIdentityMap()
-        const identityMap = buildIdentityMap(batIdx, bwfIdx, existingMap)
+        const playerLinks = await readPlayerLinks()
+        const identityMap = buildIdentityMap(batIdx, bwfIdx, existingMap, playerLinks)
         identityMap.generatedAt = new Date().toISOString()
         await writeIdentityMap(identityMap)
 

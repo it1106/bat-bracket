@@ -1,4 +1,4 @@
-import type { PlayerIndex, PlayerIdentityMap, IdentityMatch } from './types'
+import type { PlayerIndex, PlayerIdentityMap, IdentityMatch, PlayerLink } from './types'
 
 function jaro(s1: string, s2: string): number {
   if (s1 === s2) return 1
@@ -63,11 +63,34 @@ export function buildIdentityMap(
   batIndex: PlayerIndex,
   bwfIndex: PlayerIndex,
   existing: PlayerIdentityMap | null,
+  links: PlayerLink[] = [],
 ): PlayerIdentityMap {
   // Preserve overrides and rejections; they take precedence over fresh inference
   const pinned = new Map<string, IdentityMatch>()
   for (const m of existing?.matches ?? []) {
     if (m.override || m.rejected) pinned.set(m.batSlug, m)
+  }
+
+  // Resolve human-friendly player links (Thai display name → bwf slug) into override entries
+  for (const link of links) {
+    const batPlayer = Object.values(batIndex.players).find(
+      p => p.displayName === link.batName || p.altNames.includes(link.batName)
+    )
+    if (!batPlayer) {
+      console.log(`[player-identity] player-links: no BAT player found for "${link.batName}"`)
+      continue
+    }
+    if (!bwfIndex.players[link.bwfSlug]) {
+      console.log(`[player-identity] player-links: no BWF player found for slug "${link.bwfSlug}"`)
+      continue
+    }
+    pinned.set(batPlayer.key.slug, {
+      batSlug: batPlayer.key.slug,
+      bwfSlug: link.bwfSlug,
+      confidence: 1,
+      method: 'fuzzy',
+      override: true,
+    })
   }
 
   const bwfTha = Object.values(bwfIndex.players).filter(p => p.country === 'THA')

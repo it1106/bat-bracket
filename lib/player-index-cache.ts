@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import path from 'path'
-import type { PlayerIndex, Leaderboards, ProviderTag, PlayerIdentityMap } from './types'
+import type { PlayerIndex, Leaderboards, ProviderTag, PlayerIdentityMap, PlayerLink } from './types'
 
 let root = path.join(process.cwd(), '.cache', 'players')
 
@@ -66,4 +66,13 @@ export async function readIdentityMap(): Promise<PlayerIdentityMap | null> {
 
 export async function writeIdentityMap(map: PlayerIdentityMap): Promise<void> {
   await writeJson(identityMapPath(), map)
+}
+
+export async function readPlayerLinks(): Promise<PlayerLink[]> {
+  const file = path.join(process.cwd(), 'data', 'player-links.json')
+  try {
+    return JSON.parse(await fs.readFile(file, 'utf8')) as PlayerLink[]
+  } catch {
+    return []
+  }
 }

@@ -565,3 +565,8 @@ export interface PlayerIdentityMap {
   generatedAt: string
   matches: IdentityMatch[]
 }
+
+export interface PlayerLink {
+  batName: string   // Thai display name as it appears in the BAT player index
+  bwfSlug: string   // BWF player slug
+}
