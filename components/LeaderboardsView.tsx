@@ -49,7 +49,7 @@ export default function LeaderboardsView({ leaderboards }: Props) {
       <Link href="/" className="pp-back">← Home</Link>
       <div className="lb-hdr">
         <h1>🏆 {t('leaderboards')}</h1>
-        <div className="lb-sub">{leaderboards.provider.toUpperCase()} · {leaderboards.boards.length} boards</div>
+        <div className="lb-sub">{leaderboards.provider === 'combined' ? 'BAT+BWF' : leaderboards.provider.toUpperCase()} · {leaderboards.boards.length} boards</div>
       </div>
       <div className="lb-tabs">
         {CATEGORIES.map(c => (
@@ -87,7 +87,7 @@ export default function LeaderboardsView({ leaderboards }: Props) {
             {b.entries.length === 0 ? (
               <div className="lb-empty" style={{ padding: '12px 0' }}>—</div>
             ) : b.entries.map(e => (
-              <Link key={e.slug} href={`/player/${leaderboards.provider}/${e.slug}`}
+              <Link key={e.slug} href={`/player/${e.provider ?? leaderboards.provider}/${e.slug}`}
                 className="lb-row">
                 <div className={`lb-rk ${e.rank === 1 ? 'lb-r1' : e.rank === 2 ? 'lb-r2' : e.rank === 3 ? 'lb-r3' : ''}`}>{e.rank}</div>
                 <div>

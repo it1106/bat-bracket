@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { readLeaderboardsCache } from '@/lib/player-index-cache'
 import type { ProviderTag, LeaderboardCategory } from '@/lib/types'
 
-const PROVIDERS = new Set<ProviderTag>(['bat', 'bwf'])
+const PROVIDERS = new Set<ProviderTag>(['bat', 'bwf', 'combined'])
 const CATEGORIES = new Set<LeaderboardCategory>(['headline', 'discipline', 'character', 'activity'])
 
 export async function GET(req: Request) {

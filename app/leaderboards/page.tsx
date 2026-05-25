@@ -3,9 +3,10 @@ import LeaderboardsView from '@/components/LeaderboardsView'
 import type { Leaderboards } from '@/lib/types'
 
 export default async function LeaderboardsPage() {
+  const combined = await readLeaderboardsCache('combined')
   const bat = await readLeaderboardsCache('bat')
   const bwf = await readLeaderboardsCache('bwf')
-  const lb: Leaderboards = bat ?? bwf ?? {
+  const lb: Leaderboards = combined ?? bat ?? bwf ?? {
     version: 1, provider: 'bat', generatedAt: 'never', sourceVersion: '', boards: [],
   }
   return <LeaderboardsView leaderboards={lb} />
