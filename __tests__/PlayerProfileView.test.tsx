@@ -4,6 +4,10 @@ import { render, screen } from '@testing-library/react'
 import PlayerProfileView from '@/components/PlayerProfileView'
 import type { PlayerRecord } from '@/lib/types'
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
+}))
+
 function emptyDisc() { return { wins: 0, losses: 0, titles: 0, finals: 0, semis: 0 } }
 
 const sample: PlayerRecord = {
