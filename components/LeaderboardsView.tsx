@@ -86,6 +86,9 @@ export default function LeaderboardsView({ leaderboards }: Props) {
           ))}
         </div>
       )}
+      <div style={{ position: 'sticky', top: 0, zIndex: 100, background: 'yellow', color: 'black', padding: '4px 8px', fontSize: '12px', fontFamily: 'monospace' }}>
+        DEBUG: active={active} · visible={visible.length} · total={lb.boards.length}
+      </div>
       <div className="lb-tabs" ref={tabsRef}>
         {CATEGORIES.map(c => (
           <button key={c.id}
