@@ -7,7 +7,9 @@ const BAT_RANKING_URL = 'https://bat.tournamentsoftware.com/ranking/ranking.aspx
 
 export async function POST() {
   try {
-    const res = await batFetch('ranking', BAT_RANKING_URL)
+    const res = await batFetch('ranking', BAT_RANKING_URL, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' },
+    })
     if (!res.ok) {
       console.log(`[bat-ranking/refresh] upstream error status=${res.status}`)
       return NextResponse.json({ error: `upstream ${res.status}` }, { status: 502 })
