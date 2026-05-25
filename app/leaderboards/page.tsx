@@ -6,7 +6,7 @@ import type { Leaderboards, BatRankingEvent, LeaderboardEntry, LeaderboardBoard 
 const EMPTY: Leaderboards = { version: 1, provider: 'bat', generatedAt: 'never', sourceVersion: '', boards: [] }
 
 function rankingEventToBoard(ev: BatRankingEvent): LeaderboardBoard {
-  const entries: LeaderboardEntry[] = ev.entries.map(e => ({
+  const entries: LeaderboardEntry[] = ev.entries.slice(0, 10).map(e => ({
     rank: e.rank,
     slug: e.slug,
     name: e.name,
