@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { setIntentionalNav } from '@/lib/nav-intent'
 import type { PlayerProfile, MatchEntry, ProviderTag } from '@/lib/types'
 import { useLanguage } from '@/lib/LanguageContext'
 import { pct } from '@/lib/playerStats'
@@ -87,7 +88,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                 </div>
               )}
               {fullProfile && (
-                <Link href={`/player/${fullProfile.provider}/${fullProfile.slug}`} className="pm-full-profile-link">
+                <Link href={`/player/${fullProfile.provider}/${fullProfile.slug}`} className="pm-full-profile-link" onClick={setIntentionalNav}>
                   {t('viewFullProfile')} →
                 </Link>
               )}

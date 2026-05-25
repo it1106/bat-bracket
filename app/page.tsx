@@ -10,6 +10,7 @@ import H2HModal from '@/components/H2HModal'
 import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
 import { useLongPress } from '@/lib/useLongPress'
+import { consumeIntentionalNav } from '@/lib/nav-intent'
 import { usePointerReorder } from '@/lib/usePointerReorder'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import {
@@ -222,7 +223,7 @@ export default function Home() {
   useEffect(() => {
     const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
     if (!selectedTournament || !isMobile) return
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    const handler = (e: BeforeUnloadEvent) => { if (!consumeIntentionalNav()) e.preventDefault() }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [selectedTournament])
