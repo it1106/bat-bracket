@@ -153,7 +153,7 @@ export default function PlayerProfileView({ record, batRanking }: Props) {
       )}
 
       <div className="pp-section">
-        <h2>By discipline</h2>
+        <h2>By Event Type</h2>
         <div className="pp-disc-grid">
           {(['singles', 'doubles', 'mixed'] as const).map(d => {
             const s = record.byDiscipline[d]
