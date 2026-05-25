@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import type { PlayerProfile, MatchEntry, ProviderTag } from '@/lib/types'
 import { useLanguage } from '@/lib/LanguageContext'
 import { pct } from '@/lib/playerStats'
@@ -86,9 +87,9 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                 </div>
               )}
               {fullProfile && (
-                <a href={`/player/${fullProfile.provider}/${fullProfile.slug}`} className="pm-full-profile-link">
+                <Link href={`/player/${fullProfile.provider}/${fullProfile.slug}`} className="pm-full-profile-link">
                   {t('viewFullProfile')} →
-                </a>
+                </Link>
               )}
               {profile.stats && (() => {
                 const s = profile.stats
