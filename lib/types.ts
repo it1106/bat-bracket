@@ -525,7 +525,7 @@ export interface LeaderboardEntry {
   provider?: ProviderTag   // per-entry override for profile link; used by combined leaderboard
 }
 
-export type LeaderboardCategory = 'headline' | 'discipline' | 'character' | 'activity'
+export type LeaderboardCategory = 'headline' | 'discipline' | 'character' | 'activity' | 'ranking'
 
 export interface LeaderboardBoard {
   id: string
@@ -542,6 +542,32 @@ export interface Leaderboards {
   generatedAt: string
   sourceVersion: string
   boards: LeaderboardBoard[]
+}
+
+export interface BatRankingEntry {
+  rank: number
+  name: string
+  slug: string
+  club: string
+  points: number
+}
+
+export interface BatRankingEvent {
+  eventCode: string
+  eventName: string
+  entries: BatRankingEntry[]
+}
+
+export interface BatRanking {
+  scrapedAt: string
+  publishDate: string
+  events: BatRankingEvent[]
+}
+
+export interface BatRankingPlayerRank {
+  eventName: string
+  rank: number
+  points: number
 }
 
 export interface PlayerIndexTournamentInput {
