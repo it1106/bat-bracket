@@ -361,6 +361,21 @@ export interface EventBundle {
   groups: GroupData[]
 }
 
+export interface SeedEntry {
+  seed: number
+  players: string[]
+}
+
+export interface SeedEvent {
+  eventName: string
+  seeds: SeedEntry[]
+}
+
+export interface TournamentOverview {
+  notes: string[]
+  seedEvents: SeedEvent[]
+}
+
 // ─── Deep player stats ─────────────────────────────────────
 
 export interface PlayerKey {

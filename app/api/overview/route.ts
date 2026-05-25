@@ -12,12 +12,12 @@ export async function GET(request: Request) {
 
   const cached = cache.get(id)
   if (cached && (cached.done || Date.now() - cached.ts < TTL_MS)) {
-    return NextResponse.json({ notes: cached.notes })
+    return NextResponse.json(cached.data)
   }
 
   try {
-    const notes = await fetchAndCache(id)
-    return NextResponse.json({ notes })
+    const data = await fetchAndCache(id)
+    return NextResponse.json(data)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: `Could not load overview: ${message}` }, { status: 500 })

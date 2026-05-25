@@ -41,7 +41,7 @@ import { useLiveScore } from '@/lib/useLiveScore'
 import { matchLiveCourt } from '@/lib/live-score'
 import { setPersonProps, track } from '@/lib/analytics'
 import { getTodayIso } from '@/lib/today'
-import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData, MatchEntry, EventBundle } from '@/lib/types'
+import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData, MatchEntry, EventBundle, TournamentOverview, SeedEvent } from '@/lib/types'
 
 function isApiError(data: unknown): data is ApiError {
   return typeof data === 'object' && data !== null && 'error' in data
@@ -141,6 +141,7 @@ export default function Home() {
   const [customModalEditId, setCustomModalEditId] = useState<string | null>(null)
   const [customTabsEditMode, setCustomTabsEditMode] = useState(false)
   const [overviewNotes, setOverviewNotes] = useState<string[]>([])
+  const [seedEvents, setSeedEvents] = useState<SeedEvent[]>([])
   const [matchDays, setMatchDays] = useState<MatchDay[]>([])
   const [selectedDay, setSelectedDay] = useState('')
   const [matchGroups, setMatchGroups] = useState<MatchScheduleGroup[]>([])
@@ -371,6 +372,7 @@ export default function Home() {
     setMatchGroups([])
     setSelectedDay('')
     setOverviewNotes([])
+    setSeedEvents([])
     setViewMode('matches')
     if (!id) return
 
@@ -386,12 +388,15 @@ export default function Home() {
       .then((data: Record<string, string>) => { if (data && !('error' in data)) setPlayerClubMap(data) })
       .catch(() => {})
 
-    // Fetch overview notes for BAT tournaments (non-BWF)
+    // Fetch overview (notes + seeds) for BAT tournaments (non-BWF)
     const tournamentProvider = t?.provider
     if (tournamentProvider !== 'bwf') {
       fetch(`/api/overview?tournament=${encodeURIComponent(id)}`)
         .then(r => r.json())
-        .then((data: { notes?: string[] }) => { if (data?.notes) setOverviewNotes(data.notes) })
+        .then((data: TournamentOverview) => {
+          if (data?.notes) setOverviewNotes(data.notes)
+          if (data?.seedEvents) setSeedEvents(data.seedEvents)
+        })
         .catch(() => {})
     }
 
@@ -939,7 +944,7 @@ export default function Home() {
       {/* View mode tabs */}
       {selectedTournament && (
         <div ref={customTabStripRef} className="flex items-center gap-0 px-5 py-0 bg-[var(--surface)] border-b border-[var(--border)]">
-          {overviewNotes.length > 0 && (
+          {(overviewNotes.length > 0 || seedEvents.length > 0) && (
             <button
               onClick={() => setViewMode('overview')}
               className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
@@ -1060,14 +1065,50 @@ export default function Home() {
 
       {/* Overview view */}
       {viewMode === 'overview' && (
-        <div className="px-5 py-4 max-w-2xl">
-          {overviewNotes.map((html, i) => (
-            <div
-              key={i}
-              className="mb-4 p-4 rounded-lg border border-[var(--info-border,var(--border))] bg-[var(--info-bg)] text-[var(--info-fg)] text-sm leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: html }}
-            />
-          ))}
+        <div className="px-5 py-5 max-w-4xl space-y-6">
+
+          {/* Tournament Information */}
+          {overviewNotes.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)] mb-3">
+                {t('tournamentInformation')}
+              </h2>
+              {overviewNotes.map((html, i) => (
+                <div
+                  key={i}
+                  className="mb-3 p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
+              ))}
+            </section>
+          )}
+
+          {/* Seeded Entries */}
+          {seedEvents.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)] mb-3">
+                {t('seededEntries')}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {seedEvents.map((ev, i) => (
+                  <div key={i} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+                    <div className="px-3 py-2 border-b border-[var(--border)] bg-[var(--bg)]">
+                      <span className="text-xs font-semibold text-[var(--fg)]">{ev.eventName}</span>
+                    </div>
+                    <div className="divide-y divide-[var(--row-sep)]">
+                      {ev.seeds.map((entry) => (
+                        <div key={entry.seed} className="flex items-baseline gap-2.5 px-3 py-1.5">
+                          <span className="text-xs font-semibold text-[var(--muted)] w-4 shrink-0 text-right">{entry.seed}</span>
+                          <span className="text-xs text-[var(--fg)]">{entry.players.join(' / ')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
         </div>
       )}
 

@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio'
 import { getTodayIso } from './today'
-import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch, MatchPlayer, MatchScore, StandingsRow } from './types'
+import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch, MatchPlayer, MatchScore, StandingsRow, SeedEvent, SeedEntry } from './types'
 
 function extractId(url: string): string {
   const match = url.match(/\/tournament\/([^/]+)/)
@@ -83,6 +83,49 @@ export function parseOverviewNotes(html: string): string[] {
     if (content) notes.push(content)
   })
   return notes
+}
+
+// Parses the BAT seeds page (/sport/seeds.aspx?id=...).
+// Returns one SeedEvent per draw that has seeded entries.
+export function parseSeedEntries(html: string): SeedEvent[] {
+  const $ = cheerio.load(html)
+  const events: SeedEvent[] = []
+
+  $('table.ruler.seeding').each((_, table) => {
+    let currentEvent: SeedEvent | null = null
+
+    $(table).find('tr').each((__, row) => {
+      const $row = $(row)
+      // Event header rows: first row th or tr.seedinghigh th
+      const headerLink = $row.find('th[colspan] a').first()
+      if (headerLink.length) {
+        if (currentEvent && currentEvent.seeds.length > 0) events.push(currentEvent)
+        currentEvent = { eventName: headerLink.text().trim(), seeds: [] }
+        return
+      }
+      if (!currentEvent) return
+      const ev = currentEvent
+      // Seed entry row: first td is the seed number
+      const cells = $row.find('td')
+      if (!cells.length) return
+      const seedNum = parseInt(cells.first().text().trim(), 10)
+      if (isNaN(seedNum)) return
+      const players: string[] = []
+      $row.find('td.nowrap a').each((___, a) => {
+        const name = $(a).text().replace(/ /g, ' ').replace(/\s+/g, ' ').trim()
+        if (name) players.push(name)
+      })
+      if (players.length > 0) {
+        ev.seeds.push({ seed: seedNum, players })
+      }
+    })
+
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+    const last = currentEvent as SeedEvent | null
+    if (last && last.seeds.length > 0) events.push(last)
+  })
+
+  return events
 }
 
 // Parses the BAT /Players/GetPlayersContent AJAX response. Every registered
