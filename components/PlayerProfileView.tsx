@@ -80,6 +80,7 @@ export default function PlayerProfileView({ record, batRanking }: Props) {
               <div key={r.eventName} className="pp-ranking-row">
                 <span className="pp-ranking-event">{r.eventName}</span>
                 <span className="pp-ranking-pos">#{r.rank}</span>
+                <span className="pp-ranking-tn">{r.tournaments} tn</span>
                 <span className="pp-ranking-pts">{r.points.toLocaleString()} pts</span>
               </div>
             ))}

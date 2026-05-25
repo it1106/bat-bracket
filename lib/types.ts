@@ -570,6 +570,7 @@ export interface BatRankingPlayerRank {
   eventName: string
   rank: number
   points: number
+  tournaments: number
 }
 
 export interface PlayerIndexTournamentInput {

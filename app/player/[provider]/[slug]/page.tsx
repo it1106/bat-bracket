@@ -21,7 +21,7 @@ export default async function PlayerPage({ params }: Props) {
     if (ranking) {
       for (const ev of ranking.events) {
         const entry = ev.entries.find(e => e.slug === params.slug)
-        if (entry) batRanking.push({ eventName: ev.eventName, rank: entry.rank, points: entry.points })
+        if (entry) batRanking.push({ eventName: ev.eventName, rank: entry.rank, points: entry.points, tournaments: entry.tournaments })
       }
     }
   }
