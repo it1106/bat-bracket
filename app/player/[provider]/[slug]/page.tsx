@@ -15,7 +15,7 @@ export default async function PlayerPage({ params }: Props) {
   const record = index?.players[params.slug]
   if (!record) notFound()
 
-  let batRanking: BatRankingPlayerRank[] = []
+  const batRanking: BatRankingPlayerRank[] = []
   if (provider === 'bat') {
     const ranking = await readBatRankingCache()
     if (ranking) {

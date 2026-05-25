@@ -5,7 +5,7 @@ import { writeBatRankingCache } from '@/lib/bat-ranking-cache'
 
 const BAT_RANKING_URL = 'https://bat.tournamentsoftware.com/ranking/ranking.aspx?rid=188'
 
-export async function POST(_req: Request) {
+export async function POST() {
   try {
     const res = await batFetch('ranking', BAT_RANKING_URL)
     if (!res.ok) {

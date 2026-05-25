@@ -15,7 +15,7 @@ export async function GET(_req: Request, ctx: { params: { provider: string; slug
   const record = index.players[ctx.params.slug]
   if (!record) return NextResponse.json({ error: 'player not found' }, { status: 404 })
 
-  let batRanking: BatRankingPlayerRank[] = []
+  const batRanking: BatRankingPlayerRank[] = []
   if (provider === 'bat') {
     const ranking = await readBatRankingCache()
     if (ranking) {
