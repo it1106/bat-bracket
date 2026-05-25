@@ -2,10 +2,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useLanguage } from '@/lib/LanguageContext'
-import type { Leaderboards, LeaderboardCategory } from '@/lib/types'
+import type { Leaderboards, LeaderboardCategory, ProviderTag } from '@/lib/types'
 import type { TKey } from '@/lib/i18n'
 
-interface Props { leaderboards: Leaderboards }
+interface Props { leaderboards: Leaderboards[] }
 
 const CATEGORIES: Array<{ id: LeaderboardCategory; key: TKey }> = [
   { id: 'headline', key: 'lbHeadline' },
@@ -14,8 +14,15 @@ const CATEGORIES: Array<{ id: LeaderboardCategory; key: TKey }> = [
   { id: 'activity', key: 'lbActivity' },
 ]
 
+const PROVIDER_LABELS: Record<ProviderTag, string> = {
+  bat: 'BAT',
+  bwf: 'BWF',
+  combined: 'BAT+BWF',
+}
+
 export default function LeaderboardsView({ leaderboards }: Props) {
   const { t } = useLanguage()
+  const [activeProvider, setActiveProvider] = useState<ProviderTag>(leaderboards[0]?.provider ?? 'bat')
   const [active, setActive] = useState<LeaderboardCategory>('headline')
   const [openHelp, setOpenHelp] = useState<string | null>(null)
   const helpRef = useRef<HTMLSpanElement | null>(null)
@@ -34,7 +41,9 @@ export default function LeaderboardsView({ leaderboards }: Props) {
     }
   }, [openHelp])
 
-  if (leaderboards.boards.length === 0) {
+  const lb = leaderboards.find(l => l.provider === activeProvider) ?? leaderboards[0]
+
+  if (!lb || lb.boards.length === 0) {
     return (
       <div className="lb-page">
         <Link href="/" className="pp-back">← Home</Link>
@@ -43,14 +52,30 @@ export default function LeaderboardsView({ leaderboards }: Props) {
       </div>
     )
   }
-  const visible = leaderboards.boards.filter(b => b.category === active)
+
+  const visible = lb.boards.filter(b => b.category === active)
+  const multiProvider = leaderboards.length > 1
+
   return (
     <div className="lb-page">
       <Link href="/" className="pp-back">← Home</Link>
       <div className="lb-hdr">
         <h1>🏆 {t('leaderboards')}</h1>
-        <div className="lb-sub">{leaderboards.provider === 'combined' ? 'BAT+BWF' : leaderboards.provider.toUpperCase()} · {leaderboards.boards.length} boards</div>
+        {!multiProvider && (
+          <div className="lb-sub">{PROVIDER_LABELS[lb.provider]} · {lb.boards.length} boards</div>
+        )}
       </div>
+      {multiProvider && (
+        <div className="lb-provider-tabs">
+          {leaderboards.map(l => (
+            <button key={l.provider}
+              className={`lb-provider-tab ${activeProvider === l.provider ? 'lb-active' : ''}`}
+              onClick={() => setActiveProvider(l.provider)}>
+              {PROVIDER_LABELS[l.provider]}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="lb-tabs">
         {CATEGORIES.map(c => (
           <button key={c.id}
@@ -87,7 +112,7 @@ export default function LeaderboardsView({ leaderboards }: Props) {
             {b.entries.length === 0 ? (
               <div className="lb-empty" style={{ padding: '12px 0' }}>—</div>
             ) : b.entries.map(e => (
-              <Link key={e.slug} href={`/player/${e.provider ?? leaderboards.provider}/${e.slug}`}
+              <Link key={e.slug} href={`/player/${e.provider ?? lb.provider}/${e.slug}`}
                 className="lb-row">
                 <div className={`lb-rk ${e.rank === 1 ? 'lb-r1' : e.rank === 2 ? 'lb-r2' : e.rank === 3 ? 'lb-r3' : ''}`}>{e.rank}</div>
                 <div>

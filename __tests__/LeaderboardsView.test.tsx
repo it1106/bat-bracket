@@ -1,12 +1,12 @@
 /** @jest-environment jsdom */
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import LeaderboardsView from '@/components/LeaderboardsView'
 import { LanguageProvider } from '@/lib/LanguageContext'
 import type { Leaderboards } from '@/lib/types'
 
-const renderLB = (lb: Leaderboards) =>
-  render(<LanguageProvider><LeaderboardsView leaderboards={lb} /></LanguageProvider>)
+const renderLB = (lb: Leaderboards | Leaderboards[]) =>
+  render(<LanguageProvider><LeaderboardsView leaderboards={Array.isArray(lb) ? lb : [lb]} /></LanguageProvider>)
 
 const sample: Leaderboards = {
   version: 1, provider: 'bat', generatedAt: 'T', sourceVersion: 'v',
@@ -18,6 +18,16 @@ const sample: Leaderboards = {
       ] },
     { id: 'character.comebacks', titleKey: 'lbComebackWins', icon: '🔁', category: 'character',
       entries: [{ rank: 1, slug: 'c', name: 'Chai', primaryClub: 'Khon Kaen BC', value: 5, display: '5' }] },
+  ],
+}
+
+const sampleBwf: Leaderboards = {
+  version: 1, provider: 'bwf', generatedAt: 'T', sourceVersion: 'v',
+  boards: [
+    { id: 'headline.titles', titleKey: 'lbMostTitles', icon: '🏆', category: 'headline',
+      entries: [
+        { rank: 1, slug: 'ratchanok', name: 'Ratchanok', primaryClub: 'Thailand', value: 5, display: '5' },
+      ] },
   ],
 }
 
@@ -40,10 +50,23 @@ describe('LeaderboardsView', () => {
     expect(screen.getByText(/no leaderboards/i)).toBeTruthy()
   })
 
-  it('shows BAT+BWF subtitle for combined provider', () => {
+  it('shows provider tabs when multiple providers supplied', () => {
+    renderLB([sample, sampleBwf])
+    expect(screen.getByText('BAT')).toBeTruthy()
+    expect(screen.getByText('BWF')).toBeTruthy()
+  })
+
+  it('switches provider when tab clicked', () => {
+    renderLB([sample, sampleBwf])
+    expect(screen.queryByText('Ratchanok')).toBeNull()
+    fireEvent.click(screen.getByText('BWF'))
+    expect(screen.getByText('Ratchanok')).toBeTruthy()
+  })
+
+  it('shows BAT+BWF label for combined provider tab', () => {
     const combined = { ...sample, provider: 'combined' as const }
-    renderLB(combined)
-    expect(screen.getByText(/BAT\+BWF/)).toBeTruthy()
+    renderLB([sample, combined])
+    expect(screen.getByText('BAT+BWF')).toBeTruthy()
   })
 
   it('uses per-entry provider for profile links', () => {

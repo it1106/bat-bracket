@@ -2,14 +2,16 @@ import { readLeaderboardsCache } from '@/lib/player-index-cache'
 import LeaderboardsView from '@/components/LeaderboardsView'
 import type { Leaderboards } from '@/lib/types'
 
+const EMPTY: Leaderboards = { version: 1, provider: 'bat', generatedAt: 'never', sourceVersion: '', boards: [] }
+
 export default async function LeaderboardsPage() {
-  const combined = await readLeaderboardsCache('combined')
-  const bat = await readLeaderboardsCache('bat')
-  const bwf = await readLeaderboardsCache('bwf')
-  const lb: Leaderboards = combined ?? bat ?? bwf ?? {
-    version: 1, provider: 'bat', generatedAt: 'never', sourceVersion: '', boards: [],
-  }
-  return <LeaderboardsView leaderboards={lb} />
+  const [bat, bwf, combined] = await Promise.all([
+    readLeaderboardsCache('bat'),
+    readLeaderboardsCache('bwf'),
+    readLeaderboardsCache('combined'),
+  ])
+  const providers: Leaderboards[] = [bat, bwf, combined].filter(Boolean) as Leaderboards[]
+  return <LeaderboardsView leaderboards={providers.length ? providers : [EMPTY]} />
 }
 
 export const dynamic = 'force-dynamic'
