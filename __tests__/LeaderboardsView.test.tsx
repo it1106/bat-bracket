@@ -5,6 +5,10 @@ import LeaderboardsView from '@/components/LeaderboardsView'
 import { LanguageProvider } from '@/lib/LanguageContext'
 import type { Leaderboards } from '@/lib/types'
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
+}))
+
 const renderLB = (lb: Leaderboards | Leaderboards[]) =>
   render(<LanguageProvider><LeaderboardsView leaderboards={Array.isArray(lb) ? lb : [lb]} /></LanguageProvider>)
 
