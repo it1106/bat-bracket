@@ -80,7 +80,7 @@ function mergePlayerRecords(bat: PlayerRecord, bwf: PlayerRecord): PlayerRecord 
     retirementsReceived: bat.totals.retirementsReceived + bwf.totals.retirementsReceived,
     retirementsGiven: bat.totals.retirementsGiven + bwf.totals.retirementsGiven,
   }
-  const altNames = [...new Set([...bat.altNames, bwf.displayName, ...bwf.altNames])].filter(n => n !== bat.displayName)
+  const altNames = Array.from(new Set([...bat.altNames, bwf.displayName, ...bwf.altNames])).filter(n => n !== bat.displayName)
   const sortTournamentsByDate = <T extends { tournamentDateIso: string }>(arr: T[]) =>
     arr.sort((a, b) => (b.tournamentDateIso || '').localeCompare(a.tournamentDateIso || ''))
   return {

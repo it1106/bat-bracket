@@ -95,7 +95,7 @@ export function buildIdentityMap(
 
   const bwfTha = Object.values(bwfIndex.players).filter(p => p.country === 'THA')
 
-  const matches: IdentityMatch[] = [...pinned.values()]
+  const matches: IdentityMatch[] = Array.from(pinned.values())
 
   for (const batPlayer of Object.values(batIndex.players)) {
     if (pinned.has(batPlayer.key.slug)) continue
