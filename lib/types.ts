@@ -21,7 +21,7 @@ export interface DrawInfo {
   isPlayoff?: boolean
 }
 
-export type ProviderTag = 'bat' | 'bwf'
+export type ProviderTag = 'bat' | 'bwf' | 'combined'
 
 export interface TournamentRef {
   id: string
@@ -522,6 +522,7 @@ export interface LeaderboardEntry {
   value: number
   display: string
   qualifier?: string
+  provider?: ProviderTag   // per-entry override for profile link; used by combined leaderboard
 }
 
 export type LeaderboardCategory = 'headline' | 'discipline' | 'character' | 'activity'
@@ -549,4 +550,18 @@ export interface PlayerIndexTournamentInput {
   tournamentDateIso: string
   data: MatchesData
   clubs: Record<string, string>
+}
+
+export interface IdentityMatch {
+  batSlug: string
+  bwfSlug: string
+  confidence: number       // 0–1
+  method: 'fuzzy'
+  override?: boolean       // manually confirmed — not re-inferred on next build
+  rejected?: boolean       // manually marked false positive — always skipped
+}
+
+export interface PlayerIdentityMap {
+  generatedAt: string
+  matches: IdentityMatch[]
 }
