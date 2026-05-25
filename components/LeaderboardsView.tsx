@@ -62,7 +62,9 @@ export default function LeaderboardsView({ leaderboards }: Props) {
     )
   }
 
-  const visible = lb.boards.filter(b => b.category === active)
+  const availableCategories = CATEGORIES.filter(c => lb.boards.some(b => b.category === c.id))
+  const effectiveActive = availableCategories.some(c => c.id === active) ? active : availableCategories[0]?.id ?? active
+  const visible = lb.boards.filter(b => b.category === effectiveActive)
   const multiProvider = leaderboards.length > 1
 
   return (
@@ -86,9 +88,9 @@ export default function LeaderboardsView({ leaderboards }: Props) {
         </div>
       )}
       <div className="lb-tabs">
-        {CATEGORIES.map(c => (
+        {availableCategories.map(c => (
           <button key={c.id}
-            className={`lb-tab ${active === c.id ? 'lb-active' : ''}`}
+            className={`lb-tab ${effectiveActive === c.id ? 'lb-active' : ''}`}
             onClick={() => setActive(c.id)}>
             {t(c.key)}
           </button>
