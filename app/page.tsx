@@ -9,8 +9,9 @@ import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
 import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
+import Link from 'next/link'
 import { useLongPress } from '@/lib/useLongPress'
-import { consumeIntentionalNav } from '@/lib/nav-intent'
+import { consumeIntentionalNav, setIntentionalNav } from '@/lib/nav-intent'
 import { usePointerReorder } from '@/lib/usePointerReorder'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import {
@@ -896,12 +897,13 @@ export default function Home() {
                 {t('exportJpg')}
               </button>
             )}
-            <a
+            <Link
               href="/leaderboards"
               title={t('leaderboards')}
               aria-label={t('leaderboards')}
               className="inline-flex items-center justify-center w-[30px] h-[28px] rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] text-sm"
-            >🏆</a>
+              onClick={setIntentionalNav}
+            >🏆</Link>
             <AlertBell
               alerts={alerts}
               onDismiss={() => setAlerts(dismissAlerts())}
