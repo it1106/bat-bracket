@@ -81,8 +81,8 @@ function mergePlayerRecords(bat: PlayerRecord, bwf: PlayerRecord): PlayerRecord 
     retirementsGiven: bat.totals.retirementsGiven + bwf.totals.retirementsGiven,
   }
   const altNames = [...new Set([...bat.altNames, bwf.displayName, ...bwf.altNames])].filter(n => n !== bat.displayName)
-  const sortByDate = <T extends { tournamentDateIso: string }>(arr: T[]) =>
-    arr.sort((a, b) => b.tournamentDateIso.localeCompare(a.tournamentDateIso))
+  const sortTournamentsByDate = <T extends { tournamentDateIso: string }>(arr: T[]) =>
+    arr.sort((a, b) => (b.tournamentDateIso || '').localeCompare(a.tournamentDateIso || ''))
   return {
     key: bat.key,
     displayName: bat.displayName,
@@ -95,10 +95,10 @@ function mergePlayerRecords(bat: PlayerRecord, bwf: PlayerRecord): PlayerRecord 
       doubles: mergeDisc(bat.byDiscipline.doubles, bwf.byDiscipline.doubles),
       mixed:   mergeDisc(bat.byDiscipline.mixed,   bwf.byDiscipline.mixed),
     },
-    titles:      sortByDate([...bat.titles,      ...bwf.titles]),
-    finals:      sortByDate([...bat.finals,      ...bwf.finals]),
-    semis:       sortByDate([...bat.semis,        ...bwf.semis]),
-    tournaments: sortByDate([...bat.tournaments, ...bwf.tournaments]),
+    titles:      [...bat.titles,  ...bwf.titles],
+    finals:      [...bat.finals,  ...bwf.finals],
+    semis:       [...bat.semis,   ...bwf.semis],
+    tournaments: sortTournamentsByDate([...bat.tournaments, ...bwf.tournaments]),
     recentForm: mergeRecentForm(bat.recentForm, bwf.recentForm),
     matchCharacter: mergeMatchCharacter(bat.matchCharacter, bwf.matchCharacter, totals),
     opponents: mergeOpponents(bat.opponents, bwf.opponents),
