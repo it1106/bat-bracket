@@ -98,28 +98,6 @@ export default function PlayerProfileView({ record, batRanking }: Props) {
         </div>
       </div>
 
-      {batRanking && batRanking.length > 0 && (
-        <div className="pp-section pp-ranking-section">
-          <h2>Current Ranking</h2>
-          <div className="pp-ranking-list">
-            {batRanking.map(r => (
-              <div key={r.eventName} className="pp-ranking-row">
-                <span className="pp-ranking-event">{r.eventName}</span>
-                <span className="pp-ranking-pos">#{r.rank}</span>
-                <span className="pp-ranking-tn">{r.tournaments} tn</span>
-                <span className="pp-ranking-pts">{r.points.toLocaleString()} pts</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      <div className="pp-kpi-row">
-        <div className="pp-kpi"><div className="pp-kpi-num">{record.totals.wins}</div><div className="pp-kpi-lbl">Wins</div></div>
-        <div className="pp-kpi"><div className="pp-kpi-num">{record.totals.losses}</div><div className="pp-kpi-lbl">Losses</div></div>
-        <div className="pp-kpi"><div className="pp-kpi-num">{winPct}%</div><div className="pp-kpi-lbl">Win Rate</div></div>
-        <div className="pp-kpi"><div className="pp-kpi-num">{record.titles.length}</div><div className="pp-kpi-lbl">Titles</div></div>
-      </div>
-
       {extra?.stats && (
         <div className="pp-section">
           <h2>BAT record <span className="pp-stats-note">career (this year)</span></h2>
@@ -151,6 +129,28 @@ export default function PlayerProfileView({ record, batRanking }: Props) {
           </div>
         </div>
       )}
+
+      {batRanking && batRanking.length > 0 && (
+        <div className="pp-section pp-ranking-section">
+          <h2>Current Ranking</h2>
+          <div className="pp-ranking-list">
+            {batRanking.map(r => (
+              <div key={r.eventName} className="pp-ranking-row">
+                <span className="pp-ranking-event">{r.eventName}</span>
+                <span className="pp-ranking-pos">#{r.rank}</span>
+                <span className="pp-ranking-tn">{r.tournaments} tn</span>
+                <span className="pp-ranking-pts">{r.points.toLocaleString()} pts</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="pp-kpi-row">
+        <div className="pp-kpi"><div className="pp-kpi-num">{record.totals.wins}</div><div className="pp-kpi-lbl">Wins</div></div>
+        <div className="pp-kpi"><div className="pp-kpi-num">{record.totals.losses}</div><div className="pp-kpi-lbl">Losses</div></div>
+        <div className="pp-kpi"><div className="pp-kpi-num">{winPct}%</div><div className="pp-kpi-lbl">Win Rate</div></div>
+        <div className="pp-kpi"><div className="pp-kpi-num">{record.titles.length}</div><div className="pp-kpi-lbl">Titles</div></div>
+      </div>
 
       <div className="pp-section">
         <h2>By Event Type</h2>
