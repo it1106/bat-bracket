@@ -1,14 +1,11 @@
 import { parseBatRanking } from '@/lib/bat-ranking-scraper'
 
 // Fixture matches the actual bat.tournamentsoftware.com/ranking/ranking.aspx?rid=188 structure.
-// Each event is a <table class="ruler">. The first <tr> has the event name in a <th> link.
-// Player rows have: <td class="rank"><div>N</div></td>, then flag/name/profile/id/yob cols,
-// then <td class="right rankingpoints">POINTS</td>, then tournaments count, then club link.
+// There is ONE <table class="ruler"> containing all events. Events are separated by
+// <th colspan="9"><a href="category.aspx?...">EVENT NAME</a></th> header rows.
 const SAMPLE_HTML = `
 <html><body>
 <h3>Badminton Thailand Junior Ranking <span class="rankingdate">(19/5/2569)</span></h3>
-<p class="subtitle">Last updated: 19 พฤษภาคม 2569 14:13</p>
-
 <table class="ruler">
 <tr>
   <th colspan="9"><a href="category.aspx?id=51771&category=5694">U23 Men's singles</a></th>
@@ -38,9 +35,6 @@ const SAMPLE_HTML = `
   <td class="right">7</td>
   <td><a href="category.aspx?id=51771&category=5694&ogid=E251">บ้านทองหยอด</a></td>
 </tr>
-</table>
-
-<table class="ruler">
 <tr>
   <th colspan="9"><a href="category.aspx?id=51771&category=5695">U23 Women's singles</a></th>
   <th class="right"><a href="category.aspx?id=51771&category=5695">More</a></th>
@@ -62,7 +56,7 @@ const SAMPLE_HTML = `
 `
 
 describe('parseBatRanking', () => {
-  it('parses multiple events from ruler tables', () => {
+  it('parses multiple events from a single ruler table with event-header rows', () => {
     const result = parseBatRanking(SAMPLE_HTML)
     expect(result.events.length).toBe(2)
     expect(result.events[0].eventName).toBe("U23 Men's singles")
@@ -95,7 +89,6 @@ describe('parseBatRanking', () => {
 
   it('computes slug via nameToSlug', () => {
     const result = parseBatRanking(SAMPLE_HTML)
-    // nameToSlug encodes Thai chars; just confirm it's non-empty and derived from name
     expect(result.events[0].entries[0].slug).toBeTruthy()
     expect(result.events[0].entries[0].slug).toContain('_')
   })
@@ -126,12 +119,12 @@ ${rows}
     expect(result.events[0].entries.length).toBe(50)
   })
 
-  it('returns empty events array when no ruler tables found', () => {
+  it('returns empty events array when no ruler table found', () => {
     const result = parseBatRanking('<html><body><p>No ranking data</p></body></html>')
     expect(result.events).toEqual([])
   })
 
-  it('skips tables with no rank rows (e.g. filter-only tables)', () => {
+  it('skips event sections with no rank rows', () => {
     const html = `<html><body>
 <h3>Badminton Thailand Junior Ranking <span class="rankingdate">(1/1/2569)</span></h3>
 <table class="ruler">
