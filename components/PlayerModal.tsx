@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { PlayerProfile, MatchEntry, ProviderTag, BatRankingPlayerRank } from '@/lib/types'
+import type { PlayerProfile, MatchEntry, ProviderTag } from '@/lib/types'
 import { useLanguage } from '@/lib/LanguageContext'
 import { pct } from '@/lib/playerStats'
 
@@ -27,7 +27,6 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const [activeEventIds, setActiveEventIds] = useState<Set<string>>(new Set())
   const [fullProfile, setFullProfile] = useState<{ slug: string; provider: ProviderTag } | null>(null)
-  const [batRanking, setBatRanking] = useState<BatRankingPlayerRank[] | null>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -35,7 +34,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  useEffect(() => { setActiveEventIds(new Set()); setFullProfile(null); setBatRanking(null) }, [profile?.playerId])
+  useEffect(() => { setActiveEventIds(new Set()); setFullProfile(null) }, [profile?.playerId])
 
   useEffect(() => {
     if (!profile?.name) return
@@ -43,10 +42,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
     const url = `/api/players/exists?provider=${p}&name=${encodeURIComponent(profile.name)}`
     fetch(url)
       .then(r => r.json())
-      .then(d => {
-        if (d?.exists && d?.slug) setFullProfile({ slug: d.slug, provider: p })
-        if (d?.batRanking?.length) setBatRanking(d.batRanking)
-      })
+      .then(d => { if (d?.exists && d?.slug) setFullProfile({ slug: d.slug, provider: p }) })
       .catch(() => { /* silent — modal still works without the link */ })
   }, [profile?.name, provider])
 
@@ -93,17 +89,6 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                 <a href={`/player/${fullProfile.provider}/${fullProfile.slug}`} className="pm-full-profile-link">
                   {t('viewFullProfile')} →
                 </a>
-              )}
-              {batRanking && batRanking.length > 0 && (
-                <div className="pm-ranking">
-                  {batRanking.map(r => (
-                    <div key={r.eventName} className="pm-ranking-row">
-                      <span className="pm-ranking-event">{r.eventName}</span>
-                      <span className="pm-ranking-pos">#{r.rank}</span>
-                      <span className="pm-ranking-pts">{r.points.toLocaleString()} pts</span>
-                    </div>
-                  ))}
-                </div>
               )}
               {profile.stats && (() => {
                 const s = profile.stats
