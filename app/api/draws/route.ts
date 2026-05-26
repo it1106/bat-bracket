@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { cache, TTL_MS, fetchAndCache } from '@/lib/draws-cache'
+import { getCached, TTL_MS, fetchAndCache } from '@/lib/draws-cache'
 import type { DrawInfo } from '@/lib/types'
 
 export const maxDuration = 60
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const filter = (draws: DrawInfo[]) =>
     draws.filter((d) => !d.groupLetter && (d.isPlayoff || d.type !== 'Round Robin'))
 
-  const cached = cache.get(id)
+  const cached = getCached(id)
   if (cached && (cached.done || Date.now() - cached.ts < TTL_MS)) {
     return NextResponse.json(filter(cached.draws))
   }

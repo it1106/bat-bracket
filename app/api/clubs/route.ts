@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { cache as drawsCache, fetchAndCache as fetchDrawsAndCache } from '@/lib/draws-cache'
+import { getCached as getCachedDraws, fetchAndCache as fetchDrawsAndCache } from '@/lib/draws-cache'
 import {
   playerClubCache,
   playerNameCache,
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const rosterOk = await fetchTournamentPlayerClubs(tid)
 
   if (!rosterOk && !fullyWalked.has(tid)) {
-    let draws = drawsCache.get(tid)?.draws
+    let draws = getCachedDraws(tid)?.draws
     if (!draws) {
       try { draws = await fetchDrawsAndCache(tid) } catch {
         return NextResponse.json({})
