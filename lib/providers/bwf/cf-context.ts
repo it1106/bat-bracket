@@ -133,6 +133,21 @@ async function prime(): Promise<void> {
   console.log('[bwf-cf] primed: token=' + (state.token ? 'extracted' : 'missing'))
 }
 
+// Tear the browser down and clear state so its memory is reclaimed. The open
+// primer page (bwfbadminton.com runs its own ad/analytics JS) leaks ~1 GB per
+// ~30 min while held open; under active load the TTL recycle in prime() keeps
+// each browser short-lived, but when BWF goes idle the heartbeat must close it
+// outright rather than leave it leaking overnight. Next request re-primes cold.
+export async function closeContext(): Promise<void> {
+  if (!state.context) return
+  try { await state.context.close() } catch {}
+  state.context = null
+  state.apiPage = null
+  state.token = null
+  state.lastPrime = 0
+  console.log('[bwf-cf] context closed (idle teardown)')
+}
+
 async function refreshToken(): Promise<void> {
   if (!state.apiPage) throw new Error('no apiPage')
   await state.apiPage.goto(PRIMER_URL)

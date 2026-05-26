@@ -1,4 +1,4 @@
-import { _resetForTesting, _setDriverForTesting, primeIfNeeded, request, _internals } from '@/lib/providers/bwf/cf-context'
+import { _resetForTesting, _setDriverForTesting, primeIfNeeded, request, closeContext, _internals } from '@/lib/providers/bwf/cf-context'
 
 interface MockFetchCall { url: string; method: string }
 
@@ -91,5 +91,27 @@ describe('cf-context state machine', () => {
     m.setNextResponses([{ status: 502 }])
     _setDriverForTesting(m.driver as any)
     await expect(request('POST', '/api/x')).rejects.toThrow(/502/)
+  })
+
+  it('closeContext tears down the browser so the next request re-primes cold', async () => {
+    const m = makeMockDriver()
+    _setDriverForTesting(m.driver as any)
+    await primeIfNeeded()
+    expect(m.calls.launch).toBe(1)
+
+    await closeContext()
+    expect(m.calls.close).toBe(1)
+    expect(_internals.getToken()).toBeNull()
+
+    m.setNextResponses([{ status: 200, body: { ok: true } }])
+    await request('POST', '/api/x')
+    expect(m.calls.launch).toBe(2)
+  })
+
+  it('closeContext is a safe no-op when no browser is open', async () => {
+    const m = makeMockDriver()
+    _setDriverForTesting(m.driver as any)
+    await closeContext()
+    expect(m.calls.close).toBe(0)
   })
 })

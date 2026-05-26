@@ -80,12 +80,19 @@ export async function register() {
       // when the next traffic burst lands, and produce a reload-overlap
       // memory spike. This setInterval pokes it every 5 min so any expired
       // TTL gets honored regardless of demand.
+      //
+      // When no BWF tournament is active, a browser may still be open from the
+      // last sparse request (users viewing finished events). Skipping the tick
+      // would leave that browser holding the bwfbadminton.com primer page open
+      // for hours — its own ad/analytics JS leaks ~1 GB per ~30 min, which is
+      // the overnight (9pm–7am) container-memory spike. So when idle we close
+      // it outright instead; the next request re-primes cold.
       const bwfRecycleTick = async () => {
         const hasActiveBwf = listAllTournaments().some((t) => t.provider === 'bwf' && !t.done)
-        if (!hasActiveBwf) return
         try {
-          const { primeIfNeeded } = await import('./lib/providers/bwf/cf-context')
-          await primeIfNeeded()
+          const cf = await import('./lib/providers/bwf/cf-context')
+          if (hasActiveBwf) await cf.primeIfNeeded()
+          else await cf.closeContext()
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'unknown'
           console.warn(`[bwf-recycle] tick failed: ${msg}`)
