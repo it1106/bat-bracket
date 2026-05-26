@@ -6,7 +6,7 @@ jest.mock('../lib/tournaments-registry', () => ({
   listAllTournaments: jest.fn(() => []),
 }))
 
-import { cache, getCached, fetchAndCache, fetchAndCacheWithTtl } from '../lib/draws-cache'
+import { cache, getCached, fetchAndCache, fetchAndCacheWithTtl, prewarmDrawsCache } from '../lib/draws-cache'
 import { providerFor } from '../lib/providers/resolve'
 import { listAllTournaments } from '../lib/tournaments-registry'
 
@@ -39,5 +39,20 @@ describe('draws-cache', () => {
     ])
     await fetchAndCache('6e65c36e-aaaa')
     expect(getCached('6e65c36e-aaaa')?.done).toBeUndefined()
+  })
+
+  it('prewarm skips finished tournaments (no upstream fetch for done)', async () => {
+    const getDraws = jest.fn().mockResolvedValue([])
+    ;(providerFor as jest.Mock).mockReturnValue({ getDraws })
+    ;(listAllTournaments as jest.Mock).mockReturnValue([
+      { id: 'ACTIVE-1', provider: 'bwf', done: false },
+      { id: 'DONE-1', provider: 'bwf', done: true },
+    ])
+
+    await prewarmDrawsCache()
+
+    expect(getCached('active-1')).toBeDefined()
+    expect(getCached('done-1')).toBeUndefined()
+    expect(getDraws).toHaveBeenCalledTimes(1)
   })
 })

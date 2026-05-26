@@ -43,9 +43,17 @@ export async function fetchAndCacheWithTtl(id: string, done: boolean): Promise<D
 
 export async function prewarmDrawsCache(): Promise<void> {
   for (const ref of listAllTournaments()) {
+    // Finished tournaments never change, so there's nothing to pre-warm — and
+    // for BWF a fetch here would needlessly spin up Chromium on every boot.
+    // The first (if any) request resolves and caches them as done. Mirrors the
+    // skip in prewarmBracketCache / prewarmEventBundleCache.
+    if (ref.done) {
+      console.log(`[draws-cache] skipped (done): ${ref.id} (${ref.provider})`)
+      continue
+    }
     try {
       await fetchAndCacheWithTtl(ref.id, ref.done)
-      console.log(`[draws-cache] pre-warmed: ${ref.id} (${ref.provider})${ref.done ? ' (done)' : ''}`)
+      console.log(`[draws-cache] pre-warmed: ${ref.id} (${ref.provider})`)
     } catch (err) {
       console.warn(`[draws-cache] failed to pre-warm ${ref.id}:`, err)
     }

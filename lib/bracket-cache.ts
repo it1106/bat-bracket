@@ -2,7 +2,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import * as cheerio from 'cheerio'
 import { parseBracket, parsePlayersPage } from './scraper'
-import { cache as drawsCache } from './draws-cache'
+import { cache as drawsCache, getCached as getCachedDraws } from './draws-cache'
 import { batFetch } from './bat-fetch'
 import { providerFor } from '@/lib/providers/resolve'
 import { resolveRef } from '@/lib/tournaments-registry'
@@ -210,7 +210,7 @@ export async function fetchBracketFromRound(guid: string, drawNum: string, fromR
 
 export async function fetchAndCache(guid: string, drawNum: string): Promise<BracketData> {
   const bracket = await fetchBracket(guid, drawNum)
-  const done = drawsCache.get(guid)?.done
+  const done = getCachedDraws(guid)?.done
   const isStatic = isBracketStatic(bracket.html)
   cache.set(makeBracketKey(guid, drawNum), {
     bracket,
