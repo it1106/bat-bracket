@@ -14,12 +14,12 @@ describe('buildIndex — leaderboards', () => {
   const toyota = loadInput('toyota', 'Toyota', '2026-05-01')
   const trang = loadInput('trang', 'Trang', '2026-04-15')
 
-  it('produces all 12 v1 boards', () => {
+  it('produces all 13 v1 boards', () => {
     const { leaderboards } = buildIndex('bat', [toyota, trang])
     const ids = leaderboards.boards.map(b => b.id).sort()
     expect(ids).toEqual([
       'activity.matchesLast90', 'activity.tournamentsEntered',
-      'character.comebacks', 'character.deciderRecord', 'character.threeSetterWins',
+      'character.comebacks', 'character.deciderRecord', 'character.threeGamers', 'character.threeSetterWins',
       'discipline.doubles.wins', 'discipline.mixed.wins', 'discipline.singles.wins',
       'headline.courtTime', 'headline.titles', 'headline.winPct', 'headline.wins',
     ])

@@ -453,6 +453,7 @@ export interface PlayerRanks {
   bestDoubles?: number
   bestMixed?: number
   deciderRecord?: number
+  threeGamerRate?: number
 }
 
 export interface PlayerRecord {

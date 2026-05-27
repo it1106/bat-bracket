@@ -221,12 +221,12 @@ export type TKey =
   | 'currentRanking'
   | 'lbMostTitles' | 'lbMostWins' | 'lbHighestWinPct' | 'lbMostCourtTime'
   | 'lbBestSingles' | 'lbBestDoubles' | 'lbBestMixed'
-  | 'lbThreeSetterWins' | 'lbComebackWins' | 'lbDeciderRecord'
+  | 'lbThreeSetterWins' | 'lbComebackWins' | 'lbDeciderRecord' | 'lb3Gamers'
   | 'lbMatchesLast90' | 'lbTournamentsEntered'
   | 'min20' | 'min10' | 'min5'
   | 'lbMostTitlesHelp' | 'lbMostWinsHelp' | 'lbHighestWinPctHelp' | 'lbMostCourtTimeHelp'
   | 'lbBestSinglesHelp' | 'lbBestDoublesHelp' | 'lbBestMixedHelp'
-  | 'lbThreeSetterWinsHelp' | 'lbComebackWinsHelp' | 'lbDeciderRecordHelp'
+  | 'lbThreeSetterWinsHelp' | 'lbComebackWinsHelp' | 'lbDeciderRecordHelp' | 'lb3GamersHelp'
   | 'lbMatchesLast90Help' | 'lbTournamentsEnteredHelp'
 
 const dict: Record<Lang, Record<TKey, string>> = {
@@ -385,7 +385,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     leaderboardsSub: 'Career titles · wins · win % · court time',
     lbHeadline: 'Headline',
     lbDiscipline: 'Event',
-    lbCharacter: 'Character',
+    lbCharacter: '3 Gamers',
     lbActivity: 'Activity',
     lbRanking: 'Ranking',
     lbSearchPlaceholder: 'Search players…',
@@ -401,6 +401,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbThreeSetterWins: 'Three-setter Wins',
     lbComebackWins: 'Comeback Wins',
     lbDeciderRecord: 'Decider Record',
+    lb3Gamers: '3 Gamers',
     lbMatchesLast90: 'Matches (last 90 days)',
     lbTournamentsEntered: 'Tournaments Entered',
     min20: 'min 20 matches',
@@ -416,6 +417,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbThreeSetterWinsHelp: 'Matches won that went the full three games.',
     lbComebackWinsHelp: 'Matches won after losing the first game.',
     lbDeciderRecordHelp: 'Win rate in matches that reached a deciding third game. Requires at least 5 deciders.',
+    lb3GamersHelp: 'Share of matches that went the full three games, out of all matches played.',
     lbMatchesLast90Help: 'Matches played in the last 90 days.',
     lbTournamentsEnteredHelp: 'Number of distinct tournaments entered.',
   },
@@ -587,9 +589,10 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbBestSingles: 'เดี่ยวยอดเยี่ยม',
     lbBestDoubles: 'คู่ยอดเยี่ยม',
     lbBestMixed: 'คู่ผสมยอดเยี่ยม',
-    lbThreeSetterWins: 'ชนะ 3 เกม',
+    lbThreeSetterWins: 'ชนะเกม 3',
     lbComebackWins: 'พลิกกลับมาชนะหลังเสียเกมแรก',
-    lbDeciderRecord: 'ชนะเกม 3',
+    lbDeciderRecord: 'สถิติชนะเกม 3',
+    lb3Gamers: 'นัก 3 เกม',
     lbMatchesLast90: 'แมตช์ (90 วันล่าสุด)',
     lbTournamentsEntered: 'จำนวนทัวร์นาเมนต์',
     min20: 'อย่างน้อย 20 แมตช์',
@@ -605,6 +608,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbThreeSetterWinsHelp: 'จำนวนแมตช์ที่ชนะโดยเล่นครบสามเกม',
     lbComebackWinsHelp: 'จำนวนแมตช์ที่ชนะหลังจากแพ้เกมแรก',
     lbDeciderRecordHelp: 'อัตราการชนะในแมตช์ที่ต้องตัดสินด้วยเกมที่สาม ต้องมีเกมตัดสินอย่างน้อย 5 ครั้ง',
+    lb3GamersHelp: 'สัดส่วนแมตช์ที่เล่นครบ 3 เกม เทียบกับแมตช์ทั้งหมดที่ลงแข่ง',
     lbMatchesLast90Help: 'จำนวนแมตช์ที่ลงแข่งใน 90 วันที่ผ่านมา',
     lbTournamentsEnteredHelp: 'จำนวนทัวร์นาเมนต์ที่เข้าร่วม (ไม่ซ้ำ)',
   },

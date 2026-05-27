@@ -39,7 +39,7 @@ describe('LeaderboardsView', () => {
   it('renders all category tabs', () => {
     renderLB(sample)
     expect(screen.getByText(/Headline/i)).toBeTruthy()
-    expect(screen.getByText(/Character/i)).toBeTruthy()
+    expect(screen.getByText(/3 Gamers/i)).toBeTruthy()
   })
 
   it('renders entries for the default tab', () => {
