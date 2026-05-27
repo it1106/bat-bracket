@@ -38,6 +38,12 @@ export default function EventBundleView({
   const playoffSize = bundle.groups.length
   const qualifierCount = computeQualifierCount(playoffSize, bundle.groups.length)
 
+  // The playoff bracket only carries real entrants once group qualifiers are
+  // decided; until then its slots are byes/TBD placeholders rendered as empty
+  // <span class="bk-player"></span> with no data-player-id. Dim the tab in that
+  // state so it reads as "not ready yet" (still clickable to peek).
+  const playoffPopulated = bundle.playoff.html.includes('data-player-id=')
+
   usePlayerHighlight(groupsRef, playerQuery, playerClubMap, bundle.eventName + ':' + tab)
 
   useEffect(() => {
@@ -54,7 +60,8 @@ export default function EventBundleView({
         >Groups</button>
         <button
           type="button"
-          className={`px-4 py-2 -mb-px border-b-2 ${tab === 'playoff' ? 'border-blue-500 text-blue-600 dark:text-blue-400 font-semibold' : 'border-transparent text-gray-500'}`}
+          title={playoffPopulated ? undefined : 'Playoff entrants not decided yet'}
+          className={`px-4 py-2 -mb-px border-b-2 ${tab === 'playoff' ? 'border-blue-500 text-blue-600 dark:text-blue-400 font-semibold' : 'border-transparent text-gray-500'}${playoffPopulated ? '' : ' opacity-40'}`}
           onClick={() => setTab('playoff')}
         >Playoff</button>
       </div>

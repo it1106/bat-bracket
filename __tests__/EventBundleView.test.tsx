@@ -39,6 +39,24 @@ describe('EventBundleView', () => {
     fireEvent.click(screen.getByRole('button', { name: /playoff/i }))
     expect(screen.getByTestId('bracket-canvas')).toBeInTheDocument()
   })
+
+  it('dims the Playoff tab when the bracket has no populated entrants (byes/TBD)', () => {
+    render(<EventBundleView bundle={bundle} playerQuery="" />)
+    const playoffBtn = screen.getByRole('button', { name: /playoff/i })
+    expect(playoffBtn.className).toContain('opacity-40')
+    expect(playoffBtn).toHaveAttribute('title')
+  })
+
+  it('does not dim the Playoff tab once a real entrant is populated', () => {
+    const seeded: EventBundle = {
+      ...bundle,
+      playoff: { html: '<span class="bk-player" data-player-id="99">Carol</span>', format: 'single-elimination' },
+    }
+    render(<EventBundleView bundle={seeded} playerQuery="" />)
+    const playoffBtn = screen.getByRole('button', { name: /playoff/i })
+    expect(playoffBtn.className).not.toContain('opacity-40')
+    expect(playoffBtn).not.toHaveAttribute('title')
+  })
 })
 
 describe('computeQualifierCount', () => {
