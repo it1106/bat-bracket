@@ -529,7 +529,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsShowAll: 'แสดงทั้งหมด',
     statsShowLess: 'แสดงน้อยลง',
     statsColCountry: 'ประเทศ',
-    statsColPlayers: 'จำนวนผู้เล่น',
+    statsColPlayers: 'จำนวนนักกีฬา',
     statsSectionMultiGold: 'นักกีฬาที่ได้เหรียญทองมากกว่า 1 เหรียญ',
     statsSectionIntegrity: 'สถิติอื่น ๆ',
     statsMarathonBadge: 'แมตช์มาราธอน',
