@@ -119,7 +119,11 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
     }
   }, [tournamentId])
 
-  if (loading) return <div className="stats-loading">…</div>
+  if (loading) return (
+    <div className="stats-loading">
+      <span className="inline-block w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
   if (error) return <div className="stats-error">{t('statsLoadFailed')}</div>
   if (!stats) return null
   if (stats.kpis.matches === 0) return <div className="stats-empty">{t('statsEmptyState')}</div>
