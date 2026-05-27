@@ -183,7 +183,7 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
 // Bump when the PlayerRecord/Leaderboard shape changes so a deploy forces a
 // rebuild even though the underlying tournament data is unchanged. (sourceVersion
 // otherwise only reflects input data, so a pure code change would be skipped.)
-const SCHEMA_VERSION = 9
+const SCHEMA_VERSION = 10
 
 function computeSourceVersion(inputs: PlayerIndexTournamentInput[]): string {
   const sig = [...inputs]
