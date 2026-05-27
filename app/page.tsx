@@ -985,6 +985,9 @@ export default function Home() {
               <span className="opacity-70">({liveMatchCount})</span>
             </button>
           )}
+          {customTabs.length > 0 && (
+            <div className="mx-1.5 h-4 w-px bg-[var(--border)] shrink-0" aria-hidden="true" />
+          )}
           {customTabs.map((tab) => (
             <CustomTabButton
               key={tab.id}
