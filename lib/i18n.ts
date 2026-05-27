@@ -581,7 +581,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbCharacter: '3 เกม',
     lbActivity: 'กิจกรรม',
     lbRanking: 'อันดับ',
-    lbRankingAsOf: 'เผยแพร่เมื่อ',
+    lbRankingAsOf: 'แรงค์กิ้งของวันที่',
     lbSearchPlaceholder: 'ค้นหานักกีฬา…',
     lbSearchEmpty: 'ไม่พบนักกีฬา',
     currentRanking: 'อันดับปัจจุบัน',
