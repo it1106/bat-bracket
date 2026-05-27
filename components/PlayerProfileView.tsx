@@ -7,6 +7,7 @@ import type { PlayerRecord, PlayerRanks, PlayerStats, WLRecord } from '@/lib/typ
 interface Props {
   record: PlayerRecord
   batRanking?: import('@/lib/types').BatRankingPlayerRank[]
+  rankingPublishDate?: string
 }
 
 function fmtPct(n: number): string { return `${Math.round(n * 100)}%` }
@@ -34,7 +35,7 @@ const RANK_LABELS: Array<[keyof PlayerRanks, string, string]> = [
   ['threeSetterWins', '🔥', 'Three-setter Wins'],
 ]
 
-export default function PlayerProfileView({ record, batRanking }: Props) {
+export default function PlayerProfileView({ record, batRanking, rankingPublishDate }: Props) {
   const router = useRouter()
   const winPct = record.totals.matches > 0
     ? Math.round((record.totals.wins / record.totals.matches) * 100)
@@ -132,7 +133,7 @@ export default function PlayerProfileView({ record, batRanking }: Props) {
 
       {batRanking && batRanking.length > 0 && (
         <div className="pp-section pp-ranking-section">
-          <h2>Current Ranking</h2>
+          <h2>Current Ranking{rankingPublishDate && <span className="pp-stats-note">as of {rankingPublishDate}</span>}</h2>
           <div className="pp-ranking-list">
             {batRanking.map(r => (
               <div key={r.eventName} className="pp-ranking-row">

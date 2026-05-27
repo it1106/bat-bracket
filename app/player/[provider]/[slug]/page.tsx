@@ -16,9 +16,11 @@ export default async function PlayerPage({ params }: Props) {
   if (!record) notFound()
 
   const batRanking: BatRankingPlayerRank[] = []
+  let rankingPublishDate = ''
   if (provider === 'bat') {
     const ranking = await readBatRankingCache()
     if (ranking) {
+      rankingPublishDate = ranking.publishDate
       for (const ev of ranking.events) {
         const entry = ev.entries.find(e => e.slug === params.slug)
         if (entry) batRanking.push({ eventName: ev.eventName, rank: entry.rank, points: entry.points, tournaments: entry.tournaments })
@@ -26,7 +28,13 @@ export default async function PlayerPage({ params }: Props) {
     }
   }
 
-  return <PlayerProfileView record={record} batRanking={batRanking.length ? batRanking : undefined} />
+  return (
+    <PlayerProfileView
+      record={record}
+      batRanking={batRanking.length ? batRanking : undefined}
+      rankingPublishDate={rankingPublishDate || undefined}
+    />
+  )
 }
 
 export const dynamic = 'force-dynamic'
