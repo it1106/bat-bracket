@@ -2577,6 +2577,7 @@ html.dark .pp-ev-chip.pp-champ { background: rgba(212,175,55,0.18);
   border-radius: 14px; padding: 18px; margin-bottom: 14px; text-align: center; }
 .lb-hdr h1 { margin: 0; color: var(--brand-fg); font-size: 22px; }
 .lb-hdr .lb-sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.lb-ranking-asof { color: var(--muted); font-size: 13px; margin: -4px 0 12px; }
 .lb-provider-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
 .lb-provider-tab { padding: 7px 16px; border-radius: 20px;
   background: var(--surface); border: 1px solid var(--border);

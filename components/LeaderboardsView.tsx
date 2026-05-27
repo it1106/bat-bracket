@@ -8,7 +8,7 @@ import type { TKey } from '@/lib/i18n'
 
 interface SearchHit { slug: string; name: string; club: string; provider: ProviderTag }
 
-interface Props { leaderboards: Leaderboards[] }
+interface Props { leaderboards: Leaderboards[]; rankingPublishDate?: string }
 
 const CATEGORIES: Array<{ id: LeaderboardCategory; key: TKey }> = [
   { id: 'headline', key: 'lbHeadline' },
@@ -24,7 +24,7 @@ const PROVIDER_LABELS: Record<ProviderTag, string> = {
   combined: 'BAT+BWF',
 }
 
-export default function LeaderboardsView({ leaderboards }: Props) {
+export default function LeaderboardsView({ leaderboards, rankingPublishDate }: Props) {
   const { t } = useLanguage()
   const router = useRouter()
   const [activeProvider, setActiveProvider] = useState<ProviderTag>(leaderboards[0]?.provider ?? 'bat')
@@ -164,6 +164,9 @@ export default function LeaderboardsView({ leaderboards }: Props) {
           </button>
         ))}
       </div>
+      {effectiveActive === 'ranking' && rankingPublishDate && (
+        <div className="lb-sub lb-ranking-asof">{t('lbRankingAsOf')} {rankingPublishDate}</div>
+      )}
       <div className="lb-grid">
         {visible.map(b => {
           const helpKey = `${b.titleKey}Help` as TKey

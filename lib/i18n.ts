@@ -217,6 +217,7 @@ export type TKey =
   | 'leaderboards'
   | 'leaderboardsSub'
   | 'lbHeadline' | 'lbDiscipline' | 'lbCharacter' | 'lbActivity' | 'lbRanking'
+  | 'lbRankingAsOf'
   | 'lbSearchPlaceholder' | 'lbSearchEmpty'
   | 'currentRanking'
   | 'lbMostTitles' | 'lbMostWins' | 'lbHighestWinPct' | 'lbMostCourtTime'
@@ -388,6 +389,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbCharacter: '3 Gamers',
     lbActivity: 'Activity',
     lbRanking: 'Ranking',
+    lbRankingAsOf: 'Published',
     lbSearchPlaceholder: 'Search players…',
     lbSearchEmpty: 'No players found',
     currentRanking: 'Current Ranking',
@@ -579,6 +581,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbCharacter: '3 เกม',
     lbActivity: 'กิจกรรม',
     lbRanking: 'อันดับ',
+    lbRankingAsOf: 'เผยแพร่เมื่อ',
     lbSearchPlaceholder: 'ค้นหานักกีฬา…',
     lbSearchEmpty: 'ไม่พบนักกีฬา',
     currentRanking: 'อันดับปัจจุบัน',

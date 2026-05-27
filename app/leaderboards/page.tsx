@@ -40,7 +40,12 @@ export default async function LeaderboardsPage() {
 
   if (bwf) providers.push(bwf)
 
-  return <LeaderboardsView leaderboards={providers.length ? providers : [EMPTY]} />
+  return (
+    <LeaderboardsView
+      leaderboards={providers.length ? providers : [EMPTY]}
+      rankingPublishDate={ranking?.publishDate || undefined}
+    />
+  )
 }
 
 export const dynamic = 'force-dynamic'
