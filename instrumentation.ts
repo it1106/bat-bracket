@@ -58,6 +58,8 @@ export async function register() {
     const isLeader = true
     if (isLeader) {
       const deps = buildDefaultDeps()
+      const port = process.env.PORT || '3000'
+      const origin = `http://127.0.0.1:${port}`
       const tick = async () => {
         try {
           const h = getBangkokHour()
@@ -66,6 +68,18 @@ export async function register() {
             return
           }
           await runDiscoveryCycle(deps)
+          // Pin any tournament that has just finished (every match-day now in
+          // the past) and rebuild the player index, so completed events appear
+          // in profiles and leaderboards without waiting for a redeploy. This
+          // runs on the discovery cadence (every 15 min, modulo the overnight
+          // quiet window). rebuildAll is skipped unless something newly pinned,
+          // and is itself a no-op when the source version is unchanged.
+          const newlyPinned = await prewarmMatchesFullCache()
+          if (newlyPinned.length > 0) {
+            console.log(`[auto-rebuild] tournaments completed: ${newlyPinned.join(', ')}`)
+            const result = await rebuildAll({ ensureDay: makeOriginDayFetcher(origin) })
+            console.log(`[auto-rebuild] player index rebuilt: ${JSON.stringify(result)}`)
+          }
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'unknown'
           console.warn(`[discovery] tick failed: ${msg}`)

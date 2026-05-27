@@ -13,14 +13,20 @@ const HEADERS = {
   'X-Requested-With': 'XMLHttpRequest',
 }
 
+// Outcome of attempting to persist a tournament's full schedule:
+//   'cached' — already on disk when we entered (no fetch, no write)
+//   'pinned' — newly written this call (just transitioned to all-past)
+//   'active' — not written: still has a present/future match-day (or no data)
+export type FullCacheStatus = 'cached' | 'pinned' | 'active'
+
 // Persists the full match schedule to disk if every match-day is in the past.
-// Returns true iff a disk cache exists after this call (already-pinned or
-// newly-pinned). A `false` return means the tournament is still active.
+// A return of 'cached' or 'pinned' means a disk cache exists after this call;
+// 'active' means the tournament is still ongoing (or unfetchable).
 export async function ensureFullCachePersisted(
   tournamentId: string,
   todayIso: string,
-): Promise<boolean> {
-  if (await readFullCache(tournamentId)) return true
+): Promise<FullCacheStatus> {
+  if (await readFullCache(tournamentId)) return 'cached'
   const ref = resolveRef(tournamentId) ?? { id: tournamentId.toUpperCase(), provider: 'bat' as const }
   let data
   if (ref.provider !== 'bat') {
@@ -31,17 +37,19 @@ export async function ensureFullCachePersisted(
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     data = parseMatchesFull(await res.text())
   }
-  if (!data) return false
+  if (!data) return 'active'
   await persistMetaIfChanged(tournamentId, data)
-  if (!isAllPast(data, todayIso)) return false
+  if (!isAllPast(data, todayIso)) return 'active'
   await writeFullCache(tournamentId, data)
-  return true
+  return 'pinned'
 }
 
 // Pre-fetches the full match schedule for every tournament. Pinned past
 // tournaments are skipped immediately (disk hit). Active tournaments incur
-// one round-trip but produce no disk write.
-export async function prewarmMatchesFullCache(): Promise<void> {
+// one round-trip but produce no disk write. Returns the ids that were *newly*
+// pinned by this call (i.e. tournaments that just became all-past) so callers
+// can trigger a player-index rebuild only when something actually completed.
+export async function prewarmMatchesFullCache(): Promise<string[]> {
   const todayIso = getTodayIso()
   const ids = new Set<string>()
   for (const ref of listAllTournaments()) ids.add(ref.id)
@@ -49,12 +57,16 @@ export async function prewarmMatchesFullCache(): Promise<void> {
   for (const e of discovered.entries) {
     if (e.hasBracket) ids.add(e.id.toUpperCase())
   }
+  const newlyPinned: string[] = []
   for (const id of Array.from(ids)) {
     try {
-      const persisted = await ensureFullCachePersisted(id, todayIso)
-      console.log(`[matches-full-cache] pre-warmed: ${id}${persisted ? ' (persisted)' : ' (active)'}`)
+      const status = await ensureFullCachePersisted(id, todayIso)
+      if (status === 'pinned') newlyPinned.push(id)
+      const label = status === 'cached' ? '(cached)' : status === 'pinned' ? '(newly pinned)' : '(active)'
+      console.log(`[matches-full-cache] pre-warmed: ${id} ${label}`)
     } catch (err) {
       console.warn(`[matches-full-cache] failed to pre-warm ${id}:`, err)
     }
   }
+  return newlyPinned
 }
