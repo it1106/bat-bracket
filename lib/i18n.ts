@@ -592,7 +592,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbThreeSetterWins: 'ชนะเกม 3',
     lbComebackWins: 'พลิกกลับมาชนะหลังเสียเกมแรก',
     lbDeciderRecord: 'สถิติชนะเกม 3',
-    lb3Gamers: 'นัก 3 เกม',
+    lb3Gamers: 'นักกีฬา 3 เกม',
     lbMatchesLast90: 'แมตช์ (90 วันล่าสุด)',
     lbTournamentsEntered: 'จำนวนทัวร์นาเมนต์',
     min20: 'อย่างน้อย 20 แมตช์',

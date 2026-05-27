@@ -125,7 +125,7 @@ export function buildLeaderboards(
     { id: 'character.threeGamers', titleKey: 'lb3Gamers', icon: '🎢', category: 'character', qualifier: 'min10',
       qualifies: p => p.totals.matches >= 10,
       value: p => p.matchCharacter.threeSetterCount / Math.max(1, p.totals.matches),
-      display: (_n, p) => `${p.matchCharacter.threeSetterCount} / ${p.totals.matches}`, rankField: 'threeGamerRate' },
+      display: (n, p) => `${p.matchCharacter.threeSetterCount} / ${p.totals.matches} (${Math.round(n * 100)}%)`, rankField: 'threeGamerRate' },
     { id: 'activity.matchesLast90', titleKey: 'lbMatchesLast90', icon: '📅', category: 'activity',
       qualifies: p => p.matchCharacter.matchesLast90 > 0,
       value: p => p.matchCharacter.matchesLast90, display: fmtInt, rankField: 'matchesLast90' },
