@@ -440,7 +440,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     noDraws: 'ไม่มีตารางแข่ง',
     loading: 'กำลังโหลด…',
     loadingBracket: 'กำลังโหลดตารางแข่ง…',
-    loadingMatches: 'กำลังโหลดตารางเวลา…',
+    loadingMatches: 'กำลังโหลดตารางแข่ง…',
     loadingPlayer: 'กำลังโหลดข้อมูลนักกีฬา…',
     loadingH2H: 'กำลังโหลดข้อมูล Head-to-Head…',
     exportJpg: '↓ บันทึกรูปภาพ',
