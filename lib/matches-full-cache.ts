@@ -1,6 +1,6 @@
 import { batFetch } from './bat-fetch'
 import { parseMatchesFull } from './scraper'
-import { readFullCache, writeFullCache, isAllPast } from './day-cache'
+import { readFullCache, writeFullCache, isAllPast, readFullCacheMtimeMs, deleteFullCache } from './day-cache'
 import { getTodayIso } from './today'
 import { persistMetaIfChanged } from './tournament-meta'
 import { loadDiscovered } from './discovery-store'
@@ -23,22 +23,53 @@ export type FullCacheStatus = 'cached' | 'pinned' | 'active'
 // Persists the full match schedule to disk if every match-day is in the past.
 // A return of 'cached' or 'pinned' means a disk cache exists after this call;
 // 'active' means the tournament is still ongoing (or unfetchable).
+// How long a pinned cache is trusted before we re-check upstream. A tournament
+// can be extended with a new day after we pinned it (organizer publishes the
+// schedule continuation late) — without periodic revalidation, the app keeps
+// serving the old snapshot forever. Old, definitely-finished tournaments cost
+// one extra round-trip per day. Tune here if BAT load matters.
+const PIN_REVALIDATE_TTL_MS = 24 * 60 * 60_000
+
+async function fetchSchedule(tournamentId: string): Promise<MatchesData | null> {
+  const ref = resolveRef(tournamentId) ?? { id: tournamentId.toUpperCase(), provider: 'bat' as const }
+  if (ref.provider !== 'bat') {
+    return await providerFor(ref).getMatchesFull(ref)
+  }
+  const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
+  const res = await batFetch('matches-full-prewarm', url, { headers: HEADERS, cache: 'no-store' })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return parseMatchesFull(await res.text())
+}
+
 export async function ensureFullCachePersisted(
   tournamentId: string,
   todayIso: string,
 ): Promise<{ status: FullCacheStatus; data: MatchesData | null }> {
   const existing = await readFullCache(tournamentId)
-  if (existing) return { status: 'cached', data: existing }
-  const ref = resolveRef(tournamentId) ?? { id: tournamentId.toUpperCase(), provider: 'bat' as const }
-  let data
-  if (ref.provider !== 'bat') {
-    data = await providerFor(ref).getMatchesFull(ref)
-  } else {
-    const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
-    const res = await batFetch('matches-full-prewarm', url, { headers: HEADERS, cache: 'no-store' })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    data = parseMatchesFull(await res.text())
+  if (existing) {
+    const mtimeMs = await readFullCacheMtimeMs(tournamentId)
+    const fresh = mtimeMs != null && Date.now() - mtimeMs < PIN_REVALIDATE_TTL_MS
+    if (fresh) return { status: 'cached', data: existing }
+    // Stale — re-check upstream to catch extensions of previously-pinned tournaments.
+    try {
+      const data = await fetchSchedule(tournamentId)
+      if (!data) return { status: 'cached', data: existing }
+      await persistMetaIfChanged(tournamentId, data)
+      if (!isAllPast(data, todayIso)) {
+        // Tournament was extended after pinning. Unpin so the active path takes over.
+        await deleteFullCache(tournamentId)
+        return { status: 'active', data }
+      }
+      // Still all-past — rewrite to refresh mtime even if content is unchanged,
+      // so we don't re-fetch every call once the revalidate window has elapsed.
+      await writeFullCache(tournamentId, data)
+      return { status: 'cached', data }
+    } catch {
+      // Transient upstream failure — keep serving the pinned copy.
+      return { status: 'cached', data: existing }
+    }
   }
+  const data = await fetchSchedule(tournamentId)
   if (!data) return { status: 'active', data: null }
   await persistMetaIfChanged(tournamentId, data)
   if (!isAllPast(data, todayIso)) return { status: 'active', data }

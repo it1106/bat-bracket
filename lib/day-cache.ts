@@ -83,6 +83,33 @@ export async function writeFullCache(
   }
 }
 
+// Returns the on-disk mtime of the pinned full cache, in ms-since-epoch.
+// `null` if no pinned cache exists. Used as the "last validated" timestamp so
+// callers can re-check upstream periodically without paying a fetch on every
+// cached read.
+export async function readFullCacheMtimeMs(tournamentId: string): Promise<number | null> {
+  try {
+    const stat = await fs.stat(fullCachePath(tournamentId))
+    return stat.mtimeMs
+  } catch {
+    return null
+  }
+}
+
+// Removes the pinned full cache. Used when revalidation discovers the
+// tournament was extended past its previously-all-past state (organizer added
+// a new day after we pinned it). Idempotent — silently no-ops if absent.
+export async function deleteFullCache(tournamentId: string): Promise<void> {
+  try {
+    await fs.unlink(fullCachePath(tournamentId))
+    console.log(`[day-cache] deleted full tournament=${tournamentId}`)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    if (msg.includes('ENOENT')) return
+    console.log(`[day-cache] delete full failed tournament=${tournamentId} err=${msg}`)
+  }
+}
+
 // True iff every day in the schedule is strictly before today (no live and
 // no future days). Such a tournament's full schedule is immutable and safe
 // to pin to disk forever.
