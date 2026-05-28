@@ -15,7 +15,7 @@ export async function register() {
     const { rebuildAll, makeOriginDayFetcher } = await import('./lib/player-index-rebuild')
 
     ;(async () => {
-      await prewarmMatchesFullCache()
+      const { activeData: bootActiveData } = await prewarmMatchesFullCache()
       await prewarmDrawsCache()
       await prewarmBracketCache()
       await prewarmEventBundleCache()
@@ -27,7 +27,7 @@ export async function register() {
       try {
         const port = process.env.PORT || '3000'
         const origin = `http://127.0.0.1:${port}`
-        const result = await rebuildAll({ ensureDay: makeOriginDayFetcher(origin) })
+        const result = await rebuildAll({ ensureDay: makeOriginDayFetcher(origin), activeData: bootActiveData })
         console.log(`[player-index] boot rebuild: ${JSON.stringify(result)}`)
       } catch (err) {
         console.warn('[player-index] boot rebuild failed:', err)
@@ -74,10 +74,12 @@ export async function register() {
           // runs on the discovery cadence (every 15 min, modulo the overnight
           // quiet window). rebuildAll is skipped unless something newly pinned,
           // and is itself a no-op when the source version is unchanged.
-          const newlyPinned = await prewarmMatchesFullCache()
-          if (newlyPinned.length > 0) {
-            console.log(`[auto-rebuild] tournaments completed: ${newlyPinned.join(', ')}`)
-            const result = await rebuildAll({ ensureDay: makeOriginDayFetcher(origin) })
+          const { newlyPinned, activeData } = await prewarmMatchesFullCache()
+          if (newlyPinned.length > 0 || activeData.size > 0) {
+            if (newlyPinned.length > 0) {
+              console.log(`[auto-rebuild] tournaments completed: ${newlyPinned.join(', ')}`)
+            }
+            const result = await rebuildAll({ ensureDay: makeOriginDayFetcher(origin), activeData })
             console.log(`[auto-rebuild] player index rebuilt: ${JSON.stringify(result)}`)
           }
         } catch (err) {
