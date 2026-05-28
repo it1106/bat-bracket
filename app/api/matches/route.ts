@@ -165,9 +165,14 @@ export async function GET(request: Request) {
         data = await fetchDayMatchGroups(tournamentId, dateIso)
       } else {
         const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/Matches/MatchesInDay?date=${date}`
+        // Always no-store. Next's data cache here has been observed to capture
+        // an empty BAT response and serve it for hours despite the revalidate
+        // window elapsing (SAT NSDF "tomorrow's schedule missing" incident).
+        // The in-memory `matchesDayCache` above is our cache layer: clear TTL
+        // semantics, resets on reload, and we control invalidation.
         const res = await batFetch('matches-day', url, {
           headers: { ...HEADERS, 'Referer': `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches` },
-          ...(fresh ? { cache: 'no-store' as const } : { next: { revalidate: ttl } }),
+          cache: 'no-store',
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         data = parseMatchesPartial(await res.text())
