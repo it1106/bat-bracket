@@ -48,3 +48,4 @@ CLAUDE.local.md
 
 # runtime cache
 /.cache/
+.lb-test.js
