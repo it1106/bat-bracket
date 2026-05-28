@@ -9,16 +9,21 @@ export type DayCacheData = Pick<MatchesData, 'groups'>
 const DAYS_ROOT = path.join(process.cwd(), '.cache', 'days')
 const FULL_ROOT = path.join(process.cwd(), '.cache', 'full')
 
+// Lowercase as part of the safety transform so tournament-id casing collapses
+// at the cache-key layer. Tournament UUIDs arrive in mixed cases (URL params
+// from users, registry, discovery-store uppercase). Without this, the same
+// tournament could pin two separate files (4526A530...json and 4526a530...json
+// were both seen in production). Exported helpers below are used by tests.
 function safeSegment(s: string): string {
-  return s.replace(/[^a-zA-Z0-9_-]/g, '_')
+  return s.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase()
 }
 
-function cachePath(tournamentId: string, date: string): string {
+export function cachePath(tournamentId: string, date: string): string {
   const day = date.slice(0, 10)
   return path.join(DAYS_ROOT, safeSegment(tournamentId), `${safeSegment(day)}.json`)
 }
 
-function fullCachePath(tournamentId: string): string {
+export function fullCachePath(tournamentId: string): string {
   return path.join(FULL_ROOT, `${safeSegment(tournamentId)}.json`)
 }
 
@@ -75,6 +80,33 @@ export async function writeFullCache(
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown'
     console.log(`[day-cache] write full failed tournament=${tournamentId} err=${msg}`)
+  }
+}
+
+// Returns the on-disk mtime of the pinned full cache, in ms-since-epoch.
+// `null` if no pinned cache exists. Used as the "last validated" timestamp so
+// callers can re-check upstream periodically without paying a fetch on every
+// cached read.
+export async function readFullCacheMtimeMs(tournamentId: string): Promise<number | null> {
+  try {
+    const stat = await fs.stat(fullCachePath(tournamentId))
+    return stat.mtimeMs
+  } catch {
+    return null
+  }
+}
+
+// Removes the pinned full cache. Used when revalidation discovers the
+// tournament was extended past its previously-all-past state (organizer added
+// a new day after we pinned it). Idempotent — silently no-ops if absent.
+export async function deleteFullCache(tournamentId: string): Promise<void> {
+  try {
+    await fs.unlink(fullCachePath(tournamentId))
+    console.log(`[day-cache] deleted full tournament=${tournamentId}`)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    if (msg.includes('ENOENT')) return
+    console.log(`[day-cache] delete full failed tournament=${tournamentId} err=${msg}`)
   }
 }
 

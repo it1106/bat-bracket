@@ -6,6 +6,8 @@ jest.mock('../lib/day-cache', () => ({
   readFullCache: jest.fn(),
   writeFullCache: jest.fn(),
   isAllPast: jest.fn(),
+  readFullCacheMtimeMs: jest.fn(),
+  deleteFullCache: jest.fn(),
 }))
 jest.mock('../lib/discovery-store', () => ({ loadDiscovered: jest.fn() }))
 jest.mock('../lib/providers/resolve', () => ({ providerFor: jest.fn() }))
@@ -16,7 +18,7 @@ jest.mock('../lib/tournaments-registry', () => ({
 
 import { batFetch } from '@/lib/bat-fetch'
 import { parseMatchesFull } from '@/lib/scraper'
-import { readFullCache, writeFullCache, isAllPast } from '@/lib/day-cache'
+import { readFullCache, writeFullCache, isAllPast, readFullCacheMtimeMs, deleteFullCache } from '@/lib/day-cache'
 import { loadDiscovered } from '@/lib/discovery-store'
 import { listAllTournaments, resolveRef } from '@/lib/tournaments-registry'
 import { ensureFullCachePersisted, prewarmMatchesFullCache } from '@/lib/matches-full-cache'
@@ -32,12 +34,47 @@ describe('matches-full-cache', () => {
   })
 
   describe('ensureFullCachePersisted', () => {
-    it("returns 'cached' with the disk data when a disk cache already exists", async () => {
+    it("returns 'cached' with the disk data when a fresh disk cache already exists", async () => {
       ;(readFullCache as jest.Mock).mockResolvedValue({ days: [] })
+      ;(readFullCacheMtimeMs as jest.Mock).mockResolvedValue(Date.now() - 60_000) // 1 min old → fresh
       const { status, data } = await ensureFullCachePersisted('ABC', '2026-05-27')
       expect(status).toBe('cached')
       expect(data).toEqual({ days: [] })
       expect(batFetch).not.toHaveBeenCalled()
+      expect(writeFullCache).not.toHaveBeenCalled()
+    })
+
+    it("revalidates upstream when the pinned cache is stale (>24h) and keeps it 'cached' if still all-past", async () => {
+      ;(readFullCache as jest.Mock).mockResolvedValue({ days: [] })
+      ;(readFullCacheMtimeMs as jest.Mock).mockResolvedValue(Date.now() - 25 * 60 * 60_000) // 25h old
+      ;(isAllPast as jest.Mock).mockReturnValue(true) // still all-past upstream
+      const { status, data } = await ensureFullCachePersisted('ABC', '2026-05-27')
+      expect(status).toBe('cached')
+      expect(data).not.toBeNull()
+      expect(batFetch).toHaveBeenCalledTimes(1) // revalidation fired
+      expect(writeFullCache).toHaveBeenCalledTimes(1) // rewritten to refresh mtime
+      expect(deleteFullCache).not.toHaveBeenCalled()
+    })
+
+    it("unpins to 'active' when revalidation shows the tournament was extended (no longer all-past)", async () => {
+      ;(readFullCache as jest.Mock).mockResolvedValue({ days: [] })
+      ;(readFullCacheMtimeMs as jest.Mock).mockResolvedValue(Date.now() - 25 * 60 * 60_000)
+      ;(isAllPast as jest.Mock).mockReturnValue(false) // upstream extended
+      const { status, data } = await ensureFullCachePersisted('ABC', '2026-05-27')
+      expect(status).toBe('active')
+      expect(data).not.toBeNull()
+      expect(deleteFullCache).toHaveBeenCalledTimes(1)
+      expect(writeFullCache).not.toHaveBeenCalled()
+    })
+
+    it("returns the pinned copy when stale-revalidation fails (transient upstream error)", async () => {
+      ;(readFullCache as jest.Mock).mockResolvedValue({ days: [], source: 'pinned' })
+      ;(readFullCacheMtimeMs as jest.Mock).mockResolvedValue(Date.now() - 25 * 60 * 60_000)
+      ;(batFetch as jest.Mock).mockRejectedValue(new Error('upstream 503'))
+      const { status, data } = await ensureFullCachePersisted('ABC', '2026-05-27')
+      expect(status).toBe('cached')
+      expect(data).toEqual({ days: [], source: 'pinned' })
+      expect(deleteFullCache).not.toHaveBeenCalled()
       expect(writeFullCache).not.toHaveBeenCalled()
     })
 
@@ -74,6 +111,8 @@ describe('matches-full-cache', () => {
       ;(readFullCache as jest.Mock).mockImplementation(async (id: string) =>
         id === 'CACHED' ? { days: [] } : null,
       )
+      // Pin is fresh (just written), so revalidation doesn't fire for CACHED.
+      ;(readFullCacheMtimeMs as jest.Mock).mockResolvedValue(Date.now() - 60_000)
       // isAllPast keys off the echoed URL, which contains the tournament id.
       ;(isAllPast as jest.Mock).mockImplementation((data: { html: string }) =>
         data.html.includes('/DONE/') || data.html.includes('/DISC-DONE/'),
@@ -93,6 +132,7 @@ describe('matches-full-cache', () => {
       ;(listAllTournaments as jest.Mock).mockReturnValue([{ id: 'CACHED', provider: 'bat' }])
       ;(loadDiscovered as jest.Mock).mockResolvedValue({ version: 1, entries: [] })
       ;(readFullCache as jest.Mock).mockResolvedValue({ days: [] })
+      ;(readFullCacheMtimeMs as jest.Mock).mockResolvedValue(Date.now() - 60_000)
 
       const { newlyPinned, activeData } = await prewarmMatchesFullCache()
       expect(newlyPinned).toEqual([])
