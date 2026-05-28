@@ -2,7 +2,11 @@ jest.mock('../lib/player-index-rebuild', () => ({
   rebuildAll: jest.fn(),
   makeOriginDayFetcher: jest.fn(() => jest.fn()),
 }))
+jest.mock('../lib/matches-full-cache', () => ({
+  prewarmMatchesFullCache: jest.fn(async () => ({ newlyPinned: [], activeData: new Map() })),
+}))
 import { rebuildAll } from '@/lib/player-index-rebuild'
+import { prewarmMatchesFullCache } from '@/lib/matches-full-cache'
 import { POST } from '@/app/api/players/rebuild/route'
 
 const TOKEN = 'test-token'
@@ -11,6 +15,7 @@ describe('POST /api/players/rebuild', () => {
   beforeEach(() => {
     jest.resetAllMocks()
     process.env.PLAYERS_REBUILD_TOKEN = TOKEN
+    ;(prewarmMatchesFullCache as jest.Mock).mockResolvedValue({ newlyPinned: [], activeData: new Map() })
   })
 
   it('returns 401 without auth', async () => {
