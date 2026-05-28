@@ -5,6 +5,7 @@ jest.mock('../lib/discovery-store', () => ({
   loadDiscovered: jest.fn(async () => ({ version: 1, entries: [] })),
 }))
 jest.mock('../lib/day-cache', () => ({ readFullCache: jest.fn(), readDayCache: jest.fn() }))
+jest.mock('../lib/today', () => ({ getTodayIso: jest.fn(() => '2026-05-28') }))
 jest.mock('../lib/clubs-cache', () => ({
   readClubsCache: jest.fn(),
   writeClubsCache: jest.fn(),
@@ -104,5 +105,42 @@ describe('rebuildAll', () => {
     expect(writeLeaderboardsCache).toHaveBeenCalledWith(
       expect.objectContaining({ provider: 'combined' })
     )
+  })
+
+  describe('active tournaments via activeData', () => {
+    const liveDay = { date: '2569-05-28', label: 'Day 1', dateIso: '2026-05-28' }
+    const resolved = {
+      draw: 'MS', drawNum: '1', round: 'QF',
+      team1: [{ name: 'Alice', playerId: 'a' }],
+      team2: [{ name: 'Bob', playerId: 'b' }],
+      winner: 1, scores: [{ t1: 21, t2: 10 }],
+      court: '1', walkover: false, retired: false, nowPlaying: false,
+    }
+    const unplayed = { ...resolved, round: 'SF', winner: null, scores: [], team1: [{ name: 'Carol', playerId: 'c' }], team2: [{ name: 'Dave', playerId: 'd' }] }
+
+    function liveData(matches: unknown[]) {
+      return new Map([['LIVE', {
+        days: [liveDay], currentDate: '2569-05-28',
+        groups: [{ type: 'time', time: '09:00', matches }],
+      }]])
+    }
+
+    it('builds an active tournament supplied only via activeData', async () => {
+      ;(listAllTournaments as jest.Mock).mockReturnValue([{ id: 'LIVE', provider: 'bat', done: false }])
+      ;(readFullCache as jest.Mock).mockResolvedValue(null) // not pinned
+      ;(readClubsCache as jest.Mock).mockResolvedValue({})
+      const out = await rebuildAll({ activeData: liveData([resolved]) as never })
+      expect(out.rebuilt).toContain('bat')
+      expect(writeIndexCache).toHaveBeenCalled()
+    })
+
+    it('skips an active tournament with no resolved matches', async () => {
+      ;(listAllTournaments as jest.Mock).mockReturnValue([{ id: 'LIVE', provider: 'bat', done: false }])
+      ;(readFullCache as jest.Mock).mockResolvedValue(null)
+      ;(readClubsCache as jest.Mock).mockResolvedValue({})
+      const out = await rebuildAll({ activeData: liveData([unplayed]) as never })
+      expect(out.skipped).toContain('bat')
+      expect(writeIndexCache).not.toHaveBeenCalled()
+    })
   })
 })
