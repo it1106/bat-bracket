@@ -1,5 +1,4 @@
 import * as cheerio from 'cheerio'
-import { getTodayIso } from './today'
 import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch, MatchPlayer, MatchScore, StandingsRow, SeedEvent } from './types'
 
 function extractId(url: string): string {
@@ -671,7 +670,6 @@ function parseMatchGroups($: cheerio.CheerioAPI): MatchScheduleGroup[] {
 export function parseMatchesFull(html: string): MatchesData {
   const $ = cheerio.load(html)
 
-  const todayIso = getTodayIso()
   const days: MatchDay[] = []
   $('.js-date-selection-tab').each((_, el) => {
     const date = $(el).attr('data-value') ?? ''
@@ -681,9 +679,13 @@ export function parseMatchesFull(html: string): MatchesData {
       : date.length === 8
         ? `${date.slice(6)}/${date.slice(4, 6)}`
         : $(el).find('.date__day').text().trim()
-    // Past/today assumed to have matches; future days assumed empty until proven otherwise
-    const hasMatches = dateIso ? dateIso <= todayIso : undefined
-    if (date) days.push({ date, label, dateIso, hasMatches })
+    // BAT's day-tab markup carries no per-day published-or-not signal, so
+    // `hasMatches` is left undefined here. The caller (app/page.tsx) updates
+    // it to true/false after an actual per-day fetch returns. The previous
+    // "future days = empty, past/today = full" heuristic was wrong: organizers
+    // can publish tomorrow's schedule today (SAT NSDF case), and dimming the
+    // tab made the published schedule look missing.
+    if (date) days.push({ date, label, dateIso })
   })
 
   const currentDate = $('.page-nav__item--active .js-date-selection-tab').attr('data-value') ?? days[0]?.date ?? ''
