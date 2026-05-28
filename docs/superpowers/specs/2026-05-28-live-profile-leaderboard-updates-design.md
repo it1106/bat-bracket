@@ -98,9 +98,15 @@ updated.
 - Merged-groups assembly for an active tournament:
   - **Past days** (`dateIso < todayIso`): read the pinned day cache; if absent,
     use the existing `ensureDay` fetch (which pins it for next time).
-  - **Current day** (`dateIso === currentDate`'s day): use the current-day
-    `groups` from the in-memory `activeData` entry, stamped with that day's
-    `dateIso`. Reuses the prewarm fetch — no second live fetch for today.
+  - **Current day** (`dateIso === currentDate`'s day): **BAT only** — use the
+    current-day `groups` from the in-memory `activeData` entry, stamped with that
+    day's `dateIso`, reusing the prewarm fetch (no second live fetch for today).
+    This optimization is gated to BAT because BAT's `getMatchesFull` returns only
+    the current day's `groups`. Other providers (BWF) bundle *every* day into
+    `groups`, so applying this branch to them would merge all-days data on top of
+    the per-day fetches and double-count matches with wrong dates. BWF therefore
+    falls through to the per-day path below for the current day too, which fetches
+    via `ensureDay` and preserves per-day attribution.
   - **Future days** (`dateIso > todayIso`): skip — they carry no resolved matches
     and fetching them is wasted work.
 - **Skip active tournaments with zero resolved matches** when building `inputs`, so
@@ -169,6 +175,8 @@ pinned tournaments.
 - Aggregator counts resolved matches inside an otherwise-active tournament.
 - `rebuildAll` ingests a tournament supplied only via `activeData` (no pinned full
   cache), merging pinned past-day caches + live current-day groups.
+- An active BWF tournament (all-days `groups` + per-day `ensureDay` fetches) is
+  not double-counted — the BAT-only current-day reuse branch does not fire.
 - `sourceVersion` changes when a new match resolves and is stable when nothing
   changed (active tournament, no new results → rebuild skipped).
 - Existing pinned-only tests continue to pass — the completed-tournament path is
