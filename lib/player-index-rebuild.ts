@@ -98,9 +98,12 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay; activeData?: Ma
             if (!d.dateIso) continue
             // Active tournament: future days carry no results — skip the fetch.
             if (isActive && d.dateIso > todayIso) continue
-            // Active tournament's live day: use the in-memory groups captured by
-            // the prewarm fetch instead of re-fetching the same day.
-            if (isActive && d.date === full.currentDate) {
+            // Active BAT tournament's live day: its in-memory `groups` hold only
+            // the current day, so reuse them instead of re-fetching. (Other
+            // providers, e.g. BWF, bundle *all* days into `groups`, so they must
+            // fall through to the per-day fetch below to keep per-day attribution
+            // and avoid double-counting.)
+            if (isActive && provider === 'bat' && d.date === full.currentDate) {
               allGroups.push(...stamp(full.groups || [], d.dateIso))
               continue
             }
