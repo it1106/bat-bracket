@@ -5,6 +5,7 @@ jest.mock('../lib/discovery-store', () => ({
   loadDiscovered: jest.fn(async () => ({ version: 1, entries: [] })),
 }))
 jest.mock('../lib/day-cache', () => ({ readFullCache: jest.fn(), readDayCache: jest.fn() }))
+jest.mock('../lib/today', () => ({ getTodayIso: jest.fn(() => '2026-05-28') }))
 jest.mock('../lib/clubs-cache', () => ({
   readClubsCache: jest.fn(),
   writeClubsCache: jest.fn(),
@@ -24,7 +25,7 @@ jest.mock('../lib/player-index-cache', () => ({
 
 import { listAllTournaments } from '@/lib/tournaments-registry'
 import { loadDiscovered } from '@/lib/discovery-store'
-import { readFullCache } from '@/lib/day-cache'
+import { readFullCache, readDayCache } from '@/lib/day-cache'
 import { readClubsCache } from '@/lib/clubs-cache'
 import { fetchTournamentPlayerClubs } from '@/lib/bracket-cache'
 import { readIndexCache, writeIndexCache, writeLeaderboardsCache, readIdentityMap, writeIdentityMap } from '@/lib/player-index-cache'
@@ -104,5 +105,76 @@ describe('rebuildAll', () => {
     expect(writeLeaderboardsCache).toHaveBeenCalledWith(
       expect.objectContaining({ provider: 'combined' })
     )
+  })
+
+  describe('active tournaments via activeData', () => {
+    const liveDay = { date: '2569-05-28', label: 'Day 1', dateIso: '2026-05-28' }
+    const resolved = {
+      draw: 'MS', drawNum: '1', round: 'QF',
+      team1: [{ name: 'Alice', playerId: 'a' }],
+      team2: [{ name: 'Bob', playerId: 'b' }],
+      winner: 1, scores: [{ t1: 21, t2: 10 }],
+      court: '1', walkover: false, retired: false, nowPlaying: false,
+    }
+    const unplayed = { ...resolved, round: 'SF', winner: null, scores: [], team1: [{ name: 'Carol', playerId: 'c' }], team2: [{ name: 'Dave', playerId: 'd' }] }
+
+    function liveData(matches: unknown[]) {
+      return new Map([['LIVE', {
+        days: [liveDay], currentDate: '2569-05-28',
+        groups: [{ type: 'time', time: '09:00', matches }],
+      }]])
+    }
+
+    it('builds an active tournament supplied only via activeData', async () => {
+      ;(listAllTournaments as jest.Mock).mockReturnValue([{ id: 'LIVE', provider: 'bat', done: false }])
+      ;(readFullCache as jest.Mock).mockResolvedValue(null) // not pinned
+      ;(readClubsCache as jest.Mock).mockResolvedValue({})
+      const out = await rebuildAll({ activeData: liveData([resolved]) as never })
+      expect(out.rebuilt).toContain('bat')
+      expect(writeIndexCache).toHaveBeenCalled()
+    })
+
+    it('skips an active tournament with no resolved matches', async () => {
+      ;(listAllTournaments as jest.Mock).mockReturnValue([{ id: 'LIVE', provider: 'bat', done: false }])
+      ;(readFullCache as jest.Mock).mockResolvedValue(null)
+      ;(readClubsCache as jest.Mock).mockResolvedValue({})
+      const out = await rebuildAll({ activeData: liveData([unplayed]) as never })
+      expect(out.skipped).toContain('bat')
+      expect(writeIndexCache).not.toHaveBeenCalled()
+    })
+
+    // BWF's getMatchesFull bundles *every* day into `groups` (unlike BAT, whose
+    // `groups` is just the current day). The current-day reuse branch must NOT
+    // fire for BWF, or the all-days `groups` would be merged on top of the
+    // per-day fetches and double-count matches.
+    it('does not double-count an active BWF tournament (all-days groups + per-day fetches)', async () => {
+      const matchA = { ...resolved, round: 'QF', team1: [{ name: 'Ann', playerId: 'ann' }], team2: [{ name: 'Bea', playerId: 'bea' }] }
+      const matchB = { ...resolved, round: 'SF', team1: [{ name: 'Cy', playerId: 'cy' }], team2: [{ name: 'Dot', playerId: 'dot' }] }
+      ;(listAllTournaments as jest.Mock).mockReturnValue([{ id: 'LIVEBWF', provider: 'bwf', done: false }])
+      ;(readFullCache as jest.Mock).mockResolvedValue(null)
+      ;(readDayCache as jest.Mock).mockResolvedValue(null) // nothing pinned → use ensureDay
+      // BWF activeData: both days unioned into a single `groups`, currentDate is
+      // the live (today) ISO day.
+      const bwfActive = new Map([['LIVEBWF', {
+        days: [
+          { date: '2026-05-27', label: '27', dateIso: '2026-05-27' },
+          { date: '2026-05-28', label: '28', dateIso: '2026-05-28' },
+        ],
+        currentDate: '2026-05-28',
+        groups: [{ type: 'time', time: '09:00', matches: [matchA, matchB] }],
+      }]])
+      // ensureDay returns each day's own matches (proper per-day attribution).
+      const ensureDay = jest.fn(async (_id: string, date: string) =>
+        date === '2026-05-27'
+          ? [{ type: 'time', time: '09:00', matches: [matchA] }]
+          : [{ type: 'time', time: '10:00', matches: [matchB] }],
+      )
+      await rebuildAll({ ensureDay: ensureDay as never, activeData: bwfActive as never })
+      const bwfWrite = (writeIndexCache as jest.Mock).mock.calls
+        .map((c) => c[0])
+        .find((idx) => idx.provider === 'bwf')
+      expect(bwfWrite).toBeDefined()
+      expect(bwfWrite.totalMatches).toBe(2) // matchA + matchB, each once — not 3
+    })
   })
 })

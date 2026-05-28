@@ -8,7 +8,8 @@ import {
   readIndexCache, writeIndexCache, writeLeaderboardsCache,
   readIdentityMap, writeIdentityMap, readPlayerLinks,
 } from '@/lib/player-index-cache'
-import { buildIndex } from '@/lib/playerIndex'
+import { buildIndex, isResolvedMatch } from '@/lib/playerIndex'
+import { getTodayIso } from '@/lib/today'
 import { buildIdentityMap } from '@/lib/player-identity'
 import { buildCombinedIndex, combinedSourceVersion } from '@/lib/player-index-merge'
 import type { ProviderTag, PlayerIndex, PlayerIndexTournamentInput, MatchesData, MatchScheduleGroup } from '@/lib/types'
@@ -35,7 +36,7 @@ export function makeOriginDayFetcher(origin: string): EnsureDay {
   }
 }
 
-export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ rebuilt: ProviderTag[]; skipped: ProviderTag[] }> {
+export async function rebuildAll(opts?: { ensureDay?: EnsureDay; activeData?: Map<string, MatchesData> }): Promise<{ rebuilt: ProviderTag[]; skipped: ProviderTag[] }> {
   if (inflight) return inflight
   inflight = (async () => {
     const rebuilt: ProviderTag[] = []
@@ -62,9 +63,13 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
         }
 
         const inputs: PlayerIndexTournamentInput[] = []
+        const todayIso = getTodayIso()
         for (const entry of Array.from(candidates.values())) {
-          const full = await readFullCache(entry.id)
+          const pinned = await readFullCache(entry.id)
+          const active = pinned ? undefined : opts?.activeData?.get(entry.id.toUpperCase())
+          const full = pinned ?? active
           if (!full) continue
+          const isActive = !pinned
 
           let clubs = await readClubsCache(entry.id)
           if (!clubs && provider === 'bat') {
@@ -91,6 +96,17 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
           const allGroups: MatchScheduleGroup[] = []
           for (const d of full.days || []) {
             if (!d.dateIso) continue
+            // Active tournament: future days carry no results — skip the fetch.
+            if (isActive && d.dateIso > todayIso) continue
+            // Active BAT tournament's live day: its in-memory `groups` hold only
+            // the current day, so reuse them instead of re-fetching. (Other
+            // providers, e.g. BWF, bundle *all* days into `groups`, so they must
+            // fall through to the per-day fetch below to keep per-day attribution
+            // and avoid double-counting.)
+            if (isActive && provider === 'bat' && d.date === full.currentDate) {
+              allGroups.push(...stamp(full.groups || [], d.dateIso))
+              continue
+            }
             const day = await readDayCache(entry.id, d.dateIso)
             if (day?.groups) { allGroups.push(...stamp(day.groups, d.dateIso)); continue }
             // Day not pinned yet (fresh server): fetch through the matches route,
@@ -101,10 +117,14 @@ export async function rebuildAll(opts?: { ensureDay?: EnsureDay }): Promise<{ re
             }
           }
           if (allGroups.length === 0 && full.groups?.length) {
-            const todayIso = full.days?.find(d => d.date === full.currentDate)?.dateIso || ''
-            allGroups.push(...stamp(full.groups, todayIso))
+            const currentDayIso = full.days?.find(d => d.date === full.currentDate)?.dateIso || ''
+            allGroups.push(...stamp(full.groups, currentDayIso))
           }
           const mergedData: MatchesData = { ...full, groups: allGroups }
+
+          // An active tournament that has started its schedule but played no
+          // matches yet contributes nothing — don't let it churn the index.
+          if (isActive && !mergedData.groups.some(g => g.matches.some(isResolvedMatch))) continue
 
           inputs.push({
             tournamentId: entry.id,
@@ -188,7 +208,13 @@ const SCHEMA_VERSION = 11
 function computeSourceVersion(inputs: PlayerIndexTournamentInput[]): string {
   const sig = [...inputs]
     .sort((a, b) => a.tournamentId.localeCompare(b.tournamentId))
-    .map(i => `${i.tournamentId}:${JSON.stringify(i.data).length}:${Object.keys(i.clubs).length}`)
+    .map(i => {
+      // Count resolved matches so a winner-flip that preserves the JSON length
+      // (e.g. a live result that didn't add characters) still bumps the version.
+      let resolved = 0
+      for (const g of i.data.groups || []) for (const m of g.matches || []) if (isResolvedMatch(m)) resolved++
+      return `${i.tournamentId}:${JSON.stringify(i.data).length}:${Object.keys(i.clubs).length}:${resolved}`
+    })
     .join('|')
   return createHash('sha256').update(`v${SCHEMA_VERSION}|${sig}`).digest('hex')
 }
