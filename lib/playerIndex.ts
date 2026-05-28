@@ -211,6 +211,14 @@ function matchOutcome(side: 1 | 2, m: MatchEntry): PlayerMatchRef['outcome'] {
   return won ? 'W' : 'L'
 }
 
+// A match counts toward the index only once it has a result: a winner, a
+// walkover, or a retirement. Mirrors the per-match predicate in
+// day-cache.ts `isDayComplete`. Lets the aggregator ingest in-progress
+// tournaments without scoring their not-yet-played matches as losses.
+export function isResolvedMatch(m: MatchEntry): boolean {
+  return m.winner !== null || m.walkover || m.retired
+}
+
 function tournamentNameFor(input: PlayerIndexTournamentInput): string {
   return input.tournamentName || input.tournamentId
 }
@@ -305,6 +313,7 @@ export function buildIndex(
     const groups = t.data.groups || []
     for (const g of groups) {
       for (const m of (g.matches || [])) {
+        if (!isResolvedMatch(m)) continue
         totalMatches++
         registerSide(m, 1, t)
         registerSide(m, 2, t)
