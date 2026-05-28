@@ -9,16 +9,21 @@ export type DayCacheData = Pick<MatchesData, 'groups'>
 const DAYS_ROOT = path.join(process.cwd(), '.cache', 'days')
 const FULL_ROOT = path.join(process.cwd(), '.cache', 'full')
 
+// Lowercase as part of the safety transform so tournament-id casing collapses
+// at the cache-key layer. Tournament UUIDs arrive in mixed cases (URL params
+// from users, registry, discovery-store uppercase). Without this, the same
+// tournament could pin two separate files (4526A530...json and 4526a530...json
+// were both seen in production). Exported helpers below are used by tests.
 function safeSegment(s: string): string {
-  return s.replace(/[^a-zA-Z0-9_-]/g, '_')
+  return s.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase()
 }
 
-function cachePath(tournamentId: string, date: string): string {
+export function cachePath(tournamentId: string, date: string): string {
   const day = date.slice(0, 10)
   return path.join(DAYS_ROOT, safeSegment(tournamentId), `${safeSegment(day)}.json`)
 }
 
-function fullCachePath(tournamentId: string): string {
+export function fullCachePath(tournamentId: string): string {
   return path.join(FULL_ROOT, `${safeSegment(tournamentId)}.json`)
 }
 
