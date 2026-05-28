@@ -447,7 +447,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     overview: 'ภาพรวม',
     tournamentInformation: 'ข้อมูลการแข่งขัน',
     seededEntries: 'การวางมือ',
-    bracket: 'ตารางแข่ง',
+    bracket: 'สายแข่ง',
     matchSchedule: 'ตารางเวลา',
     winner: 'ผู้ชนะ',
     notPlayed: 'ยังไม่แข่ง',
