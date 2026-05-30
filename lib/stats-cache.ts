@@ -26,9 +26,12 @@ function statsPath(tournamentId: string): string {
 // envelopes crash the panel when it tries to render undefined.players.
 // v9 falls back to country code in topPlayers[].club for BWF tournaments
 // (no clubs map); v8 envelopes have '—' there for every BWF row.
+// v10 removes the top-10 cap on clubMedals — the UI now caps at 10 with a
+// "show more" toggle for the long tail. v9 envelopes are truncated and would
+// never expose the toggle until re-aggregated.
 // Bumping the version invalidates older envelopes so they get recomputed.
 export interface StatsCacheEnvelope {
-  version: 9
+  version: 10
   sourceVersion: string
   // Set to true only when every day in fullData.days had a disk-cache hit at
   // write time. Older envelopes (or those written with partial coverage) are
@@ -42,7 +45,7 @@ export async function readStatsCache(tournamentId: string): Promise<StatsCacheEn
   try {
     const buf = await fs.readFile(statsPath(tournamentId), 'utf8')
     const parsed = JSON.parse(buf) as StatsCacheEnvelope
-    if (parsed.version !== 9) return null
+    if (parsed.version !== 10) return null
     if (parsed.coverageComplete !== true) return null
     return parsed
   } catch {
@@ -59,7 +62,7 @@ export async function writeStatsCache(
   const tmp = `${file}.tmp`
   try {
     await fs.mkdir(path.dirname(file), { recursive: true })
-    const payload: StatsCacheEnvelope = { version: 9, ...envelope }
+    const payload: StatsCacheEnvelope = { version: 10, ...envelope }
     await fs.writeFile(tmp, JSON.stringify(payload), 'utf8')
     await fs.rename(tmp, file)
     console.log(`[stats-cache] wrote tournament=${tournamentId}`)

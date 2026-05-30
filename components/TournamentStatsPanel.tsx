@@ -39,6 +39,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [clubRostersExpanded, setClubRostersExpanded] = useState(false)
+  const [clubMedalsExpanded, setClubMedalsExpanded] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const preparedFileRef = useRef<File | null>(null)
 
@@ -231,7 +232,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           <table className="stats-table">
             <thead><tr><th></th><th>{t('statsColClub')}</th><th className="stats-num">🥇</th><th className="stats-num">🥈</th><th className="stats-num">🥉</th></tr></thead>
             <tbody>
-              {stats.clubMedals.map((c, i) => (
+              {(clubMedalsExpanded ? stats.clubMedals : stats.clubMedals.slice(0, 10)).map((c, i) => (
                 <tr key={c.club}>
                   <td className="stats-rank">{i + 1}</td>
                   <td>{c.club}</td>
@@ -248,6 +249,17 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               ))}
             </tbody>
           </table>
+          {stats.clubMedals.length > 10 && (
+            <button
+              type="button"
+              className="stats-show-toggle"
+              onClick={() => setClubMedalsExpanded((v) => !v)}
+            >
+              {clubMedalsExpanded
+                ? t('statsShowLess')
+                : `${t('statsShowAll')} (${stats.clubMedals.length})`}
+            </button>
+          )}
         </section>
       )}
 
