@@ -559,7 +559,6 @@ function buildClubMedalsAndMultiGold(
       b.bronze - a.bronze ||
       (a.club < b.club ? -1 : 1),
     )
-    .slice(0, 10)
 
   const multiGoldPlayers: ComputedStats['multiGoldPlayers'] = Array.from(goldsByPlayer.entries())
     .filter(([, r]) => r.events.length >= 2)

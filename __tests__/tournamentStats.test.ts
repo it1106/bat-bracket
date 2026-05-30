@@ -135,7 +135,9 @@ describe('tournamentStats — medals', () => {
     expect(s.clubMedals[0].gold).toBe(27)
     expect(s.clubMedals[0].silver).toBe(19)
     expect(s.clubMedals[0].bronze).toBe(24)
-    expect(s.clubMedals.length).toBeLessThanOrEqual(10)
+    // No longer capped at 10 — the UI handles top-10 + "show more".
+    // Every credited club should appear in the medal table.
+    expect(s.clubMedals.length).toBeGreaterThan(0)
   })
 
   it('finds 7 multi-gold players', () => {
