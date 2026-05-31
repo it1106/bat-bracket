@@ -9,7 +9,7 @@
 #                             กีฬาบุคคล or กีฬาอาวุโสแห่งชาติ whose GUID changes yearly)
 
 # Recurring series we don't surface in the app (GUID changes yearly):
-# deny-name individualกีฬาบุคคลากรมหาวิทยาลัยแห่งประเทศไทย
+# deny-name กีฬาบุคลากรมหาวิทยาลัย
 # deny-name กีฬาอาวุโสแห่งชาติ
 
 4526a530-2091-4932-adab-b0a9b1fff98e SPRC - CALTEX BADMINTON CHAMPIONSHIP 2026
