@@ -94,6 +94,52 @@ describe('mergeForApi', () => {
     )
     expect(result).toEqual([])
   })
+
+  it('drops entries whose name matches any denyNamePatterns substring (case-insensitive)', () => {
+    const store: DiscoveryStore = {
+      version: 1,
+      entries: [
+        {
+          id: 'FFFF6666-2222-3333-4444-555555555555',
+          name: 'กีฬาบุคคล 2569 รอบคัดเลือก',
+          hasBracket: true,
+          discoveredAt: 'x',
+          lastSeenOnUpcomingAt: 'x',
+        },
+        {
+          id: 'F2F26666-2222-3333-4444-555555555555',
+          name: 'NATIONAL SENIOR OPEN 2026',
+          hasBracket: true,
+          discoveredAt: 'x',
+          lastSeenOnUpcomingAt: 'x',
+        },
+        {
+          id: 'F3F36666-2222-3333-4444-555555555555',
+          name: 'Yonex Open 2026',
+          hasBracket: true,
+          discoveredAt: 'x',
+          lastSeenOnUpcomingAt: 'x',
+        },
+      ],
+    }
+    const result = mergeForApi(
+      [{ id: 'F4F46666-2222-3333-4444-555555555555', name: 'กีฬาบุคคลพิเศษ' }],
+      new Set(),
+      store,
+      ['กีฬาบุคคล', 'national senior'],
+    )
+    expect(result.map((e) => e.id)).toEqual(['F3F36666-2222-3333-4444-555555555555'])
+  })
+
+  it('treats empty denyNamePatterns as a no-op', () => {
+    const result = mergeForApi(
+      [{ id: 'G1G16666-2222-3333-4444-555555555555', name: 'Anything goes' }],
+      new Set(),
+      { version: 1, entries: [] },
+      [],
+    )
+    expect(result.map((e) => e.id)).toEqual(['G1G16666-2222-3333-4444-555555555555'])
+  })
 })
 
 describe('sortTournamentsForDropdown', () => {

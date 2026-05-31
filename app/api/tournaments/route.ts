@@ -21,7 +21,7 @@ function parseTournamentsTxt(): ParsedTxt {
       onUnresolved: (url) => { resolveBwfUrl(url).catch(() => {}) },
     })
   } catch {
-    return { manualEntries: [], denySet: new Set() }
+    return { manualEntries: [], denySet: new Set(), denyNamePatterns: [] }
   }
 }
 
@@ -50,9 +50,9 @@ async function annotateEntries(
 }
 
 export async function GET() {
-  const { manualEntries, denySet } = parseTournamentsTxt()
+  const { manualEntries, denySet, denyNamePatterns } = parseTournamentsTxt()
   const discovered = await loadDiscovered()
-  const merged = mergeForApi(manualEntries, denySet, discovered)
+  const merged = mergeForApi(manualEntries, denySet, discovered, denyNamePatterns)
   const todayIso = getTodayIso()
   const annotated = await annotateEntries(merged, todayIso)
   const sorted = sortTournamentsForDropdown(annotated)

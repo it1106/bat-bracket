@@ -55,4 +55,23 @@ describe('parseTournamentsTxt', () => {
     expect(manualEntries.filter((e) => e.provider === 'bwf')).toEqual([])
     expect(resolved).toHaveLength(2)
   })
+
+  it('parses # deny-name <substring> into lowercased patterns', () => {
+    const input = `
+# deny-name กีฬาบุคคล
+#  deny-name   National Senior
+# deny-name MiXeD CaSe
+`.trim()
+    const { denyNamePatterns } = parseTournamentsTxt(input)
+    expect(denyNamePatterns).toEqual([
+      'กีฬาบุคคล',
+      'national senior',
+      'mixed case',
+    ])
+  })
+
+  it('ignores deny-name lines with empty patterns', () => {
+    const { denyNamePatterns } = parseTournamentsTxt('# deny-name   ')
+    expect(denyNamePatterns).toEqual([])
+  })
 })

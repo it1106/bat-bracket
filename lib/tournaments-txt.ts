@@ -5,6 +5,8 @@ import type { TournamentInfo } from '@/lib/types'
 export interface ParsedTxt {
   manualEntries: TournamentInfo[]
   denySet: Set<string>
+  /** Case-folded substrings; an entry is denied if its name contains any of them. */
+  denyNamePatterns: string[]
 }
 
 export interface ParseDeps {
@@ -13,6 +15,10 @@ export interface ParseDeps {
 }
 
 const DENY_RE = /^#\s*deny\s+([A-Fa-f0-9-]{36})/
+// `# deny-name <substring>` — case-insensitive substring match against the
+// tournament name. Useful for recurring series whose GUID changes every year
+// (e.g. กีฬาบุคคล, กีฬาอาวุโสแห่งชาติ).
+const DENY_NAME_RE = /^#\s*deny-name\s+(.+?)\s*$/
 const BWF_RE = /^@bwf\s+(https?:\/\/\S+?)\s*(?:\[done\])?\s*$/
 const BWF_DONE_RE = /^@bwf\s+\S+\s+\[done\]\s*$/
 
@@ -20,11 +26,18 @@ export function parseTournamentsTxt(content: string, deps: ParseDeps = {}): Pars
   const lookup = deps.lookupByUrl ?? defaultLookupByUrl
   const lines = content.split('\n').map((l) => l.trim()).filter((l) => l.length > 0)
   const denySet = new Set<string>()
+  const denyNamePatterns: string[] = []
   const manualEntries: TournamentInfo[] = []
 
   for (const l of lines) {
     const denyMatch = DENY_RE.exec(l)
     if (denyMatch) { denySet.add(denyMatch[1].toUpperCase()); continue }
+    const denyNameMatch = DENY_NAME_RE.exec(l)
+    if (denyNameMatch) {
+      const pat = denyNameMatch[1].toLowerCase()
+      if (pat.length > 0) denyNamePatterns.push(pat)
+      continue
+    }
     if (l.startsWith('@bwf')) {
       const m = BWF_RE.exec(l)
       if (!m) continue
@@ -50,5 +63,5 @@ export function parseTournamentsTxt(content: string, deps: ParseDeps = {}): Pars
     const name = manualDone ? rest.slice(0, -6).trim() : rest
     manualEntries.push({ id, name, ...(manualDone && { done: true }) })
   }
-  return { manualEntries, denySet }
+  return { manualEntries, denySet, denyNamePatterns }
 }
