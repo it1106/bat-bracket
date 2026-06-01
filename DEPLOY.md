@@ -41,10 +41,21 @@ pm2 reload bat-bracket
 
 ## Logs
 
+PM2 names each worker's log file `bat-bracket-{out,error}-N.log` where N is
+the PM2 instance index. The active worker is whichever file has a current
+mtime — don't assume `-0`; after some restarts/upgrades it has been `-1`.
+Find it first:
+
 ```bash
 ssh root@ezebat.lan
-tail -f /root/.pm2/logs/bat-bracket-out-0.log     # stdout
-tail -f /root/.pm2/logs/bat-bracket-error-0.log   # stderr
+ls -t /root/.pm2/logs/bat-bracket-out-*.log | grep -v __ | head -1   # newest stdout
+ls -t /root/.pm2/logs/bat-bracket-error-*.log | grep -v __ | head -1 # newest stderr
+```
+
+Then tail it:
+
+```bash
+tail -f $(ls -t /root/.pm2/logs/bat-bracket-out-*.log | grep -v __ | head -1)
 ```
 
 Count BAT upstream calls (since instrumentation in `lib/bat-fetch.ts`):
