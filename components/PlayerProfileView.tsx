@@ -10,7 +10,6 @@ interface Props {
   batRanking?: import('@/lib/types').BatRankingPlayerRank[]
   rankingPublishDate?: string
   initialDetail?: import('@/lib/types').BatRankingPlayerDetail
-  currentRanking?: import('@/lib/types').BatRanking
 }
 
 function fmtPct(n: number): string { return `${Math.round(n * 100)}%` }
@@ -38,7 +37,7 @@ const RANK_LABELS: Array<[keyof PlayerRanks, string, string]> = [
   ['threeSetterWins', '🔥', 'Three-setter Wins'],
 ]
 
-export default function PlayerProfileView({ record, batRanking, rankingPublishDate, initialDetail, currentRanking }: Props) {
+export default function PlayerProfileView({ record, batRanking, rankingPublishDate, initialDetail }: Props) {
   const router = useRouter()
   const winPct = record.totals.matches > 0
     ? Math.round((record.totals.wins / record.totals.matches) * 100)
@@ -150,11 +149,10 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
         </div>
       )}
 
-      {batRanking && batRanking.length > 0 && currentRanking && record.key.provider === 'bat' && (
+      {batRanking && batRanking.length > 0 && record.key.provider === 'bat' && (
         <RankingDetailTabs
           slug={record.key.slug}
           initialDetail={initialDetail}
-          currentRanking={currentRanking}
         />
       )}
       <div className="pp-kpi-row">
