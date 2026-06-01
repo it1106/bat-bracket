@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { parseTournaments, parseEvents, parseBracket, extractProfileUrl, parseMatchesPartial, orderScheduleGroups } from '@/lib/scraper'
+import { parseTournaments, parseEvents, parseBracket, parseBracketEntries, extractProfileUrl, parseMatchesPartial, orderScheduleGroups } from '@/lib/scraper'
 import type { MatchScheduleGroup, MatchEntry } from '@/lib/types'
 
 const fixtureHtml = (name: string) =>
@@ -61,6 +61,30 @@ describe('parseBracket', () => {
     const result = parseBracket('<html><body>not a bracket</body></html>')
     expect(result.html).toBe('')
     expect(result.format).toBe('unknown')
+  })
+})
+
+describe('parseBracketEntries', () => {
+  // Real BAT BS U9 draw: 25 entries in a 32-slot bracket (7 byes). Used to
+  // verify the BAT roster path that backs the stats events/players count.
+  it('extracts every registered player from a BAT singles bracket', () => {
+    const html = fixtureHtml('bracket-bat-bsu9.html')
+    const entries = parseBracketEntries(html, '6', 'BS U9')
+    // Collect unique playerIds across all entries. Should equal the 25
+    // entries shown on BAT's events page for this draw.
+    const playerIds = new Set<string>()
+    for (const e of entries) {
+      for (const p of [...e.team1, ...e.team2]) {
+        if (p.playerId) playerIds.add(p.playerId)
+      }
+    }
+    expect(playerIds.size).toBe(25)
+    expect(entries[0].draw).toBe('BS U9')
+    expect(entries[0].drawNum).toBe('6')
+  })
+
+  it('returns an empty array when no bracket markup is present', () => {
+    expect(parseBracketEntries('<html><body></body></html>', '1', 'MS')).toEqual([])
   })
 })
 

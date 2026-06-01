@@ -3,6 +3,7 @@ import {
   parseTournamentDraws,
   parseTournamentMeta,
   parseBracket,
+  parseBracketEntries,
   parseMatchesFull,
   parseRoundRobinMatches,
   parseRoundRobinScheduleMatches,
@@ -43,6 +44,14 @@ async function fetchHtmlXhr(kind: string, refId: string, drawNum: string, url: s
   return res.text()
 }
 
+// Shared fetch for the per-draw GetDrawContent endpoint. Used by both the
+// bracket renderer (HTML output) and the roster extractor (player list) so
+// the two endpoints share the upstream cache and headers.
+async function fetchDrawContentHtml(refId: string, drawNum: string): Promise<string | null> {
+  const url = `https://bat.tournamentsoftware.com/tournament/${refId}/Draw/${drawNum}/GetDrawContent?tabindex=1&X-Requested-With=XMLHttpRequest`
+  return fetchHtmlXhr('bracket', refId, drawNum, url)
+}
+
 export const batProvider: TournamentProvider = {
   tag: 'bat',
   async getMeta(ref: TournamentRef): Promise<TournamentInfo | null> {
@@ -58,20 +67,21 @@ export const batProvider: TournamentProvider = {
     return parseTournamentDraws(html)
   },
   async getBracket(ref: TournamentRef, drawNum: string): Promise<BracketData | null> {
-    const url = `https://bat.tournamentsoftware.com/tournament/${ref.id}/Draw/${drawNum}/GetDrawContent?tabindex=1&X-Requested-With=XMLHttpRequest`
-    const headers = {
-      ...HEADERS,
-      'X-Requested-With': 'XMLHttpRequest',
-      'Accept': 'text/html, */*; q=0.01',
-      'Referer': `https://bat.tournamentsoftware.com/tournament/${ref.id}/draw/${drawNum}`,
-    }
-    const res = await batFetch('bracket', url, { headers })
-    if (!res.ok) return null
-    const html = await res.text()
+    const html = await fetchDrawContentHtml(ref.id, drawNum)
+    if (!html) return null
     return parseBracket(html)
   },
-  async getDrawMatches(): Promise<MatchEntry[]> {
-    throw new NotImplementedError('getDrawMatches', 'bat')
+  // Pull the registered roster for a single BAT draw by parsing the bracket
+  // HTML's first round (every entrant appears there exactly once, byes
+  // included). The fetch goes through batFetch so it shares caching/headers
+  // with the bracket view and only costs one extra request when the bracket
+  // isn't already warm. Returns [] if the upstream is unreachable rather
+  // than throwing — fetchRosterByDraw treats per-draw failures as
+  // "no roster info for this event" and leaves the seeded empty entry alone.
+  async getDrawMatches(ref: TournamentRef, drawNum: string, drawName: string): Promise<MatchEntry[]> {
+    const html = await fetchDrawContentHtml(ref.id, drawNum)
+    if (!html) return []
+    return parseBracketEntries(html, drawNum, drawName)
   },
   async getMatchesFull(ref: TournamentRef): Promise<MatchesData | null> {
     const headers = {

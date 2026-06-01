@@ -479,6 +479,63 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
   }
 }
 
+// Synthesizes one MatchEntry per first-round slot pair, capturing every
+// player registered in the draw — including byes (which still surface the
+// real player on the populated side). Used by the BAT stats path to seed
+// events/players counts from the registered roster even when the draw has
+// no scheduled matches yet. Only the leftmost (first) round is walked
+// because that's where every entrant appears exactly once.
+//
+// Output rows are roster-only: no court, no winner, no scheduled time worth
+// trusting downstream. Stats consumers must already treat the roster as
+// non-authoritative for match-volume KPIs (`buildKpis`/`buildEvents` are
+// careful to keep match counts sourced from scheduled-match ctxs only).
+export function parseBracketEntries(
+  html: string,
+  drawNum: string,
+  drawName: string,
+): MatchEntry[] {
+  const $ = cheerio.load(html, { xmlMode: false })
+  const bracket = $('.bracket.js-bracket')
+  if (!bracket.length) return []
+  // Find the first slide that actually holds rendered matches. BAT typically
+  // emits R1 as slide 0, but a defensive scan tolerates future layout shifts
+  // (e.g. a header/legend slide inserted at index 0).
+  const slides = bracket.find('swiper-container > swiper-slide')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let firstSlideEl: any = null
+  slides.each((_, slide) => {
+    if (firstSlideEl) return
+    if ($(slide).find('.bracket-round__match-group-wrapper').length > 0) {
+      firstSlideEl = slide
+    }
+  })
+  if (!firstSlideEl) return []
+  const entries: MatchEntry[] = []
+  $(firstSlideEl).find('.match').each((_, matchEl) => {
+    const ex = extractMatchEntry($, matchEl)
+    // Skip slots with no real players on either side (rare TBD/placeholder
+    // matches). Roster augmentation has no use for them.
+    const hasAnyPlayer = [...ex.team1, ...ex.team2].some((p) => p.playerId)
+    if (!hasAnyPlayer) return
+    entries.push({
+      draw: drawName,
+      drawNum,
+      round: '',
+      team1: ex.team1,
+      team2: ex.team2,
+      winner: ex.winner,
+      scores: ex.scores,
+      court: '',
+      walkover: ex.walkover,
+      retired: ex.retired,
+      nowPlaying: false,
+      scheduledTime: ex.scheduledTime,
+    })
+  })
+  return entries
+}
+
 // Walks each round's match-group-wrappers in the raw bracket HTML; each
 // wrapper contains the 2 matches whose winners feed into the same next-round
 // slot, so the matches inside a wrapper ARE bracket siblings. Returns one

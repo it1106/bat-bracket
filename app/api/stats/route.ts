@@ -95,7 +95,11 @@ interface DayMap {
 // yet on the day schedule (typically doubles that start later in the week)
 // still show up in the events count, the events table, and the multi-event
 // player calculation. Returns null for providers that don't expose per-draw
-// match entries (BAT), which leaves aggregate() in its original behavior.
+// match entries at all (NotImplementedError), which leaves aggregate() in
+// its original schedule-only behavior. Single-draw fetch failures don't
+// poison the whole map — the draw just keeps its empty-seed entry so the
+// event still appears in the count with zero players, rather than getting
+// dropped entirely.
 async function fetchRosterByDraw(tournamentId: string): Promise<Map<string, MatchEntry[]> | null> {
   const ref = resolveRef(tournamentId)
   if (!ref) return null
@@ -109,7 +113,12 @@ async function fetchRosterByDraw(tournamentId: string): Promise<Map<string, Matc
   }
   if (draws.length === 0) return null
 
+  // Seed every draw with an empty roster up front. This way the events
+  // count always matches the draws list — even if a per-draw fetch later
+  // fails, the event still shows up (with 0 players) instead of vanishing.
   const roster = new Map<string, MatchEntry[]>()
+  for (const d of draws) roster.set(d.name, [])
+
   const results = await Promise.allSettled(
     draws.map((d) => provider.getDrawMatches(ref, d.drawNum, d.name)),
   )
@@ -119,11 +128,14 @@ async function fetchRosterByDraw(tournamentId: string): Promise<Map<string, Matc
     if (r.status === 'fulfilled') {
       roster.set(draw.name, r.value)
     } else {
-      // NotImplementedError from BAT is expected — short-circuit the whole
-      // pipeline so we don't return a half-populated roster that would skew
-      // the seeded events table.
+      // NotImplementedError means the provider can't enumerate rosters at
+      // all — bail out completely rather than seed a roster that has every
+      // event but zero players (which would publish a misleading events
+      // table). Both BAT and BWF implement getDrawMatches today, so this
+      // only fires if a new provider is added without it.
       if (r.reason instanceof NotImplementedError) return null
       console.warn(`[stats] getDrawMatches failed for ${tournamentId} draw ${draw.drawNum}:`, r.reason)
+      // Leave the empty seed in place — event still appears with 0 players.
     }
   }
   return roster.size > 0 ? roster : null
