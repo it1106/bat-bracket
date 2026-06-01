@@ -429,19 +429,25 @@ export default function Home() {
         .catch(() => {})
     }
 
-    // safeJson eats the Response object — break apart the matches fetch so
-    // we can inspect X-Stale-Cache before draining the body.
-    const [drawsResult, matchesRes] = await Promise.allSettled([
-      fetch(`/api/draws?id=${encodeURIComponent(id)}`).then(safeJson),
+    // safeJson eats the Response object — break apart both fetches so we can
+    // inspect X-Stale-Cache before draining the body. Both /api/draws and
+    // /api/matches now stamp the header when serving stale, so either one
+    // can light up the StaleCacheBanner.
+    const [drawsRes, matchesRes] = await Promise.allSettled([
+      fetch(`/api/draws?id=${encodeURIComponent(id)}`),
       fetch(`/api/matches?tournament=${encodeURIComponent(id)}`),
     ])
 
     setLoadingDraws(false)
     setLoadingMatches(false)
 
-    if (drawsResult.status === 'fulfilled') {
-      const data = drawsResult.value
-      if (isApiError(data)) setError(data.error)
+    if (drawsRes.status === 'fulfilled') {
+      const res = drawsRes.value
+      const stale = readStaleFlag(res)
+      if (stale !== null) setStaleCache(stale)
+      const data = await safeJson(res).catch(() => null)
+      if (data == null) setError('Failed to load draws')
+      else if (isApiError(data)) setError(data.error)
       else setDraws(data as DrawInfo[])
     } else {
       setError('Failed to load draws')

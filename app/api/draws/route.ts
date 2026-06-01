@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import {
-  getCached, TTL_MS, fetchAndCache,
+  getCachedOrDisk, TTL_MS, fetchAndCache,
   inBackoff, markBatFailure, clearBatFailure,
 } from '@/lib/draws-cache'
 import type { DrawInfo } from '@/lib/types'
@@ -21,7 +21,11 @@ export async function GET(request: Request) {
   const filter = (draws: DrawInfo[]) =>
     draws.filter((d) => !d.groupLetter && (d.isPlayoff || d.type !== 'Round Robin'))
 
-  const cached = getCached(id)
+  // Read mem first, fall through to disk. Disk is the floor that keeps
+  // [done] tournaments serviceable across pm2 reloads even if BAT is down
+  // — fixes the "could not load draws" symptom users hit after every
+  // restart for completed tournaments.
+  const cached = await getCachedOrDisk(id)
   if (cached && (cached.done || Date.now() - cached.ts < TTL_MS)) {
     return NextResponse.json(filter(cached.draws))
   }
