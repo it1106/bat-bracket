@@ -115,6 +115,74 @@ export async function register() {
         }
       }
       setInterval(bwfRecycleTick, 5 * 60 * 1000)
+
+      // BAT ranking weekly refresh. Upstream publishes once a week on Tuesday
+      // at no fixed time, so we poll cheaply every 30 min during a generous
+      // Tuesday window (08:00–23:30 BKK) and only trigger the expensive full
+      // refresh when the parsed publishDate actually changes. See
+      // lib/bat-ranking-scheduler.ts for the decision logic.
+      const { decideTick, decideBootKick, publishDateChanged } = await import('./lib/bat-ranking-scheduler')
+      const { getBangkokClock } = await import('./lib/today')
+      const { batFetch } = await import('./lib/bat-fetch')
+      const { parsePublishDate } = await import('./lib/bat-ranking-scraper')
+      const { readBatRankingCache } = await import('./lib/bat-ranking-cache')
+
+      const RANKING_OVERVIEW_URL = 'https://bat.tournamentsoftware.com/ranking/ranking.aspx?rid=188'
+      const RANKING_UA = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36' }
+
+      const peekAndMaybeRefresh = async () => {
+        try {
+          const overviewRes = await batFetch('ranking-poll-overview', RANKING_OVERVIEW_URL, { headers: RANKING_UA })
+          if (!overviewRes.ok) {
+            console.log(`[bat-ranking/poll] overview status=${overviewRes.status}, skipping`)
+            return
+          }
+          const html = await overviewRes.text()
+          const upstreamPublishDate = parsePublishDate(html)
+          const cached = await readBatRankingCache()
+          const cachedPublishDate = cached?.publishDate ?? null
+          if (!publishDateChanged(cachedPublishDate, upstreamPublishDate)) {
+            console.log(`[bat-ranking/poll] publishDate unchanged (${upstreamPublishDate || 'unparsable'}), no refresh`)
+            return
+          }
+          console.log(`[bat-ranking/poll] new publishDate: ${cachedPublishDate ?? '(none)'} -> ${upstreamPublishDate}, triggering refresh`)
+          // ?force=true so the route's 24h TTL guard doesn't block us — we've
+          // already done our own publishDate-based gating above.
+          const refreshRes = await fetch(`${origin}/api/bat-ranking/refresh?force=true`, { method: 'POST' })
+          const body = await refreshRes.text()
+          console.log(`[bat-ranking/poll] refresh status=${refreshRes.status} body=${body.slice(0, 200)}`)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'unknown'
+          console.warn(`[bat-ranking/poll] tick failed: ${msg}`)
+        }
+      }
+
+      const rankingTick = async () => {
+        const action = decideTick({ clock: getBangkokClock() })
+        if (action === 'skip') return
+        await peekAndMaybeRefresh()
+      }
+
+      // Boot kick. Fires immediately on boot when either (a) today is
+      // Tuesday in Bangkok inside the polling window, or (b) the cache is
+      // older than 6 days — which catches the "scheduler just got deployed
+      // and the cache is already a week stale" case (otherwise the very
+      // first deploy of this feature would do nothing until next Tuesday)
+      // and the "server was down through last Tuesday" case.
+      setTimeout(async () => {
+        const cached = await readBatRankingCache()
+        const cacheAgeMs = cached
+          ? Date.now() - new Date(cached.scrapedAt).getTime()
+          : null
+        const action = decideBootKick({ clock: getBangkokClock(), cacheAgeMs })
+        if (action === 'peek-and-maybe-refresh') {
+          const ageHrs = cacheAgeMs === null ? 'no-cache' : `${(cacheAgeMs / 3_600_000).toFixed(1)}h`
+          console.log(`[bat-ranking/poll] boot kick (cacheAge=${ageHrs})`)
+          await peekAndMaybeRefresh()
+        }
+      }, 45_000)
+
+      setInterval(rankingTick, 30 * 60 * 1000)
     }
   }
 }

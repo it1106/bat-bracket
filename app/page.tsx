@@ -23,6 +23,7 @@ import {
   dismissAlerts,
   recordTournamentSnapshot,
   recordScheduleSnapshot,
+  recordRankingSnapshot,
   type AlertItem,
 } from '@/lib/alerts'
 import ScrollToTopButton from '@/components/ScrollToTopButton'
@@ -321,6 +322,20 @@ export default function Home() {
       })
       .catch(() => {})
       .finally(() => setLoadingTournaments(false))
+  }, [])
+
+  // Poll for new BAT ranking publication on mount. The endpoint is a tiny
+  // JSON {publishDate, scrapedAt} — no big payload. recordRankingSnapshot
+  // is bootstrap-aware: first call ever just seeds, doesn't alert.
+  useEffect(() => {
+    fetch('/api/ranking-meta')
+      .then((r) => safeJson(r))
+      .then((data) => {
+        if (isApiError(data)) return
+        const meta = data as { publishDate: string | null }
+        setAlerts(recordRankingSnapshot(meta.publishDate))
+      })
+      .catch(() => {})
   }, [])
 
   // Re-fetch tournament list when the tab becomes visible after >=5min idle.

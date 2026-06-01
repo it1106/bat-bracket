@@ -18,11 +18,19 @@ export interface AlertItemSchedule {
   addedAt: string
 }
 
-export type AlertItem = AlertItemTournament | AlertItemSchedule
+export interface AlertItemRanking {
+  kind: 'ranking'
+  id: string
+  publishDate: string
+  addedAt: string
+}
+
+export type AlertItem = AlertItemTournament | AlertItemSchedule | AlertItemRanking
 
 const KEY_BOOTSTRAP = 'batbracket.alerts.bootstrapped'
 const KEY_TOURNAMENTS = 'batbracket.alerts.seenTournaments'
 const KEY_SCHEDULES = 'batbracket.alerts.seenScheduleDays'
+const KEY_RANKING_PUBLISH = 'batbracket.alerts.seenRankingPublishDate'
 const KEY_PENDING = 'batbracket.alerts.pending'
 const PENDING_CAP = 50
 
@@ -113,6 +121,43 @@ export function recordTournamentSnapshot(list: TournamentInfo[]): AlertItem[] {
   }
   writeJson(KEY_TOURNAMENTS, incoming)
   return appendPending(newAlerts)
+}
+
+/**
+ * Records the latest known BAT-ranking publishDate and fires an alert when
+ * it differs from the one we last saw. Mirrors recordTournamentSnapshot's
+ * "first-ever call seeds the baseline, no alert" behavior so the bell doesn't
+ * scream on a freshly-cleared localStorage.
+ *
+ * Returns the updated pending alert list (same shape as the other recorders).
+ */
+export function recordRankingSnapshot(publishDate: string | null | undefined): AlertItem[] {
+  if (!isBrowser()) return []
+  if (!publishDate) return getAlerts() // nothing to compare yet (cold cache)
+
+  const seen = readJson<string | null>(KEY_RANKING_PUBLISH, null)
+
+  if (!isBootstrapped()) {
+    // First visit ever — seed and don't alert; the user didn't ask to be
+    // told about a ranking that was already published before they opened
+    // the app.
+    writeJson(KEY_RANKING_PUBLISH, publishDate)
+    setBootstrapped()
+    return getAlerts()
+  }
+
+  if (seen === publishDate) return getAlerts()
+
+  writeJson(KEY_RANKING_PUBLISH, publishDate)
+  const now = new Date().toISOString()
+  return appendPending([{
+    kind: 'ranking',
+    // Stable id per publish edition: dismissing an alert and re-seeing the
+    // same publishDate must not re-add it.
+    id: `r:${publishDate}`,
+    publishDate,
+    addedAt: now,
+  }])
 }
 
 export function recordScheduleSnapshot(
