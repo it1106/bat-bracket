@@ -85,7 +85,47 @@ describe('GET /api/players/ranking-detail', () => {
     )
   })
 
-  it('discovers globalPlayerId via /sport/player.aspx → extractProfileUrl on first visit', async () => {
+  it('discovers globalPlayerId via the 3-hop chain on first visit', async () => {
+    // Hop 1: /sport/player.aspx → extractProfileUrl finds /player/<GUID>/<base64>
+    // Hop 2: that page → contains /player-profile/<GUID-B>/ranking
+    // Hop 3: that page → contains /ranking/player.aspx?id=X&player=<NUMERIC>
+    // Then: the per-player detail fetch itself.
+    ;(readBatRankingCache as jest.Mock).mockResolvedValue(currentRanking())
+    ;(readPlayerIdEntry as jest.Mock).mockResolvedValue(null)
+    ;(readIndexCache as jest.Mock).mockResolvedValue({
+      players: { ravin: { sampleRef: { tournamentId: 'TID', playerId: 'TPID' } } },
+    })
+    ;(batFetch as jest.Mock)
+      // hop 1
+      .mockResolvedValueOnce({ ok: true, text: async () => '<html>tournament-page</html>' })
+      // hop 2 — surfaces /player-profile/<GUID-B>/ranking
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => '<html><a href="/player-profile/abcdef12-3456-7890-abcd-ef1234567890/ranking">Ranking</a></html>',
+      })
+      // hop 3 — surfaces /ranking/player.aspx?id=X&player=<NUMERIC>
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => '<html><a href="/ranking/player.aspx?id=51869&amp;player=3903158">Detail</a></html>',
+      })
+      // detail fetch
+      .mockResolvedValueOnce({ ok: true, text: async () => '<table></table>' })
+    ;(extractProfileUrl as jest.Mock).mockReturnValue('/player/b06eafc7-fdae-450f-909e-317c6770352d/YmFzZTY0OjQ2MjY2NTM0')
+    ;(readBatRankingPlayerDetail as jest.Mock).mockResolvedValue(null)
+
+    const res = await GET(req('ravin'))
+    expect(res.status).toBe(200)
+    expect(writePlayerIdSuccess).toHaveBeenCalledWith('ravin', '3903158')
+    expect(writeBatRankingPlayerDetail).toHaveBeenCalled()
+    // Verify the detail fetch went to the correct canonical URL.
+    expect(batFetch).toHaveBeenLastCalledWith(
+      'ranking-player-detail',
+      'https://bat.tournamentsoftware.com/ranking/player.aspx?id=51869&player=3903158',
+      expect.any(Object),
+    )
+  })
+
+  it('persists a failure sentinel when the global page lacks the /player-profile/.../ranking link', async () => {
     ;(readBatRankingCache as jest.Mock).mockResolvedValue(currentRanking())
     ;(readPlayerIdEntry as jest.Mock).mockResolvedValue(null)
     ;(readIndexCache as jest.Mock).mockResolvedValue({
@@ -93,14 +133,10 @@ describe('GET /api/players/ranking-detail', () => {
     })
     ;(batFetch as jest.Mock)
       .mockResolvedValueOnce({ ok: true, text: async () => '<html>tournament-page</html>' })
-      .mockResolvedValueOnce({ ok: true, text: async () => '<table></table>' })
-    ;(extractProfileUrl as jest.Mock).mockReturnValue('/sport/profile.aspx?id=3903158')
-    ;(readBatRankingPlayerDetail as jest.Mock).mockResolvedValue(null)
-
+      .mockResolvedValueOnce({ ok: true, text: async () => '<html>nothing useful here</html>' })
+    ;(extractProfileUrl as jest.Mock).mockReturnValue('/player/abc/YmFzZTY0OjEx')
     const res = await GET(req('ravin'))
-    expect(res.status).toBe(200)
-    expect(writePlayerIdSuccess).toHaveBeenCalledWith('ravin', '3903158')
-    expect(writeBatRankingPlayerDetail).toHaveBeenCalled()
+    expect(res.status).toBe(404)
   })
 
   it('returns 404 when the player-id map says discovery failed', async () => {
