@@ -10,12 +10,15 @@ interface SearchHit { slug: string; name: string; club: string; provider: Provid
 
 interface Props { leaderboards: Leaderboards[]; rankingPublishDate?: string }
 
+// Tab order matters: first entry is the default active tab when none is
+// explicitly selected (also the fallback when the requested category has
+// no boards on the current provider — see effectiveActive below).
 const CATEGORIES: Array<{ id: LeaderboardCategory; key: TKey }> = [
+  { id: 'ranking', key: 'lbRanking' },
   { id: 'headline', key: 'lbHeadline' },
   { id: 'discipline', key: 'lbDiscipline' },
   { id: 'character', key: 'lbCharacter' },
   { id: 'activity', key: 'lbActivity' },
-  { id: 'ranking', key: 'lbRanking' },
 ]
 
 const PROVIDER_LABELS: Record<ProviderTag, string> = {
@@ -28,7 +31,7 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDate }: P
   const { t } = useLanguage()
   const router = useRouter()
   const [activeProvider, setActiveProvider] = useState<ProviderTag>(leaderboards[0]?.provider ?? 'bat')
-  const [active, setActive] = useState<LeaderboardCategory>('headline')
+  const [active, setActive] = useState<LeaderboardCategory>('ranking')
   const [openHelp, setOpenHelp] = useState<string | null>(null)
   const helpRef = useRef<HTMLSpanElement | null>(null)
   const didMountRef = useRef(false)
@@ -176,18 +179,20 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDate }: P
             <h3>
               <span>
                 <span className="lb-card-ico">{b.icon}</span>{t(b.titleKey as TKey)}
-                <span
-                  ref={isOpen ? helpRef : undefined}
-                  className={`lb-help ${isOpen ? 'lb-help-open' : ''}`}
-                >
-                  <button
-                    type="button"
-                    className="lb-help-btn"
-                    aria-label={t(helpKey)}
-                    onClick={(e) => { e.preventDefault(); setOpenHelp(isOpen ? null : b.id) }}
-                  >?</button>
-                  <span className="lb-help-tip" role="tooltip">{t(helpKey)}</span>
-                </span>
+                {b.category !== 'ranking' && (
+                  <span
+                    ref={isOpen ? helpRef : undefined}
+                    className={`lb-help ${isOpen ? 'lb-help-open' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="lb-help-btn"
+                      aria-label={t(helpKey)}
+                      onClick={(e) => { e.preventDefault(); setOpenHelp(isOpen ? null : b.id) }}
+                    >?</button>
+                    <span className="lb-help-tip" role="tooltip">{t(helpKey)}</span>
+                  </span>
+                )}
               </span>
               {b.qualifier && <span className="lb-card-qual">{t(b.qualifier as TKey)}</span>}
             </h3>
