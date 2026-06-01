@@ -14,6 +14,7 @@ import { useLongPress } from '@/lib/useLongPress'
 import { usePointerReorder } from '@/lib/usePointerReorder'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import StaleCacheBanner from '@/components/StaleCacheBanner'
+import DiskCacheBadge from '@/components/DiskCacheBadge'
 import {
   ANN_CUSTOM_TABS_MULTI,
   ANN_CUSTOM_TABS_MULTI_TEXT_TH,
@@ -67,6 +68,15 @@ async function safeJson(res: Response): Promise<unknown> {
 function readStaleFlag(res: Response): boolean | null {
   if (!res.ok) return null
   return res.headers.get('X-Stale-Cache') === '1'
+}
+
+// /api/matches and /api/draws stamp X-Cache-Source: disk when the response
+// came from a durable disk pin (immutable past data — see DiskCacheBadge).
+// Same null-on-error semantics as readStaleFlag so the badge doesn't flip
+// off on a transient 500 that left the prior state genuine.
+function readDiskCacheFlag(res: Response): boolean | null {
+  if (!res.ok) return null
+  return res.headers.get('X-Cache-Source') === 'disk'
 }
 
 // Background-fetches each future-day schedule so the day-tab dim/lit state
@@ -179,6 +189,10 @@ export default function Home() {
   // Cleared on the next successful response that doesn't carry the header.
   // See readStaleFlag() and StaleCacheBanner.
   const [staleCache, setStaleCache] = useState(false)
+  // True when the most-recent /api/matches or /api/draws response carried
+  // X-Cache-Source: disk (immutable past data served from durable pin).
+  // See readDiskCacheFlag() and DiskCacheBadge.
+  const [diskCache, setDiskCache] = useState(false)
   // Tracks { courtKey: matchId } from the SignalR feed so we can detect
   // when a previously-live match completes (court drops or matchId changes)
   // and refetch the schedule — the scrape doesn't auto-refresh.
@@ -402,6 +416,11 @@ export default function Home() {
     setSelectedDay('')
     setOverviewNotes([])
     setSeedEvents([])
+    // Clear cache-source indicators so they don't flash the previous
+    // tournament's state during the in-flight switch. The next response
+    // will repopulate them from headers.
+    setStaleCache(false)
+    setDiskCache(false)
     setViewMode('matches')
     if (!id) return
 
@@ -445,6 +464,8 @@ export default function Home() {
       const res = drawsRes.value
       const stale = readStaleFlag(res)
       if (stale !== null) setStaleCache(stale)
+      const disk = readDiskCacheFlag(res)
+      if (disk !== null) setDiskCache(disk)
       const data = await safeJson(res).catch(() => null)
       if (data == null) setError('Failed to load draws')
       else if (isApiError(data)) setError(data.error)
@@ -457,6 +478,8 @@ export default function Home() {
       const res = matchesRes.value
       const stale = readStaleFlag(res)
       if (stale !== null) setStaleCache(stale)
+      const disk = readDiskCacheFlag(res)
+      if (disk !== null) setDiskCache(disk)
       const matchesData = await safeJson(res).catch(() => null)
       if (matchesData && !isApiError(matchesData)) {
         const md = matchesData as MatchesData
@@ -705,6 +728,8 @@ export default function Home() {
       const res = await fetch(`/api/matches?tournament=${encodeURIComponent(selectedTournament)}&date=${date}`)
       const stale = readStaleFlag(res)
       if (stale !== null) setStaleCache(stale)
+      const disk = readDiskCacheFlag(res)
+      if (disk !== null) setDiskCache(disk)
       const data = await safeJson(res)
       if (!isApiError(data)) {
         const md = data as Pick<MatchesData, 'groups'>
@@ -936,6 +961,7 @@ export default function Home() {
 
           {/* Right-side controls: export (bracket only) + language toggle */}
           <div className="ml-auto flex items-center gap-2">
+            <DiskCacheBadge visible={diskCache} />
             {viewMode === 'bracket' && (
               <button
                 onClick={handleExport}

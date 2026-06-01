@@ -27,7 +27,12 @@ export async function GET(request: Request) {
   // restart for completed tournaments.
   const cached = await getCachedOrDisk(id)
   if (cached && (cached.done || Date.now() - cached.ts < TTL_MS)) {
-    return NextResponse.json(filter(cached.draws))
+    // For done tournaments, the draws structure is immutable and persisted
+    // to .cache/draws — stamp X-Cache-Source: disk so the client surfaces
+    // the "Cached" badge. The TTL-only path (active tournament) doesn't
+    // get the badge because that data is intended to be refreshed.
+    const headers = cached.done ? { 'X-Cache-Source': 'disk' } : undefined
+    return NextResponse.json(filter(cached.draws), headers ? { headers } : undefined)
   }
 
   // Circuit breaker: if BAT failed for this tournament in the last 30 s,
