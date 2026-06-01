@@ -48,7 +48,6 @@ export default async function PlayerPage({ params }: Props) {
       batRanking={batRanking.length ? batRanking : undefined}
       rankingPublishDate={rankingPublishDate || undefined}
       initialDetail={initialDetail}
-      currentRanking={currentRanking ?? undefined}
     />
   )
 }

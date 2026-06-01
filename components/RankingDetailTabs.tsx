@@ -2,14 +2,13 @@
 import { useEffect, useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import { track } from '@/lib/analytics'
-import { groupForTab, type Discipline } from '@/lib/bat-ranking-player-view'
-import type { BatRanking, BatRankingPlayerDetail } from '@/lib/types'
-import RankingDetailBlock from './RankingDetailBlock'
+import { topRowsForTab, type Discipline } from '@/lib/bat-ranking-player-view'
+import type { BatRankingPlayerDetail } from '@/lib/types'
+import TournamentRow from './TournamentRow'
 
 interface Props {
   slug: string
   initialDetail?: BatRankingPlayerDetail
-  currentRanking: BatRanking
 }
 
 const DISCIPLINES: Discipline[] = ['singles', 'doubles', 'mixed']
@@ -21,9 +20,10 @@ type FetchState =
 
 /**
  * Owns: active tab state + the fetch lifecycle when SSR didn't deliver
- * the detail. Renders three tabs and the blocks for the active one.
+ * the detail. Renders three tabs; the body of each tab is a flat top-10
+ * list (by points) sorted newest-first.
  */
-export default function RankingDetailTabs({ slug, initialDetail, currentRanking }: Props) {
+export default function RankingDetailTabs({ slug, initialDetail }: Props) {
   const { t } = useLanguage()
   const [active, setActive] = useState<Discipline>('singles')
   const [fetchState, setFetchState] = useState<FetchState>(
@@ -95,11 +95,13 @@ export default function RankingDetailTabs({ slug, initialDetail, currentRanking 
         </div>
       )
     }
-    const blocks = groupForTab(fetchState.detail, currentRanking, active)
-    if (blocks.length === 0) {
+    const rows = topRowsForTab(fetchState.detail, active)
+    if (rows.length === 0) {
       return <div className="pp-rd-empty">{t('rankingDetailEmpty')}</div>
     }
-    return blocks.map((b) => <RankingDetailBlock key={b.rankingEventCode} block={b} />)
+    return rows.map((r, i) => (
+      <TournamentRow key={`${r.week}-${r.tournamentName}-${i}`} row={r} />
+    ))
   }
 
   return (

@@ -1,15 +1,16 @@
-import { groupForTab } from '@/lib/bat-ranking-player-view'
-import type { BatRanking, BatRankingPlayerDetail, BatRankingPlayerTournament } from '@/lib/types'
+import { topRowsForTab, disciplineOf, TOP_N } from '@/lib/bat-ranking-player-view'
+import type { BatRankingPlayerDetail, BatRankingPlayerTournament } from '@/lib/types'
 
 const t = (
   sourceEvent: string,
   points: number,
+  week: string = '2026-20',
   countsTowardRankings: string[] = [],
 ): BatRankingPlayerTournament => ({
-  tournamentName: `Tourn ${points}`,
+  tournamentName: `Tourn ${sourceEvent} ${points}`,
   tournamentId: null,
   sourceEvent,
-  week: '2026-20',
+  week,
   result: '1/2',
   points,
   countsTowardRankings,
@@ -22,111 +23,94 @@ const detail = (tournaments: BatRankingPlayerTournament[]): BatRankingPlayerDeta
   tournaments,
 })
 
-const ranking = (events: Array<{ name: string; rank: number; pts: number }>): BatRanking => ({
-  scrapedAt: 'x',
-  publishDate: '26/5/2569',
-  rankingId: '99',
-  events: events.map((e) => ({
-    eventCode: e.name.replace(/\s+/g, '_'),
-    eventName: e.name,
-    entries: [{ rank: e.rank, name: 'รวิณ', slug: 'rawin', club: '', points: e.pts, tournaments: 10 }],
-  })),
+describe('disciplineOf', () => {
+  it('classifies XD as mixed', () => {
+    expect(disciplineOf('XD U15')).toBe('mixed')
+  })
+  it('classifies BD/GD/MD/WD as doubles', () => {
+    expect(disciplineOf('BD U15')).toBe('doubles')
+    expect(disciplineOf('GD U15')).toBe('doubles')
+    expect(disciplineOf('MD U23')).toBe('doubles')
+    expect(disciplineOf('WD U23')).toBe('doubles')
+  })
+  it('classifies BS/GS/MS/WS as singles', () => {
+    expect(disciplineOf('BS U15')).toBe('singles')
+    expect(disciplineOf('GS U15')).toBe('singles')
+    expect(disciplineOf('MS U23')).toBe('singles')
+    expect(disciplineOf('WS U23')).toBe('singles')
+  })
 })
 
-describe('groupForTab', () => {
+describe('topRowsForTab', () => {
+  it('returns [] when the player has no rows in the requested discipline', () => {
+    const d = detail([t('MD U15', 3000)])
+    expect(topRowsForTab(d, 'singles')).toEqual([])
+  })
+
   it('filters by discipline — singles tab excludes doubles and mixed rows', () => {
     const d = detail([
-      t('BS U15', 3000, ["U23 Men's singles"]),
-      t('MD U15', 2000, ["U23 Men's doubles"]),
-      t('XD U15', 1000, ["U23 Mixed doubles"]),
+      t('BS U15', 3000, '2026-10'),
+      t('MD U15', 2000, '2026-10'),
+      t('XD U15', 1000, '2026-10'),
     ])
-    const r = ranking([{ name: "U23 Men's singles", rank: 5, pts: 3000 }])
-    const blocks = groupForTab(d, r, 'singles')
-    expect(blocks).toHaveLength(1)
-    expect(blocks[0].topTen.map((row) => row.sourceEvent)).toEqual(['BS U15'])
-    expect(blocks[0].otherRows).toEqual([])
+    const rows = topRowsForTab(d, 'singles')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].sourceEvent).toBe('BS U15')
   })
 
-  it('top-10 cap — a block keeps only the 10 highest-pointing rows that count', () => {
+  it('picks the top-10 by points and DROPS the rest (no show-more)', () => {
+    // 15 rows, points 100..114. Top 10 by points are 105..114; rest are 100..104.
     const tournaments = Array.from({ length: 15 }, (_, i) =>
-      t('BS U15', 100 + i, ["U23 Men's singles"]),
+      t('BS U15', 100 + i, `2026-${(i % 50) + 1}`),
     )
     const d = detail(tournaments)
-    const r = ranking([{ name: "U23 Men's singles", rank: 1, pts: 999999 }])
-    const blocks = groupForTab(d, r, 'singles')
-    expect(blocks[0].topTen).toHaveLength(10)
-    expect(blocks[0].otherRows).toHaveLength(5)
-    // Top-ten ordered by points desc
-    const pts = blocks[0].topTen.map((row) => row.points)
-    expect(pts).toEqual([...pts].sort((a, b) => b - a))
+    const rows = topRowsForTab(d, 'singles')
+    expect(rows).toHaveLength(TOP_N)
+    // None of the dropped rows (points < 105) should appear.
+    expect(rows.every((r) => r.points >= 105)).toBe(true)
   })
 
-  it('otherRows is "same discipline, doesnt count toward THIS ranking"', () => {
+  it('sorts the survivors by week descending (newest first)', () => {
     const d = detail([
-      t('BS U15', 3000, ["U23 Men's singles"]),
-      t('BS U13', 2000, []),               // singles, no marker → otherRows
-      t('MD U15', 1500, ["U23 Men's doubles"]), // wrong discipline → excluded
+      t('BS U15', 3000, '2026-05'),
+      t('BS U15', 2500, '2026-20'),
+      t('BS U15', 2000, '2026-01'),
+      t('BS U15', 1500, '2025-50'),
     ])
-    const r = ranking([{ name: "U23 Men's singles", rank: 5, pts: 3000 }])
-    const blocks = groupForTab(d, r, 'singles')
-    expect(blocks[0].topTen.map((row) => row.points)).toEqual([3000])
-    expect(blocks[0].otherRows.map((row) => row.points)).toEqual([2000])
+    const rows = topRowsForTab(d, 'singles')
+    expect(rows.map((r) => r.week)).toEqual(['2026-20', '2026-05', '2026-01', '2025-50'])
   })
 
-  it('emits one block per singles ranking the player appears in', () => {
+  it('on point-tie, prefers the more recent row when deciding who makes the cut', () => {
+    // Two rows tied at 100 pts; only one fits in the top-N. The newer week wins.
+    const filler = Array.from({ length: 9 }, (_, i) => t('BS U15', 1000 + i, '2026-01'))
     const d = detail([
-      t('BS U15', 3000, ["U23 Men's singles", "U19 Boys singles"]),
-      t('BS U15', 2000, ["U23 Men's singles"]),
-      t('BS U13', 1500, ["U19 Boys singles"]),
+      ...filler,
+      t('BS U15', 100, '2026-05'),
+      t('BS U15', 100, '2025-10'),
     ])
-    const r = ranking([
-      { name: "U23 Men's singles", rank: 3, pts: 5000 },
-      { name: 'U19 Boys singles', rank: 7, pts: 4500 },
-    ])
-    const blocks = groupForTab(d, r, 'singles')
-    expect(blocks.map((b) => b.rankingEventName)).toEqual([
-      "U23 Men's singles", 'U19 Boys singles',
-    ])
-    expect(blocks[0].playerRank).toBe(3)
-    expect(blocks[0].totalPoints).toBe(5000)
-    expect(blocks[1].playerRank).toBe(7)
-    expect(blocks[1].totalPoints).toBe(4500)
+    const rows = topRowsForTab(d, 'singles')
+    expect(rows).toHaveLength(TOP_N)
+    const hundredPointRows = rows.filter((r) => r.points === 100)
+    expect(hundredPointRows).toHaveLength(1)
+    expect(hundredPointRows[0].week).toBe('2026-05')
   })
 
-  it('emits no blocks for a discipline the player has no ranking in', () => {
+  it('returns fewer than 10 rows when the player has fewer contributors', () => {
     const d = detail([
-      t('MD U15', 3000, ["U23 Men's doubles"]),
+      t('BS U15', 3000, '2026-10'),
+      t('BS U15', 2000, '2026-05'),
     ])
-    const r = ranking([
-      { name: "U23 Men's singles", rank: 5, pts: 3000 },
-    ])
-    // Singles ranking exists but player has no singles rows that mention it.
-    expect(groupForTab(d, r, 'singles')).toEqual([])
+    expect(topRowsForTab(d, 'singles')).toHaveLength(2)
   })
 
-  it('classifies XD as mixed, BD/GD/MD/WD as doubles, BS/GS/MS/WS as singles', () => {
+  it('does not need the countsTowardRankings field — purely points-driven', () => {
+    // Even rows with empty countsTowardRankings still surface if they're top-10 by points.
     const d = detail([
-      t('BS U15', 1, ["U23 Men's singles"]),
-      t('WS U23', 2, ["U23 Women's singles"]),
-      t('BD U15', 3, ["U23 Men's doubles"]),
-      t('WD U23', 4, ["U23 Women's doubles"]),
-      t('XD U23', 5, ["U23 Mixed doubles"]),
+      t('BS U15', 5000, '2026-10', []),     // no markers — still counts here
+      t('BS U15', 3000, '2026-05', ["U23 Men's singles"]),
     ])
-    const r = ranking([
-      { name: "U23 Men's singles", rank: 1, pts: 1 },
-      { name: "U23 Women's singles", rank: 1, pts: 2 },
-      { name: "U23 Men's doubles", rank: 1, pts: 3 },
-      { name: "U23 Women's doubles", rank: 1, pts: 4 },
-      { name: 'U23 Mixed doubles', rank: 1, pts: 5 },
-    ])
-    expect(groupForTab(d, r, 'singles').map((b) => b.rankingEventName)).toEqual([
-      "U23 Men's singles", "U23 Women's singles",
-    ])
-    expect(groupForTab(d, r, 'doubles').map((b) => b.rankingEventName)).toEqual([
-      "U23 Men's doubles", "U23 Women's doubles",
-    ])
-    expect(groupForTab(d, r, 'mixed').map((b) => b.rankingEventName)).toEqual([
-      'U23 Mixed doubles',
-    ])
+    const rows = topRowsForTab(d, 'singles')
+    expect(rows.map((r) => r.points)).toEqual([5000, 3000])
   })
 })
