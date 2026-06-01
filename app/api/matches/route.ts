@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings } from '@/lib/scraper'
 import { cache as bracketCache, fetchAndCache, rawHtmlCache, siblingLookupCache, makeBracketKey } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
-import { readDayCache, writeDayCache, isDayComplete, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
+import { readDayCache, writeDayCache, isDayComplete, shouldMemcacheDayResult, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
 import { providerFor } from '@/lib/providers/resolve'
 import { getTodayIso } from '@/lib/today'
@@ -179,7 +179,14 @@ export async function GET(request: Request) {
         await enrichWithSiblings(tournamentId, data.groups)
       }
 
-      matchesDayCache.set(memKey, { data, ts: Date.now() })
+      // Skip the memcache write for an empty parse on a future-or-today day:
+      // that's almost always a transient BAT hiccup and the 10-min future-day
+      // TTL would otherwise stick "no matches" across reloads (the SAT NSDF
+      // symptom that the cache:'no-store' fix only solved for Next's data
+      // cache, not this in-process Map).
+      if (shouldMemcacheDayResult(data, dateIso, todayIso)) {
+        matchesDayCache.set(memKey, { data, ts: Date.now() })
+      }
 
       // Persist days that are fully resolved. Only past days are eligible:
       // pinning *today* on the first apparently-complete read is wrong because
@@ -191,10 +198,15 @@ export async function GET(request: Request) {
         void writeDayCache(tournamentId, dateIso, data)
       }
 
+      // An empty parse for a future-or-today day is treated as transient by
+      // the memcache gate above; send it with no-store too so browser/CDN
+      // don't independently pin the empty response for s-maxage seconds while
+      // our memcache correctly retries.
+      const cacheable = !fresh && shouldMemcacheDayResult(data, dateIso, todayIso)
       return NextResponse.json(data, {
-        headers: fresh
-          ? { 'Cache-Control': 'no-store' }
-          : { 'Cache-Control': `public, s-maxage=${ttl}, stale-while-revalidate=${ttl}` },
+        headers: cacheable
+          ? { 'Cache-Control': `public, s-maxage=${ttl}, stale-while-revalidate=${ttl}` }
+          : { 'Cache-Control': 'no-store' },
       })
     } else {
       // Three-tier read for the day list + current-day groups:

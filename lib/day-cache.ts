@@ -132,6 +132,24 @@ export async function fetchDayMatchGroups(
   return { groups: await providerFor(ref).getDayMatches(ref, dateIso) }
 }
 
+// Gate for the in-memory matchesDayCache write in /api/matches. An empty
+// parse for a future-or-today day is almost always a transient BAT hiccup —
+// the day tab only exists because BAT included it in the schedule, so it has
+// matches in principle. Caching that empty result reproduced the SAT NSDF
+// "tomorrow's schedule missing" symptom across reloads despite commit 2372dac
+// adding cache: 'no-store' to the BAT fetch: Next.js's data cache wasn't the
+// only sticky layer — the in-process Map kept the empty result for the full
+// 10-min future-day TTL. Past days are excluded because an empty parse there
+// indicates a parser bug, not a transient BAT state, and the date is stable.
+export function shouldMemcacheDayResult(
+  data: DayCacheData,
+  dateIso: string,
+  todayIso: string,
+): boolean {
+  if (data.groups.length === 0 && dateIso >= todayIso) return false
+  return true
+}
+
 // A day is "complete" iff every scheduled match has a resolution: a winner,
 // a walkover, or a retirement. Days with zero matches return false so an
 // empty parse doesn't get persisted as canonical.
