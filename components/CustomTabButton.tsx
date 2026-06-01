@@ -26,7 +26,7 @@ export default function CustomTabButton({ tab, active, editMode, onActivate, onE
       onClick={editMode ? onEdit : onActivate}
       data-custom-tab-id={tab.id}
       title={editMode ? t('customTabEdit') : tab.nickname}
-      className={`custom-tab-button inline-flex items-center px-[5px] sm:px-4 py-[3px] sm:py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+      className={`custom-tab-button inline-flex items-center px-[5px] sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
         editMode ? 'cursor-grab' : 'cursor-pointer'
       } ${
         active
