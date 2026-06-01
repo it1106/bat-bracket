@@ -53,9 +53,18 @@ export function ageGroupRank(sourceEvent: string): number {
  * same event gets credit for one of the two, not both. Apply the same dedup
  * so the per-tournament top-10 list doesn't double-count.
  *
- * Selection: highest `points` wins; on exact tie, the higher age group
- * wins (e.g. BS U15 beats BS U13 at the same points). Open events (no
- * U-group) outrank every U-bounded sibling on a tie.
+ * Selection mirrors BAT's own choice via the marker on each row
+ * (`countsTowardRankings.length > 0` ⇔ BAT credits this row to at least
+ * one ranking). Precedence:
+ *
+ *   1. **Marked beats unmarked.** Whichever row BAT credits wins, even if
+ *      its raw points are lower than its unmarked sibling's. This is the
+ *      key invariant — it makes our view agree with the player's view of
+ *      BAT's own page.
+ *   2. **Higher points** (used when both rows are marked or both are
+ *      unmarked — rare, mostly defensive).
+ *   3. **Higher age group** (final tie-break; open events outrank
+ *      U-bounded ones).
  *
  * Tournament identity = `${weekSortKey(week)}::${tournamentName}`. Different
  * weeks (i.e. different yearly editions) never dedupe even if the name
@@ -65,16 +74,22 @@ export function dedupePerTournament(
   rows: BatRankingPlayerTournament[],
 ): BatRankingPlayerTournament[] {
   const byKey = new Map<string, BatRankingPlayerTournament>()
+  const isMarked = (r: BatRankingPlayerTournament) => r.countsTowardRankings.length > 0
   for (const r of rows) {
     const key = `${weekSortKey(r.week)}::${r.tournamentName.trim()}`
     const existing = byKey.get(key)
     if (!existing) { byKey.set(key, r); continue }
-    if (
-      r.points > existing.points ||
-      (r.points === existing.points && ageGroupRank(r.sourceEvent) > ageGroupRank(existing.sourceEvent))
-    ) {
-      byKey.set(key, r)
+    const rM = isMarked(r)
+    const eM = isMarked(existing)
+    let rWins: boolean
+    if (rM !== eM) {
+      rWins = rM // marker beats no marker
+    } else if (r.points !== existing.points) {
+      rWins = r.points > existing.points
+    } else {
+      rWins = ageGroupRank(r.sourceEvent) > ageGroupRank(existing.sourceEvent)
     }
+    if (rWins) byKey.set(key, r)
   }
   return Array.from(byKey.values())
 }
