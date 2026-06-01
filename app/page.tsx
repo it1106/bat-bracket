@@ -1021,7 +1021,7 @@ export default function Home() {
 
       {/* View mode tabs */}
       {selectedTournament && (
-        <div ref={customTabStripRef} className="flex items-center gap-0 px-5 py-0 bg-[var(--surface)] border-b border-[var(--border)]">
+        <div ref={customTabStripRef} className="flex items-center gap-0 px-[3px] py-0 bg-[var(--surface)] border-b border-[var(--border)]">
           {(overviewNotes.length > 0 || seedEvents.length > 0) && (
             <button
               onClick={() => setViewMode('overview')}
