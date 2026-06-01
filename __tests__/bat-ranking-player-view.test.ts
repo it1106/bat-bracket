@@ -1,5 +1,6 @@
 import {
   topRowsForTab,
+  otherRowsForTab,
   disciplineOf,
   ageGroupRank,
   dedupePerTournament,
@@ -272,5 +273,72 @@ describe('topRowsForTab', () => {
     const haier = rows.find((r) => r.tournamentName.startsWith('Haier'))!
     expect(sprc.sourceEvent).toBe('BS U13')  // marker wins, even though points tie
     expect(haier.sourceEvent).toBe('BS U13') // marker wins (also higher points here)
+  })
+})
+
+describe('otherRowsForTab', () => {
+  it('returns [] when the player has 10 or fewer rows in this discipline', () => {
+    const d = detail([
+      t('BS U15', 5000, '2026-10'),
+      t('BS U15', 4000, '2026-05'),
+    ])
+    expect(otherRowsForTab(d, 'singles')).toEqual([])
+  })
+
+  it('returns rows BEYOND the top-N, ordered by points desc', () => {
+    // 15 rows with distinct points so the cut is unambiguous.
+    const tournaments = Array.from({ length: 15 }, (_, i) =>
+      t('BS U15', 100 + i, `2026-${i + 1}`),
+    )
+    const d = detail(tournaments)
+    const others = otherRowsForTab(d, 'singles')
+    expect(others).toHaveLength(5)
+    // Highest-pointing among the leftover (just below the cut) is at the top.
+    expect(others.map((r) => r.points)).toEqual([104, 103, 102, 101, 100])
+  })
+
+  it('top and others partition the deduped set — never overlap, no row is dropped', () => {
+    const tournaments = Array.from({ length: 14 }, (_, i) =>
+      t('BS U15', 100 + i, `2026-${i + 1}`),
+    )
+    const d = detail(tournaments)
+    const top = topRowsForTab(d, 'singles')
+    const others = otherRowsForTab(d, 'singles')
+    expect(top.length + others.length).toBe(14)
+    const ids = new Set([
+      ...top.map((r) => `${r.week}-${r.points}`),
+      ...others.map((r) => `${r.week}-${r.points}`),
+    ])
+    expect(ids.size).toBe(14) // no overlap
+  })
+
+  it('respects per-tournament dedup before assigning to top/others', () => {
+    // Two SPRC rows + 11 distinct fillers. Without dedup, total = 13 → top 10 + 3 others.
+    // With dedup, total = 12 → top 10 + 2 others.
+    const fillers = Array.from({ length: 11 }, (_, i) =>
+      t('BS U15', 1000 + i, `2026-${i + 1}`),
+    )
+    const d = detail([
+      ...fillers,
+      t('BS U15', 500, '2025-19', [], 'SPRC'),
+      t('BS U13', 500, '2025-19', ['x'], 'SPRC'), // marker wins → U13 stays, U15 dropped
+    ])
+    const others = otherRowsForTab(d, 'singles')
+    // The deduped SPRC row (BS U13, 500 pts) is in others; the U15 sibling is gone.
+    expect(others.length).toBe(2)
+    const sprcOther = others.find((r) => r.tournamentName === 'SPRC')
+    expect(sprcOther?.sourceEvent).toBe('BS U13')
+  })
+
+  it('discipline filter applies (singles tab does not surface doubles in Others)', () => {
+    const fillers = Array.from({ length: 11 }, (_, i) =>
+      t('BS U15', 1000 + i, `2026-${i + 1}`),
+    )
+    const d = detail([
+      ...fillers,
+      t('MD U15', 9999, '2026-10'), // doubles — must NOT appear in singles others
+    ])
+    const others = otherRowsForTab(d, 'singles')
+    expect(others.every((r) => r.sourceEvent.startsWith('BS'))).toBe(true)
   })
 })

@@ -203,6 +203,7 @@ export type TKey =
   | 'rankingDetailTabSingles'
   | 'rankingDetailTabDoubles'
   | 'rankingDetailTabMixed'
+  | 'rankingDetailOthers'
   | 'rankingDetailLoadFailed'
   | 'rankingDetailRetry'
   | 'rankingDetailEmpty'
@@ -378,6 +379,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     rankingDetailTabSingles: 'Singles',
     rankingDetailTabDoubles: 'Doubles',
     rankingDetailTabMixed: 'Mixed',
+    rankingDetailOthers: 'Others',
     rankingDetailLoadFailed: "Couldn't load ranking detail.",
     rankingDetailRetry: 'Retry',
     rankingDetailEmpty: 'No ranking-eligible tournaments in the last 52 weeks.',
@@ -579,6 +581,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     rankingDetailTabSingles: 'เดี่ยว',
     rankingDetailTabDoubles: 'คู่',
     rankingDetailTabMixed: 'คู่ผสม',
+    rankingDetailOthers: 'อื่นๆ',
     rankingDetailLoadFailed: 'โหลดรายละเอียดอันดับไม่สำเร็จ',
     rankingDetailRetry: 'ลองอีกครั้ง',
     rankingDetailEmpty: 'ไม่มีรายการที่นับสะสมในรอบ 52 สัปดาห์ล่าสุด',
