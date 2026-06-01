@@ -6,6 +6,24 @@ import type { DrawInfo } from './types'
 export const cache = new Map<string, { draws: DrawInfo[]; ts: number; done?: boolean }>()
 export const TTL_MS = 30 * 60 * 1000
 
+// Mirror of the circuit breaker added to /api/matches. Tracks the last BAT
+// failure timestamp per tournament id. While inside the backoff window, the
+// route serves the previously-cached draws immediately without contacting
+// BAT. Cleared on a successful fetch.
+export const BAT_BACKOFF_MS = 30_000
+const batFailureAt = new Map<string, number>()
+
+export function inBackoff(id: string): boolean {
+  const t = batFailureAt.get(id.toUpperCase())
+  return t != null && Date.now() - t < BAT_BACKOFF_MS
+}
+export function markBatFailure(id: string): void {
+  batFailureAt.set(id.toUpperCase(), Date.now())
+}
+export function clearBatFailure(id: string): void {
+  batFailureAt.delete(id.toUpperCase())
+}
+
 // The registry canonicalizes tournament ids to upper-case; cache reads/writes
 // must use the same form. Callers (e.g. the draws route) lower-case the query
 // param, so without normalization a request would never hit the prewarmed
