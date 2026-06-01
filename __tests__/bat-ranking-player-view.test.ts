@@ -72,7 +72,7 @@ describe('dedupePerTournament', () => {
     expect(out[0].sourceEvent).toBe('BS U13')
   })
 
-  it('on point-tie, keeps the higher age group', () => {
+  it("when neither row is marked, point-tie falls back to the higher age group", () => {
     const out = dedupePerTournament([
       t('BS U13', 4194, '2026-19', [], 'SPRC 2026'),
       t('BS U15', 4194, '2026-19', [], 'SPRC 2026'),
@@ -92,6 +92,36 @@ describe('dedupePerTournament', () => {
     ])
     expect(a[0].sourceEvent).toBe('BS U15')
     expect(b[0].sourceEvent).toBe('BS U15')
+  })
+
+  it("BAT's marker wins over an unmarked sibling — even at the same points", () => {
+    // ภูมิพิพัชญ์'s real SPRC row: U15 (no marker) 4194 vs U13 (marked) 4194.
+    // BAT credits U13; mirror that.
+    const out = dedupePerTournament([
+      t('BS U15', 4194, '2026-19', [],                       'SPRC 2026'),
+      t('BS U13', 4194, '2026-19', ["U23 Men's singles"],   'SPRC 2026'),
+    ])
+    expect(out).toHaveLength(1)
+    expect(out[0].sourceEvent).toBe('BS U13')
+  })
+
+  it("BAT's marker wins even when the unmarked sibling has HIGHER points", () => {
+    // Defensive: shouldn't happen in practice (BAT marks the better row),
+    // but if it ever does, we still trust BAT's marker.
+    const out = dedupePerTournament([
+      t('BS U15', 9999, '2026-19', [],                       'X'),
+      t('BS U13',  100, '2026-19', ["U23 Men's singles"],   'X'),
+    ])
+    expect(out).toHaveLength(1)
+    expect(out[0].sourceEvent).toBe('BS U13')
+  })
+
+  it('when both rows carry a marker (rare/defensive), points then age decide', () => {
+    const out = dedupePerTournament([
+      t('BS U13', 4000, '2026-19', ["U23 Men's singles"], 'X'),
+      t('BS U15', 5000, '2026-19', ["U23 Men's singles"], 'X'),
+    ])
+    expect(out[0].sourceEvent).toBe('BS U15')
   })
 
   it('different tournaments at the same week stay separate', () => {
@@ -224,22 +254,23 @@ describe('topRowsForTab', () => {
     expect(rows.map((r) => r.points)).toEqual([5000, 3000])
   })
 
-  it("mirrors ภูมิพิพัชญ์'s SPRC + Haier scenario end-to-end", () => {
-    // The bug report: same player in both BS U13 and BS U15 of the same
-    // tournament should produce one row, not two.
-    //   - SPRC 2026: U13 = U15 = 4194 → tie → keep U15 (higher age)
-    //   - Haier CUP 2025: U13 = 4194, U15 = 3355 → keep U13 (higher points)
+  it("mirrors ภูมิพิพัชญ์'s SPRC + Haier scenario end-to-end (BAT marker wins)", () => {
+    // Real markers from BAT for this player: BS U13 carries the
+    // `Used for: U23/U19/U17/U15/U13 Boys singles` marker on both SPRC and
+    // Haier rows. BS U15 has no marker on either. So BAT credits U13 in
+    // both cases — even when SPRC's two rows are tied at 4194 pts.
+    const m = ["U23 Men's singles"]
     const d = detail([
       t('BS U15', 4194, '2026-19', [], 'SPRC - CALTEX BADMINTON CHAMPIONSHIP 2026'),
-      t('BS U13', 4194, '2026-19', [], 'SPRC - CALTEX BADMINTON CHAMPIONSHIP 2026'),
+      t('BS U13', 4194, '2026-19', m,  'SPRC - CALTEX BADMINTON CHAMPIONSHIP 2026'),
       t('BS U15', 3355, '2025-28', [], 'Haier CUP 2025'),
-      t('BS U13', 4194, '2025-28', [], 'Haier CUP 2025'),
+      t('BS U13', 4194, '2025-28', m,  'Haier CUP 2025'),
     ])
     const rows = topRowsForTab(d, 'singles')
     expect(rows).toHaveLength(2)
     const sprc = rows.find((r) => r.tournamentName.startsWith('SPRC'))!
     const haier = rows.find((r) => r.tournamentName.startsWith('Haier'))!
-    expect(sprc.sourceEvent).toBe('BS U15') // tie → higher age
-    expect(haier.sourceEvent).toBe('BS U13') // higher points
+    expect(sprc.sourceEvent).toBe('BS U13')  // marker wins, even though points tie
+    expect(haier.sourceEvent).toBe('BS U13') // marker wins (also higher points here)
   })
 })
