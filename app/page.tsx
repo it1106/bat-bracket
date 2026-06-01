@@ -903,7 +903,7 @@ export default function Home() {
                   className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[var(--muted)] text-[9px] font-bold text-[var(--muted)] leading-none hover:bg-[var(--border)] hover:text-[var(--fg)] cursor-help"
                 >?</button>
                 {searchHelpOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-[60] w-[320px] p-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] text-xs leading-relaxed shadow-lg normal-case tracking-normal font-normal">
+                  <div className="absolute left-0 top-full mt-1 z-[60] w-[min(320px,calc(100vw-24px))] p-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] text-xs leading-relaxed shadow-lg normal-case tracking-normal font-normal">
                     {t('searchHelp')}
                   </div>
                 )}
@@ -1025,7 +1025,7 @@ export default function Home() {
           {(overviewNotes.length > 0 || seedEvents.length > 0) && (
             <button
               onClick={() => setViewMode('overview')}
-              className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+              className={`px-[5px] sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
                 viewMode === 'overview'
                   ? 'border-[var(--brand)] text-[var(--brand-fg)]'
                   : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
@@ -1036,7 +1036,7 @@ export default function Home() {
           )}
           <button
             onClick={() => setViewMode('bracket')}
-            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+            className={`px-[5px] sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
               viewMode === 'bracket'
                 ? 'border-[var(--brand)] text-[var(--brand-fg)]'
                 : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
@@ -1046,7 +1046,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => setViewMode('matches')}
-            className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+            className={`px-[5px] sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
               viewMode === 'matches'
                 ? 'border-[var(--brand)] text-[var(--brand-fg)]'
                 : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
@@ -1058,7 +1058,7 @@ export default function Home() {
           {hasLiveData && (
             <button
               onClick={() => setViewMode('live')}
-              className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors inline-flex items-center gap-1.5 ${
+              className={`px-[5px] sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors inline-flex items-center gap-1.5 ${
                 viewMode === 'live'
                   ? 'border-[var(--brand)] text-[var(--brand-fg)]'
                   : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
@@ -1094,7 +1094,7 @@ export default function Home() {
               }}
               aria-label={t('customTabAddTooltip')}
               title={t('customTabAddTooltip')}
-              className="px-3 py-2.5 text-xs font-semibold border-b-2 border-transparent text-[var(--muted)] hover:text-[var(--fg)] transition-colors"
+              className="px-[5px] sm:px-3 py-2.5 text-xs font-semibold border-b-2 border-transparent text-[var(--muted)] hover:text-[var(--fg)] transition-colors"
             >+</button>
           )}
           {customTabs.length > 0 && (
@@ -1102,7 +1102,7 @@ export default function Home() {
               onClick={() => setCustomTabsEditMode((v) => !v)}
               aria-label={customTabsEditMode ? t('customTabEditDone') : t('customTabEditTabs')}
               title={customTabsEditMode ? t('customTabEditDone') : t('customTabEditTabs')}
-              className={`px-3 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+              className={`px-[5px] sm:px-3 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
                 customTabsEditMode
                   ? 'border-[var(--brand)] text-[var(--brand-fg)]'
                   : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
