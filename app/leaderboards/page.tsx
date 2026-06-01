@@ -5,8 +5,16 @@ import type { Leaderboards, BatRankingEvent, LeaderboardEntry, LeaderboardBoard 
 
 const EMPTY: Leaderboards = { version: 1, provider: 'bat', generatedAt: 'never', sourceVersion: '', boards: [] }
 
+// Number of ranking entries we ship to the client per BAT ranking board.
+// The client renders the first 10 by default and reveals the rest behind a
+// 'Show top 30' toggle. The BAT cache holds up to 50 per event, but past 30
+// the names get long-tail enough that ~all users won't look — capping at 30
+// keeps the initial payload from ballooning while still giving plenty of
+// room to scan for any player who hovers around the bubble.
+const RANKING_BOARD_LIMIT = 30
+
 function rankingEventToBoard(ev: BatRankingEvent): LeaderboardBoard {
-  const entries: LeaderboardEntry[] = ev.entries.slice(0, 10).map(e => ({
+  const entries: LeaderboardEntry[] = ev.entries.slice(0, RANKING_BOARD_LIMIT).map(e => ({
     rank: e.rank,
     slug: e.slug,
     name: e.name,

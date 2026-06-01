@@ -33,8 +33,21 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDate }: P
   const [activeProvider, setActiveProvider] = useState<ProviderTag>(leaderboards[0]?.provider ?? 'bat')
   const [active, setActive] = useState<LeaderboardCategory>('ranking')
   const [openHelp, setOpenHelp] = useState<string | null>(null)
+  // Set of ranking-board IDs the user has expanded to see beyond the top 10.
+  // Per-board state (not global) so expanding "U23 Men's singles" doesn't
+  // also blow open every other board.
+  const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set())
   const helpRef = useRef<HTMLSpanElement | null>(null)
   const didMountRef = useRef(false)
+
+  const RANKING_COLLAPSED_LIMIT = 10
+  const toggleBoardExpansion = (id: string) => {
+    setExpandedBoards((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
 
   // Player search
   const [query, setQuery] = useState('')
@@ -196,20 +209,45 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDate }: P
               </span>
               {b.qualifier && <span className="lb-card-qual">{t(b.qualifier as TKey)}</span>}
             </h3>
-            {b.entries.length === 0 ? (
-              <div className="lb-empty" style={{ padding: '12px 0' }}>—</div>
-            ) : b.entries.map(e => (
-              <Link key={e.slug} href={`/player/${e.provider ?? lb.provider}/${e.slug}`}
-                prefetch={false} className={`lb-row${e.extra ? ' lb-row-extra' : ''}`}>
-                <div className={`lb-rk ${e.rank === 1 ? 'lb-r1' : e.rank === 2 ? 'lb-r2' : e.rank === 3 ? 'lb-r3' : ''}`}>{e.rank}</div>
-                <div>
-                  <div>{e.name}</div>
-                  <div className="lb-club">{e.primaryClub}</div>
-                </div>
-                {e.extra && <div className="lb-extra">{e.extra}</div>}
-                <div className="lb-val">{e.display}</div>
-              </Link>
-            ))}
+            {(() => {
+              if (b.entries.length === 0) {
+                return <div className="lb-empty" style={{ padding: '12px 0' }}>—</div>
+              }
+              const isExpanded = expandedBoards.has(b.id)
+              // Only ranking boards collapse; other categories already cap at a
+              // small number, so respect what the data layer gave us.
+              const visibleEntries = b.category === 'ranking' && !isExpanded
+                ? b.entries.slice(0, RANKING_COLLAPSED_LIMIT)
+                : b.entries
+              const hasMore = b.category === 'ranking' && b.entries.length > RANKING_COLLAPSED_LIMIT
+              return (
+                <>
+                  {visibleEntries.map(e => (
+                    <Link key={e.slug} href={`/player/${e.provider ?? lb.provider}/${e.slug}`}
+                      prefetch={false} className={`lb-row${e.extra ? ' lb-row-extra' : ''}`}>
+                      <div className={`lb-rk ${e.rank === 1 ? 'lb-r1' : e.rank === 2 ? 'lb-r2' : e.rank === 3 ? 'lb-r3' : ''}`}>{e.rank}</div>
+                      <div>
+                        <div>{e.name}</div>
+                        <div className="lb-club">{e.primaryClub}</div>
+                      </div>
+                      {e.extra && <div className="lb-extra">{e.extra}</div>}
+                      <div className="lb-val">{e.display}</div>
+                    </Link>
+                  ))}
+                  {hasMore && (
+                    <button
+                      type="button"
+                      className="lb-show-more"
+                      onClick={() => toggleBoardExpansion(b.id)}
+                    >
+                      {isExpanded
+                        ? t('leaderboardsShowTop10')
+                        : t('leaderboardsShowTop30')}
+                    </button>
+                  )}
+                </>
+              )
+            })()}
           </div>
         )})}
       </div>
