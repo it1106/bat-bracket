@@ -2875,3 +2875,19 @@ html.dark .pp-ev-chip.pp-champ { background: rgba(212,175,55,0.18);
   color: #a16207;
   font-weight: 600;
 }
+
+/* 'Show top 30' / 'Show top 10' toggle at the bottom of ranking boards. */
+.lb-show-more {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.lb-show-more:hover { background: var(--info-bg); }
