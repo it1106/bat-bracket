@@ -182,7 +182,9 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
       {record.tournaments.length > 0 && (
         <div className="pp-section">
           <h2>Tournament history</h2>
-          {record.tournaments.map(t => (
+          {[...record.tournaments]
+            .sort((a, b) => (b.tournamentDateIso ?? '').localeCompare(a.tournamentDateIso ?? ''))
+            .map(t => (
             <div className="pp-tour" key={t.tournamentId}>
               <div className="pp-tour-name-row">
                 <div className="pp-tour-name">{t.tournamentName}</div>

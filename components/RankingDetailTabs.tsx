@@ -102,12 +102,15 @@ export default function RankingDetailTabs({ slug, initialDetail }: Props) {
     const others = otherRowsForTab(fetchState.detail, active)
     return (
       <>
+        <h3 className="pp-rd-section-header">{t('rankingDetailTopTen')}</h3>
         {top.map((r, i) => (
           <TournamentRow key={`top-${r.week}-${r.tournamentName}-${i}`} row={r} />
         ))}
         {others.length > 0 && (
           <>
-            <h3 className="pp-rd-others-header">{t('rankingDetailOthers')}</h3>
+            <h3 className="pp-rd-section-header pp-rd-section-header--divided">
+              {t('rankingDetailOthersTournaments')}
+            </h3>
             {others.map((r, i) => (
               <TournamentRow key={`oth-${r.week}-${r.tournamentName}-${i}`} row={r} />
             ))}
