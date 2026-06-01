@@ -97,13 +97,25 @@ export function parsePublishDate(html: string): string {
   return m ? m[1].trim() : ''
 }
 
+/** Extract the weekly rankingId from any page that links to a category or
+ *  per-player URL. category.aspx links are preferred (they're on the overview
+ *  page and reflect the canonical edition); player.aspx is a fallback for
+ *  pages that only have entry rows. Returns '' if nothing matches. */
+export function parseRankingId(html: string): string {
+  const cat = html.match(/href="category\.aspx\?id=(\d+)/i)
+  if (cat) return cat[1]
+  const ply = html.match(/href="player\.aspx\?id=(\d+)/i)
+  return ply ? ply[1] : ''
+}
+
 /** Parse the full ranking from the overview page (top-10 preview per event). */
 export function parseBatRanking(html: string): BatRanking {
   const scrapedAt = new Date().toISOString()
   const publishDate = parsePublishDate(html)
+  const rankingId = parseRankingId(html)
 
   const tableMatch = html.match(/<table\s[^>]*class="ruler"[^>]*>([\s\S]*?)<\/table>/i)
-  if (!tableMatch) return { scrapedAt, publishDate, events: [] }
+  if (!tableMatch) return { scrapedAt, publishDate, rankingId, events: [] }
   const tableContent = tableMatch[1]
 
   const headerRe = /<th[^>]*colspan="9"[^>]*>[\s\S]*?<a\s[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/th>/gi
@@ -127,5 +139,5 @@ export function parseBatRanking(html: string): BatRanking {
     }
   }
 
-  return { scrapedAt, publishDate, events }
+  return { scrapedAt, publishDate, rankingId, events }
 }

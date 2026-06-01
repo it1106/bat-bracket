@@ -3,11 +3,14 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { PlayerRecord, PlayerRanks, PlayerStats, WLRecord } from '@/lib/types'
+import RankingDetailTabs from './RankingDetailTabs'
 
 interface Props {
   record: PlayerRecord
   batRanking?: import('@/lib/types').BatRankingPlayerRank[]
   rankingPublishDate?: string
+  initialDetail?: import('@/lib/types').BatRankingPlayerDetail
+  currentRanking?: import('@/lib/types').BatRanking
 }
 
 function fmtPct(n: number): string { return `${Math.round(n * 100)}%` }
@@ -35,7 +38,7 @@ const RANK_LABELS: Array<[keyof PlayerRanks, string, string]> = [
   ['threeSetterWins', '🔥', 'Three-setter Wins'],
 ]
 
-export default function PlayerProfileView({ record, batRanking, rankingPublishDate }: Props) {
+export default function PlayerProfileView({ record, batRanking, rankingPublishDate, initialDetail, currentRanking }: Props) {
   const router = useRouter()
   const winPct = record.totals.matches > 0
     ? Math.round((record.totals.wins / record.totals.matches) * 100)
@@ -145,6 +148,14 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
             ))}
           </div>
         </div>
+      )}
+
+      {batRanking && batRanking.length > 0 && currentRanking && record.key.provider === 'bat' && (
+        <RankingDetailTabs
+          slug={record.key.slug}
+          initialDetail={initialDetail}
+          currentRanking={currentRanking}
+        />
       )}
       <div className="pp-kpi-row">
         <div className="pp-kpi"><div className="pp-kpi-num">{record.totals.wins}</div><div className="pp-kpi-lbl">Wins</div></div>

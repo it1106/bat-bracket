@@ -7,12 +7,13 @@ jest.mock('../lib/bat-ranking-scraper', () => ({
   parseCategoryList: jest.fn(),
   parseCategoryPage: jest.fn(),
   parsePublishDate: jest.fn(),
+  parseRankingId: jest.fn(),
   eventCodeFromName: jest.fn(),
 }))
 
 import { batFetch } from '@/lib/bat-fetch'
 import { readBatRankingCache, writeBatRankingCache } from '@/lib/bat-ranking-cache'
-import { parseCategoryList, parseCategoryPage, parsePublishDate, eventCodeFromName } from '@/lib/bat-ranking-scraper'
+import { parseCategoryList, parseCategoryPage, parsePublishDate, parseRankingId, eventCodeFromName } from '@/lib/bat-ranking-scraper'
 import { POST } from '@/app/api/bat-ranking/refresh/route'
 
 const MOCK_CATEGORIES = [{ id: '5694', name: "U23 Men's singles" }]
@@ -25,6 +26,7 @@ function makeReq(force = false) {
 function mockFetchSuccess() {
   ;(batFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => '<html>…</html>' })
   ;(parsePublishDate as jest.Mock).mockReturnValue('20/5/2569')
+  ;(parseRankingId as jest.Mock).mockReturnValue('51899')
   ;(parseCategoryList as jest.Mock).mockReturnValue(MOCK_CATEGORIES)
   ;(parseCategoryPage as jest.Mock).mockReturnValue(MOCK_ENTRIES)
   ;(eventCodeFromName as jest.Mock).mockReturnValue('U23_MS')
@@ -48,6 +50,7 @@ describe('POST /api/bat-ranking/refresh', () => {
     ;(readBatRankingCache as jest.Mock).mockResolvedValue({
       scrapedAt: new Date().toISOString(),
       publishDate: '20/5/2569',
+      rankingId: '51771',
       events: [{ eventCode: 'U23_MS', eventName: "U23 Men's singles", entries: MOCK_ENTRIES }],
     })
     const res = await POST(makeReq())
@@ -60,6 +63,7 @@ describe('POST /api/bat-ranking/refresh', () => {
     ;(readBatRankingCache as jest.Mock).mockResolvedValue({
       scrapedAt: new Date().toISOString(),
       publishDate: '20/5/2569',
+      rankingId: '51771',
       events: [],
     })
     mockFetchSuccess()
@@ -75,6 +79,7 @@ describe('POST /api/bat-ranking/refresh', () => {
     ;(readBatRankingCache as jest.Mock).mockResolvedValue({
       scrapedAt: staleDate,
       publishDate: '13/5/2569',
+      rankingId: '51771',
       events: [],
     })
     mockFetchSuccess()
@@ -105,5 +110,17 @@ describe('POST /api/bat-ranking/refresh', () => {
     ;(parseCategoryList as jest.Mock).mockReturnValue([])
     const res = await POST(makeReq())
     expect(res.status).toBe(502)
+  })
+
+  it('returns 502 when overview parse yields no rankingId', async () => {
+    ;(readBatRankingCache as jest.Mock).mockResolvedValue(null)
+    ;(batFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => '<html></html>' })
+    ;(parsePublishDate as jest.Mock).mockReturnValue('20/5/2569')
+    ;(parseRankingId as jest.Mock).mockReturnValue('')
+    ;(parseCategoryList as jest.Mock).mockReturnValue(MOCK_CATEGORIES)
+    const res = await POST(makeReq())
+    expect(res.status).toBe(502)
+    const json = await res.json()
+    expect(json.error).toMatch(/rankingId/i)
   })
 })

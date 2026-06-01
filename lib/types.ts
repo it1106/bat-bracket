@@ -567,6 +567,9 @@ export interface BatRankingEvent {
 export interface BatRanking {
   scrapedAt: string
   publishDate: string
+  /** The weekly id= URL parameter on category/player pages. Stable for the
+   *  duration of one publication; changes every Tuesday. */
+  rankingId: string
   events: BatRankingEvent[]
 }
 
@@ -575,6 +578,53 @@ export interface BatRankingPlayerRank {
   rank: number
   points: number
   tournaments: number
+}
+
+/** One tournament row on a player's BAT ranking detail page. */
+export interface BatRankingPlayerTournament {
+  tournamentName: string
+  /** Tournament GUID parsed from the row link; null if the href didn't
+   *  carry one (defensive — surface the row but no click-through). */
+  tournamentId: string | null
+  /** Source event as shown on BAT (e.g., "BS U15", "MD U17", "XD U23"). */
+  sourceEvent: string
+  /** "YYYY-WW" week of the tournament. */
+  week: string
+  /** Placement string as shown (e.g., "5/8", "17/32"). */
+  result: string
+  /** Tournament points earned. */
+  points: number
+  /** Ranking categories this row counts toward, parsed from the marker
+   *  img's title attribute. Empty when the row is not in any top-10. */
+  countsTowardRankings: string[]
+}
+
+export interface BatRankingPlayerDetail {
+  /** Stable global BAT player id (the "player=" URL param). */
+  globalPlayerId: string
+  /** publishDate the detail was scraped against. Read-time mismatch with
+   *  the current BatRanking.publishDate invalidates. */
+  publishDate: string
+  scrapedAt: string
+  tournaments: BatRankingPlayerTournament[]
+}
+
+export interface BatRankingPlayerDetailCache {
+  version: 1
+  /** Success path. */
+  detail?: BatRankingPlayerDetail
+  /** Negative cache for a player whose BAT page 404'd. Keyed to the same
+   *  publishDate as a success would be, so it expires with the next
+   *  weekly publication. */
+  notFound?: { publishDate: string; scrapedAt: string }
+}
+
+/** Single-file map of slug → BAT global player id. Append-only on success;
+ *  failures are persisted as { globalPlayerId: null, reason } so the
+ *  discovery route doesn't re-hit every page view. */
+export interface BatPlayerIdMap {
+  version: 1
+  players: Record<string, { globalPlayerId: string | null; reason?: string }>
 }
 
 // Live-scraped extras from a player's BAT global profile (career/YTD stats + YOB).

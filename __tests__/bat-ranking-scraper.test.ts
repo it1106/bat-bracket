@@ -1,4 +1,4 @@
-import { parseBatRanking, parseCategoryList, parseCategoryPage, eventCodeFromName } from '@/lib/bat-ranking-scraper'
+import { parseBatRanking, parseCategoryList, parseCategoryPage, eventCodeFromName, parseRankingId } from '@/lib/bat-ranking-scraper'
 
 // Fixture matches the actual bat.tournamentsoftware.com/ranking/ranking.aspx?rid=188 structure.
 // There is ONE <table class="ruler"> containing all events. Events are separated by
@@ -202,5 +202,35 @@ describe('eventCodeFromName', () => {
   it('handles Mixed doubles', () => {
     expect(eventCodeFromName("U23 Mixed doubles")).toBe('U23_MXD')
     expect(eventCodeFromName("U15 Mixed doubles")).toBe('U15_MXD')
+  })
+})
+
+describe('parseRankingId', () => {
+  it("extracts the rankingId from a category link on the overview page", () => {
+    const html = `
+      <th colspan="9"><a href="category.aspx?id=51771&category=5694">U23 Men's singles</a></th>
+    `
+    expect(parseRankingId(html)).toBe('51771')
+  })
+
+  it('extracts the rankingId from an entry-row player link as a fallback', () => {
+    // Some BAT pages don't put a category.aspx link in the headers; the
+    // per-player rows still encode the rankingId in their player.aspx href.
+    const html = `<a href="player.aspx?id=51899&player=2458898">player</a>`
+    expect(parseRankingId(html)).toBe('51899')
+  })
+
+  it('returns empty string when nothing matches', () => {
+    expect(parseRankingId('<html><body>no links here</body></html>')).toBe('')
+  })
+
+  it('prefers the category link over a stray player link further down the page', () => {
+    // If both appear, the category link reflects the canonical id for the
+    // current edition; player rows can carry the id of a redirected entry.
+    const html = `
+      <a href="player.aspx?id=99999&player=1">stray</a>
+      <th colspan="9"><a href="category.aspx?id=51771&category=5694">U23 Men's singles</a></th>
+    `
+    expect(parseRankingId(html)).toBe('51771')
   })
 })

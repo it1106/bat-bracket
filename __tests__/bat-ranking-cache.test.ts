@@ -7,6 +7,7 @@ import type { BatRanking } from '@/lib/types'
 const sample: BatRanking = {
   scrapedAt: '2026-05-20T10:00:00Z',
   publishDate: '2026-05-20',
+  rankingId: '51771',
   events: [
     {
       eventCode: 'MS',

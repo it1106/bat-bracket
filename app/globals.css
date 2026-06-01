@@ -2705,3 +2705,127 @@ html.dark .pp-ev-chip.pp-champ { background: rgba(212,175,55,0.18);
 .pm-ranking-event { flex: 1; font-size: 12px; }
 .pm-ranking-pos { font-weight: 700; font-size: 13px; min-width: 32px; text-align: right; }
 .pm-ranking-pts { font-size: 11px; color: var(--muted); min-width: 60px; text-align: right; }
+
+/* Ranking detail (per-player tournament breakdown) */
+.pp-ranking-detail {
+  margin-top: 16px;
+}
+.pp-rd-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.pp-rd-tab {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 100ms, border-color 100ms;
+}
+.pp-rd-tab:hover { color: var(--fg); }
+.pp-rd-tab.active {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+}
+.pp-rd-block {
+  margin-bottom: 18px;
+}
+.pp-rd-block-hdr {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+.pp-rd-block-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.pp-rd-block-rank {
+  font-size: 13px;
+  color: var(--brand);
+  font-weight: 600;
+}
+.pp-rd-block-pts {
+  font-size: 13px;
+  color: var(--muted);
+  margin-left: auto;
+}
+.pp-rd-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  gap: 8px;
+  padding: 5px 4px;
+  font-size: 12px;
+  align-items: baseline;
+  border-bottom: 1px solid var(--border-soft, var(--border));
+}
+.pp-rd-row a { color: var(--fg); text-decoration: none; }
+.pp-rd-row a:hover { color: var(--brand); }
+.pp-rd-row-event {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.pp-rd-row-week { color: var(--muted); white-space: nowrap; }
+.pp-rd-row-result { color: var(--muted); white-space: nowrap; }
+.pp-rd-row-pts { font-weight: 600; text-align: right; white-space: nowrap; }
+.pp-rd-show-more {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pp-rd-show-more:hover { background: var(--info-bg); }
+.pp-rd-skeleton {
+  height: 60px;
+  margin-bottom: 12px;
+  background: var(--border);
+  border-radius: 6px;
+  opacity: 0.5;
+}
+.pp-rd-error {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--info-bg);
+  border-radius: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.pp-rd-error-retry {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.pp-rd-empty {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
