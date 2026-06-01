@@ -5,8 +5,8 @@ import { track } from '@/lib/analytics'
 import {
   topRowsForTab,
   otherRowsForTab,
-  expiringNextWeekCutoff,
-  isExpiringNextWeek,
+  computeExpiryCutoffs,
+  classifyExpiry,
   type Discipline,
 } from '@/lib/bat-ranking-player-view'
 import type { BatRankingPlayerDetail } from '@/lib/types'
@@ -110,9 +110,7 @@ export default function RankingDetailTabs({ slug, initialDetail, rankingPublishD
     }
     const others = otherRowsForTab(fetchState.detail, active)
     const topTotal = top.reduce((sum, r) => sum + r.points, 0)
-    const cutoff = rankingPublishDate
-      ? expiringNextWeekCutoff(rankingPublishDate)
-      : null
+    const cutoffs = computeExpiryCutoffs(rankingPublishDate)
     return (
       <>
         <h3 className="pp-rd-section-header">
@@ -123,7 +121,7 @@ export default function RankingDetailTabs({ slug, initialDetail, rankingPublishD
           <TournamentRow
             key={`top-${r.week}-${r.tournamentName}-${i}`}
             row={r}
-            expiring={isExpiringNextWeek(r.week, cutoff)}
+            expiry={classifyExpiry(r.week, cutoffs)}
           />
         ))}
         {others.length > 0 && (
@@ -135,7 +133,7 @@ export default function RankingDetailTabs({ slug, initialDetail, rankingPublishD
               <TournamentRow
                 key={`oth-${r.week}-${r.tournamentName}-${i}`}
                 row={r}
-                expiring={isExpiringNextWeek(r.week, cutoff)}
+                expiry={classifyExpiry(r.week, cutoffs)}
               />
             ))}
           </>

@@ -78,30 +78,77 @@ function isoWeekString(d: Date): string {
 
 /**
  * Returns the ISO week such that rows at this week or earlier will fall out
- * of the 52-week ranking window when the *next* weekly publication lands.
+ * of the 52-week ranking window within `weeksOut` future weekly publications.
  *
- * Computed as: publishDate (CE) minus 52 weeks → ISO week. With BAT's
- * current publication at "26/5/2569" (= 2026-22), this returns "2025-22"
- * — matching the user's stated rule that any tournament on or before
- * 2025-22 falls out when 2026-23 publishes next Tuesday.
+ *   weeksOut=1 → cutoff for "rows removed at the very next publication"
+ *   weeksOut=4 → cutoff for "rows removed within the next 4 publications"
  *
- * Returns null on malformed publishDate.
+ * Derivation: publication n (n weeks from now) excludes rows at week ≤ (that
+ * publication's date - 52 weeks). For n=weeksOut, that's
+ * publishDate + weeksOut weeks - 53 weeks = publishDate - (53 - weeksOut)
+ * weeks. We want the *latest* cutoff so the result covers every row that
+ * will be removed across publications 1..weeksOut.
+ *
+ * Canonical anchor (user-stated): publishDate '26/5/2569' (= 2026-22), the
+ * next publication 2026-23 removes everything ≤ 2025-22. weeksOut=1 returns
+ * '2025-22'; weeksOut=4 returns '2025-25'.
+ *
+ * Returns null on malformed publishDate or non-positive integer weeksOut.
  */
-export function expiringNextWeekCutoff(publishDate: string): string | null {
+export function expiringWithinWeeksCutoff(
+  publishDate: string,
+  weeksOut: number,
+): string | null {
+  if (!Number.isInteger(weeksOut) || weeksOut < 1) return null
   const d = parseBatPublishDate(publishDate)
   if (!d) return null
-  const cutoff = new Date(d.getTime() - 52 * 7 * 86400000)
+  const cutoff = new Date(d.getTime() - (53 - weeksOut) * 7 * 86400000)
   return isoWeekString(cutoff)
 }
 
-/**
- * True iff `week` falls at or before `cutoff` — i.e. the row's points will
- * be removed from the ranking calculation when next Tuesday's publication
- * lands. Returns false when cutoff is null (couldn't be computed).
- */
+/** Alias retained for call sites that only care about the very next publication. */
+export function expiringNextWeekCutoff(publishDate: string): string | null {
+  return expiringWithinWeeksCutoff(publishDate, 1)
+}
+
+/** True iff `week` falls at or before `cutoff` (weekSortKey-normalized). */
 export function isExpiringNextWeek(week: string, cutoff: string | null): boolean {
   if (!cutoff) return false
   return weekSortKey(week).localeCompare(weekSortKey(cutoff)) <= 0
+}
+
+/** Horizon (in BAT publishing weeks) for the secondary 'soon' tier. */
+export const EXPIRY_SOON_HORIZON_WEEKS = 4
+
+export interface ExpiryCutoffs {
+  /** Rows at or before this week fall out at the very next publication. */
+  next: string | null
+  /** Rows at or before this week fall out within EXPIRY_SOON_HORIZON_WEEKS
+   *  publications. By construction `next` is a sub-set of `soon`. */
+  soon: string | null
+}
+
+export type ExpiryTier = 'next' | 'soon' | null
+
+/** Precompute both cutoffs from the publishDate so per-row classification is
+ *  cheap. Returns nulls when publishDate is missing or malformed. */
+export function computeExpiryCutoffs(
+  publishDate: string | undefined | null,
+): ExpiryCutoffs {
+  if (!publishDate) return { next: null, soon: null }
+  return {
+    next: expiringWithinWeeksCutoff(publishDate, 1),
+    soon: expiringWithinWeeksCutoff(publishDate, EXPIRY_SOON_HORIZON_WEEKS),
+  }
+}
+
+/** Classify a row's week given precomputed cutoffs. 'next' wins over 'soon'
+ *  when both match (next ⊂ soon). Returns null when neither applies. */
+export function classifyExpiry(week: string, cutoffs: ExpiryCutoffs): ExpiryTier {
+  const w = weekSortKey(week)
+  if (cutoffs.next && w.localeCompare(weekSortKey(cutoffs.next)) <= 0) return 'next'
+  if (cutoffs.soon && w.localeCompare(weekSortKey(cutoffs.soon)) <= 0) return 'soon'
+  return null
 }
 
 /**
