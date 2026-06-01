@@ -199,6 +199,16 @@ export type TKey =
   | 'alertsNewRanking'
   | 'alertsRankingTitle'
   | 'alertsBellAria'
+  | 'rankingDetailTitle'
+  | 'rankingDetailTabSingles'
+  | 'rankingDetailTabDoubles'
+  | 'rankingDetailTabMixed'
+  | 'rankingDetailRankLabel'
+  | 'rankingDetailShowMore'
+  | 'rankingDetailShowLess'
+  | 'rankingDetailLoadFailed'
+  | 'rankingDetailRetry'
+  | 'rankingDetailEmpty'
   | 'viewFullProfile'
   | 'playerProfile'
   | 'byDiscipline'
@@ -367,6 +377,16 @@ const dict: Record<Lang, Record<TKey, string>> = {
     alertsNewRanking: 'New BAT Ranking',
     alertsRankingTitle: 'New BAT ranking published',
     alertsBellAria: 'Notifications',
+    rankingDetailTitle: 'Ranking detail',
+    rankingDetailTabSingles: 'Singles',
+    rankingDetailTabDoubles: 'Doubles',
+    rankingDetailTabMixed: 'Mixed',
+    rankingDetailRankLabel: 'Rank',
+    rankingDetailShowMore: 'Show more',
+    rankingDetailShowLess: 'Show less',
+    rankingDetailLoadFailed: "Couldn't load ranking detail.",
+    rankingDetailRetry: 'Retry',
+    rankingDetailEmpty: 'No ranking-eligible tournaments in the last 52 weeks.',
     viewFullProfile: 'View full profile',
     playerProfile: 'Player Profile',
     byDiscipline: 'By discipline',
@@ -561,6 +581,16 @@ const dict: Record<Lang, Record<TKey, string>> = {
     alertsNewRanking: 'อันดับ BAT ใหม่',
     alertsRankingTitle: 'ประกาศอันดับ BAT ฉบับใหม่',
     alertsBellAria: 'การแจ้งเตือน',
+    rankingDetailTitle: 'รายละเอียดอันดับ',
+    rankingDetailTabSingles: 'เดี่ยว',
+    rankingDetailTabDoubles: 'คู่',
+    rankingDetailTabMixed: 'คู่ผสม',
+    rankingDetailRankLabel: 'อันดับ',
+    rankingDetailShowMore: 'แสดงเพิ่มเติม',
+    rankingDetailShowLess: 'แสดงน้อยลง',
+    rankingDetailLoadFailed: 'โหลดรายละเอียดอันดับไม่สำเร็จ',
+    rankingDetailRetry: 'ลองอีกครั้ง',
+    rankingDetailEmpty: 'ไม่มีรายการที่นับสะสมในรอบ 52 สัปดาห์ล่าสุด',
     viewFullProfile: 'ดูโปรไฟล์เต็ม',
     playerProfile: 'โปรไฟล์ผู้เล่น',
     byDiscipline: 'แยกตามประเภท',
