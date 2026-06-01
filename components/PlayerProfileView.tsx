@@ -196,10 +196,12 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
                   // Podium tint: Champion (won the Final) → gold, F (reached
                   // the Final, lost) → silver, SF (reached the SF, lost) →
                   // bronze. Badminton awards both losing semifinalists 3rd.
+                  // Everyone who didn't podium gets green so a 'participated'
+                  // chip can't be mistaken for the silver runner-up.
                   const medalClass = e.bestFinish === 'Champion' ? 'pp-champ'
                     : e.bestFinish === 'F' ? 'pp-runnerup'
                     : e.bestFinish === 'SF' ? 'pp-third'
-                    : ''
+                    : 'pp-noplace'
                   return (
                     <span key={e.eventId + e.eventName} className={`pp-ev-chip ${medalClass}`}>
                       {e.bestFinish === 'Champion' ? '🏆 ' : ''}{e.eventName} ·{' '}
