@@ -2537,6 +2537,14 @@ html.dark .ms-match--next-opp {
   border-color: #facc15; color: #78350f; }
 html.dark .pp-ev-chip.pp-champ { background: rgba(212,175,55,0.18);
   border-color: rgba(212,175,55,0.5); color: #fde68a; }
+.pp-ev-chip.pp-runnerup { background: linear-gradient(135deg, #f3f4f6, #d1d5db);
+  border-color: #9ca3af; color: #1f2937; }
+html.dark .pp-ev-chip.pp-runnerup { background: rgba(192,200,210,0.16);
+  border-color: rgba(192,200,210,0.45); color: #e5e7eb; }
+.pp-ev-chip.pp-third { background: linear-gradient(135deg, #fde7c8, #e8b079);
+  border-color: #c87a3a; color: #7c2d12; }
+html.dark .pp-ev-chip.pp-third { background: rgba(205,127,50,0.18);
+  border-color: rgba(205,127,50,0.5); color: #fdba74; }
 .pp-form-strip { display: flex; gap: 4px; flex-wrap: wrap; }
 .pp-form-cell { position: relative; width: 28px; height: 28px; border-radius: 6px;
   display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff;

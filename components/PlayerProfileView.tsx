@@ -192,13 +192,22 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
                 <div className="pp-tour-date">{t.tournamentDateIso}</div>
               </div>
               <div className="pp-events">
-                {t.events.map(e => (
-                  <span key={e.eventId + e.eventName} className={`pp-ev-chip ${e.bestFinish === 'Champion' ? 'pp-champ' : ''}`}>
-                    {e.bestFinish === 'Champion' ? '🏆 ' : ''}{e.eventName} ·{' '}
-                    <span className="pp-ev-chip-finish">{e.bestFinish}</span> ·{' '}
-                    <span className="pp-ev-chip-wl">{e.wins}–{e.losses}</span>
-                  </span>
-                ))}
+                {t.events.map(e => {
+                  // Podium tint: Champion (won the Final) → gold, F (reached
+                  // the Final, lost) → silver, SF (reached the SF, lost) →
+                  // bronze. Badminton awards both losing semifinalists 3rd.
+                  const medalClass = e.bestFinish === 'Champion' ? 'pp-champ'
+                    : e.bestFinish === 'F' ? 'pp-runnerup'
+                    : e.bestFinish === 'SF' ? 'pp-third'
+                    : ''
+                  return (
+                    <span key={e.eventId + e.eventName} className={`pp-ev-chip ${medalClass}`}>
+                      {e.bestFinish === 'Champion' ? '🏆 ' : ''}{e.eventName} ·{' '}
+                      <span className="pp-ev-chip-finish">{e.bestFinish}</span> ·{' '}
+                      <span className="pp-ev-chip-wl">{e.wins}–{e.losses}</span>
+                    </span>
+                  )
+                })}
               </div>
             </div>
           ))}
