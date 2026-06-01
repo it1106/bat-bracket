@@ -2545,6 +2545,10 @@ html.dark .pp-ev-chip.pp-runnerup { background: rgba(192,200,210,0.16);
   border-color: #c87a3a; color: #7c2d12; }
 html.dark .pp-ev-chip.pp-third { background: rgba(205,127,50,0.18);
   border-color: rgba(205,127,50,0.5); color: #fdba74; }
+.pp-ev-chip.pp-noplace { background: linear-gradient(135deg, #ecfdf5, #bbf7d0);
+  border-color: #34d399; color: #14532d; }
+html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
+  border-color: rgba(52,211,153,0.45); color: #a7f3d0; }
 .pp-form-strip { display: flex; gap: 4px; flex-wrap: wrap; }
 .pp-form-cell { position: relative; width: 28px; height: 28px; border-radius: 6px;
   display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff;
