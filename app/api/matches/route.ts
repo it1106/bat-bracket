@@ -161,22 +161,40 @@ export async function GET(request: Request) {
       const ref = resolveRef(tournamentId) ?? { id: tournamentId.toUpperCase(), provider: 'bat' as const }
       const ttl = dateIso > todayIso ? 600 : dateIso < todayIso ? 3600 : 60
       let data: Pick<import('@/lib/types').MatchesData, 'groups'>
-      if (ref.provider !== 'bat') {
-        data = await fetchDayMatchGroups(tournamentId, dateIso)
-      } else {
-        const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/Matches/MatchesInDay?date=${date}`
-        // Always no-store. Next's data cache here has been observed to capture
-        // an empty BAT response and serve it for hours despite the revalidate
-        // window elapsing (SAT NSDF "tomorrow's schedule missing" incident).
-        // The in-memory `matchesDayCache` above is our cache layer: clear TTL
-        // semantics, resets on reload, and we control invalidation.
-        const res = await batFetch('matches-day', url, {
-          headers: { ...HEADERS, 'Referer': `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches` },
-          cache: 'no-store',
-        })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        data = parseMatchesPartial(await res.text())
-        await enrichWithSiblings(tournamentId, data.groups)
+      try {
+        if (ref.provider !== 'bat') {
+          data = await fetchDayMatchGroups(tournamentId, dateIso)
+        } else {
+          const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/Matches/MatchesInDay?date=${date}`
+          // Always no-store. Next's data cache here has been observed to capture
+          // an empty BAT response and serve it for hours despite the revalidate
+          // window elapsing (SAT NSDF "tomorrow's schedule missing" incident).
+          // The in-memory `matchesDayCache` above is our cache layer: clear TTL
+          // semantics, resets on reload, and we control invalidation.
+          const res = await batFetch('matches-day', url, {
+            headers: { ...HEADERS, 'Referer': `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches` },
+            cache: 'no-store',
+          })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          data = parseMatchesPartial(await res.text())
+          await enrichWithSiblings(tournamentId, data.groups)
+        }
+      } catch (err) {
+        // BAT (or another upstream) failed. If we have ANY previous answer in
+        // mem-cache — even one that's past TTL or from a fresh=1 request the
+        // user explicitly wanted to bypass — serving that stale copy beats
+        // a 500 that empties the schedule view. The X-Stale-Cache header
+        // tells the client to surface a "BAT is unreachable" banner so users
+        // know the data they're looking at may be a few minutes behind.
+        const stale = matchesDayCache.get(memKey)
+        if (stale) {
+          const message = err instanceof Error ? err.message : 'unknown'
+          console.log(`[matches] stale fallback day tournament=${tournamentId} date=${dateIso} err=${message}`)
+          return NextResponse.json(stale.data, {
+            headers: { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' },
+          })
+        }
+        throw err
       }
 
       // Skip the memcache write for an empty parse on a future-or-today day:
@@ -228,15 +246,31 @@ export async function GET(request: Request) {
 
       const fullRef = resolveRef(tournamentId) ?? { id: tournamentId.toUpperCase(), provider: 'bat' as const }
       let data: import('@/lib/types').MatchesData
-      if (fullRef.provider !== 'bat') {
-        const result = await providerFor(fullRef).getMatchesFull(fullRef)
-        if (!result) throw new Error('Provider returned no matches data')
-        data = result
-      } else {
-        const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
-        const res = await batFetch('matches-full', url, { headers: HEADERS, cache: 'no-store' })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        data = parseMatchesFull(await res.text())
+      try {
+        if (fullRef.provider !== 'bat') {
+          const result = await providerFor(fullRef).getMatchesFull(fullRef)
+          if (!result) throw new Error('Provider returned no matches data')
+          data = result
+        } else {
+          const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
+          const res = await batFetch('matches-full', url, { headers: HEADERS, cache: 'no-store' })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          data = parseMatchesFull(await res.text())
+        }
+      } catch (err) {
+        // Same stale-on-error policy as the day branch: if mem-cache holds a
+        // previous schedule for this tournament, return it with X-Stale-Cache
+        // so the client surfaces the unreachable banner. Disk-pinned past
+        // tournaments already short-circuit above; this guards active ones.
+        const stale = matchesFullCache.get(tournamentId)
+        if (stale) {
+          const message = err instanceof Error ? err.message : 'unknown'
+          console.log(`[matches] stale fallback full tournament=${tournamentId} err=${message}`)
+          return NextResponse.json(stale.data, {
+            headers: { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' },
+          })
+        }
+        throw err
       }
       // Sibling enrichment is skipped on the full-schedule path — it costs an
       // extra BAT round-trip per draw (2-5 s on cold tournaments) and the
