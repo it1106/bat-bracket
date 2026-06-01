@@ -567,6 +567,9 @@ export interface BatRankingEvent {
 export interface BatRanking {
   scrapedAt: string
   publishDate: string
+  /** The weekly id= URL parameter on category/player pages. Stable for the
+   *  duration of one publication; changes every Tuesday. */
+  rankingId: string
   events: BatRankingEvent[]
 }
 

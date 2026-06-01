@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { batFetch } from '@/lib/bat-fetch'
-import { parseCategoryList, parseCategoryPage, parsePublishDate, eventCodeFromName } from '@/lib/bat-ranking-scraper'
+import { parseCategoryList, parseCategoryPage, parsePublishDate, eventCodeFromName, parseRankingId } from '@/lib/bat-ranking-scraper'
 import { readBatRankingCache, writeBatRankingCache } from '@/lib/bat-ranking-cache'
 import type { BatRankingEvent } from '@/lib/types'
 
@@ -58,7 +58,11 @@ export async function POST(req: Request) {
     }
 
     const scrapedAt = new Date().toISOString()
-    await writeBatRankingCache({ scrapedAt, publishDate, events })
+    const rankingId = parseRankingId(overviewHtml)
+    if (!rankingId) {
+      return NextResponse.json({ error: 'rankingId not found on overview page' }, { status: 502 })
+    }
+    await writeBatRankingCache({ scrapedAt, publishDate, rankingId, events })
     console.log(`[bat-ranking/refresh] ok eventsFound=${events.length} publishDate=${publishDate}`)
     return NextResponse.json({ scrapedAt, eventsFound: events.length })
   } catch (err) {

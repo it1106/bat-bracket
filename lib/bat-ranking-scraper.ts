@@ -112,9 +112,10 @@ export function parseRankingId(html: string): string {
 export function parseBatRanking(html: string): BatRanking {
   const scrapedAt = new Date().toISOString()
   const publishDate = parsePublishDate(html)
+  const rankingId = parseRankingId(html)
 
   const tableMatch = html.match(/<table\s[^>]*class="ruler"[^>]*>([\s\S]*?)<\/table>/i)
-  if (!tableMatch) return { scrapedAt, publishDate, events: [] }
+  if (!tableMatch) return { scrapedAt, publishDate, rankingId, events: [] }
   const tableContent = tableMatch[1]
 
   const headerRe = /<th[^>]*colspan="9"[^>]*>[\s\S]*?<a\s[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/th>/gi
@@ -138,5 +139,5 @@ export function parseBatRanking(html: string): BatRanking {
     }
   }
 
-  return { scrapedAt, publishDate, events }
+  return { scrapedAt, publishDate, rankingId, events }
 }
