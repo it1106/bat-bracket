@@ -58,6 +58,10 @@ html.dark {
 html, body {
   background: var(--bg);
   color: var(--fg);
+  /* Catch-all guard against horizontal scrolling on mobile. `clip` (not
+     `hidden`) avoids creating a scroll container, so `position: sticky`
+     on the topbar continues to work. */
+  overflow-x: clip;
 }
 
 /* Long-press share capture wrapper: re-pin all theme tokens to their light
