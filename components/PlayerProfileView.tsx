@@ -153,6 +153,7 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
         <RankingDetailTabs
           slug={record.key.slug}
           initialDetail={initialDetail}
+          rankingPublishDate={rankingPublishDate}
         />
       )}
       <div className="pp-kpi-row">

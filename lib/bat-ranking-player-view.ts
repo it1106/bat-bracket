@@ -48,6 +48,63 @@ export function ageGroupRank(sourceEvent: string): number {
 }
 
 /**
+ * Parse BAT's Thai-locale publishDate string into a UTC Date. BAT renders
+ * the weekly publication date as DD/M/YYYY in the Buddhist Era calendar —
+ * e.g. "26/5/2569" = 26 May 2026 CE. Returns null on malformed input.
+ */
+function parseBatPublishDate(s: string): Date | null {
+  const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (!m) return null
+  const day = parseInt(m[1], 10)
+  const month = parseInt(m[2], 10)
+  const yearBe = parseInt(m[3], 10)
+  // BE years are ~2500+. Reject CE-shaped values so a typo doesn't silently
+  // shift dates by 543 years.
+  if (yearBe < 2400 || month < 1 || month > 12 || day < 1 || day > 31) return null
+  return new Date(Date.UTC(yearBe - 543, month - 1, day))
+}
+
+/** ISO 8601 week of a UTC Date as "YYYY-W" (no zero-padding, matching BAT). */
+function isoWeekString(d: Date): string {
+  const t = new Date(d.getTime())
+  // Make week start Monday (ISO): Sunday=7 instead of 0.
+  const day = t.getUTCDay() || 7
+  // Shift to the Thursday of this week so the year-of-Thursday is the ISO year.
+  t.setUTCDate(t.getUTCDate() + 4 - day)
+  const yearStart = Date.UTC(t.getUTCFullYear(), 0, 1)
+  const week = Math.ceil(((t.getTime() - yearStart) / 86400000 + 1) / 7)
+  return `${t.getUTCFullYear()}-${week}`
+}
+
+/**
+ * Returns the ISO week such that rows at this week or earlier will fall out
+ * of the 52-week ranking window when the *next* weekly publication lands.
+ *
+ * Computed as: publishDate (CE) minus 52 weeks → ISO week. With BAT's
+ * current publication at "26/5/2569" (= 2026-22), this returns "2025-22"
+ * — matching the user's stated rule that any tournament on or before
+ * 2025-22 falls out when 2026-23 publishes next Tuesday.
+ *
+ * Returns null on malformed publishDate.
+ */
+export function expiringNextWeekCutoff(publishDate: string): string | null {
+  const d = parseBatPublishDate(publishDate)
+  if (!d) return null
+  const cutoff = new Date(d.getTime() - 52 * 7 * 86400000)
+  return isoWeekString(cutoff)
+}
+
+/**
+ * True iff `week` falls at or before `cutoff` — i.e. the row's points will
+ * be removed from the ranking calculation when next Tuesday's publication
+ * lands. Returns false when cutoff is null (couldn't be computed).
+ */
+export function isExpiringNextWeek(week: string, cutoff: string | null): boolean {
+  if (!cutoff) return false
+  return weekSortKey(week).localeCompare(weekSortKey(cutoff)) <= 0
+}
+
+/**
  * BAT counts at most one row per (tournament, week) toward the same
  * discipline's ranking — a player who entered both BS U13 and BS U15 of the
  * same event gets credit for one of the two, not both. Apply the same dedup

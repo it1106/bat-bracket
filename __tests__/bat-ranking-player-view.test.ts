@@ -4,6 +4,8 @@ import {
   disciplineOf,
   ageGroupRank,
   dedupePerTournament,
+  expiringNextWeekCutoff,
+  isExpiringNextWeek,
   TOP_N,
 } from '@/lib/bat-ranking-player-view'
 import type { BatRankingPlayerDetail, BatRankingPlayerTournament } from '@/lib/types'
@@ -340,5 +342,58 @@ describe('otherRowsForTab', () => {
     ])
     const others = otherRowsForTab(d, 'singles')
     expect(others.every((r) => r.sourceEvent.startsWith('BS'))).toBe(true)
+  })
+})
+
+describe('expiringNextWeekCutoff', () => {
+  it("returns '2025-22' for BAT publishDate '26/5/2569' (= 26 May 2026 = week 2026-22)", () => {
+    // User-stated canonical example: this is the exact rule we're encoding.
+    expect(expiringNextWeekCutoff('26/5/2569')).toBe('2025-22')
+  })
+
+  it('handles single-digit day/month', () => {
+    expect(expiringNextWeekCutoff('5/1/2569')).not.toBeNull()
+  })
+
+  it('returns null on malformed input', () => {
+    expect(expiringNextWeekCutoff('')).toBeNull()
+    expect(expiringNextWeekCutoff('not a date')).toBeNull()
+    expect(expiringNextWeekCutoff('26/5')).toBeNull()
+    expect(expiringNextWeekCutoff('26/5/123')).toBeNull() // year must be 4 digits
+  })
+
+  it('rejects CE-shaped years to avoid silent 543-year drift on typo', () => {
+    expect(expiringNextWeekCutoff('26/5/2026')).toBeNull()
+  })
+
+  it('rejects invalid month/day', () => {
+    expect(expiringNextWeekCutoff('32/5/2569')).toBeNull()
+    expect(expiringNextWeekCutoff('1/13/2569')).toBeNull()
+  })
+})
+
+describe('isExpiringNextWeek', () => {
+  it('returns false when cutoff is null', () => {
+    expect(isExpiringNextWeek('2025-22', null)).toBe(false)
+  })
+
+  it('true when row.week == cutoff', () => {
+    expect(isExpiringNextWeek('2025-22', '2025-22')).toBe(true)
+  })
+
+  it('true when row.week < cutoff (older)', () => {
+    expect(isExpiringNextWeek('2025-1', '2025-22')).toBe(true)
+    expect(isExpiringNextWeek('2024-50', '2025-22')).toBe(true)
+  })
+
+  it('false when row.week > cutoff (newer; still in window)', () => {
+    expect(isExpiringNextWeek('2025-23', '2025-22')).toBe(false)
+    expect(isExpiringNextWeek('2026-22', '2025-22')).toBe(false)
+  })
+
+  it('handles 1-digit week numbers correctly (uses weekSortKey)', () => {
+    // Regression: plain localeCompare puts '2025-5' AFTER '2025-22' in ASCII.
+    expect(isExpiringNextWeek('2025-5', '2025-22')).toBe(true)
+    expect(isExpiringNextWeek('2025-22', '2025-5')).toBe(false)
   })
 })

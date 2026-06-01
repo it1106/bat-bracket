@@ -2,13 +2,22 @@
 import { useEffect, useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import { track } from '@/lib/analytics'
-import { topRowsForTab, otherRowsForTab, type Discipline } from '@/lib/bat-ranking-player-view'
+import {
+  topRowsForTab,
+  otherRowsForTab,
+  expiringNextWeekCutoff,
+  isExpiringNextWeek,
+  type Discipline,
+} from '@/lib/bat-ranking-player-view'
 import type { BatRankingPlayerDetail } from '@/lib/types'
 import TournamentRow from './TournamentRow'
 
 interface Props {
   slug: string
   initialDetail?: BatRankingPlayerDetail
+  /** BAT publication date (e.g. "26/5/2569"). Used to compute which rows'
+   *  points will fall out of the 52-week window next Tuesday. */
+  rankingPublishDate?: string
 }
 
 const DISCIPLINES: Discipline[] = ['singles', 'doubles', 'mixed']
@@ -23,7 +32,7 @@ type FetchState =
  * the detail. Renders three tabs; the body of each tab is a flat top-10
  * list (by points) sorted newest-first.
  */
-export default function RankingDetailTabs({ slug, initialDetail }: Props) {
+export default function RankingDetailTabs({ slug, initialDetail, rankingPublishDate }: Props) {
   const { t } = useLanguage()
   const [active, setActive] = useState<Discipline>('singles')
   const [fetchState, setFetchState] = useState<FetchState>(
@@ -101,6 +110,9 @@ export default function RankingDetailTabs({ slug, initialDetail }: Props) {
     }
     const others = otherRowsForTab(fetchState.detail, active)
     const topTotal = top.reduce((sum, r) => sum + r.points, 0)
+    const cutoff = rankingPublishDate
+      ? expiringNextWeekCutoff(rankingPublishDate)
+      : null
     return (
       <>
         <h3 className="pp-rd-section-header">
@@ -108,7 +120,11 @@ export default function RankingDetailTabs({ slug, initialDetail }: Props) {
           <span className="pp-rd-section-total">{topTotal.toLocaleString()} pts</span>
         </h3>
         {top.map((r, i) => (
-          <TournamentRow key={`top-${r.week}-${r.tournamentName}-${i}`} row={r} />
+          <TournamentRow
+            key={`top-${r.week}-${r.tournamentName}-${i}`}
+            row={r}
+            expiring={isExpiringNextWeek(r.week, cutoff)}
+          />
         ))}
         {others.length > 0 && (
           <>
@@ -116,7 +132,11 @@ export default function RankingDetailTabs({ slug, initialDetail }: Props) {
               {t('rankingDetailOthersTournaments')}
             </h3>
             {others.map((r, i) => (
-              <TournamentRow key={`oth-${r.week}-${r.tournamentName}-${i}`} row={r} />
+              <TournamentRow
+                key={`oth-${r.week}-${r.tournamentName}-${i}`}
+                row={r}
+                expiring={isExpiringNextWeek(r.week, cutoff)}
+              />
             ))}
           </>
         )}
