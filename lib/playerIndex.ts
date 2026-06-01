@@ -338,11 +338,22 @@ export function buildIndex(
     }
   }
 
-  const ROUND_ORDER = ['Final','SF','QF','R16','R32','R64','R128','RR']
+  // ROUND_ORDER is aligned with PlayerEventResult['bestFinish'], so 'F' (not
+  // 'Final') is what we return for a runner-up. PlayerProfileView's medal
+  // switch keys silver `.pp-runnerup` styling off bestFinish === 'F'; before
+  // this alignment the aggregator returned 'Final' (a string not in the
+  // union), which silently bypassed the switch and painted the chip with the
+  // green `.pp-noplace` non-podium pill. The events.sort() below also uses
+  // ROUND_ORDER.indexOf, so keeping the array and the return type in lockstep
+  // is necessary for ordering Champion → F → SF → … too.
+  const ROUND_ORDER: PlayerEventResult['bestFinish'][] = ['F','SF','QF','R16','R32','R64','R128','RR']
   function bestFinishFor(refs: PlayerMatchRef[]): PlayerEventResult['bestFinish'] {
     if (refs.some(r => r.round === 'Final' && (r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W'))) return 'Champion'
-    const present = new Set(refs.map(r => r.round))
-    for (const r of ROUND_ORDER) if (present.has(r)) return r as PlayerEventResult['bestFinish']
+    // refs[].round comes from normalizeRound() which emits the long-form
+    // 'Final'; collapse to 'F' here so the lookup matches ROUND_ORDER and the
+    // returned literal is in the bestFinish union.
+    const present = new Set(refs.map(r => r.round === 'Final' ? 'F' : r.round))
+    for (const r of ROUND_ORDER) if (present.has(r)) return r
     return 'RR'
   }
 
