@@ -81,6 +81,18 @@ describe('topRowsForTab', () => {
     expect(rows.map((r) => r.week)).toEqual(['2026-20', '2026-05', '2026-01', '2025-50'])
   })
 
+  it('handles BAT 1-digit week strings (e.g. "2026-5" is NOT newer than "2026-20")', () => {
+    // Regression: plain localeCompare puts "2026-5" before "2026-20" because
+    // '5' > '2' in ASCII. Use weekSortKey() to zero-pad.
+    const d = detail([
+      t('BS U15', 1000, '2026-5'),
+      t('BS U15', 1000, '2026-20'),
+      t('BS U15', 1000, '2026-15'),
+    ])
+    const rows = topRowsForTab(d, 'singles')
+    expect(rows.map((r) => r.week)).toEqual(['2026-20', '2026-15', '2026-5'])
+  })
+
   it('on point-tie, prefers the more recent row when deciding who makes the cut', () => {
     // Two rows tied at 100 pts; only one fits in the top-N. The newer week wins.
     const filler = Array.from({ length: 9 }, (_, i) => t('BS U15', 1000 + i, '2026-01'))

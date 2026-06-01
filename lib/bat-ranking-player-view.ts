@@ -23,6 +23,20 @@ export function disciplineOf(sourceEvent: string): Discipline | null {
 }
 
 /**
+ * Sort key for the BAT "YYYY-W" week string. The week half is 1–2 digits;
+ * a plain localeCompare puts "2026-5" before "2026-20" because '5' > '2' in
+ * ASCII. Zero-pad to two digits so string comparison agrees with calendar
+ * ordering.
+ */
+export function weekSortKey(week: string): string {
+  const idx = week.indexOf('-')
+  if (idx < 0) return week
+  const y = week.slice(0, idx)
+  const w = week.slice(idx + 1)
+  return `${y}-${w.padStart(2, '0')}`
+}
+
+/**
  * For the active discipline tab: take the player's top-N tournaments by
  * points, then return them ordered newest week first. Rows that don't fit
  * in the top-N are dropped — the UI is intentionally focused on the
@@ -40,7 +54,7 @@ export function topRowsForTab(
   // re-sort the survivors by week desc for the actual render order.
   const top = inTab
     .slice()
-    .sort((a, b) => b.points - a.points || b.week.localeCompare(a.week))
+    .sort((a, b) => b.points - a.points || weekSortKey(b.week).localeCompare(weekSortKey(a.week)))
     .slice(0, TOP_N)
-  return top.sort((a, b) => b.week.localeCompare(a.week))
+  return top.sort((a, b) => weekSortKey(b.week).localeCompare(weekSortKey(a.week)))
 }
