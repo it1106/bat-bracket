@@ -28,6 +28,38 @@ function dayCacheTtlMs(dateIso: string, todayIso: string): number {
   return 60_000                              // today: 60 s
 }
 
+// Circuit breaker for BAT outages. When a fetch fails for a given mem-cache
+// key, remember it. Subsequent requests for the same key skip BAT entirely
+// for BAT_BACKOFF_MS and serve stale immediately. The first request after
+// the backoff window expires retries upstream — if BAT is back, fresh data
+// flows; if still down, the timestamp is refreshed and another backoff
+// window starts. Keyed per memKey (tournament+date for day, tournament for
+// full) so a single bad date doesn't pause requests for other dates.
+const BAT_BACKOFF_MS = 30_000
+const batFailureAt = new Map<string, number>()
+// When mem-cache has a stale entry to fall back on, cap BAT fetches tightly
+// so users don't wait the full 30 s default just to be served cache. If
+// nothing is cached, fall through to bat-fetch's default — better a slow
+// real answer than a 500 for a first-time visitor.
+const BAT_TIMEOUT_WITH_FALLBACK_MS = 5_000
+
+function inBackoff(key: string): boolean {
+  const t = batFailureAt.get(key)
+  return t != null && Date.now() - t < BAT_BACKOFF_MS
+}
+
+function markBatFailure(key: string): void {
+  batFailureAt.set(key, Date.now())
+}
+
+function clearBatFailure(key: string): void {
+  batFailureAt.delete(key)
+}
+
+function staleHeaders(): Record<string, string> {
+  return { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' }
+}
+
 // BAT uses Buddhist-year YYYYMMDD ("25690504"). Some callers may pass ISO
 // ("2026-05-04"). Normalize to ISO so date comparisons are valid.
 function toIsoDate(raw: string): string {
@@ -160,6 +192,18 @@ export async function GET(request: Request) {
 
       const ref = resolveRef(tournamentId) ?? { id: tournamentId.toUpperCase(), provider: 'bat' as const }
       const ttl = dateIso > todayIso ? 600 : dateIso < todayIso ? 3600 : 60
+
+      // Circuit breaker: if BAT failed for this key in the last 30 s, serve
+      // the stale mem-cache copy immediately instead of waiting on another
+      // certain-to-fail upstream call. Only short-circuits when we actually
+      // have something to serve — otherwise we'd still need the BAT attempt
+      // to know what to return.
+      const memEntryForBackoff = matchesDayCache.get(memKey)
+      if (inBackoff(memKey) && memEntryForBackoff) {
+        console.log(`[matches] backoff serve day tournament=${tournamentId} date=${dateIso}`)
+        return NextResponse.json(memEntryForBackoff.data, { headers: staleHeaders() })
+      }
+
       let data: Pick<import('@/lib/types').MatchesData, 'groups'>
       try {
         if (ref.provider !== 'bat') {
@@ -171,28 +215,39 @@ export async function GET(request: Request) {
           // window elapsing (SAT NSDF "tomorrow's schedule missing" incident).
           // The in-memory `matchesDayCache` above is our cache layer: clear TTL
           // semantics, resets on reload, and we control invalidation.
+          //
+          // Adaptive timeout: if mem-cache has a fallback, cap BAT at 5 s so
+          // users see the stale copy quickly instead of waiting the full 30 s
+          // default just to time out. Without a fallback, keep the longer
+          // default — a first-time visitor benefits more from a slow-but-real
+          // answer than from a 500.
+          const timeoutMs = memEntryForBackoff ? BAT_TIMEOUT_WITH_FALLBACK_MS : undefined
           const res = await batFetch('matches-day', url, {
             headers: { ...HEADERS, 'Referer': `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches` },
             cache: 'no-store',
+            timeoutMs,
           })
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
           data = parseMatchesPartial(await res.text())
           await enrichWithSiblings(tournamentId, data.groups)
         }
+        // Fetch succeeded — BAT is healthy again, clear any stale backoff
+        // so future calls aren't suppressed.
+        clearBatFailure(memKey)
       } catch (err) {
-        // BAT (or another upstream) failed. If we have ANY previous answer in
-        // mem-cache — even one that's past TTL or from a fresh=1 request the
-        // user explicitly wanted to bypass — serving that stale copy beats
-        // a 500 that empties the schedule view. The X-Stale-Cache header
-        // tells the client to surface a "BAT is unreachable" banner so users
-        // know the data they're looking at may be a few minutes behind.
+        // BAT (or another upstream) failed. Mark the key as failing so
+        // subsequent requests within BAT_BACKOFF_MS skip BAT entirely. If we
+        // have ANY previous answer in mem-cache — even one that's past TTL
+        // or from a fresh=1 request the user explicitly wanted to bypass —
+        // serving that stale copy beats a 500 that empties the schedule
+        // view. The X-Stale-Cache header tells the client to surface the
+        // "BAT is unreachable" banner.
+        markBatFailure(memKey)
         const stale = matchesDayCache.get(memKey)
         if (stale) {
           const message = err instanceof Error ? err.message : 'unknown'
           console.log(`[matches] stale fallback day tournament=${tournamentId} date=${dateIso} err=${message}`)
-          return NextResponse.json(stale.data, {
-            headers: { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' },
-          })
+          return NextResponse.json(stale.data, { headers: staleHeaders() })
         }
         throw err
       }
@@ -245,6 +300,16 @@ export async function GET(request: Request) {
       }
 
       const fullRef = resolveRef(tournamentId) ?? { id: tournamentId.toUpperCase(), provider: 'bat' as const }
+
+      // Same circuit-breaker shape as the day branch. The full-schedule key
+      // is just the tournamentId so any failure pauses BAT for the whole
+      // tournament's full route for BAT_BACKOFF_MS.
+      const fullMemEntry = matchesFullCache.get(tournamentId)
+      if (inBackoff(tournamentId) && fullMemEntry) {
+        console.log(`[matches] backoff serve full tournament=${tournamentId}`)
+        return NextResponse.json(fullMemEntry.data, { headers: staleHeaders() })
+      }
+
       let data: import('@/lib/types').MatchesData
       try {
         if (fullRef.provider !== 'bat') {
@@ -253,22 +318,24 @@ export async function GET(request: Request) {
           data = result
         } else {
           const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
-          const res = await batFetch('matches-full', url, { headers: HEADERS, cache: 'no-store' })
+          // Same adaptive-timeout policy as the day branch.
+          const timeoutMs = fullMemEntry ? BAT_TIMEOUT_WITH_FALLBACK_MS : undefined
+          const res = await batFetch('matches-full', url, { headers: HEADERS, cache: 'no-store', timeoutMs })
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
           data = parseMatchesFull(await res.text())
         }
+        clearBatFailure(tournamentId)
       } catch (err) {
         // Same stale-on-error policy as the day branch: if mem-cache holds a
         // previous schedule for this tournament, return it with X-Stale-Cache
         // so the client surfaces the unreachable banner. Disk-pinned past
         // tournaments already short-circuit above; this guards active ones.
+        markBatFailure(tournamentId)
         const stale = matchesFullCache.get(tournamentId)
         if (stale) {
           const message = err instanceof Error ? err.message : 'unknown'
           console.log(`[matches] stale fallback full tournament=${tournamentId} err=${message}`)
-          return NextResponse.json(stale.data, {
-            headers: { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' },
-          })
+          return NextResponse.json(stale.data, { headers: staleHeaders() })
         }
         throw err
       }

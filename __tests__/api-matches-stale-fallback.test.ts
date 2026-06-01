@@ -128,4 +128,79 @@ describe('GET /api/matches stale-on-error fallback', () => {
     expect(res.status).toBe(500)
     expect(res.headers.get('X-Stale-Cache')).toBeNull()
   })
+
+  // Circuit breaker: after a BAT failure for a key, subsequent requests
+  // within BAT_BACKOFF_MS should serve stale immediately WITHOUT calling
+  // BAT. Verifies the "second click is instant" property — see the
+  // 30s-spinner issue this was added to fix.
+  it('day branch: backoff serves stale without calling BAT', async () => {
+    const id = nextTid()
+
+    // Prime cache.
+    ;(batFetch as jest.Mock).mockResolvedValueOnce(okHtmlResponse())
+    await GET(dayReq(id))
+    expect(batFetch).toHaveBeenCalledTimes(1)
+
+    // First failure — should call BAT (1 more time) then fall back to stale.
+    ;(batFetch as jest.Mock).mockRejectedValueOnce(new Error('connect ETIMEDOUT'))
+    const failed = await GET(
+      new Request(`http://localhost/api/matches?tournament=${id}&date=25690602&fresh=1`),
+    )
+    expect(failed.headers.get('X-Stale-Cache')).toBe('1')
+    expect(batFetch).toHaveBeenCalledTimes(2)
+
+    // Second click within backoff window — must NOT call BAT, must still
+    // return stale immediately. fresh=1 again to ensure we're testing the
+    // backoff path and not just the TTL hit.
+    const callsBefore = (batFetch as jest.Mock).mock.calls.length
+    const fast = await GET(
+      new Request(`http://localhost/api/matches?tournament=${id}&date=25690602&fresh=1`),
+    )
+    expect(fast.status).toBe(200)
+    expect(fast.headers.get('X-Stale-Cache')).toBe('1')
+    expect((batFetch as jest.Mock).mock.calls.length).toBe(callsBefore) // no new call
+  })
+
+  it('day branch: backoff lifts after a successful retry', async () => {
+    const id = nextTid()
+
+    // Prime, fail, enter backoff.
+    ;(batFetch as jest.Mock).mockResolvedValueOnce(okHtmlResponse())
+    await GET(dayReq(id))
+    ;(batFetch as jest.Mock).mockRejectedValueOnce(new Error('ETIMEDOUT'))
+    await GET(new Request(`http://localhost/api/matches?tournament=${id}&date=25690602&fresh=1`))
+
+    // Jump past the 30s backoff window so the next call goes through to BAT.
+    jest.useFakeTimers()
+    jest.setSystemTime(Date.now() + 35_000)
+    ;(batFetch as jest.Mock).mockResolvedValueOnce(okHtmlResponse())
+    const recovered = await GET(
+      new Request(`http://localhost/api/matches?tournament=${id}&date=25690602&fresh=1`),
+    )
+    jest.useRealTimers()
+    expect(recovered.status).toBe(200)
+    // Successful fetch should have cleared the failure marker — so this call
+    // returns fresh, not stale.
+    expect(recovered.headers.get('X-Stale-Cache')).toBeNull()
+  })
+
+  it('full branch: backoff serves stale without calling BAT', async () => {
+    const id = nextTid()
+
+    ;(batFetch as jest.Mock).mockResolvedValueOnce(okHtmlResponse())
+    await GET(fullReq(id))
+
+    // Past the 5-min mem TTL so the next call enters the fetch path. Fail it.
+    jest.useFakeTimers()
+    jest.setSystemTime(Date.now() + 6 * 60_000)
+    ;(batFetch as jest.Mock).mockRejectedValueOnce(new Error('ETIMEDOUT'))
+    await GET(fullReq(id))
+
+    const callsBefore = (batFetch as jest.Mock).mock.calls.length
+    const fast = await GET(fullReq(id))
+    jest.useRealTimers()
+    expect(fast.status).toBe(200)
+    expect(fast.headers.get('X-Stale-Cache')).toBe('1')
+    expect((batFetch as jest.Mock).mock.calls.length).toBe(callsBefore) // no new call
+  })
 })
