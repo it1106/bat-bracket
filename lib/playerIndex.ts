@@ -352,7 +352,13 @@ export function buildIndex(
     for (const r of refs) {
       let evMap = byTournament.get(r.tournamentId)
       if (!evMap) { evMap = new Map(); byTournament.set(r.tournamentId, evMap) }
-      const k = `${r.eventId}|${r.eventName}`
+      // Group by event name only. A single BAT event like "BS U11" can appear
+      // as multiple draws — one Round Robin draw per group plus a playoff
+      // bracket — but they're all the same event in a player's history.
+      // r.eventName is already the group-stripped base name (the schedule
+      // scraper sets m.eventName for "<event> - Group X" draws, and the elim
+      // draw's m.draw is the base name).
+      const k = r.eventName
       const arr = evMap.get(k) || []
       arr.push(r); evMap.set(k, arr)
     }
@@ -360,8 +366,7 @@ export function buildIndex(
       const evMap = byTournament.get(t.tournamentId)
       if (!evMap) continue
       const events: PlayerEventResult[] = []
-      for (const [k, eventRefs] of Array.from(evMap.entries())) {
-        const [eventId, eventName] = k.split('|')
+      for (const [eventName, eventRefs] of Array.from(evMap.entries())) {
         const teamSize = eventRefs[0]?.partners.length === 0 ? 1 : 2
         const finish = bestFinishFor(eventRefs)
         let wins = 0, losses = 0
@@ -371,7 +376,8 @@ export function buildIndex(
         }
         events.push({
           tournamentId: t.tournamentId,
-          eventId, eventName,
+          eventId: eventRefs[0].eventId,
+          eventName,
           discipline: classifyDiscipline(teamSize, eventName),
           bestFinish: finish,
           wins, losses,
