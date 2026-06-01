@@ -27,6 +27,29 @@ const UA = {
 // the same player share a single BAT roundtrip; cleared on settle.
 const inflight = new Map<string, Promise<BatRankingPlayerDetail | { notFound: true }>>()
 
+/**
+ * Discover BAT's numeric "global player id" (the player= URL param on the
+ * canonical /ranking/player.aspx?id=<rankingId>&player=<NUMERIC> URL).
+ *
+ * Three BAT page hops, none of which expose the numeric directly via URL:
+ *
+ *   1. /sport/player.aspx?id=<tournamentGUID>&player=<perTournamentPlayerId>
+ *      → the per-tournament page. Surfaces a link to either
+ *        /player-profile/<GUID-A>  or  /player/<GUID-A>/<base64>  via
+ *        extractProfileUrl(). Both lead to the same "global player" page.
+ *
+ *   2. /player/<GUID-A>/<base64>  (or /player-profile/<GUID-A>)
+ *      → the global player page. Surfaces a link to
+ *        /player-profile/<GUID-B>/ranking  (note: a *different* GUID).
+ *
+ *   3. /player-profile/<GUID-B>/ranking
+ *      → the per-player ranking summary page. The only place the canonical
+ *        /ranking/player.aspx?id=...&player=<NUMERIC> URL is exposed.
+ *
+ * Cached forever per slug on success (the numeric ID is stable per player).
+ * Persisted as { globalPlayerId: null, reason } on any failure to avoid
+ * thrashing on every page view.
+ */
 async function discoverGlobalPlayerId(slug: string): Promise<{ id: string } | { id: null; reason: string }> {
   const cached = await readPlayerIdEntry(slug)
   if (cached) {
@@ -39,18 +62,54 @@ async function discoverGlobalPlayerId(slug: string): Promise<{ id: string } | { 
     await writePlayerIdFailure(slug, 'no sampleRef in index')
     return { id: null, reason: 'no sampleRef in index' }
   }
+
+  // Hop 1: per-tournament page → /player/<GUID>/<base64> | /player-profile/<GUID>
   const tournamentUrl = `https://bat.tournamentsoftware.com/sport/player.aspx?id=${ref.tournamentId}&player=${ref.playerId}`
-  const res = await batFetch('ranking-player-discover', tournamentUrl, { headers: UA })
-  if (!res.ok) {
-    await writePlayerIdFailure(slug, `discover upstream ${res.status}`)
-    return { id: null, reason: `discover upstream ${res.status}` }
+  const res1 = await batFetch('ranking-player-discover-1', tournamentUrl, { headers: UA })
+  if (!res1.ok) {
+    const reason = `hop 1 upstream ${res1.status}`
+    await writePlayerIdFailure(slug, reason)
+    return { id: null, reason }
   }
-  const profilePath = extractProfileUrl(await res.text())
-  // The global profile path is like /sport/profile.aspx?id=NNN
-  const m = profilePath ? profilePath.match(/[?&]id=(\d+)/) : null
+  const profilePath = extractProfileUrl(await res1.text())
+  if (!profilePath) {
+    const reason = 'no profile link on per-tournament page'
+    await writePlayerIdFailure(slug, reason)
+    return { id: null, reason }
+  }
+
+  // Hop 2: global player page → /player-profile/<GUID-B>/ranking
+  // Same page whether you arrive via /player/<GUID>/<base64> or /player-profile/<GUID>.
+  const profileUrl = profilePath.startsWith('http')
+    ? profilePath
+    : `https://bat.tournamentsoftware.com${profilePath}`
+  const res2 = await batFetch('ranking-player-discover-2', profileUrl, { headers: UA })
+  if (!res2.ok) {
+    const reason = `hop 2 upstream ${res2.status}`
+    await writePlayerIdFailure(slug, reason)
+    return { id: null, reason }
+  }
+  const html2 = await res2.text()
+  const rankingPagePath = html2.match(/\/player-profile\/[a-f0-9-]+\/ranking/i)?.[0]
+  if (!rankingPagePath) {
+    const reason = 'no /player-profile/.../ranking link on global page'
+    await writePlayerIdFailure(slug, reason)
+    return { id: null, reason }
+  }
+
+  // Hop 3: per-player ranking summary → /ranking/player.aspx?id=X&player=<NUMERIC>
+  const res3 = await batFetch('ranking-player-discover-3', `https://bat.tournamentsoftware.com${rankingPagePath}`, { headers: UA })
+  if (!res3.ok) {
+    const reason = `hop 3 upstream ${res3.status}`
+    await writePlayerIdFailure(slug, reason)
+    return { id: null, reason }
+  }
+  const html3 = await res3.text()
+  const m = html3.match(/\/ranking\/player\.aspx\?[^"]*\bplayer=(\d+)/i)
   if (!m) {
-    await writePlayerIdFailure(slug, 'globalPlayerId not in profile URL')
-    return { id: null, reason: 'globalPlayerId not in profile URL' }
+    const reason = 'no numeric global player id on ranking page'
+    await writePlayerIdFailure(slug, reason)
+    return { id: null, reason }
   }
   const id = m[1]
   await writePlayerIdSuccess(slug, id)
