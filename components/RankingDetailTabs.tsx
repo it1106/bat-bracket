@@ -100,9 +100,13 @@ export default function RankingDetailTabs({ slug, initialDetail }: Props) {
       return <div className="pp-rd-empty">{t('rankingDetailEmpty')}</div>
     }
     const others = otherRowsForTab(fetchState.detail, active)
+    const topTotal = top.reduce((sum, r) => sum + r.points, 0)
     return (
       <>
-        <h3 className="pp-rd-section-header">{t('rankingDetailTopTen')}</h3>
+        <h3 className="pp-rd-section-header">
+          <span>{t('rankingDetailTopTen')}</span>
+          <span className="pp-rd-section-total">{topTotal.toLocaleString()} pts</span>
+        </h3>
         {top.map((r, i) => (
           <TournamentRow key={`top-${r.week}-${r.tournamentName}-${i}`} row={r} />
         ))}
