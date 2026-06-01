@@ -5,7 +5,11 @@ import {
   ageGroupRank,
   dedupePerTournament,
   expiringNextWeekCutoff,
+  expiringWithinWeeksCutoff,
   isExpiringNextWeek,
+  computeExpiryCutoffs,
+  classifyExpiry,
+  EXPIRY_SOON_HORIZON_WEEKS,
   TOP_N,
 } from '@/lib/bat-ranking-player-view'
 import type { BatRankingPlayerDetail, BatRankingPlayerTournament } from '@/lib/types'
@@ -395,5 +399,88 @@ describe('isExpiringNextWeek', () => {
     // Regression: plain localeCompare puts '2025-5' AFTER '2025-22' in ASCII.
     expect(isExpiringNextWeek('2025-5', '2025-22')).toBe(true)
     expect(isExpiringNextWeek('2025-22', '2025-5')).toBe(false)
+  })
+})
+
+describe('expiringWithinWeeksCutoff', () => {
+  it('weeksOut=1 matches expiringNextWeekCutoff (canonical 26/5/2569 → 2025-22)', () => {
+    expect(expiringWithinWeeksCutoff('26/5/2569', 1)).toBe('2025-22')
+    expect(expiringNextWeekCutoff('26/5/2569')).toBe('2025-22')
+  })
+
+  it('weeksOut=4 returns publishDate - 49 weeks (26/5/2569 → 2025-25)', () => {
+    expect(expiringWithinWeeksCutoff('26/5/2569', 4)).toBe('2025-25')
+  })
+
+  it('weeksOut is monotonic — larger horizon ⇒ later (≥) cutoff week', () => {
+    // The cutoff for weeksOut=n is the latest week whose rows are removed
+    // within n publications, so it should never regress as n grows.
+    const k1 = expiringWithinWeeksCutoff('26/5/2569', 1)!
+    const k2 = expiringWithinWeeksCutoff('26/5/2569', 2)!
+    const k3 = expiringWithinWeeksCutoff('26/5/2569', 3)!
+    const k4 = expiringWithinWeeksCutoff('26/5/2569', 4)!
+    // weekSortKey-normalized comparison
+    const norm = (s: string) => {
+      const [y, w] = s.split('-')
+      return `${y}-${w.padStart(2, '0')}`
+    }
+    expect(norm(k1).localeCompare(norm(k2))).toBeLessThanOrEqual(0)
+    expect(norm(k2).localeCompare(norm(k3))).toBeLessThanOrEqual(0)
+    expect(norm(k3).localeCompare(norm(k4))).toBeLessThanOrEqual(0)
+  })
+
+  it('rejects non-positive or non-integer weeksOut', () => {
+    expect(expiringWithinWeeksCutoff('26/5/2569', 0)).toBeNull()
+    expect(expiringWithinWeeksCutoff('26/5/2569', -1)).toBeNull()
+    expect(expiringWithinWeeksCutoff('26/5/2569', 1.5)).toBeNull()
+  })
+})
+
+describe('computeExpiryCutoffs', () => {
+  it('returns {next, soon} for a valid publishDate', () => {
+    expect(computeExpiryCutoffs('26/5/2569')).toEqual({
+      next: '2025-22',
+      soon: '2025-25',
+    })
+  })
+
+  it('returns {null, null} when publishDate is missing', () => {
+    expect(computeExpiryCutoffs(undefined)).toEqual({ next: null, soon: null })
+    expect(computeExpiryCutoffs(null)).toEqual({ next: null, soon: null })
+    expect(computeExpiryCutoffs('')).toEqual({ next: null, soon: null })
+  })
+
+  it("uses EXPIRY_SOON_HORIZON_WEEKS for the 'soon' tier", () => {
+    expect(EXPIRY_SOON_HORIZON_WEEKS).toBe(4)
+  })
+})
+
+describe('classifyExpiry', () => {
+  const cutoffs = { next: '2025-22', soon: '2025-25' }
+
+  it("returns 'next' when row.week ≤ next cutoff", () => {
+    expect(classifyExpiry('2025-22', cutoffs)).toBe('next')
+    expect(classifyExpiry('2025-1', cutoffs)).toBe('next')
+    expect(classifyExpiry('2024-50', cutoffs)).toBe('next')
+  })
+
+  it("returns 'soon' when row.week is between next and soon cutoffs", () => {
+    expect(classifyExpiry('2025-23', cutoffs)).toBe('soon')
+    expect(classifyExpiry('2025-24', cutoffs)).toBe('soon')
+    expect(classifyExpiry('2025-25', cutoffs)).toBe('soon')
+  })
+
+  it('returns null when row.week is newer than the soon cutoff', () => {
+    expect(classifyExpiry('2025-26', cutoffs)).toBeNull()
+    expect(classifyExpiry('2026-22', cutoffs)).toBeNull()
+  })
+
+  it('returns null when both cutoffs are null (no publishDate)', () => {
+    expect(classifyExpiry('2025-22', { next: null, soon: null })).toBeNull()
+  })
+
+  it("handles 1-digit week numbers correctly (uses weekSortKey)", () => {
+    // '2025-5' must classify as 'next' (it's earlier than 2025-22).
+    expect(classifyExpiry('2025-5', cutoffs)).toBe('next')
   })
 })
