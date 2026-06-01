@@ -178,8 +178,15 @@ export async function GET(request: Request) {
       if (!fresh) {
         const disk = await readDayCache(tournamentId, dateIso)
         if (disk) {
+          // X-Cache-Source: disk tells the client this is from a durable,
+          // immutable pin (past day with every match resolved). The client
+          // surfaces a small "Cached" badge so users know the page won't
+          // change even if BAT goes down or comes back. See DiskCacheBadge.
           return NextResponse.json(disk, {
-            headers: { 'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400' },
+            headers: {
+              'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=86400',
+              'X-Cache-Source': 'disk',
+            },
           })
         }
         const cached = matchesDayCache.get(memKey)
@@ -291,7 +298,9 @@ export async function GET(request: Request) {
 
       const fullDisk = await readFullCache(tournamentId)
       if (fullDisk) {
-        return NextResponse.json(fullDisk)
+        // Disk-pinned full schedule means every day is in the past —
+        // immutable. Same X-Cache-Source signal as the day branch.
+        return NextResponse.json(fullDisk, { headers: { 'X-Cache-Source': 'disk' } })
       }
 
       const cached = matchesFullCache.get(tournamentId)
