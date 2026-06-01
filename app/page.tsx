@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { useLongPress } from '@/lib/useLongPress'
 import { usePointerReorder } from '@/lib/usePointerReorder'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
+import StaleCacheBanner from '@/components/StaleCacheBanner'
 import {
   ANN_CUSTOM_TABS_MULTI,
   ANN_CUSTOM_TABS_MULTI_TEXT_TH,
@@ -58,6 +59,16 @@ async function safeJson(res: Response): Promise<unknown> {
   }
 }
 
+// /api/matches stamps X-Stale-Cache: 1 when it served a cached copy because
+// the BAT upstream was unreachable. Inspect once per successful response so
+// the banner can flip on/off in real time without polling. Non-OK responses
+// leave the prior signal alone — we don't have fresh data and don't want to
+// pretend BAT is fine just because our route returned 500.
+function readStaleFlag(res: Response): boolean | null {
+  if (!res.ok) return null
+  return res.headers.get('X-Stale-Cache') === '1'
+}
+
 // Background-fetches each future-day schedule so the day-tab dim/lit state
 // reflects whether BAT has published matches for that date. Sequential to
 // avoid a parallel burst; runs after first paint via requestIdleCallback.
@@ -68,6 +79,7 @@ function prefetchFutureDayHasMatches(
   days: MatchDay[],
   setDays: React.Dispatch<React.SetStateAction<MatchDay[]>>,
   onSnapshot: (next: MatchDay[]) => void,
+  onStaleFlag: (stale: boolean) => void,
 ) {
   if (typeof window === 'undefined') return
   const todayIso = getTodayIso()
@@ -80,6 +92,8 @@ function prefetchFutureDayHasMatches(
         const res = await fetch(
           `/api/matches?tournament=${encodeURIComponent(tournamentId)}&date=${d.date}`,
         )
+        const stale = readStaleFlag(res)
+        if (stale !== null) onStaleFlag(stale)
         const data = await safeJson(res)
         if (!isApiError(data)) {
           const dayData = data as Pick<MatchesData, 'groups'>
@@ -161,6 +175,10 @@ export default function Home() {
   const [searchHelpOpen, setSearchHelpOpen] = useState(false)
   const [showPastTournaments, setShowPastTournaments] = useState(false)
   const [alerts, setAlerts] = useState<AlertItem[]>([])
+  // True when the most-recent /api/matches response carried X-Stale-Cache.
+  // Cleared on the next successful response that doesn't carry the header.
+  // See readStaleFlag() and StaleCacheBanner.
+  const [staleCache, setStaleCache] = useState(false)
   // Tracks { courtKey: matchId } from the SignalR feed so we can detect
   // when a previously-live match completes (court drops or matchId changes)
   // and refetch the schedule — the scrape doesn't auto-refresh.
@@ -206,6 +224,8 @@ export default function Home() {
     liveRefetchTimerRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/matches?tournament=${encodeURIComponent(selectedTournament)}&date=${selectedDay}&fresh=1`)
+        const stale = readStaleFlag(res)
+        if (stale !== null) setStaleCache(stale)
         const data = await safeJson(res)
         if (!isApiError(data)) {
           const md = data as Pick<MatchesData, 'groups'>
@@ -409,9 +429,11 @@ export default function Home() {
         .catch(() => {})
     }
 
-    const [drawsResult, matchesResult] = await Promise.allSettled([
+    // safeJson eats the Response object — break apart the matches fetch so
+    // we can inspect X-Stale-Cache before draining the body.
+    const [drawsResult, matchesRes] = await Promise.allSettled([
       fetch(`/api/draws?id=${encodeURIComponent(id)}`).then(safeJson),
-      fetch(`/api/matches?tournament=${encodeURIComponent(id)}`).then(safeJson),
+      fetch(`/api/matches?tournament=${encodeURIComponent(id)}`),
     ])
 
     setLoadingDraws(false)
@@ -425,32 +447,43 @@ export default function Home() {
       setError('Failed to load draws')
     }
 
-    if (matchesResult.status === 'fulfilled' && !isApiError(matchesResult.value)) {
-      const md = matchesResult.value as MatchesData
-      setMatchDays(md.days)
-      setMatchGroups(md.groups)
-      setSelectedDay(md.currentDate || md.days[0]?.date || '')
-      const tname = t?.name ?? id
-      setAlerts(recordScheduleSnapshot(id, tname, md.days))
-      prefetchFutureDayHasMatches(
-        id,
-        md.days,
-        setMatchDays,
-        (next) => setAlerts(recordScheduleSnapshot(id, tname, next)),
-      )
-      // The full-schedule endpoint skips sibling enrichment for speed. Refetch
-      // the current day in the background to populate siblingPlayerIds (used
-      // by the next-opponent highlight). No loading flicker.
-      const currentDate = md.currentDate || md.days[0]?.date || ''
-      if (currentDate) {
-        fetch(`/api/matches?tournament=${encodeURIComponent(id)}&date=${currentDate}`)
-          .then(safeJson)
-          .then((data) => {
-            if (!isApiError(data)) {
-              setMatchGroups((data as Pick<MatchesData, 'groups'>).groups)
-            }
-          })
-          .catch(() => {})
+    if (matchesRes.status === 'fulfilled') {
+      const res = matchesRes.value
+      const stale = readStaleFlag(res)
+      if (stale !== null) setStaleCache(stale)
+      const matchesData = await safeJson(res).catch(() => null)
+      if (matchesData && !isApiError(matchesData)) {
+        const md = matchesData as MatchesData
+        setMatchDays(md.days)
+        setMatchGroups(md.groups)
+        setSelectedDay(md.currentDate || md.days[0]?.date || '')
+        const tname = t?.name ?? id
+        setAlerts(recordScheduleSnapshot(id, tname, md.days))
+        prefetchFutureDayHasMatches(
+          id,
+          md.days,
+          setMatchDays,
+          (next) => setAlerts(recordScheduleSnapshot(id, tname, next)),
+          setStaleCache,
+        )
+        // The full-schedule endpoint skips sibling enrichment for speed. Refetch
+        // the current day in the background to populate siblingPlayerIds (used
+        // by the next-opponent highlight). No loading flicker.
+        const currentDate = md.currentDate || md.days[0]?.date || ''
+        if (currentDate) {
+          fetch(`/api/matches?tournament=${encodeURIComponent(id)}&date=${currentDate}`)
+            .then(async (res) => {
+              const stale = readStaleFlag(res)
+              if (stale !== null) setStaleCache(stale)
+              return safeJson(res)
+            })
+            .then((data) => {
+              if (!isApiError(data)) {
+                setMatchGroups((data as Pick<MatchesData, 'groups'>).groups)
+              }
+            })
+            .catch(() => {})
+        }
       }
     }
   }, [tournaments])
@@ -664,6 +697,8 @@ export default function Home() {
     setLoadingMatches(true)
     try {
       const res = await fetch(`/api/matches?tournament=${encodeURIComponent(selectedTournament)}&date=${date}`)
+      const stale = readStaleFlag(res)
+      if (stale !== null) setStaleCache(stale)
       const data = await safeJson(res)
       if (!isApiError(data)) {
         const md = data as Pick<MatchesData, 'groups'>
@@ -943,6 +978,8 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <StaleCacheBanner visible={staleCache} />
 
       <AnnouncementBanner
         id={ANN_CUSTOM_TABS_MULTI}

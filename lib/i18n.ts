@@ -89,6 +89,7 @@ export type TKey =
   | 'overview'
   | 'tournamentInformation'
   | 'seededEntries'
+  | 'staleCacheBanner'
   | 'bracket'
   | 'matchSchedule'
   | 'winner'
@@ -269,6 +270,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     overview: 'Overview',
     tournamentInformation: 'Tournament Information',
     seededEntries: 'Seeded Entries',
+    staleCacheBanner: 'BAT is unreachable — serving from cache. Data may be a few minutes behind.',
     bracket: 'Bracket',
     matchSchedule: 'Match Schedule',
     winner: 'Winner',
@@ -476,6 +478,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     overview: 'ภาพรวม',
     tournamentInformation: 'ข้อมูลการแข่งขัน',
     seededEntries: 'การวางมือ',
+    staleCacheBanner: 'เชื่อมต่อ BAT ไม่ได้ — กำลังแสดงข้อมูลจากแคช ข้อมูลอาจล่าช้าไปสองสามนาที',
     bracket: 'สายแข่ง',
     matchSchedule: 'ตารางเวลา',
     winner: 'ผู้ชนะ',
