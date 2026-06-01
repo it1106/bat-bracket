@@ -1021,11 +1021,11 @@ export default function Home() {
 
       {/* View mode tabs */}
       {selectedTournament && (
-        <div ref={customTabStripRef} className="flex items-center gap-0 px-[3px] py-0 bg-[var(--surface)] border-b border-[var(--border)]">
+        <div ref={customTabStripRef} className="flex items-center justify-evenly sm:justify-start gap-0 px-[3px] py-0 bg-[var(--surface)] border-b border-[var(--border)]">
           {(overviewNotes.length > 0 || seedEvents.length > 0) && (
             <button
               onClick={() => setViewMode('overview')}
-              className={`px-[5px] sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+              className={`px-[5px] sm:px-4 py-[3px] sm:py-2.5 text-xs font-semibold border-b-2 transition-colors ${
                 viewMode === 'overview'
                   ? 'border-[var(--brand)] text-[var(--brand-fg)]'
                   : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
@@ -1036,7 +1036,7 @@ export default function Home() {
           )}
           <button
             onClick={() => setViewMode('bracket')}
-            className={`px-[5px] sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+            className={`px-[5px] sm:px-4 py-[3px] sm:py-2.5 text-xs font-semibold border-b-2 transition-colors ${
               viewMode === 'bracket'
                 ? 'border-[var(--brand)] text-[var(--brand-fg)]'
                 : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
@@ -1046,7 +1046,7 @@ export default function Home() {
           </button>
           <button
             onClick={() => setViewMode('matches')}
-            className={`px-[5px] sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+            className={`px-[5px] sm:px-4 py-[3px] sm:py-2.5 text-xs font-semibold border-b-2 transition-colors ${
               viewMode === 'matches'
                 ? 'border-[var(--brand)] text-[var(--brand-fg)]'
                 : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
@@ -1058,7 +1058,7 @@ export default function Home() {
           {hasLiveData && (
             <button
               onClick={() => setViewMode('live')}
-              className={`px-[5px] sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors inline-flex items-center gap-1.5 ${
+              className={`px-[5px] sm:px-4 py-[3px] sm:py-2.5 text-xs font-semibold border-b-2 transition-colors inline-flex items-center gap-1.5 ${
                 viewMode === 'live'
                   ? 'border-[var(--brand)] text-[var(--brand-fg)]'
                   : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
@@ -1094,7 +1094,7 @@ export default function Home() {
               }}
               aria-label={t('customTabAddTooltip')}
               title={t('customTabAddTooltip')}
-              className="px-[5px] sm:px-3 py-2.5 text-xs font-semibold border-b-2 border-transparent text-[var(--muted)] hover:text-[var(--fg)] transition-colors"
+              className="px-[5px] sm:px-3 py-[3px] sm:py-2.5 text-xs font-semibold border-b-2 border-transparent text-[var(--muted)] hover:text-[var(--fg)] transition-colors"
             >+</button>
           )}
           {customTabs.length > 0 && (
@@ -1102,7 +1102,7 @@ export default function Home() {
               onClick={() => setCustomTabsEditMode((v) => !v)}
               aria-label={customTabsEditMode ? t('customTabEditDone') : t('customTabEditTabs')}
               title={customTabsEditMode ? t('customTabEditDone') : t('customTabEditTabs')}
-              className={`px-[5px] sm:px-3 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+              className={`px-[5px] sm:px-3 py-[3px] sm:py-2.5 text-xs font-semibold border-b-2 transition-colors ${
                 customTabsEditMode
                   ? 'border-[var(--brand)] text-[var(--brand-fg)]'
                   : 'border-transparent text-[var(--muted)] hover:text-[var(--fg)]'
