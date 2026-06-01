@@ -436,11 +436,18 @@ export default function Home() {
       .then((data: Record<string, string>) => { if (data && !('error' in data)) setPlayerClubMap(data) })
       .catch(() => {})
 
-    // Fetch overview (notes + seeds) for BAT tournaments (non-BWF)
+    // Fetch overview (notes + seeds) for BAT tournaments (non-BWF). When the
+    // overview route serves a stale-fallback snapshot (BAT was unreachable),
+    // it stamps X-Stale-Cache: 1 — surface that on the banner just like the
+    // draws/matches paths do.
     const tournamentProvider = t?.provider
     if (tournamentProvider !== 'bwf') {
       fetch(`/api/overview?tournament=${encodeURIComponent(id)}`)
-        .then(r => r.json())
+        .then(async r => {
+          const stale = readStaleFlag(r)
+          if (stale !== null) setStaleCache(stale)
+          return r.json() as Promise<TournamentOverview>
+        })
         .then((data: TournamentOverview) => {
           if (data?.notes) setOverviewNotes(data.notes)
           if (data?.seedEvents) setSeedEvents(data.seedEvents)
