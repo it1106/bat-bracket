@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import { track } from '@/lib/analytics'
-import { topRowsForTab, type Discipline } from '@/lib/bat-ranking-player-view'
+import { topRowsForTab, otherRowsForTab, type Discipline } from '@/lib/bat-ranking-player-view'
 import type { BatRankingPlayerDetail } from '@/lib/types'
 import TournamentRow from './TournamentRow'
 
@@ -95,13 +95,26 @@ export default function RankingDetailTabs({ slug, initialDetail }: Props) {
         </div>
       )
     }
-    const rows = topRowsForTab(fetchState.detail, active)
-    if (rows.length === 0) {
+    const top = topRowsForTab(fetchState.detail, active)
+    if (top.length === 0) {
       return <div className="pp-rd-empty">{t('rankingDetailEmpty')}</div>
     }
-    return rows.map((r, i) => (
-      <TournamentRow key={`${r.week}-${r.tournamentName}-${i}`} row={r} />
-    ))
+    const others = otherRowsForTab(fetchState.detail, active)
+    return (
+      <>
+        {top.map((r, i) => (
+          <TournamentRow key={`top-${r.week}-${r.tournamentName}-${i}`} row={r} />
+        ))}
+        {others.length > 0 && (
+          <>
+            <h3 className="pp-rd-others-header">{t('rankingDetailOthers')}</h3>
+            {others.map((r, i) => (
+              <TournamentRow key={`oth-${r.week}-${r.tournamentName}-${i}`} row={r} />
+            ))}
+          </>
+        )}
+      </>
+    )
   }
 
   return (

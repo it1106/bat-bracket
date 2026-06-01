@@ -94,13 +94,10 @@ export function dedupePerTournament(
   return Array.from(byKey.values())
 }
 
-/**
- * For the active discipline tab: dedupe the player's per-tournament entries
- * (see dedupePerTournament), take the top-N by points, then return them
- * ordered newest week first. Rows that don't fit in the top-N are dropped —
- * the UI is intentionally focused on the contributing set.
- */
-export function topRowsForTab(
+/** Internal: dedupe by tournament and return the discipline's rows sorted
+ *  by points desc (tie → newer week first). Both topRowsForTab and
+ *  otherRowsForTab consume this so the two views are always consistent. */
+function disciplineRowsByPointsDesc(
   detail: BatRankingPlayerDetail,
   discipline: Discipline,
 ): BatRankingPlayerTournament[] {
@@ -108,12 +105,37 @@ export function topRowsForTab(
     (r) => disciplineOf(r.sourceEvent) === discipline,
   )
   if (inTab.length === 0) return []
-  const deduped = dedupePerTournament(inTab)
-  // Stable sort by points desc (tie → newer first), then keep top-N, then
-  // re-sort the survivors by week desc for the actual render order.
-  const top = deduped
+  return dedupePerTournament(inTab)
     .slice()
     .sort((a, b) => b.points - a.points || weekSortKey(b.week).localeCompare(weekSortKey(a.week)))
+}
+
+/**
+ * For the active discipline tab: the player's top-N tournaments by points,
+ * displayed newest week first. These are the rows currently contributing
+ * to the player's ranking total in this discipline.
+ */
+export function topRowsForTab(
+  detail: BatRankingPlayerDetail,
+  discipline: Discipline,
+): BatRankingPlayerTournament[] {
+  return disciplineRowsByPointsDesc(detail, discipline)
     .slice(0, TOP_N)
-  return top.sort((a, b) => weekSortKey(b.week).localeCompare(weekSortKey(a.week)))
+    .sort((a, b) => weekSortKey(b.week).localeCompare(weekSortKey(a.week)))
+}
+
+/**
+ * "Others" — every deduped row in the discipline that didn't make the
+ * top-N, ordered by points desc. Their purpose in the UI is to surface
+ * what would get promoted into the contributing set if a current top-N
+ * tournament expired (the 52-week rolling window).
+ *
+ * Already filtered through dedupePerTournament, so the same (tournament,
+ * week) pair can never appear in both topRowsForTab and otherRowsForTab.
+ */
+export function otherRowsForTab(
+  detail: BatRankingPlayerDetail,
+  discipline: Discipline,
+): BatRankingPlayerTournament[] {
+  return disciplineRowsByPointsDesc(detail, discipline).slice(TOP_N)
 }
