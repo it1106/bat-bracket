@@ -1,3 +1,5 @@
+import { promises as fs } from 'fs'
+import path from 'path'
 import { batFetch } from '@/lib/bat-fetch'
 import { parseOverviewNotes, parseSeedEntries } from '@/lib/scraper'
 import { eventRank } from '@/lib/tournamentStats'
@@ -13,6 +15,45 @@ export const TTL_MS = 30 * 60 * 1000
 // Only non-stale, "good" results are stored here. Empty/transient results from
 // a BAT outage are never pinned — see fetchAndCache below for the gate.
 export const cache = new Map<string, { data: TournamentOverview; ts: number; done?: boolean }>()
+
+// Disk snapshot — survives PM2 reloads and is shared across cluster workers.
+// Written for every successful non-empty fetch, read only on the outage path
+// (BAT failed AND mem-cache is empty). The disk copy is never served as
+// canonical: notes and seeds change during a live tournament, so a fresh BAT
+// fetch always wins. The snapshot's job is purely "best-known-good fallback
+// when there's nothing else." Layout mirrors lib/day-cache.ts.
+const SNAPSHOT_ROOT = path.join(process.cwd(), '.cache', 'overview')
+
+function safeSegment(s: string): string {
+  return s.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase()
+}
+
+export function snapshotPath(id: string): string {
+  return path.join(SNAPSHOT_ROOT, `${safeSegment(id)}.json`)
+}
+
+export async function readDiskSnapshot(id: string): Promise<TournamentOverview | null> {
+  try {
+    const buf = await fs.readFile(snapshotPath(id), 'utf8')
+    return JSON.parse(buf) as TournamentOverview
+  } catch {
+    return null
+  }
+}
+
+export async function writeDiskSnapshot(id: string, data: TournamentOverview): Promise<void> {
+  const file = snapshotPath(id)
+  const tmp = `${file}.tmp`
+  try {
+    await fs.mkdir(path.dirname(file), { recursive: true })
+    await fs.writeFile(tmp, JSON.stringify(data), 'utf8')
+    await fs.rename(tmp, file)
+    console.log(`[overview] wrote disk snapshot id=${id}`)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    console.log(`[overview] disk snapshot write failed id=${id} err=${msg}`)
+  }
+}
 
 export interface FetchResult {
   data: TournamentOverview
@@ -51,18 +92,32 @@ export async function fetchAndCache(id: string, done = false): Promise<FetchResu
 
   // Stale-fallback gate. If any upstream failed AND we wound up with nothing,
   // don't pin the empty result as canonical (that's the bug that hid the
-  // Overview tab for Granular during a BAT outage). Serve the last known
-  // good snapshot if we have one; otherwise return the empty result with
-  // stale=true so the next request retries instead of waiting out TTL_MS.
+  // Overview tab for Granular during a BAT outage). Try in-memory first, then
+  // the disk snapshot (which survives PM2 reloads / cluster workers). If
+  // both are absent, return the empty result with stale=true so the next
+  // request retries instead of waiting out TTL_MS.
   if (upstreamFailed && isEmpty(data)) {
     const prev = cache.get(id)
     if (prev && !isEmpty(prev.data)) {
-      console.log(`[overview] stale fallback id=${id} (overviewOk=${overviewOk} seedsOk=${seedsOk})`)
+      console.log(`[overview] stale fallback (mem) id=${id} (overviewOk=${overviewOk} seedsOk=${seedsOk})`)
       return { data: prev.data, stale: true }
+    }
+    const disk = await readDiskSnapshot(id)
+    if (disk && !isEmpty(disk)) {
+      // Warm mem-cache so subsequent requests skip the disk read until the
+      // next successful BAT fetch supersedes it.
+      cache.set(id, { data: disk, ts: Date.now() })
+      console.log(`[overview] stale fallback (disk) id=${id} (overviewOk=${overviewOk} seedsOk=${seedsOk})`)
+      return { data: disk, stale: true }
     }
     return { data, stale: true }
   }
 
   cache.set(id, { data, ts: Date.now(), ...(done && { done: true }) })
+  // Persist non-empty snapshots only. An empty snapshot has no use as a
+  // fallback and would overwrite a perfectly good prior one on disk.
+  if (!isEmpty(data)) {
+    void writeDiskSnapshot(id, data)
+  }
   return { data, stale: false }
 }
