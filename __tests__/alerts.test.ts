@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { getAlerts, dismissAlerts, recordTournamentSnapshot, recordScheduleSnapshot, type AlertItem } from '@/lib/alerts'
+import { getAlerts, dismissAlerts, recordTournamentSnapshot, recordScheduleSnapshot, recordRankingSnapshot, type AlertItem } from '@/lib/alerts'
 import type { TournamentInfo, MatchDay } from '@/lib/types'
 
 beforeEach(() => {
@@ -165,6 +165,47 @@ describe('recordScheduleSnapshot', () => {
     expect(localStorage.getItem('batbracket.alerts.bootstrapped')).toBe('1')
     const seen = JSON.parse(localStorage.getItem('batbracket.alerts.seenScheduleDays')!)
     expect(seen.T1).toEqual(['2026-05-10'])
+  })
+})
+
+describe('recordRankingSnapshot', () => {
+  it('first call ever seeds publishDate silently (no alert)', () => {
+    expect(recordRankingSnapshot('19/5/2569')).toEqual([])
+    expect(localStorage.getItem('batbracket.alerts.bootstrapped')).toBe('1')
+    expect(localStorage.getItem('batbracket.alerts.seenRankingPublishDate')).toBe('"19/5/2569"')
+  })
+
+  it('does nothing when publishDate is null/undefined (cold server cache)', () => {
+    expect(recordRankingSnapshot(null)).toEqual([])
+    expect(recordRankingSnapshot(undefined)).toEqual([])
+    // Should NOT bootstrap on a null call — we still want the next real
+    // publishDate to seed silently rather than fire a spurious alert.
+    expect(localStorage.getItem('batbracket.alerts.bootstrapped')).toBeNull()
+  })
+
+  it('post-bootstrap, alerts when publishDate changes', () => {
+    recordRankingSnapshot('19/5/2569') // bootstrap
+    const after = recordRankingSnapshot('26/5/2569')
+    expect(after).toHaveLength(1)
+    expect(after[0]).toMatchObject({
+      kind: 'ranking',
+      id: 'r:26/5/2569',
+      publishDate: '26/5/2569',
+    })
+    expect(localStorage.getItem('batbracket.alerts.seenRankingPublishDate')).toBe('"26/5/2569"')
+  })
+
+  it('does not re-alert when publishDate is unchanged', () => {
+    recordRankingSnapshot('19/5/2569') // bootstrap
+    expect(recordRankingSnapshot('19/5/2569')).toEqual([])
+  })
+
+  it('does not re-add a duplicate ranking alert if the user has not dismissed yet', () => {
+    recordRankingSnapshot('19/5/2569') // bootstrap
+    recordRankingSnapshot('26/5/2569') // alert
+    recordRankingSnapshot('26/5/2569') // same date — no-op
+    const pending: AlertItem[] = JSON.parse(localStorage.getItem('batbracket.alerts.pending')!)
+    expect(pending.filter((a) => a.kind === 'ranking')).toHaveLength(1)
   })
 })
 

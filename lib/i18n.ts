@@ -196,6 +196,8 @@ export type TKey =
   | 'alertsTitle'
   | 'alertsNewTournaments'
   | 'alertsNewSchedule'
+  | 'alertsNewRanking'
+  | 'alertsRankingTitle'
   | 'alertsBellAria'
   | 'viewFullProfile'
   | 'playerProfile'
@@ -362,6 +364,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     alertsTitle: 'Notifications',
     alertsNewTournaments: 'New tournaments',
     alertsNewSchedule: 'New Schedule Published',
+    alertsNewRanking: 'New BAT Ranking',
+    alertsRankingTitle: 'New BAT ranking published',
     alertsBellAria: 'Notifications',
     viewFullProfile: 'View full profile',
     playerProfile: 'Player Profile',
@@ -554,6 +558,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     alertsTitle: 'การแจ้งเตือน',
     alertsNewTournaments: 'ทัวร์นาเมนต์ใหม่',
     alertsNewSchedule: 'ประกาศเวลาแข่งใหม่',
+    alertsNewRanking: 'อันดับ BAT ใหม่',
+    alertsRankingTitle: 'ประกาศอันดับ BAT ฉบับใหม่',
     alertsBellAria: 'การแจ้งเตือน',
     viewFullProfile: 'ดูโปรไฟล์เต็ม',
     playerProfile: 'โปรไฟล์ผู้เล่น',

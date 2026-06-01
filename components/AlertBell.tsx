@@ -43,11 +43,15 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
   const scheduleItems = alerts.filter(
     (a): a is Extract<AlertItem, { kind: 'schedule' }> => a.kind === 'schedule',
   )
+  const rankingItems = alerts.filter(
+    (a): a is Extract<AlertItem, { kind: 'ranking' }> => a.kind === 'ranking',
+  )
 
   const dismissWith = (via: 'item' | 'outside' | 'escape') => {
     const tournaments = alerts.filter((a) => a.kind === 'tournament').length
     const schedules = alerts.filter((a) => a.kind === 'schedule').length
-    track('alert_dismissed', { count: alerts.length, tournaments, schedules, via })
+    const rankings = alerts.filter((a) => a.kind === 'ranking').length
+    track('alert_dismissed', { count: alerts.length, tournaments, schedules, rankings, via })
     setOpen(false)
     onDismiss()
   }
@@ -86,7 +90,8 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
     if (!open) {
       const tournaments = alerts.filter((a) => a.kind === 'tournament').length
       const schedules = alerts.filter((a) => a.kind === 'schedule').length
-      track('alert_opened', { count: alerts.length, tournaments, schedules })
+      const rankings = alerts.filter((a) => a.kind === 'ranking').length
+      track('alert_opened', { count: alerts.length, tournaments, schedules, rankings })
     }
     setOpen((v) => !v)
   }
@@ -178,6 +183,27 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
                       {formatAlertDate(a.dateIso, lang)}
                     </div>
                   </button>
+                ))}
+              </>
+            )}
+
+            {rankingItems.length > 0 && (
+              <>
+                <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wide">
+                  {t('alertsNewRanking')}
+                </div>
+                {rankingItems.map((a) => (
+                  <a
+                    key={a.id}
+                    href="/leaderboards"
+                    onClick={handleItemClick}
+                    className="block w-full text-left px-4 py-2.5 text-[13px] text-[var(--fg)] hover:bg-[var(--info-bg)]"
+                  >
+                    <div>{t('alertsRankingTitle')}</div>
+                    <div className="text-[11px] text-[var(--muted)] mt-0.5">
+                      {a.publishDate}
+                    </div>
+                  </a>
                 ))}
               </>
             )}
