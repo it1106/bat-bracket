@@ -65,6 +65,16 @@ export async function POST(req: Request) {
       }
     }
 
+    // Don't overwrite a populated cache with nothing. If every per-category
+    // fetch failed (BAT outage mid-scrape) we'd otherwise pair a fresh
+    // publishDate with events:[] — strictly worse than leaving last week's
+    // data in place. The scheduler retries every 30 min during the Tuesday
+    // window and the boot kick re-fires on reload, so this self-heals.
+    if (events.length === 0) {
+      console.log('[bat-ranking/refresh] all categories empty; cache preserved')
+      return NextResponse.json({ error: 'no entries scraped from any category; cache preserved' }, { status: 502 })
+    }
+
     const scrapedAt = new Date().toISOString()
     await writeBatRankingCache({ scrapedAt, publishDate, rankingId, events })
     console.log(`[bat-ranking/refresh] ok eventsFound=${events.length} publishDate=${publishDate}`)
