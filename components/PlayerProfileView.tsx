@@ -65,6 +65,7 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
 
   // Recent-form tooltips: hover (desktop) or tap-toggle (mobile).
   const [openForm, setOpenForm] = useState<number | null>(null)
+  const [openTour, setOpenTour] = useState<string | null>(null)
   const formStripRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     if (openForm === null) return
@@ -206,11 +207,33 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
                     : e.bestFinish === 'F' ? 'pp-runnerup'
                     : e.bestFinish === 'SF' ? 'pp-third'
                     : 'pp-noplace'
+                  const tipKey = `${t.tournamentId}:${e.eventId}`
+                  const matches = record.tournamentMatches?.[tipKey] ?? []
+                  // Mirror the recentForm tip format: one line per match with
+                  // round, verb prefix, opponents, optional partner suffix,
+                  // and the comma-joined scores (or walkover/retired tag).
+                  const tip = matches.length === 0 ? '' : matches.map(m => {
+                    const won = m.outcome === 'W' || m.outcome === 'WO-W' || m.outcome === 'RET-W'
+                    const verb = won ? 'def.' : 'lost to'
+                    const opp = m.opponents.length > 0 ? m.opponents.join(' / ') : '—'
+                    const partnerLine = m.partners.length > 0 ? ` (w/ ${m.partners.join(' / ')})` : ''
+                    const scoreLine = m.scores.length > 0
+                      ? m.scores.map(s => `${s.t1}-${s.t2}`).join(', ')
+                      : (m.outcome.startsWith('WO') ? 'walkover' : m.outcome.startsWith('RET') ? 'retired' : '')
+                    return `${m.round}: ${verb} ${opp}${partnerLine}\n  ${scoreLine}`
+                  }).join('\n')
+                  const isOpen = openTour === tipKey
+                  const hasTip = tip.length > 0
                   return (
-                    <span key={e.eventId + e.eventName} className={`pp-ev-chip ${medalClass}`}>
+                    <span
+                      key={e.eventId + e.eventName}
+                      className={`pp-ev-chip ${medalClass} ${hasTip ? 'pp-ev-chip-has-tip' : ''} ${isOpen ? 'pp-ev-open' : ''}`}
+                      onClick={hasTip ? () => setOpenTour(isOpen ? null : tipKey) : undefined}
+                    >
                       {e.bestFinish === 'Champion' ? '🏆 ' : ''}{e.eventName} ·{' '}
                       <span className="pp-ev-chip-finish">{e.bestFinish}</span> ·{' '}
                       <span className="pp-ev-chip-wl">{e.wins}–{e.losses}</span>
+                      {hasTip && <span className="pp-ev-tip" role="tooltip">{tip}</span>}
                     </span>
                   )
                 })}
