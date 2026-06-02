@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/lib/LanguageContext'
+import { weekKeyFromPublishDate } from '@/lib/bat-ranking-player-view'
 import type { Leaderboards, LeaderboardCategory, ProviderTag } from '@/lib/types'
 import type { TKey } from '@/lib/i18n'
 
@@ -32,6 +33,7 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDate }: P
   const router = useRouter()
   const [activeProvider, setActiveProvider] = useState<ProviderTag>(leaderboards[0]?.provider ?? 'bat')
   const [active, setActive] = useState<LeaderboardCategory>('ranking')
+  const rankingWeekKey = rankingPublishDate ? weekKeyFromPublishDate(rankingPublishDate) : null
   const [openHelp, setOpenHelp] = useState<string | null>(null)
   // Set of ranking-board IDs the user has expanded to see beyond the top 10.
   // Per-board state (not global) so expanding "U23 Men's singles" doesn't
@@ -181,7 +183,7 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDate }: P
         ))}
       </div>
       {effectiveActive === 'ranking' && rankingPublishDate && (
-        <div className="lb-sub lb-ranking-asof">{t('lbRankingAsOf')} {rankingPublishDate}</div>
+        <div className="lb-sub lb-ranking-asof">{t('lbRankingAsOf')} {rankingPublishDate}{rankingWeekKey && ` (${rankingWeekKey})`}</div>
       )}
       <div className="lb-grid">
         {visible.map(b => {
