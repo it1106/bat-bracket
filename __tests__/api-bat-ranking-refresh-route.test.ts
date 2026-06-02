@@ -130,6 +130,29 @@ describe('POST /api/bat-ranking/refresh', () => {
     }
   })
 
+  it('preserves cache and returns 502 when all category fetches yield no entries', async () => {
+    // BAT can be flaky mid-scrape. Before this guard, a refresh where every
+    // per-category fetch returned non-ok would still overwrite the cache with
+    // events:[] alongside a fresh publishDate — swapping last week's good data
+    // for nothing. The scheduler retries every 30 min during the Tuesday
+    // window, so leaving the existing cache intact is strictly better.
+    ;(readBatRankingCache as jest.Mock).mockResolvedValue(null)
+    ;(batFetch as jest.Mock).mockImplementation(async (kind: string) => {
+      if (kind === 'ranking-overview') return { ok: true, text: async () => '<html>…</html>' }
+      return { ok: false, status: 503, text: async () => '' }
+    })
+    ;(parsePublishDate as jest.Mock).mockReturnValue('20/5/2569')
+    ;(parseRankingId as jest.Mock).mockReturnValue('51899')
+    ;(parseCategoryList as jest.Mock).mockReturnValue(MOCK_CATEGORIES)
+    ;(eventCodeFromName as jest.Mock).mockReturnValue('U23_MS')
+
+    const res = await POST(makeReq())
+    expect(res.status).toBe(502)
+    const json = await res.json()
+    expect(json.error).toMatch(/no entries|empty/i)
+    expect(writeBatRankingCache).not.toHaveBeenCalled()
+  })
+
   it('returns 502 when overview parse yields no rankingId', async () => {
     ;(readBatRankingCache as jest.Mock).mockResolvedValue(null)
     ;(batFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => '<html></html>' })
