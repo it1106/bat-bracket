@@ -67,6 +67,7 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
   const [openForm, setOpenForm] = useState<number | null>(null)
   const [openTour, setOpenTour] = useState<string | null>(null)
   const formStripRef = useRef<HTMLDivElement | null>(null)
+  const tourSectionRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     if (openForm === null) return
     const onDown = (e: MouseEvent | TouchEvent) => {
@@ -79,6 +80,22 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
       document.removeEventListener('touchstart', onDown)
     }
   }, [openForm])
+  // Same outside-tap dismissal for the Tournament history chip tooltips.
+  // Without this, opening a chip tip on a touch device leaves the tooltip
+  // visible until the user re-taps the same chip — there's no hover to
+  // implicitly close it.
+  useEffect(() => {
+    if (openTour === null) return
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (tourSectionRef.current && !tourSectionRef.current.contains(e.target as Node)) setOpenTour(null)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('touchstart', onDown)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('touchstart', onDown)
+    }
+  }, [openTour])
 
   return (
     <div className="pp-page">
@@ -186,7 +203,7 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
       </div>
 
       {record.tournaments.length > 0 && (
-        <div className="pp-section">
+        <div className="pp-section" ref={tourSectionRef}>
           <h2>Tournament history</h2>
           {[...record.tournaments]
             .sort((a, b) => (b.tournamentDateIso ?? '').localeCompare(a.tournamentDateIso ?? ''))
