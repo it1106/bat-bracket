@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { PlayerRecord, PlayerRanks, PlayerStats, WLRecord } from '@/lib/types'
+import { weekKeyFromPublishDate } from '@/lib/bat-ranking-player-view'
 import RankingDetailTabs from './RankingDetailTabs'
 
 interface Props {
@@ -42,6 +43,7 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
   const winPct = record.totals.matches > 0
     ? Math.round((record.totals.wins / record.totals.matches) * 100)
     : 0
+  const rankingWeekKey = rankingPublishDate ? weekKeyFromPublishDate(rankingPublishDate) : null
 
   const goBack = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -135,7 +137,9 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
 
       {batRanking && batRanking.length > 0 && (
         <div className="pp-section pp-ranking-section">
-          <h2>Current Ranking{rankingPublishDate && <span className="pp-stats-note">as of {rankingPublishDate}</span>}</h2>
+          <h2>Current Ranking{rankingPublishDate && (
+            <span className="pp-stats-note">as of {rankingPublishDate}{rankingWeekKey && ` (${rankingWeekKey})`}</span>
+          )}</h2>
           <div className="pp-ranking-list">
             {batRanking.map(r => (
               <div key={r.eventName} className="pp-ranking-row">
