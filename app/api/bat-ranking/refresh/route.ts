@@ -36,14 +36,22 @@ export async function POST(req: Request) {
     const overviewHtml = await overviewRes.text()
     const publishDate = parsePublishDate(overviewHtml)
     const categories = parseCategoryList(overviewHtml)
+    const rankingId = parseRankingId(overviewHtml)
 
     if (categories.length === 0) {
       return NextResponse.json({ error: 'no categories found on overview page' }, { status: 502 })
     }
+    // rankingId is the weekly edition id used in category.aspx?id=...; without
+    // it we would have to hardcode a value that goes stale each Tuesday, which
+    // is exactly the bug cf9a581 introduced — overview-derived publishDate
+    // refreshes but per-category fetches pin to an old edition's snapshot.
+    if (!rankingId) {
+      return NextResponse.json({ error: 'rankingId not found on overview page' }, { status: 502 })
+    }
 
     const events: BatRankingEvent[] = []
     for (const cat of categories) {
-      const url = `${BASE_URL}/category.aspx?id=51771&category=${cat.id}&ps=50`
+      const url = `${BASE_URL}/category.aspx?id=${rankingId}&category=${cat.id}&ps=50`
       try {
         const res = await batFetch('ranking-cat', url, { headers: UA })
         if (!res.ok) continue
@@ -58,10 +66,6 @@ export async function POST(req: Request) {
     }
 
     const scrapedAt = new Date().toISOString()
-    const rankingId = parseRankingId(overviewHtml)
-    if (!rankingId) {
-      return NextResponse.json({ error: 'rankingId not found on overview page' }, { status: 502 })
-    }
     await writeBatRankingCache({ scrapedAt, publishDate, rankingId, events })
     console.log(`[bat-ranking/refresh] ok eventsFound=${events.length} publishDate=${publishDate}`)
     return NextResponse.json({ scrapedAt, eventsFound: events.length })

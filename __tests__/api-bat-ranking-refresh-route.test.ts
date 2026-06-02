@@ -112,6 +112,24 @@ describe('POST /api/bat-ranking/refresh', () => {
     expect(res.status).toBe(502)
   })
 
+  it('builds per-category URL with the parsed rankingId, not a hardcoded literal', async () => {
+    // Regression: cf9a581 hardcoded `id=51771` in the category URL while
+    // parsing `rankingId` only for the cache envelope. When BAT publishes a
+    // new weekly edition the overview-derived fields refresh (publishDate,
+    // rankingId) but every per-category fetch still hits the old edition's
+    // snapshot — so the cache ends up with a fresh publishDate paired with
+    // last week's entries.
+    ;(readBatRankingCache as jest.Mock).mockResolvedValue(null)
+    mockFetchSuccess() // parseRankingId mocked to '51899'
+    await POST(makeReq())
+    const categoryCalls = (batFetch as jest.Mock).mock.calls.filter(([kind]) => kind === 'ranking-cat')
+    expect(categoryCalls.length).toBeGreaterThan(0)
+    for (const [, url] of categoryCalls) {
+      expect(url).toContain('id=51899')
+      expect(url).not.toContain('id=51771')
+    }
+  })
+
   it('returns 502 when overview parse yields no rankingId', async () => {
     ;(readBatRankingCache as jest.Mock).mockResolvedValue(null)
     ;(batFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => '<html></html>' })
