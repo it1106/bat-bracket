@@ -64,6 +64,18 @@ function parseBatPublishDate(s: string): Date | null {
   return new Date(Date.UTC(yearBe - 543, month - 1, day))
 }
 
+/**
+ * BAT's "YYYY-W" week key for a publishDate string, e.g. "2/6/2569" →
+ * "2026-23". Returns null on malformed input. Useful when rendering the
+ * weekly ranking edition alongside its publication date so readers can
+ * line it up with BAT's own week-keyed listings.
+ */
+export function weekKeyFromPublishDate(s: string): string | null {
+  const d = parseBatPublishDate(s)
+  if (!d) return null
+  return isoWeekString(d)
+}
+
 /** ISO 8601 week of a UTC Date as "YYYY-W" (no zero-padding, matching BAT). */
 function isoWeekString(d: Date): string {
   const t = new Date(d.getTime())

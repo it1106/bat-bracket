@@ -9,6 +9,7 @@ import {
   isExpiringNextWeek,
   computeExpiryCutoffs,
   classifyExpiry,
+  weekKeyFromPublishDate,
   EXPIRY_SOON_HORIZON_WEEKS,
   TOP_N,
 } from '@/lib/bat-ranking-player-view'
@@ -482,5 +483,28 @@ describe('classifyExpiry', () => {
   it("handles 1-digit week numbers correctly (uses weekSortKey)", () => {
     // '2025-5' must classify as 'next' (it's earlier than 2025-22).
     expect(classifyExpiry('2025-5', cutoffs)).toBe('next')
+  })
+})
+
+describe('weekKeyFromPublishDate', () => {
+  it("maps a Buddhist-era publishDate to BAT's YYYY-W key", () => {
+    // 2 Jun 2026 = Tuesday in ISO week 23.
+    expect(weekKeyFromPublishDate('2/6/2569')).toBe('2026-23')
+  })
+
+  it('handles single-digit day and month', () => {
+    // 5 Jan 2026 = Monday in ISO week 2 (Jan 1 2026 is a Thursday → week 1
+    // contains Mon 29 Dec 2025–Sun 4 Jan 2026, so Jan 5 starts week 2).
+    expect(weekKeyFromPublishDate('5/1/2569')).toBe('2026-2')
+  })
+
+  it('returns null on malformed input', () => {
+    expect(weekKeyFromPublishDate('')).toBeNull()
+    expect(weekKeyFromPublishDate('not a date')).toBeNull()
+    expect(weekKeyFromPublishDate('2/6')).toBeNull()
+  })
+
+  it('rejects CE-shaped year to avoid 543-year silent shift', () => {
+    expect(weekKeyFromPublishDate('2/6/2026')).toBeNull()
   })
 })
