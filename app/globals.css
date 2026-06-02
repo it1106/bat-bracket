@@ -2553,6 +2553,14 @@ html.dark .pp-ev-chip.pp-third { background: rgba(205,127,50,0.18);
   border-color: #34d399; color: #14532d; }
 html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
   border-color: rgba(52,211,153,0.45); color: #a7f3d0; }
+.pp-ev-chip.pp-ev-chip-has-tip { position: relative; cursor: pointer; }
+.pp-ev-tip { display: none; position: absolute; left: 0; top: calc(100% + 6px);
+  z-index: 20; min-width: 240px; max-width: 360px; padding: 8px 10px;
+  border-radius: 8px; background: var(--fg); color: var(--bg);
+  font-size: 11px; font-weight: 400; line-height: 1.5; text-align: left;
+  white-space: pre-line; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+.pp-ev-chip.pp-ev-chip-has-tip:hover .pp-ev-tip,
+.pp-ev-chip.pp-ev-open .pp-ev-tip { display: block; }
 .pp-form-strip { display: flex; gap: 4px; flex-wrap: wrap; }
 .pp-form-cell { position: relative; width: 28px; height: 28px; border-radius: 6px;
   display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff;

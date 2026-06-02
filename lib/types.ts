@@ -401,6 +401,18 @@ export interface PlayerMatchRef {
   scheduledDateIso?: string
 }
 
+/** A per-tournament-per-event match summary used by the Tournament History
+ *  tooltip on the player profile. Trimmed from PlayerMatchRef to keep the
+ *  SSR payload tight: tournamentId/eventId live in the lookup key, and the
+ *  tooltip displays neither slugs nor schedule date. */
+export interface PlayerTournamentMatch {
+  round: string
+  partners: string[]
+  opponents: string[]
+  scores: MatchScore[]
+  outcome: 'W' | 'L' | 'WO-W' | 'WO-L' | 'RET-W' | 'RET-L'
+}
+
 export type Discipline = 'singles' | 'doubles' | 'mixed'
 
 export interface PlayerEventResult {
@@ -489,6 +501,11 @@ export interface PlayerRecord {
     events: PlayerEventResult[]
   }>
   recentForm: PlayerMatchRef[]
+  /** Keyed `${tournamentId}:${eventId}` → matches in that event of that
+   *  tournament, sorted deepest round first (Final → SF → … → RR). Pulled
+   *  inline by the Tournament History chip tooltip. Optional so a fresh
+   *  install that hasn't yet rebuilt the index still loads. */
+  tournamentMatches?: Record<string, PlayerTournamentMatch[]>
   matchCharacter: {
     courtMinutes: number
     avgMatchMinutes: number
