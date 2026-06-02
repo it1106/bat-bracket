@@ -35,14 +35,14 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDate }: P
   const [active, setActive] = useState<LeaderboardCategory>('ranking')
   const rankingWeekKey = rankingPublishDate ? weekKeyFromPublishDate(rankingPublishDate) : null
   const [openHelp, setOpenHelp] = useState<string | null>(null)
-  // Set of ranking-board IDs the user has expanded to see beyond the top 10.
+  // Set of board IDs the user has expanded to see beyond the top 10.
   // Per-board state (not global) so expanding "U23 Men's singles" doesn't
   // also blow open every other board.
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set())
   const helpRef = useRef<HTMLSpanElement | null>(null)
   const didMountRef = useRef(false)
 
-  const RANKING_COLLAPSED_LIMIT = 10
+  const BOARD_COLLAPSED_LIMIT = 10
   const toggleBoardExpansion = (id: string) => {
     setExpandedBoards((prev) => {
       const next = new Set(prev)
@@ -216,12 +216,15 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDate }: P
                 return <div className="lb-empty" style={{ padding: '12px 0' }}>—</div>
               }
               const isExpanded = expandedBoards.has(b.id)
-              // Only ranking boards collapse; other categories already cap at a
-              // small number, so respect what the data layer gave us.
-              const visibleEntries = b.category === 'ranking' && !isExpanded
-                ? b.entries.slice(0, RANKING_COLLAPSED_LIMIT)
-                : b.entries
-              const hasMore = b.category === 'ranking' && b.entries.length > RANKING_COLLAPSED_LIMIT
+              // Every board (ranking + headline/discipline/character/activity)
+              // collapses to the top 10 with a Show more / Show less toggle.
+              // Ranking caps at 30 entries (set by leaderboards/page.tsx);
+              // other categories cap at 25 (set by playerIndex.ts) — both
+              // share the same UI affordance here.
+              const visibleEntries = isExpanded
+                ? b.entries
+                : b.entries.slice(0, BOARD_COLLAPSED_LIMIT)
+              const hasMore = b.entries.length > BOARD_COLLAPSED_LIMIT
               return (
                 <>
                   {visibleEntries.map(e => (
@@ -243,8 +246,8 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDate }: P
                       onClick={() => toggleBoardExpansion(b.id)}
                     >
                       {isExpanded
-                        ? t('leaderboardsShowTop10')
-                        : t('leaderboardsShowTop30')}
+                        ? t('leaderboardsShowLess')
+                        : t('leaderboardsShowMore')}
                     </button>
                   )}
                 </>
