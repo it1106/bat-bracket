@@ -5,6 +5,7 @@ import type {
   Discipline, MatchEntry, ProviderTag,
   PlayerIndex, PlayerRecord, PlayerMatchRef, PlayerIndexTournamentInput,
   Leaderboards, LeaderboardBoard, DisciplineSummary, PlayerEventResult, PlayerRanks,
+  PlayerTournamentMatch,
 } from './types'
 
 interface PerPlayerScratch {
@@ -347,6 +348,27 @@ export function buildIndex(
   // ROUND_ORDER.indexOf, so keeping the array and the return type in lockstep
   // is necessary for ordering Champion → F → SF → … too.
   const ROUND_ORDER: PlayerEventResult['bestFinish'][] = ['F','SF','QF','R16','R32','R64','R128','RR']
+  // Sort key for "latest match first" inside an event. Final maps to the
+  // same depth as bestFinish 'F' so ROUND_ORDER stays the single source of
+  // truth. PlayerMatchRef.round uses the long-form 'Final'; everything else
+  // already matches ROUND_ORDER's short form ('SF', 'QF', 'R16', ...). Group
+  // Stage / RR rounds fall off the end with Infinity so they sort last.
+  function roundDepth(round: string): number {
+    if (round === 'Final') return 0
+    const i = ROUND_ORDER.indexOf(round as PlayerEventResult['bestFinish'])
+    return i < 0 ? Number.POSITIVE_INFINITY : i
+  }
+
+  function trimMatch(r: PlayerMatchRef): PlayerTournamentMatch {
+    return {
+      round: r.round,
+      partners: r.partners,
+      opponents: r.opponents,
+      scores: r.scores,
+      outcome: r.outcome,
+    }
+  }
+
   function bestFinishFor(refs: PlayerMatchRef[]): PlayerEventResult['bestFinish'] {
     if (refs.some(r => r.round === 'Final' && (r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W'))) return 'Champion'
     // refs[].round comes from normalizeRound() which emits the long-form
@@ -360,6 +382,7 @@ export function buildIndex(
   for (const [slug, rec] of Array.from(records.entries())) {
     const refs = scratches.get(slug)?.refs || []
     const byTournament = new Map<string, Map<string, PlayerMatchRef[]>>()
+    const tournamentMatches: Record<string, PlayerTournamentMatch[]> = {}
     for (const r of refs) {
       let evMap = byTournament.get(r.tournamentId)
       if (!evMap) { evMap = new Map(); byTournament.set(r.tournamentId, evMap) }
@@ -385,14 +408,29 @@ export function buildIndex(
           if (er.outcome === 'W' || er.outcome === 'WO-W' || er.outcome === 'RET-W') wins++
           else losses++
         }
+        const eventId = eventRefs[0].eventId
         events.push({
           tournamentId: t.tournamentId,
-          eventId: eventRefs[0].eventId,
+          eventId,
           eventName,
           discipline: classifyDiscipline(teamSize, eventName),
           bestFinish: finish,
           wins, losses,
         })
+        // Persist per-event matches for the Tournament History tooltip,
+        // sorted deepest round first. Within the same round (only possible
+        // for RR/Group Stage rows) keep an arbitrary-but-stable order by
+        // falling back to the original ref order.
+        const sorted = [...eventRefs]
+          .map((r, idx) => ({ r, idx }))
+          .sort((a, b) => {
+            const da = roundDepth(a.r.round)
+            const db = roundDepth(b.r.round)
+            if (da !== db) return da - db
+            return a.idx - b.idx
+          })
+          .map(x => trimMatch(x.r))
+        tournamentMatches[`${t.tournamentId}:${eventId}`] = sorted
       }
       events.sort((a, b) => {
         const ai = a.bestFinish === 'Champion' ? -1 : ROUND_ORDER.indexOf(a.bestFinish)
@@ -416,6 +454,9 @@ export function buildIndex(
           rec.semis.push(e); rec.byDiscipline[e.discipline].semis++
         }
       }
+    }
+    if (Object.keys(tournamentMatches).length > 0) {
+      rec.tournamentMatches = tournamentMatches
     }
   }
 
