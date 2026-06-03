@@ -240,11 +240,13 @@ export type TKey =
   | 'lbSearchPlaceholder' | 'lbSearchEmpty'
   | 'currentRanking'
   | 'lbMostTitles' | 'lbMostWins' | 'lbHighestWinPct' | 'lbMostCourtTime'
+  | 'lbHighestAvgCourtTime'
   | 'lbBestSingles' | 'lbBestDoubles' | 'lbBestMixed'
   | 'lbThreeSetterWins' | 'lbComebackWins' | 'lbDeciderRecord' | 'lb3Gamers'
   | 'lbMatchesLast90' | 'lbTournamentsEntered'
-  | 'min20' | 'min10' | 'min5'
+  | 'min20' | 'min10' | 'min5' | 'min20Timed'
   | 'lbMostTitlesHelp' | 'lbMostWinsHelp' | 'lbHighestWinPctHelp' | 'lbMostCourtTimeHelp'
+  | 'lbHighestAvgCourtTimeHelp'
   | 'lbBestSinglesHelp' | 'lbBestDoublesHelp' | 'lbBestMixedHelp'
   | 'lbThreeSetterWinsHelp' | 'lbComebackWinsHelp' | 'lbDeciderRecordHelp' | 'lb3GamersHelp'
   | 'lbMatchesLast90Help' | 'lbTournamentsEnteredHelp'
@@ -440,22 +442,25 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbMostWins: 'Most Wins',
     lbHighestWinPct: 'Highest Win Rate',
     lbMostCourtTime: 'Most Court Time',
+    lbHighestAvgCourtTime: 'Highest Avg Court Time',
     lbBestSingles: 'Most Singles Wins',
     lbBestDoubles: 'Most Doubles Wins',
     lbBestMixed: 'Most Mixed Wins',
     lbThreeSetterWins: 'Three-setter Wins',
     lbComebackWins: 'Comeback Wins',
-    lbDeciderRecord: 'Decider Record',
+    lbDeciderRecord: '3rd Game Win Rate',
     lb3Gamers: '3 Gamers',
     lbMatchesLast90: 'Matches (last 90 days)',
     lbTournamentsEntered: 'Tournaments Entered',
     min20: 'min 20 matches',
+    min20Timed: 'min 20 timed matches',
     min10: 'min 10 matches',
     min5: 'min 5 deciders',
     lbMostTitlesHelp: 'Number of events won (champion) across all included tournaments.',
     lbMostWinsHelp: 'Total matches won across all included tournaments.',
     lbHighestWinPctHelp: 'Share of matches won, among players with at least 20 matches played.',
     lbMostCourtTimeHelp: 'Total time spent on court, summed across all matches with a recorded duration.',
+    lbHighestAvgCourtTimeHelp: 'Average match length on court, among players with at least 20 matches that have a recorded duration.',
     lbBestSinglesHelp: 'Matches won in singles events. Requires at least 10 singles matches.',
     lbBestDoublesHelp: 'Matches won in doubles events. Requires at least 10 doubles matches.',
     lbBestMixedHelp: 'Matches won in mixed-doubles events. Requires at least 10 mixed matches.',
@@ -656,22 +661,25 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbMostWins: 'ชนะมากที่สุด',
     lbHighestWinPct: 'อัตราชนะสูงสุด',
     lbMostCourtTime: 'เวลาในสนามมากที่สุด',
+    lbHighestAvgCourtTime: 'เวลาเฉลี่ยต่อแมตช์สูงสุด',
     lbBestSingles: 'ชนะเดี่ยวมากที่สุด',
     lbBestDoubles: 'ชนะคู่มากที่สุด',
     lbBestMixed: 'ชนะคู่ผสมมากที่สุด',
     lbThreeSetterWins: 'ชนะเกม 3',
     lbComebackWins: 'พลิกกลับมาชนะหลังเสียเกมแรก',
-    lbDeciderRecord: 'สถิติชนะเกม 3',
+    lbDeciderRecord: 'อัตราชนะเกมที่ 3',
     lb3Gamers: 'นักกีฬา 3 เกม',
     lbMatchesLast90: 'แมตช์ (90 วันล่าสุด)',
     lbTournamentsEntered: 'จำนวนทัวร์นาเมนต์',
     min20: 'อย่างน้อย 20 แมตช์',
+    min20Timed: 'อย่างน้อย 20 แมตช์ที่บันทึกเวลา',
     min10: 'อย่างน้อย 10 แมตช์',
     min5: 'อย่างน้อย 5 เซตตัดสิน',
     lbMostTitlesHelp: 'จำนวนรายการที่ชนะเลิศ (เป็นแชมป์) รวมจากทุกทัวร์นาเมนต์ที่นับรวม',
     lbMostWinsHelp: 'จำนวนแมตช์ที่ชนะทั้งหมด รวมจากทุกทัวร์นาเมนต์ที่นับรวม',
     lbHighestWinPctHelp: 'เปอร์เซ็นต์การชนะ เฉพาะผู้เล่นที่ลงแข่งอย่างน้อย 20 แมตช์',
     lbMostCourtTimeHelp: 'เวลารวมที่อยู่ในสนาม นับจากทุกแมตช์ที่มีการบันทึกเวลา',
+    lbHighestAvgCourtTimeHelp: 'เวลาเฉลี่ยต่อแมตช์ในสนาม เฉพาะผู้เล่นที่มีอย่างน้อย 20 แมตช์ที่บันทึกเวลา',
     lbBestSinglesHelp: 'จำนวนแมตช์ที่ชนะในประเภทเดี่ยว ต้องลงเดี่ยวอย่างน้อย 10 แมตช์',
     lbBestDoublesHelp: 'จำนวนแมตช์ที่ชนะในประเภทคู่ ต้องลงคู่อย่างน้อย 10 แมตช์',
     lbBestMixedHelp: 'จำนวนแมตช์ที่ชนะในประเภทคู่ผสม ต้องลงคู่ผสมอย่างน้อย 10 แมตช์',
