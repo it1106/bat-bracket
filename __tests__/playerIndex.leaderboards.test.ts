@@ -149,4 +149,20 @@ describe('buildIndex — leaderboards', () => {
     expect(board.entries.find(e => e.slug === 'a')!.display).toBe('60% (6/10)')
     expect(board.entries.find(e => e.slug === 'b')!.display).toBe('63% (5/8)')
   })
+
+  it('character.deciderRecord breaks % ties by threeSetterCount desc', () => {
+    // All three players sit at exactly 70% (7/10, 14/20, 21/30).
+    // Tiebreaker should sort by threeSetterCount desc: c (30) > b (20) > a (10).
+    const players: Record<string, PlayerRecord> = {
+      a: synthPlayer('a', 'Alpha', { wins: 7,  losses: 3,  threeSetterWins: 7,  threeSetterCount: 10 }),
+      b: synthPlayer('b', 'Beta',  { wins: 14, losses: 6,  threeSetterWins: 14, threeSetterCount: 20 }),
+      c: synthPlayer('c', 'Gamma', { wins: 21, losses: 9,  threeSetterWins: 21, threeSetterCount: 30 }),
+    }
+    const lb = buildLeaderboards('bat', players)
+    const board = lb.boards.find(b => b.id === 'character.deciderRecord')!
+    expect(board.entries.map(e => e.slug)).toEqual(['c', 'b', 'a'])
+    expect(board.entries.map(e => e.display)).toEqual([
+      '70% (21/30)', '70% (14/20)', '70% (7/10)',
+    ])
+  })
 })
