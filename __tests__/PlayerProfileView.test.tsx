@@ -2,11 +2,20 @@
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import PlayerProfileView from '@/components/PlayerProfileView'
+import { LanguageProvider } from '@/lib/LanguageContext'
 import type { PlayerRecord } from '@/lib/types'
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
 }))
+
+function renderProfile(record: PlayerRecord) {
+  return render(
+    <LanguageProvider>
+      <PlayerProfileView record={record} />
+    </LanguageProvider>,
+  )
+}
 
 // PlayerProfileView fetches /api/players/profile-extra on mount; stub it.
 beforeAll(() => {
@@ -39,23 +48,23 @@ const sample: PlayerRecord = {
 
 describe('PlayerProfileView', () => {
   it('renders the display name', () => {
-    render(<PlayerProfileView record={sample} />)
+    renderProfile(sample)
     expect(screen.getByText('Somchai Suksawat')).toBeTruthy()
   })
 
   it('renders the KPI strip values', () => {
-    render(<PlayerProfileView record={sample} />)
+    renderProfile(sample)
     expect(screen.getByText('24')).toBeTruthy()
     expect(screen.getByText('11')).toBeTruthy()
   })
 
   it('renders the tournament-history Champion chip', () => {
-    render(<PlayerProfileView record={sample} />)
+    renderProfile(sample)
     expect(screen.getByText(/Champion/i)).toBeTruthy()
   })
 
   it('renders rank badges from ranks map', () => {
-    render(<PlayerProfileView record={sample} />)
+    renderProfile(sample)
     expect(screen.getByText(/#18/)).toBeTruthy()
     expect(screen.getByText(/#34/)).toBeTruthy()
   })
@@ -78,14 +87,14 @@ describe('PlayerProfileView', () => {
   }
 
   it('defaults to the All Time tab and renders the lifetime list', () => {
-    render(<PlayerProfileView record={withOpponents()} />)
+    renderProfile(withOpponents())
     expect(screen.getByText('Lifetime Foe')).toBeTruthy()
     const allTab = screen.getByRole('tab', { name: 'All Time' })
     expect(allTab.getAttribute('aria-selected')).toBe('true')
   })
 
   it('switching to 30 Days shows the windowed list', () => {
-    render(<PlayerProfileView record={withOpponents()} />)
+    renderProfile(withOpponents())
     fireEvent.click(screen.getByRole('tab', { name: '30 Days' }))
     expect(screen.getByText('Recent Foe')).toBeTruthy()
     expect(screen.queryByText('Lifetime Foe')).toBeNull()
@@ -99,7 +108,7 @@ describe('PlayerProfileView', () => {
         ],
       },
     })
-    render(<PlayerProfileView record={empty} />)
+    renderProfile(empty)
     fireEvent.click(screen.getByRole('tab', { name: '30 Days' }))
     expect(screen.getByText('No opponents in this period')).toBeTruthy()
     // Tab strip remains so the user can switch back
@@ -114,7 +123,7 @@ describe('PlayerProfileView', () => {
       ],
       // opponentsByWindow intentionally omitted
     }
-    render(<PlayerProfileView record={legacy} />)
+    renderProfile(legacy)
     expect(screen.getByText('Legacy Foe')).toBeTruthy()
   })
 })
