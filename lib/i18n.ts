@@ -442,7 +442,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbMostWins: 'Most Wins',
     lbHighestWinPct: 'Highest Win Rate',
     lbMostCourtTime: 'Most Court Time',
-    lbHighestAvgCourtTime: 'Highest Avg Court Time',
+    lbHighestAvgCourtTime: 'Highest Avg Match Time',
     lbBestSingles: 'Most Singles Wins',
     lbBestDoubles: 'Most Doubles Wins',
     lbBestMixed: 'Most Mixed Wins',
