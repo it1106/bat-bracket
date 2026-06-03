@@ -102,10 +102,13 @@ export function buildLeaderboards(
     { id: 'headline.winPct', titleKey: 'lbHighestWinPct', icon: '📊', category: 'headline', qualifier: 'min20',
       qualifies: p => p.totals.matches >= 20,
       value: p => p.totals.wins / Math.max(1, p.totals.matches),
-      display: fmtPct, rankField: 'winPct' },
+      display: (_n, p) => `${Math.round((p.totals.wins / p.totals.matches) * 100)}% (${p.totals.wins}/${p.totals.matches})`,
+      rankField: 'winPct' },
     { id: 'headline.courtTime', titleKey: 'lbMostCourtTime', icon: '⏱', category: 'headline',
       qualifies: p => p.matchCharacter.courtMinutes > 0,
-      value: p => p.matchCharacter.courtMinutes, display: fmtHours, rankField: 'courtTime' },
+      value: p => p.matchCharacter.courtMinutes,
+      display: (n, p) => `${fmtHours(n)} (${p.matchCharacter.matchesWithDuration ?? 0})`,
+      rankField: 'courtTime' },
     { id: 'discipline.singles.wins', titleKey: 'lbBestSingles', icon: '🎯', category: 'discipline', qualifier: 'min10',
       qualifies: p => (p.byDiscipline.singles.wins + p.byDiscipline.singles.losses) >= 10,
       value: p => p.byDiscipline.singles.wins, display: fmtInt, rankField: 'bestSingles' },
@@ -572,6 +575,7 @@ export function buildIndex(
     }
 
     rec.matchCharacter.courtMinutes = totalMin
+    rec.matchCharacter.matchesWithDuration = withDuration
     rec.matchCharacter.avgMatchMinutes = withDuration > 0 ? Math.round(totalMin / withDuration) : 0
     rec.matchCharacter.longestMatchMinutes = longest
     rec.matchCharacter.longestMatchRef = longestRef

@@ -520,6 +520,11 @@ export interface PlayerRecord {
     firstGameLost: number
     comebackWinRef: PlayerMatchRef | null
     matchesLast90: number
+    /** Count of matches whose `durationMinutes > 0` — i.e. the matches that
+     *  contributed to `courtMinutes`. Used to show "(N)" behind the displayed
+     *  court time on the leaderboard. Optional so previously-built indexes
+     *  still load; display falls back to 0 when absent. */
+    matchesWithDuration?: number
   }
   opponents: OpponentRecord[]
   /** Top-12 opponents bucketed by time window. The `all` bucket is identical

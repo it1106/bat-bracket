@@ -1,7 +1,29 @@
 import path from 'path'
 import fs from 'fs'
-import { buildIndex } from '@/lib/playerIndex'
-import type { MatchesData, PlayerIndexTournamentInput } from '@/lib/types'
+import { buildIndex, buildLeaderboards } from '@/lib/playerIndex'
+import type { MatchesData, PlayerIndexTournamentInput, PlayerRecord } from '@/lib/types'
+
+function disc() { return { wins: 0, losses: 0, titles: 0, finals: 0, semis: 0 } }
+function synthPlayer(slug: string, name: string, opts: {
+  wins: number; losses: number; courtMinutes?: number; matchesWithDuration?: number;
+}): PlayerRecord {
+  const matches = opts.wins + opts.losses
+  return {
+    key: { provider: 'bat', slug }, displayName: name, altNames: [], clubs: [],
+    totals: { matches, wins: opts.wins, losses: opts.losses,
+      walkoversReceived: 0, walkoversGiven: 0, retirementsReceived: 0, retirementsGiven: 0 },
+    byDiscipline: { singles: disc(), doubles: disc(), mixed: disc() },
+    titles: [], finals: [], semis: [], tournaments: [], recentForm: [],
+    matchCharacter: {
+      courtMinutes: opts.courtMinutes ?? 0, avgMatchMinutes: 0,
+      longestMatchMinutes: 0, longestMatchRef: null,
+      threeSetterCount: 0, threeSetterRate: 0, threeSetterWins: 0,
+      comebackWins: 0, firstGameLost: 0, comebackWinRef: null,
+      matchesLast90: 0, matchesWithDuration: opts.matchesWithDuration,
+    },
+    opponents: [], partners: [], ranks: {},
+  }
+}
 
 function loadInput(slug: string, name: string, date: string): PlayerIndexTournamentInput {
   const data = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures', `player-index-${slug}.json`), 'utf8')) as MatchesData
@@ -53,5 +75,53 @@ describe('buildIndex — leaderboards', () => {
       const top = titlesBoard.entries[0]
       expect(index.players[top.slug].ranks.titles).toBe(1)
     }
+  })
+
+  it('headline.winPct display includes (wins/matches) behind the percent', () => {
+    const players: Record<string, PlayerRecord> = {
+      a: synthPlayer('a', 'Alpha', { wins: 17, losses: 3 }),  // 20 matches, qualifies
+      b: synthPlayer('b', 'Beta',  { wins: 30, losses: 10 }), // 40 matches, qualifies
+      c: synthPlayer('c', 'Gamma', { wins: 5,  losses: 4 }),  // 9 matches, below qualifier
+    }
+    const lb = buildLeaderboards('bat', players)
+    const board = lb.boards.find(b => b.id === 'headline.winPct')!
+    expect(board.entries.length).toBe(2)
+    for (const e of board.entries) {
+      const p = players[e.slug]
+      expect(e.display).toMatch(/^\d+% \(\d+\/\d+\)$/)
+      expect(e.display).toContain(`(${p.totals.wins}/${p.totals.matches})`)
+    }
+    // Spot-check Alpha specifically: 17/20 = 85%.
+    const a = board.entries.find(e => e.slug === 'a')!
+    expect(a.display).toBe('85% (17/20)')
+  })
+
+  it('headline.courtTime display includes (matchesWithDuration) behind the time', () => {
+    const players: Record<string, PlayerRecord> = {
+      a: synthPlayer('a', 'Alpha', { wins: 15, losses: 5, courtMinutes: 750, matchesWithDuration: 20 }),
+      b: synthPlayer('b', 'Beta',  { wins: 10, losses: 5, courtMinutes: 90,  matchesWithDuration: 3  }),
+      c: synthPlayer('c', 'Gamma', { wins: 5,  losses: 5, courtMinutes: 0,   matchesWithDuration: 0  }), // excluded
+    }
+    const lb = buildLeaderboards('bat', players)
+    const board = lb.boards.find(b => b.id === 'headline.courtTime')!
+    expect(board.entries.length).toBe(2)
+    for (const e of board.entries) {
+      const p = players[e.slug]
+      expect(e.display).toMatch(/ \(\d+\)$/)
+      expect(e.display).toContain(`(${p.matchCharacter.matchesWithDuration ?? 0})`)
+    }
+    // Alpha: 750 min = 12h 30m, 20 matches with a duration.
+    const a = board.entries.find(e => e.slug === 'a')!
+    expect(a.display).toBe('12h 30m (20)')
+  })
+
+  it('headline.courtTime falls back to (0) when matchesWithDuration is missing', () => {
+    const players: Record<string, PlayerRecord> = {
+      // Note: matchesWithDuration intentionally omitted (undefined) — simulates a stale index.
+      a: synthPlayer('a', 'Stale', { wins: 10, losses: 5, courtMinutes: 60 }),
+    }
+    const lb = buildLeaderboards('bat', players)
+    const board = lb.boards.find(b => b.id === 'headline.courtTime')!
+    expect(board.entries[0].display).toBe('1h (0)')
   })
 })
