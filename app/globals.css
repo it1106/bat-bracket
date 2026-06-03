@@ -2611,6 +2611,12 @@ html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
 .pp-empty { padding: 12px 8px; font-size: 12px; color: var(--muted);
   text-align: center; font-style: italic; }
 
+.pp-show-more { display: block; margin: 10px auto 0; padding: 4px 12px;
+  background: transparent; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--brand-fg);
+  letter-spacing: 0.03em; }
+.pp-show-more:hover { text-decoration: underline; }
+
 /* ── Deep player stats: leaderboards page (.lb-*) ── */
 .lb-page { max-width: 1080px; margin: 0 auto; padding: 16px; }
 .lb-hdr { background: var(--surface); border: 1px solid var(--border);

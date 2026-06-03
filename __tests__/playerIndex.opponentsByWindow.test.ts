@@ -82,21 +82,21 @@ describe('buildOpponentsByWindow', () => {
     expect(out.all.map(o => o.slug)).toEqual(['u'])
   })
 
-  it('caps every bucket at top 12 by meetings desc, wins desc, slug asc', () => {
+  it('caps every bucket at top 25 by meetings desc, wins desc, slug asc', () => {
     const refs: PlayerMatchRef[] = []
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 30; i++) {
       const slug = `p${String(i).padStart(2, '0')}`
-      // p00 = 20 meetings, p01 = 19, …
-      const meetings = 20 - i
+      // p00 = 30 meetings, p01 = 29, …
+      const meetings = 30 - i
       for (let m = 0; m < meetings; m++) {
         refs.push(ref({ opp: slug, oppSlug: slug, daysAgo: 5, outcome: 'W' }))
       }
     }
     const out = buildOpponentsByWindow(refs, NOW)
-    expect(out.all).toHaveLength(12)
-    expect(out['30d']).toHaveLength(12)
+    expect(out.all).toHaveLength(25)
+    expect(out['30d']).toHaveLength(25)
     expect(out.all[0].slug).toBe('p00')
-    expect(out.all[11].slug).toBe('p11')
+    expect(out.all[24].slug).toBe('p24')
   })
 
   it('returns five empty arrays when nowMs is 0', () => {
