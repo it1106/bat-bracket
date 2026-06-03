@@ -85,6 +85,10 @@ export function buildLeaderboards(
     value: (p: PlayerRecord) => number;
     display: (n: number, p: PlayerRecord) => string;
     rankField: keyof PlayerRanks;
+    // Optional tiebreaker run between value-desc and the alphabetical slug
+    // fallback. Return >0 if `b` ranks higher than `a`, <0 if `a` ranks
+    // higher, 0 to fall through to the slug tiebreaker.
+    tiebreaker?: (a: PlayerRecord, b: PlayerRecord) => number;
   }
   const fmtHours = (n: number) => {
     if (n < 60) return `${n}m`
@@ -127,6 +131,9 @@ export function buildLeaderboards(
       value: p => p.matchCharacter.threeSetterWins / Math.max(1, p.matchCharacter.threeSetterCount),
       display: (_n, p) =>
         `${Math.round((p.matchCharacter.threeSetterWins / p.matchCharacter.threeSetterCount) * 100)}% (${p.matchCharacter.threeSetterWins}/${p.matchCharacter.threeSetterCount})`,
+      // Tied on win rate? More three-set matches played wins — the player has
+      // sustained that rate across a larger sample (battle-tested).
+      tiebreaker: (a, b) => b.matchCharacter.threeSetterCount - a.matchCharacter.threeSetterCount,
       rankField: 'deciderRecord' },
     { id: 'character.threeGamers', titleKey: 'lb3Gamers', icon: '🎢', category: 'character', qualifier: 'min10',
       qualifies: p => p.totals.matches >= 10,
@@ -146,7 +153,10 @@ export function buildLeaderboards(
       .filter(spec.qualifies)
       .map(p => ({ p, v: spec.value(p) }))
       .filter(x => x.v > 0)
-      .sort((a, b) => b.v - a.v || a.p.key.slug.localeCompare(b.p.key.slug))
+      .sort((a, b) =>
+        b.v - a.v ||
+        (spec.tiebreaker ? spec.tiebreaker(a.p, b.p) : 0) ||
+        a.p.key.slug.localeCompare(b.p.key.slug))
       .slice(0, 25)
     const entries = scored.map((x, i) => ({
       rank: i + 1,
