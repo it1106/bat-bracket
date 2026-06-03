@@ -39,14 +39,14 @@ describe('buildIndex — leaderboards', () => {
   const toyota = loadInput('toyota', 'Toyota', '2026-05-01')
   const trang = loadInput('trang', 'Trang', '2026-04-15')
 
-  it('produces all 13 v1 boards', () => {
+  it('produces all 14 v1 boards', () => {
     const { leaderboards } = buildIndex('bat', [toyota, trang])
     const ids = leaderboards.boards.map(b => b.id).sort()
     expect(ids).toEqual([
       'activity.matchesLast90', 'activity.tournamentsEntered',
       'character.comebacks', 'character.deciderRecord', 'character.threeGamers', 'character.threeSetterWins',
       'discipline.doubles.wins', 'discipline.mixed.wins', 'discipline.singles.wins',
-      'headline.courtTime', 'headline.titles', 'headline.winPct', 'headline.wins',
+      'headline.avgCourtTime', 'headline.courtTime', 'headline.titles', 'headline.winPct', 'headline.wins',
     ])
   })
 
@@ -163,6 +163,27 @@ describe('buildIndex — leaderboards', () => {
     expect(board.entries.map(e => e.slug)).toEqual(['c', 'b', 'a'])
     expect(board.entries.map(e => e.display)).toEqual([
       '70% (21/30)', '70% (14/20)', '70% (7/10)',
+    ])
+  })
+
+  it('headline.avgCourtTime ranks by raw avg, qualifies on min 20 timed matches, displays "Xm (count)"', () => {
+    const players: Record<string, PlayerRecord> = {
+      // 30 timed matches, 900 min → 30 min avg
+      a: synthPlayer('a', 'Alpha', { wins: 20, losses: 10, courtMinutes: 900, matchesWithDuration: 30 }),
+      // 25 timed matches, 1000 min → 40 min avg (top)
+      b: synthPlayer('b', 'Beta',  { wins: 18, losses: 7,  courtMinutes: 1000, matchesWithDuration: 25 }),
+      // 20 timed matches, 720 min → 36 min avg
+      c: synthPlayer('c', 'Gamma', { wins: 15, losses: 5,  courtMinutes: 720, matchesWithDuration: 20 }),
+      // 19 timed matches → below qualifier, excluded
+      d: synthPlayer('d', 'Delta', { wins: 12, losses: 7,  courtMinutes: 900, matchesWithDuration: 19 }),
+    }
+    const lb = buildLeaderboards('bat', players)
+    const board = lb.boards.find(b => b.id === 'headline.avgCourtTime')!
+    expect(board.category).toBe('headline')
+    expect(board.qualifier).toBe('min20Timed')
+    expect(board.entries.map(e => e.slug)).toEqual(['b', 'c', 'a'])
+    expect(board.entries.map(e => e.display)).toEqual([
+      '40m (25)', '36m (20)', '30m (30)',
     ])
   })
 })

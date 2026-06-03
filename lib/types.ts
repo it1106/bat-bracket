@@ -459,6 +459,7 @@ export interface PlayerRanks {
   wins?: number
   winPct?: number
   courtTime?: number
+  avgCourtTime?: number
   threeSetterWins?: number
   comebackWins?: number
   matchesLast90?: number

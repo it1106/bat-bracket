@@ -112,6 +112,13 @@ export function buildLeaderboards(
       value: p => p.matchCharacter.courtMinutes,
       display: (n, p) => `${fmtHours(n)} (${p.matchCharacter.matchesWithDuration ?? 0})`,
       rankField: 'courtTime' },
+    { id: 'headline.avgCourtTime', titleKey: 'lbHighestAvgCourtTime', icon: '⏳', category: 'headline', qualifier: 'min20Timed',
+      qualifies: p => (p.matchCharacter.matchesWithDuration ?? 0) >= 20,
+      // Raw float (not the rounded avgMatchMinutes field) so 32.4m ranks
+      // above 32.1m even though both display as "32m".
+      value: p => p.matchCharacter.courtMinutes / Math.max(1, p.matchCharacter.matchesWithDuration ?? 0),
+      display: (n, p) => `${fmtHours(Math.round(n))} (${p.matchCharacter.matchesWithDuration ?? 0})`,
+      rankField: 'avgCourtTime' },
     { id: 'discipline.singles.wins', titleKey: 'lbBestSingles', icon: '🎯', category: 'discipline', qualifier: 'min10',
       qualifies: p => (p.byDiscipline.singles.wins + p.byDiscipline.singles.losses) >= 10,
       value: p => p.byDiscipline.singles.wins, display: fmtInt, rankField: 'bestSingles' },
