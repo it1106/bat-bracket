@@ -222,6 +222,8 @@ export type TKey =
   | 'matchCharacter'
   | 'frequentOpponents'
   | 'frequentPartners'
+  | 'opponentsWin30d' | 'opponentsWin90d' | 'opponentsWin180d'
+  | 'opponentsWin1y' | 'opponentsWinAll' | 'opponentsEmptyWindow'
   | 'courtTime'
   | 'avgMatch'
   | 'longestMatch'
@@ -407,6 +409,12 @@ const dict: Record<Lang, Record<TKey, string>> = {
     matchCharacter: 'Match character',
     frequentOpponents: 'Frequent opponents',
     frequentPartners: 'Frequent partners',
+    opponentsWin30d: '30 Days',
+    opponentsWin90d: '90 Days',
+    opponentsWin180d: '180 Days',
+    opponentsWin1y: '1 Year',
+    opponentsWinAll: 'All Time',
+    opponentsEmptyWindow: 'No opponents in this period',
     courtTime: 'Court time',
     avgMatch: 'Avg match',
     longestMatch: 'Longest match',
@@ -617,6 +625,12 @@ const dict: Record<Lang, Record<TKey, string>> = {
     matchCharacter: 'ลักษณะการแข่ง',
     frequentOpponents: 'คู่ต่อสู้ที่พบบ่อย',
     frequentPartners: 'คู่ที่เล่นด้วยกันบ่อย',
+    opponentsWin30d: '30 วัน',
+    opponentsWin90d: '90 วัน',
+    opponentsWin180d: '180 วัน',
+    opponentsWin1y: '1 ปี',
+    opponentsWinAll: 'ทั้งหมด',
+    opponentsEmptyWindow: 'ไม่มีคู่ต่อสู้ในช่วงเวลานี้',
     courtTime: 'เวลาในสนาม',
     avgMatch: 'แมตช์เฉลี่ย',
     longestMatch: 'แมตช์ยาวที่สุด',
