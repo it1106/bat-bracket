@@ -132,4 +132,12 @@ describe('buildIndex — single tournament', () => {
       if (totalDoublesMatches === 0) expect(p.partners.length).toBe(0)
     }
   })
+
+  it('emits opponentsByWindow with an "all" bucket identical to opponents', () => {
+    const { index } = buildIndex('bat', [toyota])
+    const sampleSlug = Object.keys(index.players).find(s => index.players[s].opponents.length > 0)!
+    const p = index.players[sampleSlug]
+    expect(p.opponentsByWindow).toBeDefined()
+    expect(p.opponentsByWindow!.all).toEqual(p.opponents)
+  })
 })
