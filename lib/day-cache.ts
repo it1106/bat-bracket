@@ -6,9 +6,6 @@ import { resolveRef } from '@/lib/tournaments-registry'
 
 export type DayCacheData = Pick<MatchesData, 'groups'>
 
-const DAYS_ROOT = path.join(process.cwd(), '.cache', 'days')
-const FULL_ROOT = path.join(process.cwd(), '.cache', 'full')
-
 // Lowercase as part of the safety transform so tournament-id casing collapses
 // at the cache-key layer. Tournament UUIDs arrive in mixed cases (URL params
 // from users, registry, discovery-store uppercase). Without this, the same
@@ -18,13 +15,15 @@ function safeSegment(s: string): string {
   return s.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase()
 }
 
+// process.cwd() is evaluated at call time (not at module load) so tests that
+// chdir into a tmp dir don't accidentally read/write the real repo's cache.
 export function cachePath(tournamentId: string, date: string): string {
   const day = date.slice(0, 10)
-  return path.join(DAYS_ROOT, safeSegment(tournamentId), `${safeSegment(day)}.json`)
+  return path.join(process.cwd(), '.cache', 'days', safeSegment(tournamentId), `${safeSegment(day)}.json`)
 }
 
 export function fullCachePath(tournamentId: string): string {
-  return path.join(FULL_ROOT, `${safeSegment(tournamentId)}.json`)
+  return path.join(process.cwd(), '.cache', 'full', `${safeSegment(tournamentId)}.json`)
 }
 
 export async function readDayCache(
