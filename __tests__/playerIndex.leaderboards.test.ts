@@ -6,6 +6,7 @@ import type { MatchesData, PlayerIndexTournamentInput, PlayerRecord } from '@/li
 function disc() { return { wins: 0, losses: 0, titles: 0, finals: 0, semis: 0 } }
 function synthPlayer(slug: string, name: string, opts: {
   wins: number; losses: number; courtMinutes?: number; matchesWithDuration?: number;
+  threeSetterWins?: number; threeSetterCount?: number;
 }): PlayerRecord {
   const matches = opts.wins + opts.losses
   return {
@@ -17,7 +18,9 @@ function synthPlayer(slug: string, name: string, opts: {
     matchCharacter: {
       courtMinutes: opts.courtMinutes ?? 0, avgMatchMinutes: 0,
       longestMatchMinutes: 0, longestMatchRef: null,
-      threeSetterCount: 0, threeSetterRate: 0, threeSetterWins: 0,
+      threeSetterCount: opts.threeSetterCount ?? 0,
+      threeSetterRate: 0,
+      threeSetterWins: opts.threeSetterWins ?? 0,
       comebackWins: 0, firstGameLost: 0, comebackWinRef: null,
       matchesLast90: 0, matchesWithDuration: opts.matchesWithDuration,
     },
@@ -123,5 +126,27 @@ describe('buildIndex — leaderboards', () => {
     const lb = buildLeaderboards('bat', players)
     const board = lb.boards.find(b => b.id === 'headline.courtTime')!
     expect(board.entries[0].display).toBe('1h (0)')
+  })
+
+  it('character.deciderRecord display includes (wins/total) behind the percent', () => {
+    const players: Record<string, PlayerRecord> = {
+      // 6/10 = 60%, qualifies
+      a: synthPlayer('a', 'Alpha', { wins: 6, losses: 4, threeSetterWins: 6, threeSetterCount: 10 }),
+      // 5/8 = 62.5% → rounds to 63%, qualifies
+      b: synthPlayer('b', 'Beta',  { wins: 5, losses: 3, threeSetterWins: 5, threeSetterCount: 8 }),
+      // 4 three-setters, below the min5 qualifier
+      c: synthPlayer('c', 'Gamma', { wins: 2, losses: 2, threeSetterWins: 2, threeSetterCount: 4 }),
+    }
+    const lb = buildLeaderboards('bat', players)
+    const board = lb.boards.find(b => b.id === 'character.deciderRecord')!
+    expect(board.entries.length).toBe(2)
+    for (const e of board.entries) {
+      const p = players[e.slug]
+      expect(e.display).toMatch(/^\d+% \(\d+\/\d+\)$/)
+      expect(e.display).toContain(`(${p.matchCharacter.threeSetterWins}/${p.matchCharacter.threeSetterCount})`)
+    }
+    // Spot-check Alpha: 6/10 = 60%.
+    expect(board.entries.find(e => e.slug === 'a')!.display).toBe('60% (6/10)')
+    expect(board.entries.find(e => e.slug === 'b')!.display).toBe('63% (5/8)')
   })
 })

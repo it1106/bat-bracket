@@ -126,7 +126,9 @@ export function buildLeaderboards(
     { id: 'character.deciderRecord', titleKey: 'lbDeciderRecord', icon: '⚖️', category: 'character', qualifier: 'min5',
       qualifies: p => p.matchCharacter.threeSetterCount >= 5,
       value: p => p.matchCharacter.threeSetterWins / Math.max(1, p.matchCharacter.threeSetterCount),
-      display: fmtPct, rankField: 'deciderRecord' },
+      display: (_n, p) =>
+        `${Math.round((p.matchCharacter.threeSetterWins / p.matchCharacter.threeSetterCount) * 100)}% (${p.matchCharacter.threeSetterWins}/${p.matchCharacter.threeSetterCount})`,
+      rankField: 'deciderRecord' },
     { id: 'character.threeGamers', titleKey: 'lb3Gamers', icon: '🎢', category: 'character', qualifier: 'min10',
       qualifies: p => p.totals.matches >= 10,
       value: p => p.matchCharacter.threeSetterCount / Math.max(1, p.totals.matches),
