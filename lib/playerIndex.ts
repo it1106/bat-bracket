@@ -6,6 +6,7 @@ import type {
   PlayerIndex, PlayerRecord, PlayerMatchRef, PlayerIndexTournamentInput,
   Leaderboards, LeaderboardBoard, DisciplineSummary, PlayerEventResult, PlayerRanks,
   PlayerTournamentMatch,
+  OpponentRecord, OpponentTimeWindow,
 } from './types'
 
 interface PerPlayerScratch {
@@ -228,6 +229,65 @@ function bump(map: Map<string, Map<string, number>>, slug: string, key: string):
   let inner = map.get(slug)
   if (!inner) { inner = new Map(); map.set(slug, inner) }
   inner.set(key, (inner.get(key) || 0) + 1)
+}
+
+const DAY_MS = 86_400_000
+const OPPONENT_WINDOW_DAYS: Record<Exclude<OpponentTimeWindow, 'all'>, number> = {
+  '30d': 30, '90d': 90, '180d': 180, '1y': 365,
+}
+
+/** Pure: returns top-12 OpponentRecord[] per time window.
+ *  Windows are measured backward from `nowMs` (the latest match date in the
+ *  dataset). Refs without a parseable `scheduledDateIso` are excluded from
+ *  windowed buckets but included in the `all` bucket. */
+export function buildOpponentsByWindow(
+  refs: PlayerMatchRef[],
+  nowMs: number,
+): Record<OpponentTimeWindow, OpponentRecord[]> {
+  const windows: OpponentTimeWindow[] = ['30d', '90d', '180d', '1y', 'all']
+  const buckets: Record<OpponentTimeWindow, OpponentRecord[]> = {
+    '30d': [], '90d': [], '180d': [], '1y': [], all: [],
+  }
+  for (const w of windows) {
+    const cutoff = w === 'all'
+      ? Number.NEGATIVE_INFINITY
+      : nowMs - OPPONENT_WINDOW_DAYS[w] * DAY_MS
+    const oppMap = new Map<string, {
+      name: string; meetings: number; wins: number; losses: number;
+      lastRound: string; lastEvent: string; lastIso: string;
+    }>()
+    for (const r of refs) {
+      const iso = r.scheduledDateIso || ''
+      if (w !== 'all') {
+        if (!iso) continue
+        const ts = Date.parse(iso)
+        if (isNaN(ts) || ts < cutoff) continue
+      }
+      for (let i = 0; i < r.opponentSlugs.length; i++) {
+        const oslug = r.opponentSlugs[i]
+        const oname = r.opponents[i] || ''
+        if (!oslug) continue
+        let acc = oppMap.get(oslug)
+        if (!acc) {
+          acc = { name: oname, meetings: 0, wins: 0, losses: 0,
+            lastRound: r.round, lastEvent: r.eventName, lastIso: iso }
+          oppMap.set(oslug, acc)
+        }
+        acc.meetings++
+        if (r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W') acc.wins++
+        else acc.losses++
+        if (iso > acc.lastIso) {
+          acc.lastIso = iso; acc.lastRound = r.round; acc.lastEvent = r.eventName
+        }
+      }
+    }
+    buckets[w] = Array.from(oppMap.entries())
+      .map(([slug, a]) => ({ slug, name: a.name, meetings: a.meetings,
+        wins: a.wins, losses: a.losses, lastRound: a.lastRound, lastEvent: a.lastEvent }))
+      .sort((a, b) => b.meetings - a.meetings || b.wins - a.wins || a.slug.localeCompare(b.slug))
+      .slice(0, 12)
+  }
+  return buckets
 }
 
 export function buildIndex(
@@ -523,27 +583,12 @@ export function buildIndex(
     rec.matchCharacter.comebackWinRef = comebackRef
     rec.matchCharacter.matchesLast90 = matchesLast90
 
-    // Opponents
-    const oppMap = new Map<string, { name: string; meetings: number; wins: number; losses: number; lastRound: string; lastEvent: string; lastIso: string }>()
-    for (const r of refs) {
-      for (let i = 0; i < r.opponentSlugs.length; i++) {
-        const oslug = r.opponentSlugs[i]
-        const oname = r.opponents[i] || ''
-        if (!oslug) continue
-        let acc = oppMap.get(oslug)
-        if (!acc) { acc = { name: oname, meetings: 0, wins: 0, losses: 0, lastRound: r.round, lastEvent: r.eventName, lastIso: r.scheduledDateIso || '' }; oppMap.set(oslug, acc) }
-        acc.meetings++
-        if (r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W') acc.wins++
-        else acc.losses++
-        if ((r.scheduledDateIso || '') > acc.lastIso) {
-          acc.lastIso = r.scheduledDateIso || ''; acc.lastRound = r.round; acc.lastEvent = r.eventName
-        }
-      }
-    }
-    rec.opponents = Array.from(oppMap.entries())
-      .map(([slug, a]) => ({ slug, name: a.name, meetings: a.meetings, wins: a.wins, losses: a.losses, lastRound: a.lastRound, lastEvent: a.lastEvent }))
-      .sort((a, b) => b.meetings - a.meetings || b.wins - a.wins || a.slug.localeCompare(b.slug))
-      .slice(0, 12)
+    // Opponents — top-12 per time window, plus a backward-compat `opponents`
+    // alias pointing at the all-time bucket. nowMs is the dataset's latest
+    // match (computed above), so values stay stable across rebuilds.
+    const oppByWindow = buildOpponentsByWindow(refs, nowMs)
+    rec.opponentsByWindow = oppByWindow
+    rec.opponents = oppByWindow.all
 
     // Partners
     const partMap = new Map<string, { name: string; matches: number; wins: number; losses: number; events: Map<string, number> }>()

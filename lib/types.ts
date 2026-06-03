@@ -415,6 +415,8 @@ export interface PlayerTournamentMatch {
 
 export type Discipline = 'singles' | 'doubles' | 'mixed'
 
+export type OpponentTimeWindow = '30d' | '90d' | '180d' | '1y' | 'all'
+
 export interface PlayerEventResult {
   tournamentId: string
   eventId: string
@@ -520,6 +522,13 @@ export interface PlayerRecord {
     matchesLast90: number
   }
   opponents: OpponentRecord[]
+  /** Top-12 opponents bucketed by time window. The `all` bucket is identical
+   *  to `opponents` (kept for backward-compat); windowed buckets contain
+   *  only meetings whose `scheduledDateIso` falls inside the window,
+   *  measured backward from the latest match in the dataset. Optional so a
+   *  previously-built index still loads — readers fall back to `opponents`
+   *  for the `all` tab and render an empty list for windowed tabs. */
+  opponentsByWindow?: Record<OpponentTimeWindow, OpponentRecord[]>
   partners: PartnerRecord[]
   ranks: PlayerRanks
 }

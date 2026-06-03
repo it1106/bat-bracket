@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import type { PlayerRecord, PlayerRanks, PlayerStats, WLRecord } from '@/lib/types'
+import type { PlayerRecord, PlayerRanks, PlayerStats, WLRecord, OpponentTimeWindow } from '@/lib/types'
 import { weekKeyFromPublishDate } from '@/lib/bat-ranking-player-view'
+import { useLanguage } from '@/lib/LanguageContext'
 import RankingDetailTabs from './RankingDetailTabs'
 
 interface Props {
@@ -38,8 +39,19 @@ const RANK_LABELS: Array<[keyof PlayerRanks, string, string]> = [
   ['threeSetterWins', '🔥', 'Three-setter Wins'],
 ]
 
+const OPPONENT_WINDOWS: Array<{ key: OpponentTimeWindow; labelKey:
+  'opponentsWin30d' | 'opponentsWin90d' | 'opponentsWin180d' | 'opponentsWin1y' | 'opponentsWinAll' }> = [
+  { key: '30d',  labelKey: 'opponentsWin30d'  },
+  { key: '90d',  labelKey: 'opponentsWin90d'  },
+  { key: '180d', labelKey: 'opponentsWin180d' },
+  { key: '1y',   labelKey: 'opponentsWin1y'   },
+  { key: 'all',  labelKey: 'opponentsWinAll'  },
+]
+
 export default function PlayerProfileView({ record, batRanking, rankingPublishDate, initialDetail }: Props) {
   const router = useRouter()
+  const { t } = useLanguage()
+  const [oppTab, setOppTab] = useState<OpponentTimeWindow>('all')
   const winPct = record.totals.matches > 0
     ? Math.round((record.totals.wins / record.totals.matches) * 100)
     : 0
@@ -333,23 +345,49 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
         </div>
       </div>
 
-      {record.opponents.length > 0 && (
-        <div className="pp-section">
-          <h2>Frequent opponents</h2>
-          <div className="pp-ppl-list">
-            {record.opponents.map(o => (
-              <Link key={o.slug} href={`/player/${record.key.provider}/${o.slug}`} className="pp-ppl-row">
-                <div>
-                  <div className="pp-ppl-name">{o.name}</div>
-                  <div className="pp-ppl-met">{o.meetings} meetings</div>
-                </div>
-                <div className="pp-ppl-wl"><span className="pp-w">{o.wins}W</span> · <span className="pp-l">{o.losses}L</span></div>
-                <div style={{ fontSize: 11, color: 'var(--muted)' }}>last: {o.lastRound} · {o.lastEvent}</div>
-              </Link>
-            ))}
+      {(() => {
+        const hasAny =
+          (record.opponentsByWindow?.all.length ?? record.opponents.length) > 0
+        if (!hasAny) return null
+        const list =
+          record.opponentsByWindow?.[oppTab] ??
+          (oppTab === 'all' ? record.opponents : [])
+        return (
+          <div className="pp-section">
+            <div className="pp-section-head">
+              <h2>{t('frequentOpponents')}</h2>
+              <div className="pp-time-tabs" role="tablist" aria-label={t('frequentOpponents')}>
+                {OPPONENT_WINDOWS.map(w => (
+                  <button
+                    key={w.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={oppTab === w.key}
+                    className={`pp-time-tab${oppTab === w.key ? ' active' : ''}`}
+                    onClick={() => setOppTab(w.key)}
+                  >{t(w.labelKey)}</button>
+                ))}
+              </div>
+            </div>
+            {list.length > 0 ? (
+              <div className="pp-ppl-list">
+                {list.map(o => (
+                  <Link key={o.slug} href={`/player/${record.key.provider}/${o.slug}`} className="pp-ppl-row">
+                    <div>
+                      <div className="pp-ppl-name">{o.name}</div>
+                      <div className="pp-ppl-met">{o.meetings} meetings</div>
+                    </div>
+                    <div className="pp-ppl-wl"><span className="pp-w">{o.wins}W</span> · <span className="pp-l">{o.losses}L</span></div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>last: {o.lastRound} · {o.lastEvent}</div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="pp-empty">{t('opponentsEmptyWindow')}</div>
+            )}
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {record.partners.length > 0 && (
         <div className="pp-section">

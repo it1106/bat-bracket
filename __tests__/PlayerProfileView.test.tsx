@@ -1,12 +1,21 @@
 /** @jest-environment jsdom */
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import PlayerProfileView from '@/components/PlayerProfileView'
+import { LanguageProvider } from '@/lib/LanguageContext'
 import type { PlayerRecord } from '@/lib/types'
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
 }))
+
+function renderProfile(record: PlayerRecord) {
+  return render(
+    <LanguageProvider>
+      <PlayerProfileView record={record} />
+    </LanguageProvider>,
+  )
+}
 
 // PlayerProfileView fetches /api/players/profile-extra on mount; stub it.
 beforeAll(() => {
@@ -39,24 +48,82 @@ const sample: PlayerRecord = {
 
 describe('PlayerProfileView', () => {
   it('renders the display name', () => {
-    render(<PlayerProfileView record={sample} />)
+    renderProfile(sample)
     expect(screen.getByText('Somchai Suksawat')).toBeTruthy()
   })
 
   it('renders the KPI strip values', () => {
-    render(<PlayerProfileView record={sample} />)
+    renderProfile(sample)
     expect(screen.getByText('24')).toBeTruthy()
     expect(screen.getByText('11')).toBeTruthy()
   })
 
   it('renders the tournament-history Champion chip', () => {
-    render(<PlayerProfileView record={sample} />)
+    renderProfile(sample)
     expect(screen.getByText(/Champion/i)).toBeTruthy()
   })
 
   it('renders rank badges from ranks map', () => {
-    render(<PlayerProfileView record={sample} />)
+    renderProfile(sample)
     expect(screen.getByText(/#18/)).toBeTruthy()
     expect(screen.getByText(/#34/)).toBeTruthy()
+  })
+
+  function withOpponents(extra: Partial<PlayerRecord> = {}): PlayerRecord {
+    const lifetime = [
+      { slug: 'lifetime-foe', name: 'Lifetime Foe', meetings: 5, wins: 3, losses: 2, lastRound: 'F', lastEvent: 'BS' },
+    ]
+    const recent = [
+      { slug: 'recent-foe', name: 'Recent Foe', meetings: 2, wins: 1, losses: 1, lastRound: 'R16', lastEvent: 'BS' },
+    ]
+    return {
+      ...sample,
+      opponents: lifetime,
+      opponentsByWindow: {
+        '30d': recent, '90d': recent, '180d': recent, '1y': lifetime, all: lifetime,
+      },
+      ...extra,
+    }
+  }
+
+  it('defaults to the All Time tab and renders the lifetime list', () => {
+    renderProfile(withOpponents())
+    expect(screen.getByText('Lifetime Foe')).toBeTruthy()
+    const allTab = screen.getByRole('tab', { name: 'All Time' })
+    expect(allTab.getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('switching to 30 Days shows the windowed list', () => {
+    renderProfile(withOpponents())
+    fireEvent.click(screen.getByRole('tab', { name: '30 Days' }))
+    expect(screen.getByText('Recent Foe')).toBeTruthy()
+    expect(screen.queryByText('Lifetime Foe')).toBeNull()
+  })
+
+  it('empty window shows the empty-state message but keeps the tab strip', () => {
+    const empty = withOpponents({
+      opponentsByWindow: {
+        '30d': [], '90d': [], '180d': [], '1y': [], all: [
+          { slug: 'a', name: 'A', meetings: 1, wins: 1, losses: 0, lastRound: 'F', lastEvent: 'BS' },
+        ],
+      },
+    })
+    renderProfile(empty)
+    fireEvent.click(screen.getByRole('tab', { name: '30 Days' }))
+    expect(screen.getByText('No opponents in this period')).toBeTruthy()
+    // Tab strip remains so the user can switch back
+    expect(screen.getByRole('tab', { name: 'All Time' })).toBeTruthy()
+  })
+
+  it('legacy record without opponentsByWindow still renders lifetime list on All Time tab', () => {
+    const legacy: PlayerRecord = {
+      ...sample,
+      opponents: [
+        { slug: 'legacy', name: 'Legacy Foe', meetings: 7, wins: 4, losses: 3, lastRound: 'SF', lastEvent: 'XD' },
+      ],
+      // opponentsByWindow intentionally omitted
+    }
+    renderProfile(legacy)
+    expect(screen.getByText('Legacy Foe')).toBeTruthy()
   })
 })
