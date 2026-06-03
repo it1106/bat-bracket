@@ -285,7 +285,7 @@ export function buildOpponentsByWindow(
       .map(([slug, a]) => ({ slug, name: a.name, meetings: a.meetings,
         wins: a.wins, losses: a.losses, lastRound: a.lastRound, lastEvent: a.lastEvent }))
       .sort((a, b) => b.meetings - a.meetings || b.wins - a.wins || a.slug.localeCompare(b.slug))
-      .slice(0, 12)
+      .slice(0, 25)
   }
   return buckets
 }

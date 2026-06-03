@@ -126,4 +126,61 @@ describe('PlayerProfileView', () => {
     renderProfile(legacy)
     expect(screen.getByText('Legacy Foe')).toBeTruthy()
   })
+
+  it('collapses opponents to top 10 with a Show more toggle', () => {
+    const fifteen = Array.from({ length: 15 }, (_, i) => ({
+      slug: `foe-${i}`, name: `Foe ${String(i).padStart(2, '0')}`,
+      meetings: 15 - i, wins: 15 - i, losses: 0, lastRound: 'R16', lastEvent: 'BS',
+    }))
+    const rec: PlayerRecord = {
+      ...sample,
+      opponents: fifteen,
+      opponentsByWindow: { '30d': fifteen, '90d': fifteen, '180d': fifteen, '1y': fifteen, all: fifteen },
+    }
+    renderProfile(rec)
+    // Collapsed: 10 visible, 11+ hidden.
+    expect(screen.getByText('Foe 00')).toBeTruthy()
+    expect(screen.getByText('Foe 09')).toBeTruthy()
+    expect(screen.queryByText('Foe 10')).toBeNull()
+    expect(screen.queryByText('Foe 14')).toBeNull()
+    // Show more click → all 15 visible.
+    fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
+    expect(screen.getByText('Foe 14')).toBeTruthy()
+    // Toggle flips to Show less.
+    expect(screen.getByRole('button', { name: 'Show less' })).toBeTruthy()
+  })
+
+  it('omits the Show more button when the list is at or below the cap', () => {
+    const eight = Array.from({ length: 8 }, (_, i) => ({
+      slug: `s-${i}`, name: `Short ${i}`, meetings: 8 - i, wins: 8 - i, losses: 0,
+      lastRound: 'R16', lastEvent: 'BS',
+    }))
+    const rec: PlayerRecord = {
+      ...sample,
+      opponents: eight,
+      opponentsByWindow: { '30d': eight, '90d': eight, '180d': eight, '1y': eight, all: eight },
+    }
+    renderProfile(rec)
+    expect(screen.getByText('Short 0')).toBeTruthy()
+    expect(screen.getByText('Short 7')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Show more' })).toBeNull()
+  })
+
+  it('switching tabs while expanded resets the list back to top 10', () => {
+    const fifteen = Array.from({ length: 15 }, (_, i) => ({
+      slug: `foe-${i}`, name: `Foe ${String(i).padStart(2, '0')}`,
+      meetings: 15 - i, wins: 15 - i, losses: 0, lastRound: 'R16', lastEvent: 'BS',
+    }))
+    const rec: PlayerRecord = {
+      ...sample,
+      opponents: fifteen,
+      opponentsByWindow: { '30d': fifteen, '90d': fifteen, '180d': fifteen, '1y': fifteen, all: fifteen },
+    }
+    renderProfile(rec)
+    fireEvent.click(screen.getByRole('button', { name: 'Show more' }))
+    expect(screen.getByText('Foe 14')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: '30 Days' }))
+    expect(screen.queryByText('Foe 14')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Show more' })).toBeTruthy()
+  })
 })

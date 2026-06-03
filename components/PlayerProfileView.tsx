@@ -52,6 +52,8 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
   const router = useRouter()
   const { t } = useLanguage()
   const [oppTab, setOppTab] = useState<OpponentTimeWindow>('all')
+  const [oppExpanded, setOppExpanded] = useState(false)
+  const OPP_COLLAPSED_LIMIT = 10
   const winPct = record.totals.matches > 0
     ? Math.round((record.totals.wins / record.totals.matches) * 100)
     : 0
@@ -352,6 +354,8 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
         const list =
           record.opponentsByWindow?.[oppTab] ??
           (oppTab === 'all' ? record.opponents : [])
+        const visibleList = oppExpanded ? list : list.slice(0, OPP_COLLAPSED_LIMIT)
+        const hasMore = list.length > OPP_COLLAPSED_LIMIT
         return (
           <div className="pp-section">
             <div className="pp-section-head">
@@ -364,24 +368,33 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
                     role="tab"
                     aria-selected={oppTab === w.key}
                     className={`pp-time-tab${oppTab === w.key ? ' active' : ''}`}
-                    onClick={() => setOppTab(w.key)}
+                    onClick={() => { setOppTab(w.key); setOppExpanded(false) }}
                   >{t(w.labelKey)}</button>
                 ))}
               </div>
             </div>
             {list.length > 0 ? (
-              <div className="pp-ppl-list">
-                {list.map(o => (
-                  <Link key={o.slug} href={`/player/${record.key.provider}/${o.slug}`} className="pp-ppl-row">
-                    <div>
-                      <div className="pp-ppl-name">{o.name}</div>
-                      <div className="pp-ppl-met">{o.meetings} meetings</div>
-                    </div>
-                    <div className="pp-ppl-wl"><span className="pp-w">{o.wins}W</span> · <span className="pp-l">{o.losses}L</span></div>
-                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>last: {o.lastRound} · {o.lastEvent}</div>
-                  </Link>
-                ))}
-              </div>
+              <>
+                <div className="pp-ppl-list">
+                  {visibleList.map(o => (
+                    <Link key={o.slug} href={`/player/${record.key.provider}/${o.slug}`} className="pp-ppl-row">
+                      <div>
+                        <div className="pp-ppl-name">{o.name}</div>
+                        <div className="pp-ppl-met">{o.meetings} meetings</div>
+                      </div>
+                      <div className="pp-ppl-wl"><span className="pp-w">{o.wins}W</span> · <span className="pp-l">{o.losses}L</span></div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>last: {o.lastRound} · {o.lastEvent}</div>
+                    </Link>
+                  ))}
+                </div>
+                {hasMore && (
+                  <button
+                    type="button"
+                    className="pp-show-more"
+                    onClick={() => setOppExpanded(v => !v)}
+                  >{oppExpanded ? t('leaderboardsShowLess') : t('leaderboardsShowMore')}</button>
+                )}
+              </>
             ) : (
               <div className="pp-empty">{t('opponentsEmptyWindow')}</div>
             )}
