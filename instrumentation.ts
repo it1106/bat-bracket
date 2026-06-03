@@ -32,6 +32,33 @@ export async function register() {
       } catch (err) {
         console.warn('[player-index] boot rebuild failed:', err)
       }
+      // Preload stats cache for every already-pinned tournament. The
+      // generator is a no-op when an envelope is already current, so this
+      // pass is cheap on subsequent boots — it only does real work for the
+      // tail of tournaments that pinned without anyone ever opening their
+      // stats panel.
+      try {
+        const port = process.env.PORT || '3000'
+        const origin = `http://127.0.0.1:${port}`
+        const { ensureStatsCachedForTournament } = await import('./lib/stats-generator')
+        const fs = await import('fs')
+        const path = await import('path')
+        const fullDir = path.join(process.cwd(), '.cache', 'full')
+        const files = await fs.promises.readdir(fullDir).catch(() => [] as string[])
+        const ids = files
+          .filter(f => f.endsWith('.json'))
+          .map(f => f.replace(/\.json$/, '').toUpperCase())
+        let wrote = 0, fresh = 0, skip = 0
+        for (const id of ids) {
+          const res = await ensureStatsCachedForTournament(id, origin)
+          if (res === 'wrote') wrote++
+          else if (res === 'fresh') fresh++
+          else skip++
+        }
+        console.log(`[stats-cache] boot preload: wrote=${wrote} fresh=${fresh} skip=${skip} total=${ids.length}`)
+      } catch (err) {
+        console.warn('[stats-cache] boot preload failed:', err)
+      }
       // BWF: prime Chromium context so first user request doesn't pay cold-start.
       // Skip if no BWF tournament is currently active — Chromium otherwise sits
       // around using ~250-500 MB for nothing. The first real BWF request will
@@ -81,6 +108,15 @@ export async function register() {
             }
             const result = await rebuildAll({ ensureDay: makeOriginDayFetcher(origin), activeData })
             console.log(`[auto-rebuild] player index rebuilt: ${JSON.stringify(result)}`)
+          }
+          // Newly-pinned tournaments: preload their stats so the first user
+          // to open the panel gets the cached aggregate, not a fresh compute.
+          if (newlyPinned.length > 0) {
+            const { ensureStatsCachedForTournament } = await import('./lib/stats-generator')
+            for (const id of newlyPinned) {
+              const res = await ensureStatsCachedForTournament(id.toUpperCase(), origin)
+              console.log(`[stats-cache] tick newlyPinned id=${id} status=${res}`)
+            }
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'unknown'
