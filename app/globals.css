@@ -2595,6 +2595,22 @@ html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
 .pp-source-note { font-size: 11px; color: var(--muted); margin-top: 18px;
   text-align: center; padding-bottom: 24px; }
 
+.pp-section-head { display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.pp-section-head h2 { margin: 0; }
+
+.pp-time-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.pp-time-tab { padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: transparent;
+  font-size: 11px; font-weight: 600; color: var(--muted); cursor: pointer;
+  letter-spacing: 0.03em; text-transform: uppercase;
+  transition: background 0.15s, color 0.15s, border-color 0.15s; }
+.pp-time-tab:hover { background: var(--bg); color: var(--fg); }
+.pp-time-tab.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+.pp-empty { padding: 12px 8px; font-size: 12px; color: var(--muted);
+  text-align: center; font-style: italic; }
+
 /* ── Deep player stats: leaderboards page (.lb-*) ── */
 .lb-page { max-width: 1080px; margin: 0 auto; padding: 16px; }
 .lb-hdr { background: var(--surface); border: 1px solid var(--border);
