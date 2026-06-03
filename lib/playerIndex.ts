@@ -86,7 +86,6 @@ export function buildLeaderboards(
     display: (n: number, p: PlayerRecord) => string;
     rankField: keyof PlayerRanks;
   }
-  const fmtPct = (n: number) => `${Math.round(n * 100)}%`
   const fmtHours = (n: number) => {
     if (n < 60) return `${n}m`
     const h = Math.floor(n / 60); const m = n % 60
