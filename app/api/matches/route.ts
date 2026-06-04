@@ -37,11 +37,17 @@ function dayCacheTtlMs(dateIso: string, todayIso: string): number {
 // full) so a single bad date doesn't pause requests for other dates.
 const BAT_BACKOFF_MS = 30_000
 const batFailureAt = new Map<string, number>()
-// When mem-cache has a stale entry to fall back on, cap BAT fetches tightly
-// so users don't wait the full 30 s default just to be served cache. If
-// nothing is cached, fall through to bat-fetch's default — better a slow
-// real answer than a 500 for a first-time visitor.
-const BAT_TIMEOUT_WITH_FALLBACK_MS = 5_000
+// When mem-cache has a stale entry to fall back on, cap BAT fetches tighter
+// than the 30 s default so users don't wait that long just to be served
+// cache. Sized to accommodate normal BAT response times (handshake is
+// usually 1-3 s for matches-full; the body stream isn't bounded by this
+// timer — see bat-fetch.ts) plus headroom. Too tight here re-creates the
+// false-unreachable banner: 5 s was misclassifying healthy 3-4 s BAT
+// handshakes as outages, then the 30 s circuit breaker propagated the
+// false signal across subsequent requests. If nothing is cached, fall
+// through to bat-fetch's default — better a slow real answer than a 500
+// for a first-time visitor.
+const BAT_TIMEOUT_WITH_FALLBACK_MS = 15_000
 
 function inBackoff(key: string): boolean {
   const t = batFailureAt.get(key)
