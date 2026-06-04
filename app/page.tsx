@@ -148,6 +148,7 @@ export default function Home() {
     if (d.isPlayoff && d.eventName) eventToPlayoffDrawNum[d.eventName] = d.drawNum
   }
   const [playerQuery, setPlayerQuery] = useState('')
+  const lastSearchTrackedRef = useRef('')
   const [highlightResults, setHighlightResults] = useState(true)
   const [excludeCompleted, setExcludeCompleted] = useState(false)
   const [loadingTournaments, setLoadingTournaments] = useState(true)
@@ -568,6 +569,20 @@ export default function Home() {
       draw_name: d?.name ?? '',
     })
   }, [selectedDraw, draws, selectedTournament, tournamentName])
+
+  useEffect(() => {
+    const q = playerQuery.trim()
+    if (q.length < 5 || q === lastSearchTrackedRef.current) return
+    const id = setTimeout(() => {
+      lastSearchTrackedRef.current = q
+      track('player_searched', {
+        length: q.length,
+        tournament_id: selectedTournament || null,
+        draw_id: selectedDraw || null,
+      })
+    }, 400)
+    return () => clearTimeout(id)
+  }, [playerQuery, selectedTournament, selectedDraw])
 
   const fetchBracketFrom = useCallback(async (tournamentId: string, drawNum: string, round: number) => {
     setLoadingBracket(true)
