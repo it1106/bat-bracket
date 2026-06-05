@@ -409,3 +409,72 @@ describe('buildMultiEventEntries', () => {
     ])
   })
 })
+
+import { buildPotentialCollisions } from '@/lib/tournamentStats'
+
+describe('buildPotentialCollisions', () => {
+  test('returns empty when overview is undefined', () => {
+    expect(buildPotentialCollisions(undefined, {})).toEqual([])
+  })
+
+  test('produces SF + F for a 4-seed event using convention (1v4, 2v3)', () => {
+    const overview: TournamentOverview = {
+      notes: [],
+      seedEvents: [{
+        eventName: 'MS',
+        seeds: [
+          { seed: 1, players: ['p1'] },
+          { seed: 2, players: ['p2'] },
+          { seed: 3, players: ['p3'] },
+          { seed: 4, players: ['p4'] },
+        ],
+      }],
+    }
+    const clubs = { p1: 'A', p2: 'B', p3: 'C', p4: 'D' }
+    const out = buildPotentialCollisions(overview, clubs)
+    expect(out).toEqual([{
+      event: 'MS',
+      semis: [
+        { sideA: { seed: 1, players: ['p1'], club: 'A' }, sideB: { seed: 4, players: ['p4'], club: 'D' } },
+        { sideA: { seed: 2, players: ['p2'], club: 'B' }, sideB: { seed: 3, players: ['p3'], club: 'C' } },
+      ],
+      final: {
+        sideA: { seed: 1, players: ['p1'], club: 'A' },
+        sideB: { seed: 2, players: ['p2'], club: 'B' },
+      },
+    }])
+  })
+
+  test('skips events with fewer than 4 seeded players', () => {
+    const overview: TournamentOverview = {
+      notes: [],
+      seedEvents: [{
+        eventName: 'WS',
+        seeds: [
+          { seed: 1, players: ['x'] },
+          { seed: 2, players: ['y'] },
+          { seed: 3, players: ['z'] },
+        ],
+      }],
+    }
+    expect(buildPotentialCollisions(overview, {})).toEqual([])
+  })
+
+  test('omits club when not in lookup', () => {
+    const overview: TournamentOverview = {
+      notes: [],
+      seedEvents: [{
+        eventName: 'XD',
+        seeds: [
+          { seed: 1, players: ['a'] },
+          { seed: 2, players: ['b'] },
+          { seed: 3, players: ['c'] },
+          { seed: 4, players: ['d'] },
+        ],
+      }],
+    }
+    const out = buildPotentialCollisions(overview, {})
+    expect(out[0].semis[0].sideA.club).toBeUndefined()
+    expect(out[0].final?.sideB.club).toBeUndefined()
+  })
+})

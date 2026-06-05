@@ -694,6 +694,36 @@ export function buildMultiEventEntries(
   })
 }
 
+export function buildPotentialCollisions(
+  overview: TournamentOverview | undefined,
+  clubs: Record<string, string>,
+): StatsPotentialCollision[] {
+  if (!overview) return []
+  const refOf = (seed: number, players: string[]): StatsCollisionSeedRef => {
+    const ref: StatsCollisionSeedRef = { seed, players }
+    const club = players.map((id) => clubs[id]).find((c) => c)
+    if (club) ref.club = club
+    return ref
+  }
+  const out: StatsPotentialCollision[] = []
+  for (const ev of overview.seedEvents) {
+    const byNum = new Map<number, string[]>()
+    for (const s of ev.seeds) byNum.set(s.seed, s.players)
+    const s1 = byNum.get(1), s2 = byNum.get(2), s3 = byNum.get(3), s4 = byNum.get(4)
+    if (!s1 || !s2 || !s3 || !s4) continue
+    const r1 = refOf(1, s1), r2 = refOf(2, s2), r3 = refOf(3, s3), r4 = refOf(4, s4)
+    out.push({
+      event: ev.eventName,
+      semis: [
+        { sideA: r1, sideB: r4 },
+        { sideA: r2, sideB: r3 },
+      ],
+      final: { sideA: r1, sideB: r2 },
+    })
+  }
+  return out
+}
+
 export function buildSeedHeadlines(
   overview: TournamentOverview | undefined,
   clubs: Record<string, string>,
