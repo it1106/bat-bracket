@@ -566,3 +566,48 @@ describe('kpis entries/draws', () => {
     expect(stats.kpis.draws).toBe(0)
   })
 })
+
+import type { DrawInfo } from '@/lib/types'
+
+describe('events pre-match decoration', () => {
+  test('decorates with size, type, entries, topSeed when draws+overview present', () => {
+    const data = { days: [] } as unknown as MatchesData
+    // rosterByDraw is keyed by draw NAME (matches production: roster.set(d.name, ...))
+    const roster = new Map<string, MatchEntry[]>([
+      ['MS', [fakeRosterEntry('MS', ['p1']), fakeRosterEntry('MS', ['p2']), fakeRosterEntry('MS', ['p3'])]],
+    ])
+    const draws: DrawInfo[] = [{ drawNum: '10', name: 'MS', size: '16', type: 'Knockout', eventName: 'MS' }]
+    const overview: TournamentOverview = { notes: [], seedEvents: [{ eventName: 'MS', seeds: [{ seed: 1, players: ['p1'] }] }] }
+    const clubs = { p1: 'A' }
+    const stats = aggregate(data, new Map(), clubs, roster, {}, { draws, overview })
+    expect(stats.events).toHaveLength(1)
+    expect(stats.events[0]).toEqual(expect.objectContaining({
+      name: 'MS',
+      size: 16,
+      type: 'KO',
+      entries: 3,
+      topSeed: { players: ['p1'], club: 'A' },
+    }))
+  })
+
+  test('maps Round Robin draws to RR+PO type', () => {
+    const data = { days: [] } as unknown as MatchesData
+    const roster = new Map<string, MatchEntry[]>([
+      ['U17 MS', [fakeRosterEntry('U17 MS', ['x'])]],
+    ])
+    const draws: DrawInfo[] = [{ drawNum: '11', name: 'U17 MS', size: '8', type: 'Round Robin', eventName: 'U17 MS' }]
+    const stats = aggregate(data, new Map(), {}, roster, {}, { draws })
+    expect(stats.events[0]).toEqual(expect.objectContaining({ type: 'RR+PO', size: 8 }))
+  })
+
+  test('leaves pre-match fields undefined when draws not provided', () => {
+    const data = { days: [] } as unknown as MatchesData
+    const roster = new Map<string, MatchEntry[]>([
+      ['WS', [fakeRosterEntry('WS', ['w1'])]],
+    ])
+    const stats = aggregate(data, new Map(), {}, roster, {})
+    expect(stats.events[0]).toEqual(expect.objectContaining({ name: 'WS' }))
+    expect(stats.events[0].size).toBeUndefined()
+    expect(stats.events[0].type).toBeUndefined()
+  })
+})

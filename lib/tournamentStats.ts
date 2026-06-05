@@ -228,6 +228,9 @@ export function eventRank(name: string): number {
 function buildEvents(
   ctxs: MatchCtx[],
   rosterByDraw?: Map<string, MatchEntry[]>,
+  draws?: DrawInfo[],
+  overview?: TournamentOverview,
+  clubs?: Record<string, string>,
 ): ComputedStats['events'] {
   interface Acc {
     matches: number; threeSetters: number; walkovers: number; decided: number;
@@ -281,6 +284,41 @@ function buildEvents(
     }
     byEvent.set(key, a)
   }
+  const drawByEvent = new Map<string, DrawInfo>()
+  if (draws) {
+    for (const d of draws) {
+      const key = d.eventName ?? d.name
+      if (!drawByEvent.has(key)) drawByEvent.set(key, d)
+    }
+  }
+  const topSeedByEvent = new Map<string, StatsSeedHead>()
+  if (overview) {
+    for (const ev of overview.seedEvents) {
+      const s1 = ev.seeds.find((s) => s.seed === 1)
+      if (!s1) continue
+      const head: StatsSeedHead = { players: s1.players }
+      const club = s1.players.map((id) => (clubs ?? {})[id]).find((c) => c)
+      if (club) head.club = club
+      topSeedByEvent.set(ev.eventName, head)
+    }
+  }
+  const entryCountByEvent = new Map<string, number>()
+  if (rosterByDraw) {
+    const playersByEvent = new Map<string, Set<string>>()
+    for (const entries of rosterByDraw.values()) {
+      for (const e of entries) {
+        const ev = e.eventName ?? e.draw
+        if (!ev) continue
+        let set = playersByEvent.get(ev)
+        if (!set) { set = new Set(); playersByEvent.set(ev, set) }
+        for (const p of [...e.team1, ...e.team2]) {
+          if (p.playerId) set.add(p.playerId)
+        }
+      }
+    }
+    for (const [ev, set] of playersByEvent) entryCountByEvent.set(ev, set.size)
+  }
+
   const rows = Array.from(byEvent.entries()).map(([name, a]): ComputedStats['events'][number] => {
     let winner: string[] = []
     let winnerSeed: string | undefined
@@ -291,7 +329,7 @@ function buildEvents(
       const firstSeed = stripped.find((x) => x.seed)?.seed
       if (firstSeed) winnerSeed = firstSeed
     }
-    return {
+    const row: ComputedStats['events'][number] = {
       name,
       matches: a.matches,
       threeSetters: a.threeSetters,
@@ -302,6 +340,18 @@ function buildEvents(
       winner,
       winnerSeed,
     }
+    const di = drawByEvent.get(name)
+    if (di) {
+      const size = parseInt(di.size, 10)
+      if (size > 0) row.size = size
+      const t = di.type.toLowerCase()
+      row.type = t.includes('round robin') || t.includes('group') ? 'RR+PO' : 'KO'
+    }
+    const evEntries = entryCountByEvent.get(name)
+    if (typeof evEntries === 'number') row.entries = evEntries
+    const topSeed = topSeedByEvent.get(name)
+    if (topSeed) row.topSeed = topSeed
+    return row
   })
   rows.sort((a, b) => eventRank(a.name) - eventRank(b.name) || (a.name < b.name ? -1 : 1))
   return rows
@@ -807,25 +857,37 @@ export function buildSeedHeadlines(
   }))
 }
 
+export interface AggregateExtras {
+  draws?: DrawInfo[]
+  overview?: TournamentOverview
+  priorEditionWinners?: PriorEditionWinnerMap
+}
+
 export function aggregate(
   data: MatchesData,
   dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
   clubs: Record<string, string>,
   rosterByDraw?: Map<string, MatchEntry[]>,
   names: Record<string, string> = {},
+  extras: AggregateExtras = {},
 ): ComputedStats {
   const ctxs: MatchCtx[] = Array.from(iterateMatches(data, dayGroupsByDate))
   const rosterSize = rosterByDraw ? rosterByDraw.size : 0
   // clubRosters is derived purely from the clubs map (playerId -> club), so
   // it's meaningful even before any match is scheduled — register-then-show.
   if (ctxs.length === 0 && rosterSize === 0) {
-    return { ...EMPTY, clubRosters: buildClubRosters(clubs, names), countryRosters: buildCountryRosters(ctxs, rosterByDraw) }
+    const base: ComputedStats = {
+      ...EMPTY,
+      clubRosters: buildClubRosters(clubs, names),
+      countryRosters: buildCountryRosters(ctxs, rosterByDraw),
+    }
+    return decorateOptional(base, extras, clubs, names, rosterByDraw, data, dayGroupsByDate)
   }
   const { clubMedals, multiGoldPlayers } = buildClubMedalsAndMultiGold(ctxs, clubs)
-  return {
+  const base: ComputedStats = {
     kpis: buildKpis(ctxs, rosterByDraw),
     dailyVolume: buildDailyVolume(data, ctxs),
-    events: buildEvents(ctxs, rosterByDraw),
+    events: buildEvents(ctxs, rosterByDraw, extras.draws, extras.overview, clubs),
     drama: buildDrama(ctxs),
     topPlayers: buildTopPlayers(ctxs, clubs),
     courtUtilization: buildCourtUtilization(ctxs),
@@ -835,4 +897,36 @@ export function aggregate(
     countryRosters: buildCountryRosters(ctxs, rosterByDraw),
     integrity: buildIntegrity(ctxs),
   }
+  return decorateOptional(base, extras, clubs, names, rosterByDraw, data, dayGroupsByDate)
+}
+
+function decorateOptional(
+  base: ComputedStats,
+  extras: AggregateExtras,
+  clubs: Record<string, string>,
+  names: Record<string, string>,
+  rosterByDraw: Map<string, MatchEntry[]> | undefined,
+  data: MatchesData,
+  dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
+): ComputedStats {
+  const seedHeadlines = buildSeedHeadlines(extras.overview, clubs)
+  if (seedHeadlines.length) base.seedHeadlines = seedHeadlines
+  const multiEventEntries = buildMultiEventEntries(rosterByDraw, clubs, names)
+  if (multiEventEntries.length) base.multiEventEntries = multiEventEntries
+  const collisions = buildPotentialCollisions(extras.overview, clubs)
+  if (collisions.length) base.potentialCollisions = collisions
+  const defending = buildDefendingChampion(extras.priorEditionWinners, extras.overview, clubs)
+  if (defending.length) base.defendingChampion = defending
+  const preview = buildSchedulePreview(data, dayGroupsByDate)
+  if (preview) base.schedulePreview = preview
+  return base
+}
+
+// Temporary stub — replaced in Task 11 with the real implementation.
+export function buildDefendingChampion(
+  _winners: PriorEditionWinnerMap | undefined,
+  _overview: TournamentOverview | undefined,
+  _clubs: Record<string, string>,
+): StatsDefendingChampion[] {
+  return []
 }
