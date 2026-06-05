@@ -319,3 +319,49 @@ describe('tournamentStats — grouped events collapse to parent', () => {
     expect(gs.players).toBe(2)
   })
 })
+
+// ─── Pre-match builders ──────────────────────────────────────
+import { buildSeedHeadlines } from '@/lib/tournamentStats'
+import type { TournamentOverview } from '@/lib/types'
+
+describe('buildSeedHeadlines', () => {
+  test('returns empty when overview is undefined', () => {
+    expect(buildSeedHeadlines(undefined, {})).toEqual([])
+  })
+
+  test('returns top-2 seeds per event with club lookups', () => {
+    const overview: TournamentOverview = {
+      notes: [],
+      seedEvents: [
+        {
+          eventName: 'MS',
+          seeds: [
+            { seed: 1, players: ['p1'] },
+            { seed: 2, players: ['p2'] },
+            { seed: 3, players: ['p3'] },
+          ],
+        },
+      ],
+    }
+    const clubs: Record<string, string> = { p1: 'CLUB-A', p2: 'CLUB-B' }
+    expect(buildSeedHeadlines(overview, clubs)).toEqual([
+      {
+        event: 'MS',
+        seeds: [
+          { seed: 1, players: ['p1'], club: 'CLUB-A' },
+          { seed: 2, players: ['p2'], club: 'CLUB-B' },
+        ],
+      },
+    ])
+  })
+
+  test('omits club when not in lookup', () => {
+    const overview: TournamentOverview = {
+      notes: [],
+      seedEvents: [{ eventName: 'WS', seeds: [{ seed: 1, players: ['x'] }] }],
+    }
+    expect(buildSeedHeadlines(overview, {})).toEqual([
+      { event: 'WS', seeds: [{ seed: 1, players: ['x'] }] },
+    ])
+  })
+})

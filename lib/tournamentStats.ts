@@ -1,17 +1,30 @@
 import { longRoundL } from './i18n'
 import type {
   ComputedStats,
+  DrawInfo,
   MatchEntry,
   MatchScheduleGroup,
   MatchesData,
   StatsClubMedalist,
   StatsClubRoster,
+  StatsCollisionSeedRef,
   StatsCountryRoster,
   StatsCourtTimePlayer,
+  StatsDefendingChampion,
   StatsKpis,
   StatsMatchRef,
+  StatsMultiEventEntry,
+  StatsPotentialCollision,
+  StatsScheduleCourtBucket,
+  StatsScheduledMatch,
+  StatsSchedulePreview,
+  StatsSeedHead,
+  StatsSeedHeadline,
+  StatsSeedHeadlineSeed,
   StatsSetRef,
+  TournamentOverview,
 } from './types'
+import type { PriorEditionWinnerMap } from './priorEdition'
 
 const EMPTY: ComputedStats = {
   kpis: {
@@ -638,6 +651,27 @@ function buildCountryRosters(
       members: members.sort((a, b) => a.localeCompare(b)),
     }))
     .sort((a, b) => b.players - a.players || a.country.localeCompare(b.country))
+}
+
+// ─── Pre-match builders ─────────────────────────────────────────────
+
+export function buildSeedHeadlines(
+  overview: TournamentOverview | undefined,
+  clubs: Record<string, string>,
+): StatsSeedHeadline[] {
+  if (!overview) return []
+  return overview.seedEvents.map((ev) => ({
+    event: ev.eventName,
+    seeds: ev.seeds
+      .filter((s) => s.seed === 1 || s.seed === 2)
+      .sort((a, b) => a.seed - b.seed)
+      .map((s) => {
+        const head: StatsSeedHeadlineSeed = { seed: s.seed, players: s.players }
+        const club = s.players.map((id) => clubs[id]).find((c) => c)
+        if (club) head.club = club
+        return head
+      }),
+  }))
 }
 
 export function aggregate(
