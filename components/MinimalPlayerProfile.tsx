@@ -23,6 +23,10 @@ interface Props {
   /** Country derived from the ranking entry's `club` field. BWF stores
    *  the player's country there; an empty string hides the row. */
   country: string
+  /** Optional BWF flag image URL (protocol-relative
+   *  `//static.tournamentsoftware.com/.../flags/{IOC3}.svg`). When present,
+   *  rendered next to the country name instead of the globe glyph. */
+  countryFlagUrl?: string
   playerRankings: RankingPlayerRank[]
   rankingPublishDate?: string
   initialDetail?: RankingPlayerDetail
@@ -43,6 +47,7 @@ export default function MinimalPlayerProfile({
   slug,
   displayName,
   country,
+  countryFlagUrl,
   playerRankings,
   rankingPublishDate,
   initialDetail,
@@ -66,7 +71,14 @@ export default function MinimalPlayerProfile({
       <div className="pp-hdr">
         <h1>{displayName}</h1>
         <div className="pp-meta">
-          {country && <span>🌐 <strong>{country}</strong></span>}
+          {country && (
+            <span>
+              {countryFlagUrl
+                ? <img className="pp-meta-flag" src={countryFlagUrl} alt="" />
+                : '🌐 '}
+              <strong>{country}</strong>
+            </span>
+          )}
         </div>
       </div>
 

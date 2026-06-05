@@ -56,6 +56,16 @@ describe('parseCategoryPage', () => {
       expect(e.globalPlayerId).toMatch(/^\d+$/)
     }
   })
+
+  it('captures countryFlagUrl from BWF rows', () => {
+    const entries = parseCategoryPage(fix('ranking-category-bwf.html'))
+    // The first U17 BS player in the BWF fixture is Indonesian.
+    expect(entries[0].countryFlagUrl).toMatch(/\/flags\/[A-Z]{3}\.svg$/)
+    // Every row in the fixture has a flag.
+    for (const e of entries) {
+      expect(e.countryFlagUrl).toBeTruthy()
+    }
+  })
 })
 
 describe('parseCategoryList', () => {

@@ -2497,6 +2497,15 @@ html.dark .ms-match--next-opp {
 .pp-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px;
   color: var(--muted); font-size: 13px; }
 .pp-meta strong { color: var(--fg); font-weight: 600; }
+.pp-meta-flag {
+  display: inline-block;
+  width: 16px;
+  height: 12px;
+  object-fit: cover;
+  border-radius: 1px;
+  vertical-align: -1px;
+  margin-right: 6px;
+}
 .pp-badges { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .pp-rank-badge { display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 11px 5px 8px; border-radius: 999px;

@@ -16,6 +16,9 @@ interface Props {
   /** Current overview cache for the player's provider, forwarded to the
    *  ranking-detail panel so it can resolve the player's per-event rank. */
   currentRanking?: import('@/lib/types').Ranking | null
+  /** Optional BWF country-flag URL captured at scrape time. When present,
+   *  rendered next to the country name instead of the globe glyph. */
+  countryFlagUrl?: string
 }
 
 function fmtPct(n: number): string { return `${Math.round(n * 100)}%` }
@@ -52,7 +55,7 @@ const OPPONENT_WINDOWS: Array<{ key: OpponentTimeWindow; labelKey:
   { key: 'all',  labelKey: 'opponentsWinAll'  },
 ]
 
-export default function PlayerProfileView({ record, playerRankings, rankingPublishDate, initialDetail, currentRanking }: Props) {
+export default function PlayerProfileView({ record, playerRankings, rankingPublishDate, initialDetail, currentRanking, countryFlagUrl }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
   const [oppTab, setOppTab] = useState<OpponentTimeWindow>('all')
@@ -125,7 +128,14 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
         <div className="pp-meta">
           {record.clubs[0] && <span>🏛 <strong>{record.clubs[0]}</strong></span>}
           {extra?.yob && <span>🎂 <strong>{extra.yob}</strong></span>}
-          {record.country && <span>🌐 <strong>{record.country}</strong></span>}
+          {record.country && (
+            <span>
+              {countryFlagUrl
+                ? <img className="pp-meta-flag" src={countryFlagUrl} alt="" />
+                : '🌐 '}
+              <strong>{record.country}</strong>
+            </span>
+          )}
           <span>🏸 <strong>{record.tournaments.length}</strong> tournaments · {record.totals.matches} matches</span>
         </div>
         <div className="pp-badges">
