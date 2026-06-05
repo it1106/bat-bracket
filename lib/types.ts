@@ -560,6 +560,9 @@ export interface LeaderboardEntry {
   qualifier?: string
   provider?: ProviderTag   // per-entry override for profile link; used by combined leaderboard
   extra?: string           // optional secondary stat shown between name and value
+  /** Country-flag image URL (protocol-relative). Today populated only for
+   *  BWF ranking entries; the renderer shows nothing when absent. */
+  flagUrl?: string
 }
 
 export type LeaderboardCategory = 'headline' | 'discipline' | 'character' | 'activity' | 'ranking'

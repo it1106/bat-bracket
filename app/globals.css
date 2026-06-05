@@ -2700,6 +2700,15 @@ html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
 .lb-row .lb-rk.lb-r2 { color: #c0c0c0; }
 .lb-row .lb-rk.lb-r3 { color: #cd7f32; }
 .lb-row .lb-club { font-size: 10px; color: var(--muted); }
+.lb-row .lb-flag {
+  display: inline-block;
+  width: 14px;
+  height: 11px;
+  object-fit: cover;
+  border-radius: 1px;
+  vertical-align: -1px;
+  margin-right: 5px;
+}
 .lb-row .lb-extra { font-size: 11px; color: var(--muted); }
 .lb-row .lb-val { font-weight: 700; color: var(--brand-fg); font-size: 13px; }
 .lb-empty { text-align: center; color: var(--muted); padding: 40px 0; }
