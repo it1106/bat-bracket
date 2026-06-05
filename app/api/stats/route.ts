@@ -246,9 +246,13 @@ async function fetchPriorWinners(
   origin: string,
   priorId: string,
 ): Promise<Map<string, { players: string[] }>> {
+  // priorChain=1 tells the recursive /api/stats invocation to skip its own
+  // prior-edition resolution. Without it, a `done: true` tournament that
+  // lacks its full-cache snapshot would re-enter the !isAllPast branch and
+  // spawn another /api/tournaments + /api/stats round-trip per request.
   const j = await fetchJsonFromOrigin<TournamentStats>(
     origin,
-    `/api/stats?tournament=${encodeURIComponent(priorId)}`,
+    `/api/stats?tournament=${encodeURIComponent(priorId)}&priorChain=1`,
   )
   const out = new Map<string, { players: string[] }>()
   if (!j || !Array.isArray(j.events)) return out
@@ -273,6 +277,7 @@ export async function GET(request: Request) {
   if (!tournamentId) {
     return NextResponse.json({ error: 'tournament param required' }, { status: 400 })
   }
+  const skipPriorChain = searchParams.get('priorChain') === '1'
 
   const memHit = memCache.get(tournamentId)
   if (memHit) {
@@ -326,7 +331,7 @@ export async function GET(request: Request) {
     const draws: DrawInfo[] | undefined = drawsEntry?.draws
     const overview: TournamentOverview | undefined = overviewSnap ?? undefined
     let priorEditionWinners: ReturnType<typeof buildPriorEditionWinners> | undefined
-    if (!isAllPast) {
+    if (!isAllPast && !skipPriorChain) {
       try {
         const allTournaments = await listKnownTournamentsForResolver(origin)
         const meta = allTournaments.find((t) => t.id === tournamentId)

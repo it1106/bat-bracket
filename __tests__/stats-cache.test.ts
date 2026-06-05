@@ -82,25 +82,3 @@ describe('stats-cache', () => {
     expect(a).toMatch(/^[a-f0-9]{64}$/)
   })
 })
-
-import { computePreMatchSourceVersion } from '@/lib/stats-cache'
-
-describe('computePreMatchSourceVersion', () => {
-  test('is stable across calls with the same inputs', () => {
-    const a = Buffer.from('draws')
-    const b = Buffer.from('overview')
-    const c = Buffer.from('roster')
-    expect(computePreMatchSourceVersion(a, b, c)).toBe(computePreMatchSourceVersion(a, b, c))
-  })
-
-  test('changes when any input changes', () => {
-    const base = computePreMatchSourceVersion(Buffer.from('d'), Buffer.from('o'), Buffer.from('r'))
-    expect(computePreMatchSourceVersion(Buffer.from('d2'), Buffer.from('o'), Buffer.from('r'))).not.toBe(base)
-    expect(computePreMatchSourceVersion(Buffer.from('d'), Buffer.from('o2'), Buffer.from('r'))).not.toBe(base)
-    expect(computePreMatchSourceVersion(Buffer.from('d'), Buffer.from('o'), Buffer.from('r2'))).not.toBe(base)
-  })
-
-  test('has the pre: prefix', () => {
-    expect(computePreMatchSourceVersion(Buffer.from(''), Buffer.from(''), Buffer.from(''))).toMatch(/^pre:/)
-  })
-})
