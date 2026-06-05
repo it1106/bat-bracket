@@ -127,8 +127,9 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   )
   if (error) return <div className="stats-error">{t('statsLoadFailed')}</div>
   if (!stats) return null
-  if (stats.kpis.matches === 0) return <div className="stats-empty">{t('statsEmptyState')}</div>
 
+  const hasDecided = stats.kpis.decided > 0
+  const dramaHasContent = !!(stats.drama.marathon || stats.drama.highestSet || stats.drama.highestScoringMatch || stats.drama.mostCourtTime)
   const dayMax = Math.max(1, ...stats.dailyVolume.map((d) => d.total))
   const courtMax = Math.max(1, ...stats.courtUtilization.map((c) => c.minutes))
   const playersPct = stats.kpis.players > 0
@@ -175,6 +176,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       </section>
 
       {/* Drama */}
+      {dramaHasContent && (
       <section className="stats-section" data-stats-share="drama">
         <h2>{t('statsSectionDrama')}</h2>
 
@@ -224,6 +226,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           </div>
         )}
       </section>
+      )}
 
       {/* Club Medals */}
       {stats.clubMedals.length > 0 && (
@@ -264,6 +267,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       )}
 
       {/* Top players */}
+      {stats.topPlayers.length > 0 && (
       <section className="stats-section" data-stats-share="top-players">
         <h2>{t('statsSectionTopPlayers')}</h2>
         <table className="stats-table">
@@ -283,6 +287,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           </tbody>
         </table>
       </section>
+      )}
 
       {/* Multi-Gold */}
       {stats.multiGoldPlayers.length > 0 && (
@@ -395,6 +400,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       )}
 
       {/* Matches per day */}
+      {stats.dailyVolume.length > 0 && (
       <section className="stats-section">
         <h2>{t('statsSectionMatchesPerDay')}</h2>
         {stats.dailyVolume.map((d) => (
@@ -408,8 +414,10 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           </div>
         ))}
       </section>
+      )}
 
       {/* Court utilization */}
+      {stats.courtUtilization.length > 0 && (
       <section className="stats-section">
         <h2>{t('statsSectionCourtUtilization')}</h2>
         {stats.courtUtilization.map((c) => {
@@ -426,8 +434,10 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           )
         })}
       </section>
+      )}
 
       {/* Integrity */}
+      {hasDecided && (
       <section className="stats-section">
         <h2>{t('statsSectionIntegrity')}</h2>
         <div className="stats-grid-2">
@@ -445,6 +455,11 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           </div>
         </div>
       </section>
+      )}
+
+      {!hasDecided && (
+        <div className="stats-prematch-footer">{t('statsPreMatchFooter')}</div>
+      )}
     </div>
   )
 }
