@@ -3,6 +3,7 @@ import { readIndexCache } from '@/lib/player-index-cache'
 import { readRankingCache } from '@/lib/ranking/cache'
 import { readRankingPlayerDetail } from '@/lib/ranking/player-cache'
 import { readPlayerIdEntry } from '@/lib/bat-player-id-map'
+import { countContributingTournaments } from '@/lib/ranking/player-view'
 import PlayerProfileView from '@/components/PlayerProfileView'
 import MinimalPlayerProfile from '@/components/MinimalPlayerProfile'
 import type { ProviderTag, RankingPlayerRank, RankingPlayerDetail } from '@/lib/types'
@@ -70,6 +71,18 @@ export default async function PlayerPage({ params }: Props) {
   }
 
   const rankingPublishDate = currentRanking?.publishDate || undefined
+
+  // BWF's category page has no tournaments-played column — every ranking
+  // entry's `tournaments` field is 0. When we have the per-player detail
+  // cached, recompute the count from the contributing rows so the profile
+  // shows the same number BWF prints (the count of distinct deduped
+  // contributing tournaments per ranking event, capped at top-10).
+  if (provider === 'bwf' && initialDetail) {
+    for (const r of playerRankings) {
+      const count = countContributingTournaments(initialDetail, r.eventName)
+      if (count > 0) r.tournaments = count
+    }
+  }
 
   if (record) {
     return (
