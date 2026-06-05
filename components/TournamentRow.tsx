@@ -1,11 +1,11 @@
 'use client'
 import Link from 'next/link'
 import { useLanguage } from '@/lib/LanguageContext'
-import type { ExpiryTier } from '@/lib/bat-ranking-player-view'
-import type { BatRankingPlayerTournament } from '@/lib/types'
+import type { ExpiryTier } from '@/lib/ranking/player-view'
+import type { RankingPlayerTournament } from '@/lib/types'
 
 interface Props {
-  row: BatRankingPlayerTournament
+  row: RankingPlayerTournament
   /**
    *   'next' — row's points fall out at the very next publication
    *   'soon' — fall out within the next 4 publications
