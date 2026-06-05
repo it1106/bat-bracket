@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readBatRankingCache } from '@/lib/bat-ranking-cache'
+import { readRankingCache } from '@/lib/ranking/cache'
 
 // Tiny endpoint surfacing just the *metadata* of the latest BAT ranking
 // scrape — used by the client-side alert system to detect when a new edition
@@ -13,7 +13,7 @@ import { readBatRankingCache } from '@/lib/bat-ranking-cache'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const cached = await readBatRankingCache()
+  const cached = await readRankingCache('bat')
   if (!cached) {
     return NextResponse.json({ publishDate: null, scrapedAt: null })
   }

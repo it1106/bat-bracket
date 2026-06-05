@@ -581,44 +581,60 @@ export interface Leaderboards {
   boards: LeaderboardBoard[]
 }
 
-export interface BatRankingEntry {
+export interface RankingEntry {
   rank: number
   name: string
   slug: string
   club: string
   points: number
   tournaments: number
+  /** Numeric `player=<id>` URL param scraped directly from the row link.
+   *  Populated by the BWF scraper (always non-empty). BAT scraper leaves
+   *  this empty and falls back to its 3-hop discovery path at detail-fetch
+   *  time. */
+  globalPlayerId?: string
 }
 
-export interface BatRankingEvent {
+export interface RankingEvent {
   eventCode: string
   eventName: string
-  entries: BatRankingEntry[]
+  entries: RankingEntry[]
 }
 
-export interface BatRanking {
+export interface Ranking {
+  /** Which provider this snapshot is for. Added at v12; legacy v11 files
+   *  (without `provider`) are rejected on read and repopulated by the boot
+   *  kick. */
+  provider: ProviderTag
   scrapedAt: string
   publishDate: string
   /** The weekly id= URL parameter on category/player pages. Stable for the
-   *  duration of one publication; changes every Tuesday. */
+   *  duration of one publication; changes every Tuesday (BAT) or Wednesday
+   *  (BWF). */
   rankingId: string
-  events: BatRankingEvent[]
+  events: RankingEvent[]
 }
 
-export interface BatRankingPlayerRank {
+// Backward-compat aliases so callers can be migrated in a follow-up task
+// without a giant churn here. Remove once every site is renamed.
+export type BatRankingEntry = RankingEntry
+export type BatRankingEvent = RankingEvent
+export type BatRanking      = Ranking
+
+export interface RankingPlayerRank {
   eventName: string
   rank: number
   points: number
   tournaments: number
 }
 
-/** One tournament row on a player's BAT ranking detail page. */
-export interface BatRankingPlayerTournament {
+/** One tournament row on a player's ranking detail page (BAT or BWF). */
+export interface RankingPlayerTournament {
   tournamentName: string
   /** Tournament GUID parsed from the row link; null if the href didn't
    *  carry one (defensive — surface the row but no click-through). */
   tournamentId: string | null
-  /** Source event as shown on BAT (e.g., "BS U15", "MD U17", "XD U23"). */
+  /** Source event as shown by the upstream (e.g., "BS U15", "MD U17", "XD U23"). */
   sourceEvent: string
   /** "YYYY-WW" week of the tournament. */
   week: string
@@ -631,25 +647,32 @@ export interface BatRankingPlayerTournament {
   countsTowardRankings: string[]
 }
 
-export interface BatRankingPlayerDetail {
-  /** Stable global BAT player id (the "player=" URL param). */
+export interface RankingPlayerDetail {
+  /** Stable global player id (the "player=" URL param) — numeric per
+   *  TournamentSoftware, shared across BAT and BWF rankings. */
   globalPlayerId: string
   /** publishDate the detail was scraped against. Read-time mismatch with
-   *  the current BatRanking.publishDate invalidates. */
+   *  the current Ranking.publishDate invalidates. */
   publishDate: string
   scrapedAt: string
-  tournaments: BatRankingPlayerTournament[]
+  tournaments: RankingPlayerTournament[]
 }
 
-export interface BatRankingPlayerDetailCache {
+export interface RankingPlayerDetailCache {
   version: 1
   /** Success path. */
-  detail?: BatRankingPlayerDetail
-  /** Negative cache for a player whose BAT page 404'd. Keyed to the same
+  detail?: RankingPlayerDetail
+  /** Negative cache for a player whose detail page 404'd. Keyed to the same
    *  publishDate as a success would be, so it expires with the next
    *  weekly publication. */
   notFound?: { publishDate: string; scrapedAt: string }
 }
+
+// Backward-compat aliases for one cycle.
+export type BatRankingPlayerRank        = RankingPlayerRank
+export type BatRankingPlayerTournament  = RankingPlayerTournament
+export type BatRankingPlayerDetail      = RankingPlayerDetail
+export type BatRankingPlayerDetailCache = RankingPlayerDetailCache
 
 /** Single-file map of slug → BAT global player id. Append-only on success;
  *  failures are persisted as { globalPlayerId: null, reason } so the

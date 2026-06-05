@@ -8,22 +8,25 @@ import {
   computeExpiryCutoffs,
   classifyExpiry,
   type Discipline,
-} from '@/lib/bat-ranking-player-view'
-import type { BatRankingPlayerDetail } from '@/lib/types'
+} from '@/lib/ranking/player-view'
+import { getRankingConfig } from '@/lib/ranking/config'
+import type { RankingPlayerDetail, ProviderTag } from '@/lib/types'
 import TournamentRow from './TournamentRow'
 
 interface Props {
+  provider: ProviderTag
   slug: string
-  initialDetail?: BatRankingPlayerDetail
-  /** BAT publication date (e.g. "26/5/2569"). Used to compute which rows'
-   *  points will fall out of the 52-week window next Tuesday. */
+  initialDetail?: RankingPlayerDetail
+  /** Upstream publication date string (BE for BAT, Gregorian for BWF).
+   *  Used to compute which rows' points will fall out of the 52-week
+   *  window at the next publication. */
   rankingPublishDate?: string
 }
 
 const DISCIPLINES: Discipline[] = ['singles', 'doubles', 'mixed']
 
 type FetchState =
-  | { state: 'idle'; detail: BatRankingPlayerDetail }
+  | { state: 'idle'; detail: RankingPlayerDetail }
   | { state: 'loading' }
   | { state: 'error'; message: string }
 
@@ -32,7 +35,7 @@ type FetchState =
  * the detail. Renders three tabs; the body of each tab is a flat top-10
  * list (by points) sorted newest-first.
  */
-export default function RankingDetailTabs({ slug, initialDetail, rankingPublishDate }: Props) {
+export default function RankingDetailTabs({ provider, slug, initialDetail, rankingPublishDate }: Props) {
   const { t } = useLanguage()
   const [active, setActive] = useState<Discipline>('singles')
   const [fetchState, setFetchState] = useState<FetchState>(
@@ -43,14 +46,14 @@ export default function RankingDetailTabs({ slug, initialDetail, rankingPublishD
   useEffect(() => {
     if (initialDetail) return // already have it from SSR
     const ctrl = new AbortController()
-    fetch(`/api/players/ranking-detail?slug=${encodeURIComponent(slug)}`, { signal: ctrl.signal })
+    fetch(`/api/players/ranking-detail?provider=${provider}&slug=${encodeURIComponent(slug)}`, { signal: ctrl.signal })
       .then(async (r) => {
-        // 404 means either discovery failed for this slug or BAT has no detail
-        // page for this player at this publishDate. Both render as "empty" from
-        // the user's perspective — never as a load-failed error.
+        // 404 means either discovery failed for this slug or upstream has no
+        // detail page at this publishDate. Both render as "empty" from the
+        // user's perspective — never as a load-failed error.
         if (r.status === 404) return { kind: 'empty' as const }
         if (!r.ok) throw new Error(`${r.status}`)
-        const body = await r.json() as { detail?: BatRankingPlayerDetail; error?: string }
+        const body = await r.json() as { detail?: RankingPlayerDetail; error?: string }
         return { kind: 'ok' as const, body }
       })
       .then((result) => {
@@ -69,13 +72,13 @@ export default function RankingDetailTabs({ slug, initialDetail, rankingPublishD
         setFetchState({ state: 'error', message: String(err) })
       })
     return () => ctrl.abort()
-  }, [slug, initialDetail])
+  }, [provider, slug, initialDetail])
 
   useEffect(() => {
     if (fetchState.state !== 'idle' || trackedOnce) return
-    track('ranking_detail_viewed', { provider: 'bat', slug, discipline: active })
+    track('ranking_detail_viewed', { provider, slug, discipline: active })
     setTrackedOnce(true)
-  }, [fetchState, trackedOnce, slug, active])
+  }, [fetchState, trackedOnce, provider, slug, active])
 
   const switchTab = (next: Discipline) => {
     if (next === active) return
@@ -110,7 +113,7 @@ export default function RankingDetailTabs({ slug, initialDetail, rankingPublishD
     }
     const others = otherRowsForTab(fetchState.detail, active)
     const topTotal = top.reduce((sum, r) => sum + r.points, 0)
-    const cutoffs = computeExpiryCutoffs(rankingPublishDate)
+    const cutoffs = computeExpiryCutoffs(rankingPublishDate, getRankingConfig(provider).dateFormat)
     return (
       <>
         <h3 className="pp-rd-section-header">

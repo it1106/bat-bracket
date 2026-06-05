@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation'
 import { readIndexCache } from '@/lib/player-index-cache'
-import { readBatRankingCache } from '@/lib/bat-ranking-cache'
-import { readBatRankingPlayerDetail } from '@/lib/bat-ranking-player-cache'
+import { readRankingCache } from '@/lib/ranking/cache'
+import { readRankingPlayerDetail } from '@/lib/ranking/player-cache'
 import { readPlayerIdEntry } from '@/lib/bat-player-id-map'
 import PlayerProfileView from '@/components/PlayerProfileView'
-import type { ProviderTag, BatRankingPlayerRank, BatRankingPlayerDetail } from '@/lib/types'
+import type { ProviderTag, RankingPlayerRank, RankingPlayerDetail } from '@/lib/types'
 
 interface Props { params: { provider: string; slug: string } }
 
@@ -17,27 +17,39 @@ export default async function PlayerPage({ params }: Props) {
   const record = index?.players[params.slug]
   if (!record) notFound()
 
-  const batRanking: BatRankingPlayerRank[] = []
+  const playerRankings: RankingPlayerRank[] = []
   let rankingPublishDate = ''
-  let currentRanking: Awaited<ReturnType<typeof readBatRankingCache>> = null
-  let initialDetail: BatRankingPlayerDetail | undefined
+  let initialDetail: RankingPlayerDetail | undefined
 
-  if (provider === 'bat') {
-    currentRanking = await readBatRankingCache()
-    if (currentRanking) {
-      rankingPublishDate = currentRanking.publishDate
-      for (const ev of currentRanking.events) {
-        const entry = ev.entries.find(e => e.slug === params.slug)
-        if (entry) batRanking.push({ eventName: ev.eventName, rank: entry.rank, points: entry.points, tournaments: entry.tournaments })
+  const currentRanking = await readRankingCache(provider)
+  if (currentRanking) {
+    rankingPublishDate = currentRanking.publishDate
+    let bwfGlobalPlayerId = ''
+    for (const ev of currentRanking.events) {
+      const entry = ev.entries.find(e => e.slug === params.slug)
+      if (entry) {
+        playerRankings.push({
+          eventName: ev.eventName, rank: entry.rank, points: entry.points, tournaments: entry.tournaments,
+        })
+        if (entry.globalPlayerId) bwfGlobalPlayerId = entry.globalPlayerId
       }
-      // SSR pre-fetch the per-player detail if we have the global id
-      // mapped and the cache is fresh against the current publishDate.
+    }
+
+    // SSR pre-fetch the per-player detail when we already know the id and the
+    // cache is fresh against the current publishDate. BAT gets its id from
+    // the slug↔id map (built by the 3-hop discovery on first request); BWF
+    // gets it directly from the matching ranking entry (no discovery needed).
+    let globalPlayerId = ''
+    if (provider === 'bat') {
       const idEntry = await readPlayerIdEntry(params.slug)
-      if (idEntry && idEntry.globalPlayerId) {
-        const cached = await readBatRankingPlayerDetail(idEntry.globalPlayerId)
-        if (cached?.detail && cached.detail.publishDate === currentRanking.publishDate) {
-          initialDetail = cached.detail
-        }
+      globalPlayerId = idEntry?.globalPlayerId ?? ''
+    } else if (provider === 'bwf') {
+      globalPlayerId = bwfGlobalPlayerId
+    }
+    if (globalPlayerId) {
+      const cached = await readRankingPlayerDetail(provider, globalPlayerId)
+      if (cached?.detail && cached.detail.publishDate === currentRanking.publishDate) {
+        initialDetail = cached.detail
       }
     }
   }
@@ -45,7 +57,7 @@ export default async function PlayerPage({ params }: Props) {
   return (
     <PlayerProfileView
       record={record}
-      batRanking={batRanking.length ? batRanking : undefined}
+      playerRankings={playerRankings.length ? playerRankings : undefined}
       rankingPublishDate={rankingPublishDate || undefined}
       initialDetail={initialDetail}
     />

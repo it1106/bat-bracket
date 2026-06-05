@@ -1,8 +1,14 @@
-// Pure HTML → BatRanking transform. No I/O, no side effects.
-// Parses bat.tournamentsoftware.com/ranking/ranking.aspx?rid=188
+// Pure HTML → Ranking transform. No I/O, no side effects.
+// Parses both bat.tournamentsoftware.com/ranking/* and
+// www.tournamentsoftware.com/ranking/* — same HTML shape, two cosmetic
+// differences:
+//   - <th colspan="N"> wraps each event header. BAT=9, BWF=8.
+//   - rankingdate is BE for BAT, Gregorian for BWF — we keep the raw
+//     string here; the player-view module parses it for week-key math.
 
-import type { BatRanking, BatRankingEntry, BatRankingEvent } from './types'
-import { nameToSlug } from './playerIndex'
+import type { Ranking, RankingEntry, RankingEvent, ProviderTag } from '@/lib/types'
+import type { DateFormat } from './config'
+import { nameToSlug } from '@/lib/playerIndex'
 
 function stripTags(s: string): string { return s.replace(/<[^>]+>/g, '').trim() }
 
@@ -11,15 +17,20 @@ function playerLinkText(cell: string): string {
   return m ? stripTags(m[1]) : ''
 }
 
+function playerIdFromCell(cell: string): string {
+  const m = cell.match(/<a\s[^>]*href="player\.aspx\?[^"]*\bplayer=(\d+)/i)
+  return m ? m[1] : ''
+}
+
 function lastLinkText(cell: string): string {
   const matches = Array.from(cell.matchAll(/<a\s[^>]*>([\s\S]*?)<\/a>/gi))
   if (matches.length === 0) return stripTags(cell)
   return stripTags(matches[matches.length - 1][1])
 }
 
-function parseEntries(html: string, limit = 50): BatRankingEntry[] {
+function parseEntries(html: string, limit = 50): RankingEntry[] {
   const rankRowRe = /<tr[^>]*>([\s\S]*?<td\s+class="rank"[\s\S]*?)<\/tr>/gi
-  const entries: BatRankingEntry[] = []
+  const entries: RankingEntry[] = []
   let m: RegExpExecArray | null
 
   while ((m = rankRowRe.exec(html)) !== null) {
@@ -34,9 +45,8 @@ function parseEntries(html: string, limit = 50): BatRankingEntry[] {
 
     const name = playerLinkText(row)
     if (!name) continue
+    const globalPlayerId = playerIdFromCell(row)
 
-    // Row layout (right-side columns): ... <td class="right rankingpoints">pts</td>
-    // <td class="right">tournaments</td> <td><a>club</a></td>
     const tds = Array.from(row.matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/gi))
     const club = tds.length > 0 ? lastLinkText(tds[tds.length - 1][1]) : ''
     const tournaments = tds.length >= 2
@@ -47,6 +57,7 @@ function parseEntries(html: string, limit = 50): BatRankingEntry[] {
       rank, name, slug: nameToSlug(name), club,
       points: isNaN(points) ? 0 : points,
       tournaments,
+      globalPlayerId: globalPlayerId || undefined,
     })
     if (entries.length >= limit) break
   }
@@ -67,8 +78,7 @@ export function eventCodeFromName(name: string): string {
   return age ? `${age}_${disc}` : disc
 }
 
-/** Extract {categoryId, eventName} pairs from the overview page.
- *  Only reads <th> elements to avoid picking up club or other <td> links. */
+/** Extract {categoryId, eventName} pairs from the overview page. */
 export function parseCategoryList(html: string): Array<{ id: string; name: string }> {
   const thRe = /<th[^>]*>([\s\S]*?)<\/th>/gi
   const seen = new Set<string>()
@@ -87,20 +97,18 @@ export function parseCategoryList(html: string): Array<{ id: string; name: strin
 }
 
 /** Parse entries from a single category page (category.aspx?...). */
-export function parseCategoryPage(html: string): BatRankingEntry[] {
+export function parseCategoryPage(html: string): RankingEntry[] {
   return parseEntries(html, 50)
 }
 
-/** Parse publish date from the overview page. */
+/** Parse publish date string from the overview page (raw upstream form). */
 export function parsePublishDate(html: string): string {
   const m = html.match(/<span\s+class="rankingdate"[^>]*>\(([^)]+)\)<\/span>/i)
   return m ? m[1].trim() : ''
 }
 
 /** Extract the weekly rankingId from any page that links to a category or
- *  per-player URL. category.aspx links are preferred (they're on the overview
- *  page and reflect the canonical edition); player.aspx is a fallback for
- *  pages that only have entry rows. Returns '' if nothing matches. */
+ *  per-player URL. */
 export function parseRankingId(html: string): string {
   const cat = html.match(/href="category\.aspx\?id=(\d+)/i)
   if (cat) return cat[1]
@@ -108,17 +116,25 @@ export function parseRankingId(html: string): string {
   return ply ? ply[1] : ''
 }
 
-/** Parse the full ranking from the overview page (top-10 preview per event). */
-export function parseBatRanking(html: string): BatRanking {
+/** Parse the full overview into a Ranking envelope (provider, publishDate,
+ *  rankingId, and per-event preview rows). `dateFormat` is currently unused
+ *  here — the raw publishDate string is stored as-is; week-key parsing
+ *  happens in player-view. */
+export function parseRankingOverview(
+  html: string,
+  _dateFormat: DateFormat,
+  provider: ProviderTag = 'bat',
+): Ranking {
   const scrapedAt = new Date().toISOString()
   const publishDate = parsePublishDate(html)
   const rankingId = parseRankingId(html)
 
   const tableMatch = html.match(/<table\s[^>]*class="ruler"[^>]*>([\s\S]*?)<\/table>/i)
-  if (!tableMatch) return { scrapedAt, publishDate, rankingId, events: [] }
+  if (!tableMatch) return { provider, scrapedAt, publishDate, rankingId, events: [] }
   const tableContent = tableMatch[1]
 
-  const headerRe = /<th[^>]*colspan="9"[^>]*>[\s\S]*?<a\s[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/th>/gi
+  // RELAXED: colspan="\d+" — BAT uses 9, BWF uses 8. Same parser handles both.
+  const headerRe = /<th[^>]*colspan="\d+"[^>]*>[\s\S]*?<a\s[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/th>/gi
   const headers: Array<{ name: string; end: number }> = []
   let hm: RegExpExecArray | null
   while ((hm = headerRe.exec(tableContent)) !== null) {
@@ -126,7 +142,7 @@ export function parseBatRanking(html: string): BatRanking {
     if (name && name !== 'More') headers.push({ name, end: hm.index + hm[0].length })
   }
 
-  const events: BatRankingEvent[] = []
+  const events: RankingEvent[] = []
   for (let i = 0; i < headers.length; i++) {
     const { name, end } = headers[i]
     const chunkEnd = i + 1 < headers.length
@@ -139,5 +155,5 @@ export function parseBatRanking(html: string): BatRanking {
     }
   }
 
-  return { scrapedAt, publishDate, rankingId, events }
+  return { provider, scrapedAt, publishDate, rankingId, events }
 }
