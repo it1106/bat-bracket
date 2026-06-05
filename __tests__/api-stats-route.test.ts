@@ -124,7 +124,6 @@ describe('GET /api/stats', () => {
     expect(res.status).toBe(200)
     expect(json.kpis.matches).toBe(0)
     expect(json.kpis.decided).toBe(0)
-    expect(json.seedHeadlines).toBeUndefined()
     expect(json.defendingChampion).toBeUndefined()
     expect(json.schedulePreview).toBeUndefined()
     expect(writeStatsCache).not.toHaveBeenCalled()

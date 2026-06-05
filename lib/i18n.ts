@@ -197,17 +197,12 @@ export type TKey =
   | 'statsEmptyState'
   | 'statsLoadFailed'
   | 'statsSectionDefendingChampions'
-  | 'statsSectionSeedHeadlines'
-  | 'statsSectionPotentialCollisions'
-  | 'statsSectionMultiEventEntries'
   | 'statsSectionSchedulePreview'
   | 'statsKpiEntries'
   | 'statsKpiDraws'
   | 'statsColSize'
   | 'statsColType'
   | 'statsColTopSeed'
-  | 'statsCollisionsSf'
-  | 'statsCollisionsF'
   | 'statsScheduleOpensAt'
   | 'statsScheduleMatchesAcrossCourts'
   | 'statsPreMatchFooter'
@@ -399,17 +394,12 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsEmptyState: "Competition hasn't started.  Check back when more matches are decided",
     statsLoadFailed: 'Could not load stats. Try again.',
     statsSectionDefendingChampions: 'Defending champions',
-    statsSectionSeedHeadlines: 'Top seeds',
-    statsSectionPotentialCollisions: 'Potential semis & final',
-    statsSectionMultiEventEntries: 'Playing in multiple events',
     statsSectionSchedulePreview: 'Opening day',
     statsKpiEntries: 'Entries',
     statsKpiDraws: 'Draws',
     statsColSize: 'Size',
     statsColType: 'Type',
     statsColTopSeed: 'Top seed',
-    statsCollisionsSf: 'SF',
-    statsCollisionsF: 'F',
     statsScheduleOpensAt: 'Opens at',
     statsScheduleMatchesAcrossCourts: 'matches across courts',
     statsPreMatchFooter: 'No matches completed yet — top players, drama, and integrity stats will appear after the first match.',
@@ -633,17 +623,12 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsEmptyState: 'ยังไม่เริ่มการแข่งขัน',
     statsLoadFailed: 'ไม่สามารถโหลดสถิติได้ กรุณาลองใหม่',
     statsSectionDefendingChampions: 'แชมป์เก่า',
-    statsSectionSeedHeadlines: 'มือวางระดับต้น',
-    statsSectionPotentialCollisions: 'อาจเจอกันรองชนะเลิศ / ชิงแชมป์',
-    statsSectionMultiEventEntries: 'ลงหลายรายการ',
     statsSectionSchedulePreview: 'วันเปิด',
     statsKpiEntries: 'ผู้ลงแข่งขัน',
     statsKpiDraws: 'สายแข่งขัน',
     statsColSize: 'ขนาด',
     statsColType: 'รูปแบบ',
     statsColTopSeed: 'มือวางอันดับ 1',
-    statsCollisionsSf: 'รองชนะเลิศ',
-    statsCollisionsF: 'ชิงแชมป์',
     statsScheduleOpensAt: 'เริ่ม',
     statsScheduleMatchesAcrossCourts: 'แมตช์ ในหลายสนาม',
     statsPreMatchFooter: 'ยังไม่มีแมตช์จบ — สถิติจะปรากฏหลังแมตช์แรกเริ่ม',

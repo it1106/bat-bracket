@@ -324,41 +324,6 @@ export interface StatsSeedHead {
   club?: string
 }
 
-export interface StatsSeedHeadlineSeed {
-  seed: number
-  players: string[]
-  club?: string
-}
-
-export interface StatsSeedHeadline {
-  event: string
-  seeds: StatsSeedHeadlineSeed[]
-}
-
-export interface StatsMultiEventEntry {
-  playerId: string
-  name: string
-  club: string
-  events: string[]
-}
-
-export interface StatsCollisionSeedRef {
-  seed: number
-  players: string[]
-  club?: string
-}
-
-export interface StatsCollisionPair {
-  sideA: StatsCollisionSeedRef
-  sideB: StatsCollisionSeedRef
-}
-
-export interface StatsPotentialCollision {
-  event: string
-  semis: StatsCollisionPair[]
-  final?: StatsCollisionPair
-}
-
 export interface StatsDefendingChampion {
   event: string
   players: string[]
@@ -401,9 +366,6 @@ export interface ComputedStats {
   clubRosters: StatsClubRoster[]
   countryRosters: StatsCountryRoster[]
   integrity: StatsIntegrity
-  seedHeadlines?: StatsSeedHeadline[]
-  multiEventEntries?: StatsMultiEventEntry[]
-  potentialCollisions?: StatsPotentialCollision[]
   defendingChampion?: StatsDefendingChampion[]
   schedulePreview?: StatsSchedulePreview
 }
