@@ -175,6 +175,93 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
         </div>
       </section>
 
+      {/* Defending champions */}
+      {stats.defendingChampion && stats.defendingChampion.length > 0 && (
+        <section className="stats-section" data-stats-share="defending">
+          <h2>{t('statsSectionDefendingChampions')}</h2>
+          {stats.defendingChampion.map((d) => (
+            <div className="stats-defending-card" key={d.event}>
+              <div className="stats-defending-event">{d.event}</div>
+              <div className="stats-defending-name">{d.players.join(' / ')}</div>
+              {d.club && <div className="stats-defending-club">{d.club}</div>}
+              <div className="stats-defending-prior">{d.priorEditionLabel}</div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* Top seeds */}
+      {stats.seedHeadlines && stats.seedHeadlines.length > 0 && (
+        <section className="stats-section" data-stats-share="seeds">
+          <h2>{t('statsSectionSeedHeadlines')}</h2>
+          {stats.seedHeadlines.map((h) => (
+            <div className="stats-seed-card" key={h.event}>
+              <div className="stats-seed-event">{h.event}</div>
+              {h.seeds.map((s) => (
+                <div className="stats-seed-row" key={s.seed}>
+                  <span className="stats-seed-num">#{s.seed}</span>
+                  <span className="stats-seed-name">{s.players.join(' / ')}</span>
+                  {s.club && <span className="stats-seed-club">{s.club}</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* Potential collisions */}
+      {stats.potentialCollisions && stats.potentialCollisions.length > 0 && (
+        <section className="stats-section" data-stats-share="collisions">
+          <h2>{t('statsSectionPotentialCollisions')}</h2>
+          {stats.potentialCollisions.map((c) => (
+            <div className="stats-collision-card" key={c.event}>
+              <div className="stats-collision-event">{c.event}</div>
+              {c.semis.map((p, i) => (
+                <div className="stats-collision-row" key={`sf-${i}`}>
+                  <span className="stats-collision-label">{t('statsCollisionsSf')}</span>
+                  <span className="stats-collision-side">#{p.sideA.seed} {p.sideA.players.join(' / ')}</span>
+                  <span className="stats-collision-vs">vs</span>
+                  <span className="stats-collision-side">#{p.sideB.seed} {p.sideB.players.join(' / ')}</span>
+                </div>
+              ))}
+              {c.final && (
+                <div className="stats-collision-row stats-collision-row-final">
+                  <span className="stats-collision-label">{t('statsCollisionsF')}</span>
+                  <span className="stats-collision-side">#{c.final.sideA.seed} {c.final.sideA.players.join(' / ')}</span>
+                  <span className="stats-collision-vs">vs</span>
+                  <span className="stats-collision-side">#{c.final.sideB.seed} {c.final.sideB.players.join(' / ')}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* Multi-event entries */}
+      {stats.multiEventEntries && stats.multiEventEntries.length > 0 && (
+        <section className="stats-section" data-stats-share="multi-entries">
+          <h2>{t('statsSectionMultiEventEntries')}</h2>
+          <table className="stats-table">
+            <thead><tr>
+              <th className="stats-num">#</th>
+              <th>{t('statsColPlayer')}</th>
+              <th className="stats-club-d">{t('statsColClub')}</th>
+              <th>{t('statsColEvents')}</th>
+            </tr></thead>
+            <tbody>
+              {stats.multiEventEntries.map((p) => (
+                <tr key={p.playerId}>
+                  <td className="stats-num"><b>{p.events.length}</b></td>
+                  <td>{p.name}{p.club && <div className="stats-club-m">{p.club}</div>}</td>
+                  <td className="stats-club-d">{p.club}</td>
+                  <td>{p.events.join(' + ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       {/* Drama */}
       {dramaHasContent && (
       <section className="stats-section" data-stats-share="drama">
@@ -396,6 +483,32 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               ))}
             </tbody>
           </table>
+        </section>
+      )}
+
+      {/* Schedule preview */}
+      {stats.schedulePreview && (
+        <section className="stats-section" data-stats-share="schedule-preview">
+          <h2>{t('statsSectionSchedulePreview')} · {stats.schedulePreview.firstDayLabel}</h2>
+          <div className="stats-schedule-sub">
+            {stats.schedulePreview.matchCount} {lang === 'th' ? 'แมตช์' : 'matches'}
+             ·  {stats.schedulePreview.courts} {lang === 'th' ? 'สนาม' : 'courts'}
+            {stats.schedulePreview.opensAt && <>  ·  {t('statsScheduleOpensAt')} {stats.schedulePreview.opensAt}</>}
+          </div>
+          <div className="stats-schedule-grid">
+            {stats.schedulePreview.openingDayByCourt.map((c) => (
+              <div className="stats-schedule-court" key={c.court}>
+                <div className="stats-schedule-court-name">{c.court}</div>
+                {c.matches.map((m, i) => (
+                  <div className="stats-schedule-match" key={`${m.time}-${i}`}>
+                    <span className="stats-schedule-time">{m.time}</span>
+                    <span className="stats-schedule-evt"> {m.event} · {m.round}</span>
+                    <div className="stats-schedule-teams">{m.team1.join(' / ')} <span className="stats-schedule-vs">vs</span> {m.team2.join(' / ')}</div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </section>
       )}
 
