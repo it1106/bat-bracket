@@ -5,13 +5,15 @@ import { track } from '@/lib/analytics'
 import {
   topRowsForTab,
   otherRowsForTab,
+  bwfSectionsForTab,
   computeExpiryCutoffs,
   classifyExpiry,
   type Discipline,
 } from '@/lib/ranking/player-view'
 import { getRankingConfig } from '@/lib/ranking/config'
-import type { RankingPlayerDetail, ProviderTag } from '@/lib/types'
+import type { Ranking, RankingPlayerDetail, ProviderTag } from '@/lib/types'
 import TournamentRow from './TournamentRow'
+import BwfRankingSection from './BwfRankingSection'
 
 interface Props {
   provider: ProviderTag
@@ -21,6 +23,9 @@ interface Props {
    *  Used to compute which rows' points will fall out of the 52-week
    *  window at the next publication. */
   rankingPublishDate?: string
+  /** Current overview cache for the provider. Used by the BWF section
+   *  renderer to look up the player's rank per target event. */
+  currentRanking?: Ranking | null
 }
 
 const DISCIPLINES: Discipline[] = ['singles', 'doubles', 'mixed']
@@ -35,7 +40,7 @@ type FetchState =
  * the detail. Renders three tabs; the body of each tab is a flat top-10
  * list (by points) sorted newest-first.
  */
-export default function RankingDetailTabs({ provider, slug, initialDetail, rankingPublishDate }: Props) {
+export default function RankingDetailTabs({ provider, slug, initialDetail, rankingPublishDate, currentRanking }: Props) {
   const { t } = useLanguage()
   const [active, setActive] = useState<Discipline>('singles')
   const [fetchState, setFetchState] = useState<FetchState>(
@@ -107,13 +112,39 @@ export default function RankingDetailTabs({ provider, slug, initialDetail, ranki
         </div>
       )
     }
+    const cutoffs = computeExpiryCutoffs(rankingPublishDate, getRankingConfig(provider).dateFormat)
+
+    if (provider === 'bwf') {
+      const sections = bwfSectionsForTab(
+        fetchState.detail,
+        active,
+        currentRanking ? { slug, current: currentRanking } : undefined,
+      )
+      if (sections.length === 0) {
+        return <div className="pp-rd-empty">{t('rankingDetailEmpty')}</div>
+      }
+      return (
+        <>
+          {sections.map((section) => (
+            <BwfRankingSection
+              key={section.eventName}
+              slug={slug}
+              section={section}
+              cutoffs={cutoffs}
+              currentRanking={currentRanking}
+            />
+          ))}
+        </>
+      )
+    }
+
+    // BAT path — unchanged below.
     const top = topRowsForTab(fetchState.detail, active)
     if (top.length === 0) {
       return <div className="pp-rd-empty">{t('rankingDetailEmpty')}</div>
     }
     const others = otherRowsForTab(fetchState.detail, active)
     const topTotal = top.reduce((sum, r) => sum + r.points, 0)
-    const cutoffs = computeExpiryCutoffs(rankingPublishDate, getRankingConfig(provider).dateFormat)
     return (
       <>
         <h3 className="pp-rd-section-header">

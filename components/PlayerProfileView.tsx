@@ -13,6 +13,9 @@ interface Props {
   playerRankings?: import('@/lib/types').RankingPlayerRank[]
   rankingPublishDate?: string
   initialDetail?: import('@/lib/types').RankingPlayerDetail
+  /** Current overview cache for the player's provider, forwarded to the
+   *  ranking-detail panel so it can resolve the player's per-event rank. */
+  currentRanking?: import('@/lib/types').Ranking | null
 }
 
 function fmtPct(n: number): string { return `${Math.round(n * 100)}%` }
@@ -49,7 +52,7 @@ const OPPONENT_WINDOWS: Array<{ key: OpponentTimeWindow; labelKey:
   { key: 'all',  labelKey: 'opponentsWinAll'  },
 ]
 
-export default function PlayerProfileView({ record, playerRankings, rankingPublishDate, initialDetail }: Props) {
+export default function PlayerProfileView({ record, playerRankings, rankingPublishDate, initialDetail, currentRanking }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
   const [oppTab, setOppTab] = useState<OpponentTimeWindow>('all')
@@ -194,6 +197,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
           slug={record.key.slug}
           initialDetail={initialDetail}
           rankingPublishDate={rankingPublishDate}
+          currentRanking={currentRanking}
         />
       )}
       <div className="pp-kpi-row">

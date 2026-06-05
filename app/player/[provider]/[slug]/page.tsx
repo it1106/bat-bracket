@@ -60,6 +60,7 @@ export default async function PlayerPage({ params }: Props) {
       playerRankings={playerRankings.length ? playerRankings : undefined}
       rankingPublishDate={rankingPublishDate || undefined}
       initialDetail={initialDetail}
+      currentRanking={currentRanking}
     />
   )
 }

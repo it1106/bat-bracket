@@ -1,7 +1,7 @@
 // Pure HTML → RankingPlayerTournament[] transform. No I/O, no side effects.
 // Parses the per-player ranking page (BAT or BWF — same HTML shape).
 
-import type { RankingPlayerTournament } from '@/lib/types'
+import type { RankingPlayerTournament, RankingTargetCredit } from '@/lib/types'
 
 function stripTags(s: string): string { return s.replace(/<[^>]+>/g, '').trim() }
 
@@ -22,6 +22,22 @@ function parseMarkerCategories(cell: string): string[] {
   const idx = title.indexOf(':')
   const tail = idx >= 0 ? title.slice(idx + 1) : title
   return tail.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+}
+
+/** Like parseMarkerCategories but extracts each entry's structured
+ *  credit. Entries shaped like `"Boy's singles U17(288)"` yield credit 288;
+ *  entries with no parens yield credit = rowPoints. */
+function parseMarkerCredits(rowPoints: number, cell: string): RankingTargetCredit[] {
+  const img = cell.match(/<img\b[^>]*title="([^"]+)"[^>]*>/i)
+  if (!img) return []
+  const title = decodeEntities(img[1])
+  const idx = title.indexOf(':')
+  const tail = idx >= 0 ? title.slice(idx + 1) : title
+  return tail.split(',').map((s) => s.trim()).filter((s) => s.length > 0).map((s) => {
+    const m = s.match(/^(.+?)\s*\(([\d.]+)\)\s*$/)
+    if (m) return { eventName: m[1].trim(), credit: parseFloat(m[2]) }
+    return { eventName: s, credit: rowPoints }
+  })
 }
 
 function parseRow(rowHtml: string): RankingPlayerTournament | null {
@@ -50,9 +66,11 @@ function parseRow(rowHtml: string): RankingPlayerTournament | null {
 
   const markerCell = tds.length >= 7 ? tds[6] : ''
   const countsTowardRankings = parseMarkerCategories(markerCell)
+  const countsTowardRankingsParsed = parseMarkerCredits(points, markerCell)
 
   return {
-    tournamentName, tournamentId, sourceEvent, week, result, points, countsTowardRankings,
+    tournamentName, tournamentId, sourceEvent, week, result, points,
+    countsTowardRankings, countsTowardRankingsParsed,
   }
 }
 
