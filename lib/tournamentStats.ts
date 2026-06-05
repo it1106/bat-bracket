@@ -694,6 +694,61 @@ export function buildMultiEventEntries(
   })
 }
 
+export function buildSchedulePreview(
+  data: MatchesData,
+  dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
+): StatsSchedulePreview | undefined {
+  const firstDay = data.days.find((d) => d.hasMatches && d.dateIso)
+  if (!firstDay || !firstDay.dateIso) return undefined
+  const groups = dayGroupsByDate.get(firstDay.dateIso)
+  if (!groups || groups.length === 0) return undefined
+
+  const matchesByCourt = new Map<string, StatsScheduledMatch[]>()
+  let any = false
+  for (const g of groups) {
+    for (const m of g.matches) {
+      if (m.winner !== null) return undefined
+      if (!m.scheduledTime) continue
+      any = true
+      const court = m.court || (g.type === 'court' ? g.court : '—')
+      let list = matchesByCourt.get(court)
+      if (!list) {
+        list = []
+        matchesByCourt.set(court, list)
+      }
+      const sched: StatsScheduledMatch = {
+        time: m.scheduledTime,
+        event: m.eventName ?? m.draw,
+        round: m.round,
+        team1: m.team1.map((p) => p.name),
+        team2: m.team2.map((p) => p.name),
+      }
+      if (m.sequenceLabel) sched.sequenceLabel = m.sequenceLabel
+      list.push(sched)
+    }
+  }
+  if (!any) return undefined
+
+  const openingDayByCourt: StatsScheduleCourtBucket[] = Array.from(matchesByCourt.entries())
+    .map(([court, matches]) => ({
+      court,
+      matches: matches.sort((a, b) => a.time.localeCompare(b.time)),
+    }))
+    .sort((a, b) => a.court.localeCompare(b.court))
+
+  const allTimes = openingDayByCourt.flatMap((c) => c.matches.map((m) => m.time))
+  const opensAt = allTimes.sort()[0]
+  const matchCount = openingDayByCourt.reduce((acc, c) => acc + c.matches.length, 0)
+
+  return {
+    firstDayLabel: firstDay.label,
+    matchCount,
+    courts: openingDayByCourt.length,
+    opensAt,
+    openingDayByCourt,
+  }
+}
+
 export function buildPotentialCollisions(
   overview: TournamentOverview | undefined,
   clubs: Record<string, string>,

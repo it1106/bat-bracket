@@ -478,3 +478,70 @@ describe('buildPotentialCollisions', () => {
     expect(out[0].final?.sideB.club).toBeUndefined()
   })
 })
+
+import { buildSchedulePreview } from '@/lib/tournamentStats'
+
+describe('buildSchedulePreview', () => {
+  test('returns undefined when no days', () => {
+    const data: MatchesData = { days: [] } as unknown as MatchesData
+    expect(buildSchedulePreview(data, new Map())).toBeUndefined()
+  })
+
+  test('returns undefined when first day has no scheduled matches', () => {
+    const data = { days: [{ date: '2026-06-10', label: 'Wed', dateIso: '2026-06-10', hasMatches: true }] } as MatchesData
+    const groups: MatchScheduleGroup[] = [{
+      type: 'court', court: 'C1', matches: [{
+        draw: 'MS', drawNum: '1', round: 'R32',
+        team1: [{ name: 'A', playerId: 'a' }],
+        team2: [{ name: 'B', playerId: 'b' }],
+        winner: null, scores: [], court: 'C1', walkover: false, retired: false, nowPlaying: false,
+      }],
+    }]
+    expect(buildSchedulePreview(data, new Map([['2026-06-10', groups]]))).toBeUndefined()
+  })
+
+  test('groups by court and sorts matches by time when scheduled times exist', () => {
+    const data = { days: [{ date: '2026-06-10', label: 'Wed Jun 10', dateIso: '2026-06-10', hasMatches: true }] } as MatchesData
+    const m = (court: string, time: string, eventName: string) => ({
+      draw: eventName, drawNum: '1', round: 'R32',
+      team1: [{ name: 'A', playerId: 'a' }],
+      team2: [{ name: 'B', playerId: 'b' }],
+      winner: null, scores: [], court, walkover: false, retired: false, nowPlaying: false,
+      scheduledTime: time, eventName,
+    })
+    const groups: MatchScheduleGroup[] = [
+      { type: 'court', court: 'C1', matches: [m('C1', '10:30', 'MS'), m('C1', '09:00', 'WS')] },
+      { type: 'court', court: 'C2', matches: [m('C2', '09:15', 'MD')] },
+    ]
+    const preview = buildSchedulePreview(data, new Map([['2026-06-10', groups]]))
+    expect(preview).toEqual({
+      firstDayLabel: 'Wed Jun 10',
+      matchCount: 3,
+      courts: 2,
+      opensAt: '09:00',
+      openingDayByCourt: [
+        { court: 'C1', matches: [
+          expect.objectContaining({ time: '09:00', event: 'WS' }),
+          expect.objectContaining({ time: '10:30', event: 'MS' }),
+        ]},
+        { court: 'C2', matches: [
+          expect.objectContaining({ time: '09:15', event: 'MD' }),
+        ]},
+      ],
+    })
+  })
+
+  test('returns undefined when any match on the first day already has a winner', () => {
+    const data = { days: [{ date: '2026-06-10', label: 'Wed', dateIso: '2026-06-10', hasMatches: true }] } as MatchesData
+    const groups: MatchScheduleGroup[] = [{
+      type: 'court', court: 'C1', matches: [{
+        draw: 'MS', drawNum: '1', round: 'R32',
+        team1: [{ name: 'A', playerId: 'a' }],
+        team2: [{ name: 'B', playerId: 'b' }],
+        winner: 1, scores: [{ t1: 21, t2: 10 }], court: 'C1',
+        walkover: false, retired: false, nowPlaying: false, scheduledTime: '09:00',
+      }],
+    }]
+    expect(buildSchedulePreview(data, new Map([['2026-06-10', groups]]))).toBeUndefined()
+  })
+})
