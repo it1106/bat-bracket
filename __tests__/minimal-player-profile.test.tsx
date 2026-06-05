@@ -18,7 +18,7 @@ jest.mock('../lib/LanguageContext', () => ({
 
 // Mock RankingDetailTabs so we can assert on the props without rendering
 // the whole tab UI (it has its own tests).
-const detailTabsMock = jest.fn(() => <div data-testid="ranking-detail-tabs" />)
+const detailTabsMock: jest.Mock = jest.fn((_props: unknown) => <div data-testid="ranking-detail-tabs" />)
 jest.mock('../components/RankingDetailTabs', () => ({
   __esModule: true,
   default: (props: unknown) => detailTabsMock(props),
