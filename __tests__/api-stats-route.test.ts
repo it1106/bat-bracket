@@ -18,6 +18,7 @@ import { promises as fs } from 'fs'
 import { readStatsCache, writeStatsCache, hashFullCacheBytes } from '@/lib/stats-cache'
 import { readFullCache, readDayCache } from '@/lib/day-cache'
 import path from 'path'
+import type { MatchesData } from '@/lib/types'
 
 const real = jest.requireActual('fs') as typeof import('fs')
 const loadFull = () => JSON.parse(real.readFileSync(path.join(__dirname, '..', 'fixtures', 'stats-sprc-full.json'), 'utf8'))
@@ -101,6 +102,31 @@ describe('GET /api/stats', () => {
 
     const res = await GET(req(id))
     expect(res.status).toBe(200)
+    expect(writeStatsCache).not.toHaveBeenCalled()
+  })
+
+  it('pre-match: empty days + no roster → returns 200 with new optional fields absent', async () => {
+    const id = nextId()
+    ;(readFullCache as jest.Mock).mockResolvedValue(null)
+    ;(fs.readFile as jest.Mock).mockRejectedValue(new Error('ENOENT'))
+    ;(readStatsCache as jest.Mock).mockResolvedValue(null)
+    // Tournament has no days yet (pre-start).
+    const fullData: MatchesData = { days: [] } as unknown as MatchesData
+    global.fetch = jest.fn(async (url: string) => {
+      if (url.includes('/api/clubs')) return { ok: true, json: async () => ({}) } as Response
+      if (url.includes('/api/matches')) return { ok: true, json: async () => fullData } as Response
+      if (url.includes('/api/tournaments')) return { ok: true, json: async () => [] } as Response
+      return { ok: false, json: async () => ({}) } as Response
+    }) as unknown as typeof fetch
+
+    const res = await GET(req(id))
+    const json = await res.json()
+    expect(res.status).toBe(200)
+    expect(json.kpis.matches).toBe(0)
+    expect(json.kpis.decided).toBe(0)
+    expect(json.seedHeadlines).toBeUndefined()
+    expect(json.defendingChampion).toBeUndefined()
+    expect(json.schedulePreview).toBeUndefined()
     expect(writeStatsCache).not.toHaveBeenCalled()
   })
 

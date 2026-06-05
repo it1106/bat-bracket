@@ -319,3 +319,351 @@ describe('tournamentStats — grouped events collapse to parent', () => {
     expect(gs.players).toBe(2)
   })
 })
+
+// ─── Pre-match builders ──────────────────────────────────────
+import { buildSeedHeadlines } from '@/lib/tournamentStats'
+import type { TournamentOverview } from '@/lib/types'
+
+describe('buildSeedHeadlines', () => {
+  test('returns empty when overview is undefined', () => {
+    expect(buildSeedHeadlines(undefined, {})).toEqual([])
+  })
+
+  test('returns top-2 seeds per event with club lookups', () => {
+    const overview: TournamentOverview = {
+      notes: [],
+      seedEvents: [
+        {
+          eventName: 'MS',
+          seeds: [
+            { seed: 1, players: ['p1'] },
+            { seed: 2, players: ['p2'] },
+            { seed: 3, players: ['p3'] },
+          ],
+        },
+      ],
+    }
+    const clubs: Record<string, string> = { p1: 'CLUB-A', p2: 'CLUB-B' }
+    expect(buildSeedHeadlines(overview, clubs)).toEqual([
+      {
+        event: 'MS',
+        seeds: [
+          { seed: 1, players: ['p1'], club: 'CLUB-A' },
+          { seed: 2, players: ['p2'], club: 'CLUB-B' },
+        ],
+      },
+    ])
+  })
+
+  test('omits club when not in lookup', () => {
+    const overview: TournamentOverview = {
+      notes: [],
+      seedEvents: [{ eventName: 'WS', seeds: [{ seed: 1, players: ['x'] }] }],
+    }
+    expect(buildSeedHeadlines(overview, {})).toEqual([
+      { event: 'WS', seeds: [{ seed: 1, players: ['x'] }] },
+    ])
+  })
+})
+
+import { buildMultiEventEntries } from '@/lib/tournamentStats'
+
+function fakeRosterEntry(eventName: string, playerIds: string[]): MatchEntry {
+  return {
+    draw: eventName, drawNum: '', round: 'R32',
+    team1: playerIds.map((id) => ({ name: id, playerId: id })),
+    team2: [], winner: null, scores: [], court: '',
+    walkover: false, retired: false, nowPlaying: false,
+    eventName,
+  }
+}
+
+describe('buildMultiEventEntries', () => {
+  test('returns empty when rosterByDraw is undefined', () => {
+    expect(buildMultiEventEntries(undefined, {}, {})).toEqual([])
+  })
+
+  test('returns players entered in 2+ events sorted by count desc then name', () => {
+    const roster = new Map<string, MatchEntry[]>([
+      ['1', [fakeRosterEntry('MS', ['p1']), fakeRosterEntry('MS', ['p2'])]],
+      ['2', [fakeRosterEntry('MD', ['p1', 'p3'])]],
+      ['3', [fakeRosterEntry('XD', ['p1', 'p4'])]],
+      ['4', [fakeRosterEntry('WS', ['p3'])]],
+    ])
+    const clubs = { p1: 'CLUB-A', p3: 'CLUB-B' }
+    const names = { p1: 'Alice', p3: 'Cara' }
+    const out = buildMultiEventEntries(roster, clubs, names)
+    expect(out).toEqual([
+      { playerId: 'p1', name: 'Alice', club: 'CLUB-A', events: ['MS', 'MD', 'XD'] },
+      { playerId: 'p3', name: 'Cara', club: 'CLUB-B', events: ['MD', 'WS'] },
+    ])
+  })
+
+  test('falls back to playerId when name is missing', () => {
+    const roster = new Map<string, MatchEntry[]>([
+      ['1', [fakeRosterEntry('MS', ['p9'])]],
+      ['2', [fakeRosterEntry('MD', ['p9'])]],
+    ])
+    expect(buildMultiEventEntries(roster, {}, {})).toEqual([
+      { playerId: 'p9', name: 'p9', club: '', events: ['MS', 'MD'] },
+    ])
+  })
+})
+
+import { buildPotentialCollisions } from '@/lib/tournamentStats'
+
+describe('buildPotentialCollisions', () => {
+  test('returns empty when overview is undefined', () => {
+    expect(buildPotentialCollisions(undefined, {})).toEqual([])
+  })
+
+  test('produces SF + F for a 4-seed event using convention (1v4, 2v3)', () => {
+    const overview: TournamentOverview = {
+      notes: [],
+      seedEvents: [{
+        eventName: 'MS',
+        seeds: [
+          { seed: 1, players: ['p1'] },
+          { seed: 2, players: ['p2'] },
+          { seed: 3, players: ['p3'] },
+          { seed: 4, players: ['p4'] },
+        ],
+      }],
+    }
+    const clubs = { p1: 'A', p2: 'B', p3: 'C', p4: 'D' }
+    const out = buildPotentialCollisions(overview, clubs)
+    expect(out).toEqual([{
+      event: 'MS',
+      semis: [
+        { sideA: { seed: 1, players: ['p1'], club: 'A' }, sideB: { seed: 4, players: ['p4'], club: 'D' } },
+        { sideA: { seed: 2, players: ['p2'], club: 'B' }, sideB: { seed: 3, players: ['p3'], club: 'C' } },
+      ],
+      final: {
+        sideA: { seed: 1, players: ['p1'], club: 'A' },
+        sideB: { seed: 2, players: ['p2'], club: 'B' },
+      },
+    }])
+  })
+
+  test('skips events with fewer than 4 seeded players', () => {
+    const overview: TournamentOverview = {
+      notes: [],
+      seedEvents: [{
+        eventName: 'WS',
+        seeds: [
+          { seed: 1, players: ['x'] },
+          { seed: 2, players: ['y'] },
+          { seed: 3, players: ['z'] },
+        ],
+      }],
+    }
+    expect(buildPotentialCollisions(overview, {})).toEqual([])
+  })
+
+  test('omits club when not in lookup', () => {
+    const overview: TournamentOverview = {
+      notes: [],
+      seedEvents: [{
+        eventName: 'XD',
+        seeds: [
+          { seed: 1, players: ['a'] },
+          { seed: 2, players: ['b'] },
+          { seed: 3, players: ['c'] },
+          { seed: 4, players: ['d'] },
+        ],
+      }],
+    }
+    const out = buildPotentialCollisions(overview, {})
+    expect(out[0].semis[0].sideA.club).toBeUndefined()
+    expect(out[0].final?.sideB.club).toBeUndefined()
+  })
+})
+
+import { buildSchedulePreview } from '@/lib/tournamentStats'
+
+describe('buildSchedulePreview', () => {
+  test('returns undefined when no days', () => {
+    const data: MatchesData = { days: [] } as unknown as MatchesData
+    expect(buildSchedulePreview(data, new Map())).toBeUndefined()
+  })
+
+  test('returns undefined when first day has no scheduled matches', () => {
+    const data = { days: [{ date: '2026-06-10', label: 'Wed', dateIso: '2026-06-10', hasMatches: true }] } as MatchesData
+    const groups: MatchScheduleGroup[] = [{
+      type: 'court', court: 'C1', matches: [{
+        draw: 'MS', drawNum: '1', round: 'R32',
+        team1: [{ name: 'A', playerId: 'a' }],
+        team2: [{ name: 'B', playerId: 'b' }],
+        winner: null, scores: [], court: 'C1', walkover: false, retired: false, nowPlaying: false,
+      }],
+    }]
+    expect(buildSchedulePreview(data, new Map([['2026-06-10', groups]]))).toBeUndefined()
+  })
+
+  test('groups by court and sorts matches by time when scheduled times exist', () => {
+    const data = { days: [{ date: '2026-06-10', label: 'Wed Jun 10', dateIso: '2026-06-10', hasMatches: true }] } as MatchesData
+    const m = (court: string, time: string, eventName: string) => ({
+      draw: eventName, drawNum: '1', round: 'R32',
+      team1: [{ name: 'A', playerId: 'a' }],
+      team2: [{ name: 'B', playerId: 'b' }],
+      winner: null, scores: [], court, walkover: false, retired: false, nowPlaying: false,
+      scheduledTime: time, eventName,
+    })
+    const groups: MatchScheduleGroup[] = [
+      { type: 'court', court: 'C1', matches: [m('C1', '10:30', 'MS'), m('C1', '09:00', 'WS')] },
+      { type: 'court', court: 'C2', matches: [m('C2', '09:15', 'MD')] },
+    ]
+    const preview = buildSchedulePreview(data, new Map([['2026-06-10', groups]]))
+    expect(preview).toEqual({
+      firstDayLabel: 'Wed Jun 10',
+      matchCount: 3,
+      courts: 2,
+      opensAt: '09:00',
+      openingDayByCourt: [
+        { court: 'C1', matches: [
+          expect.objectContaining({ time: '09:00', event: 'WS' }),
+          expect.objectContaining({ time: '10:30', event: 'MS' }),
+        ]},
+        { court: 'C2', matches: [
+          expect.objectContaining({ time: '09:15', event: 'MD' }),
+        ]},
+      ],
+    })
+  })
+
+  test('returns undefined when any match on the first day already has a winner', () => {
+    const data = { days: [{ date: '2026-06-10', label: 'Wed', dateIso: '2026-06-10', hasMatches: true }] } as MatchesData
+    const groups: MatchScheduleGroup[] = [{
+      type: 'court', court: 'C1', matches: [{
+        draw: 'MS', drawNum: '1', round: 'R32',
+        team1: [{ name: 'A', playerId: 'a' }],
+        team2: [{ name: 'B', playerId: 'b' }],
+        winner: 1, scores: [{ t1: 21, t2: 10 }], court: 'C1',
+        walkover: false, retired: false, nowPlaying: false, scheduledTime: '09:00',
+      }],
+    }]
+    expect(buildSchedulePreview(data, new Map([['2026-06-10', groups]]))).toBeUndefined()
+  })
+})
+
+describe('kpis entries/draws', () => {
+  test('counts entries (sum across draws) and draws (number of rosterByDraw keys)', () => {
+    const data = { days: [] } as unknown as MatchesData
+    const roster = new Map<string, MatchEntry[]>([
+      ['1', [fakeRosterEntry('MS', ['a']), fakeRosterEntry('MS', ['b'])]],
+      ['2', [fakeRosterEntry('MD', ['a', 'c'])]],
+      ['3', [fakeRosterEntry('WS', ['d'])]],
+    ])
+    const stats = aggregate(data, new Map(), {}, roster, {})
+    expect(stats.kpis.entries).toBe(4)
+    expect(stats.kpis.draws).toBe(3)
+  })
+
+  test('entries/draws are zero when rosterByDraw is undefined', () => {
+    const data = { days: [] } as unknown as MatchesData
+    const stats = aggregate(data, new Map(), {}, undefined, {})
+    expect(stats.kpis.entries).toBe(0)
+    expect(stats.kpis.draws).toBe(0)
+  })
+})
+
+import type { DrawInfo } from '@/lib/types'
+
+describe('events pre-match decoration', () => {
+  test('decorates with size, type, entries, topSeed when draws+overview present', () => {
+    const data = { days: [] } as unknown as MatchesData
+    // rosterByDraw is keyed by draw NAME (matches production: roster.set(d.name, ...))
+    const roster = new Map<string, MatchEntry[]>([
+      ['MS', [fakeRosterEntry('MS', ['p1']), fakeRosterEntry('MS', ['p2']), fakeRosterEntry('MS', ['p3'])]],
+    ])
+    const draws: DrawInfo[] = [{ drawNum: '10', name: 'MS', size: '16', type: 'Knockout', eventName: 'MS' }]
+    const overview: TournamentOverview = { notes: [], seedEvents: [{ eventName: 'MS', seeds: [{ seed: 1, players: ['p1'] }] }] }
+    const clubs = { p1: 'A' }
+    const stats = aggregate(data, new Map(), clubs, roster, {}, { draws, overview })
+    expect(stats.events).toHaveLength(1)
+    expect(stats.events[0]).toEqual(expect.objectContaining({
+      name: 'MS',
+      size: 16,
+      type: 'KO',
+      entries: 3,
+      topSeed: { players: ['p1'], club: 'A' },
+    }))
+  })
+
+  test('maps Round Robin draws to RR+PO type', () => {
+    const data = { days: [] } as unknown as MatchesData
+    const roster = new Map<string, MatchEntry[]>([
+      ['U17 MS', [fakeRosterEntry('U17 MS', ['x'])]],
+    ])
+    const draws: DrawInfo[] = [{ drawNum: '11', name: 'U17 MS', size: '8', type: 'Round Robin', eventName: 'U17 MS' }]
+    const stats = aggregate(data, new Map(), {}, roster, {}, { draws })
+    expect(stats.events[0]).toEqual(expect.objectContaining({ type: 'RR+PO', size: 8 }))
+  })
+
+  test('leaves pre-match fields undefined when draws not provided', () => {
+    const data = { days: [] } as unknown as MatchesData
+    const roster = new Map<string, MatchEntry[]>([
+      ['WS', [fakeRosterEntry('WS', ['w1'])]],
+    ])
+    const stats = aggregate(data, new Map(), {}, roster, {})
+    expect(stats.events[0]).toEqual(expect.objectContaining({ name: 'WS' }))
+    expect(stats.events[0].size).toBeUndefined()
+    expect(stats.events[0].type).toBeUndefined()
+  })
+})
+
+import { buildDefendingChampion } from '@/lib/tournamentStats'
+import type { PriorEditionWinnerMap } from '@/lib/priorEdition'
+
+describe('buildDefendingChampion', () => {
+  test('returns [] when winners map is undefined', () => {
+    expect(buildDefendingChampion(undefined, undefined)).toEqual([])
+  })
+
+  test('emits one row per event in overview that has a winner', () => {
+    const overview: TournamentOverview = { notes: [], seedEvents: [
+      { eventName: 'MS', seeds: [] },
+      { eventName: 'WS', seeds: [] },
+      { eventName: 'MD', seeds: [] },
+    ] }
+    const winners: PriorEditionWinnerMap = new Map([
+      ['MS', { players: ['p1'], club: 'A', priorEditionId: 'PRI', priorEditionLabel: 'Prior' }],
+      ['MD', { players: ['p2', 'p3'], priorEditionId: 'PRI', priorEditionLabel: 'Prior' }],
+    ])
+    const out = buildDefendingChampion(winners, overview)
+    expect(out).toEqual([
+      { event: 'MS', players: ['p1'], club: 'A', priorEditionId: 'PRI', priorEditionLabel: 'Prior' },
+      { event: 'MD', players: ['p2', 'p3'], priorEditionId: 'PRI', priorEditionLabel: 'Prior' },
+    ])
+  })
+
+  test('skips events that didn’t exist in the prior edition', () => {
+    const overview: TournamentOverview = { notes: [], seedEvents: [{ eventName: 'NEW', seeds: [] }] }
+    const winners: PriorEditionWinnerMap = new Map([['OLD', { players: ['x'], priorEditionId: 'P', priorEditionLabel: 'Prior' }]])
+    expect(buildDefendingChampion(winners, overview)).toEqual([])
+  })
+})
+
+describe('dailyVolume hybrid phase', () => {
+  test('emits a row for a scheduled day with 0 completed matches', () => {
+    const data = {
+      days: [{ date: '2026-06-10', label: 'Wed', dateIso: '2026-06-10', hasMatches: true }],
+    } as MatchesData
+    const groups: MatchScheduleGroup[] = [{
+      type: 'court', court: 'C1', matches: [
+        { draw: 'MS', drawNum: '1', round: 'R32',
+          team1: [{ name: 'A', playerId: 'a' }], team2: [{ name: 'B', playerId: 'b' }],
+          winner: null, scores: [], court: 'C1', walkover: false, retired: false, nowPlaying: false,
+          scheduledTime: '09:00' },
+        { draw: 'MS', drawNum: '1', round: 'R32',
+          team1: [{ name: 'C', playerId: 'c' }], team2: [{ name: 'D', playerId: 'd' }],
+          winner: null, scores: [], court: 'C1', walkover: false, retired: false, nowPlaying: false,
+          scheduledTime: '10:00' },
+      ],
+    }]
+    const stats = aggregate(data, new Map([['2026-06-10', groups]]), {}, undefined, {})
+    expect(stats.dailyVolume).toEqual([
+      { date: '2026-06-10', label: 'Wed', total: 2, decided: 0, minutes: 0 },
+    ])
+  })
+})

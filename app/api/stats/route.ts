@@ -7,7 +7,18 @@ import { readStatsCache, writeStatsCache, hashFullCacheBytes } from '@/lib/stats
 import { providerFor } from '@/lib/providers/resolve'
 import { resolveRef } from '@/lib/tournaments-registry'
 import { NotImplementedError } from '@/lib/providers/types'
-import type { MatchScheduleGroup, TournamentStats, MatchesData, MatchEntry } from '@/lib/types'
+import { getCachedOrDisk as getDrawsCached } from '@/lib/draws-cache'
+import { cache as overviewMemCache, readDiskSnapshot as readOverviewDisk } from '@/lib/overview-cache'
+import { resolvePriorEdition, buildPriorEditionWinners } from '@/lib/priorEdition'
+import type {
+  DrawInfo,
+  MatchEntry,
+  MatchesData,
+  MatchScheduleGroup,
+  TournamentInfo,
+  TournamentOverview,
+  TournamentStats,
+} from '@/lib/types'
 
 export const maxDuration = 30
 
@@ -191,6 +202,7 @@ function emptyStats(tournamentId: string): TournamentStats {
     kpis: {
       events: 0, matches: 0, decided: 0, walkovers: 0, retired: 0, nowPlaying: 0,
       players: 0, multiEventPlayers: 0, courtMinutes: 0, avgMatchMinutes: 0, threeSetterRate: 0,
+      entries: 0, draws: 0,
     },
     dailyVolume: [],
     events: [],
@@ -214,6 +226,42 @@ function buildResponse(stats: TournamentStats, isLive: boolean): NextResponse {
   })
 }
 
+async function readOverviewSafe(tournamentId: string): Promise<TournamentOverview | null> {
+  const mem = overviewMemCache.get(tournamentId)?.data
+  if (mem) return mem
+  try { return await readOverviewDisk(tournamentId) } catch { return null }
+}
+
+async function listKnownTournamentsForResolver(origin: string): Promise<TournamentInfo[]> {
+  const j = await fetchJsonFromOrigin<{ tournaments?: TournamentInfo[] } | TournamentInfo[]>(
+    origin,
+    `/api/tournaments`,
+  )
+  if (!j) return []
+  if (Array.isArray(j)) return j
+  return Array.isArray(j.tournaments) ? j.tournaments : []
+}
+
+async function fetchPriorWinners(
+  origin: string,
+  priorId: string,
+): Promise<Map<string, { players: string[] }>> {
+  // priorChain=1 tells the recursive /api/stats invocation to skip its own
+  // prior-edition resolution. Without it, a `done: true` tournament that
+  // lacks its full-cache snapshot would re-enter the !isAllPast branch and
+  // spawn another /api/tournaments + /api/stats round-trip per request.
+  const j = await fetchJsonFromOrigin<TournamentStats>(
+    origin,
+    `/api/stats?tournament=${encodeURIComponent(priorId)}&priorChain=1`,
+  )
+  const out = new Map<string, { players: string[] }>()
+  if (!j || !Array.isArray(j.events)) return out
+  for (const e of j.events) {
+    if (e.winner.length > 0) out.set(e.name, { players: e.winner })
+  }
+  return out
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   // Self-loopback origin: always go through 127.0.0.1 instead of the request's
@@ -229,6 +277,7 @@ export async function GET(request: Request) {
   if (!tournamentId) {
     return NextResponse.json({ error: 'tournament param required' }, { status: 400 })
   }
+  const skipPriorChain = searchParams.get('priorChain') === '1'
 
   const memHit = memCache.get(tournamentId)
   if (memHit) {
@@ -266,15 +315,38 @@ export async function GET(request: Request) {
       }
     }
 
-    const [dayMap, clubsResp, rosterByDraw] = await Promise.all([
+    const [dayMap, clubsResp, rosterByDraw, drawsEntry, overviewSnap] = await Promise.all([
       assembleDayMap(origin, tournamentId, fullData),
       fetchClubs(origin, tournamentId),
       // Past tournaments already have every event covered by played matches,
       // so the roster adds no information — skip the fetch.
       isAllPast ? Promise.resolve(null) : fetchRosterByDraw(tournamentId),
+      // Pre-match enrichments: only meaningful when the tournament hasn't
+      // finished. Each one's failure is swallowed; the corresponding section
+      // of the panel simply doesn't render.
+      isAllPast ? Promise.resolve(undefined) : getDrawsCached(tournamentId).catch(() => undefined),
+      isAllPast ? Promise.resolve(null) : readOverviewSafe(tournamentId),
     ])
     const { clubs, names } = clubsResp
-    const stats = aggregate(fullData, dayMap.groups, clubs, rosterByDraw ?? undefined, names)
+    const draws: DrawInfo[] | undefined = drawsEntry?.draws
+    const overview: TournamentOverview | undefined = overviewSnap ?? undefined
+    let priorEditionWinners: ReturnType<typeof buildPriorEditionWinners> | undefined
+    if (!isAllPast && !skipPriorChain) {
+      try {
+        const allTournaments = await listKnownTournamentsForResolver(origin)
+        const meta = allTournaments.find((t) => t.id === tournamentId)
+        const prior = meta ? resolvePriorEdition(tournamentId, meta.name, allTournaments) : null
+        if (prior) {
+          const winners = await fetchPriorWinners(origin, prior.id)
+          priorEditionWinners = buildPriorEditionWinners(prior, winners, clubs)
+        }
+      } catch {
+        priorEditionWinners = undefined
+      }
+    }
+    const stats = aggregate(fullData, dayMap.groups, clubs, rosterByDraw ?? undefined, names, {
+      draws, overview, priorEditionWinners,
+    })
     const full: TournamentStats = {
       tournamentId,
       generatedAt: new Date().toISOString(),

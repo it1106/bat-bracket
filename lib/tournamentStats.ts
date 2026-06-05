@@ -1,23 +1,36 @@
 import { longRoundL } from './i18n'
 import type {
   ComputedStats,
+  DrawInfo,
   MatchEntry,
   MatchScheduleGroup,
   MatchesData,
   StatsClubMedalist,
   StatsClubRoster,
+  StatsCollisionSeedRef,
   StatsCountryRoster,
   StatsCourtTimePlayer,
+  StatsDefendingChampion,
   StatsKpis,
   StatsMatchRef,
+  StatsMultiEventEntry,
+  StatsPotentialCollision,
+  StatsScheduleCourtBucket,
+  StatsScheduledMatch,
+  StatsSchedulePreview,
+  StatsSeedHead,
+  StatsSeedHeadline,
+  StatsSeedHeadlineSeed,
   StatsSetRef,
+  TournamentOverview,
 } from './types'
+import type { PriorEditionWinnerMap } from './priorEdition'
 
 const EMPTY: ComputedStats = {
   kpis: {
     events: 0, matches: 0, decided: 0, walkovers: 0, retired: 0, nowPlaying: 0,
     players: 0, multiEventPlayers: 0, courtMinutes: 0, avgMatchMinutes: 0,
-    threeSetterRate: 0,
+    threeSetterRate: 0, entries: 0, draws: 0,
   },
   dailyVolume: [],
   events: [],
@@ -146,6 +159,15 @@ function buildKpis(
   let multiEventPlayers = 0
   for (const set of Array.from(playerEvents.values())) if (set.size >= 2) multiEventPlayers++
 
+  let entries = 0
+  const drawSet = new Set<string>()
+  if (rosterByDraw) {
+    for (const [drawNum, list] of Array.from(rosterByDraw)) {
+      drawSet.add(drawNum)
+      entries += list.length
+    }
+  }
+
   return {
     events: events.size,
     matches,
@@ -158,6 +180,8 @@ function buildKpis(
     courtMinutes,
     avgMatchMinutes: durationCount === 0 ? 0 : durationSum / durationCount,
     threeSetterRate: decided === 0 ? 0 : threeSetterDecided / decided,
+    entries,
+    draws: drawSet.size,
   }
 }
 
@@ -204,6 +228,9 @@ export function eventRank(name: string): number {
 function buildEvents(
   ctxs: MatchCtx[],
   rosterByDraw?: Map<string, MatchEntry[]>,
+  draws?: DrawInfo[],
+  overview?: TournamentOverview,
+  clubs?: Record<string, string>,
 ): ComputedStats['events'] {
   interface Acc {
     matches: number; threeSetters: number; walkovers: number; decided: number;
@@ -257,6 +284,41 @@ function buildEvents(
     }
     byEvent.set(key, a)
   }
+  const drawByEvent = new Map<string, DrawInfo>()
+  if (draws) {
+    for (const d of draws) {
+      const key = d.eventName ?? d.name
+      if (!drawByEvent.has(key)) drawByEvent.set(key, d)
+    }
+  }
+  const topSeedByEvent = new Map<string, StatsSeedHead>()
+  if (overview) {
+    for (const ev of overview.seedEvents) {
+      const s1 = ev.seeds.find((s) => s.seed === 1)
+      if (!s1) continue
+      const head: StatsSeedHead = { players: s1.players }
+      const club = s1.players.map((id) => (clubs ?? {})[id]).find((c) => c)
+      if (club) head.club = club
+      topSeedByEvent.set(ev.eventName, head)
+    }
+  }
+  const entryCountByEvent = new Map<string, number>()
+  if (rosterByDraw) {
+    const playersByEvent = new Map<string, Set<string>>()
+    for (const entries of Array.from(rosterByDraw.values())) {
+      for (const e of entries) {
+        const ev = e.eventName ?? e.draw
+        if (!ev) continue
+        let set = playersByEvent.get(ev)
+        if (!set) { set = new Set(); playersByEvent.set(ev, set) }
+        for (const p of [...e.team1, ...e.team2]) {
+          if (p.playerId) set.add(p.playerId)
+        }
+      }
+    }
+    for (const [ev, set] of Array.from(playersByEvent)) entryCountByEvent.set(ev, set.size)
+  }
+
   const rows = Array.from(byEvent.entries()).map(([name, a]): ComputedStats['events'][number] => {
     let winner: string[] = []
     let winnerSeed: string | undefined
@@ -267,7 +329,7 @@ function buildEvents(
       const firstSeed = stripped.find((x) => x.seed)?.seed
       if (firstSeed) winnerSeed = firstSeed
     }
-    return {
+    const row: ComputedStats['events'][number] = {
       name,
       matches: a.matches,
       threeSetters: a.threeSetters,
@@ -278,6 +340,18 @@ function buildEvents(
       winner,
       winnerSeed,
     }
+    const di = drawByEvent.get(name)
+    if (di) {
+      const size = parseInt(di.size, 10)
+      if (size > 0) row.size = size
+      const t = di.type.toLowerCase()
+      row.type = t.includes('round robin') || t.includes('group') ? 'RR+PO' : 'KO'
+    }
+    const evEntries = entryCountByEvent.get(name)
+    if (typeof evEntries === 'number') row.entries = evEntries
+    const topSeed = topSeedByEvent.get(name)
+    if (topSeed) row.topSeed = topSeed
+    return row
   })
   rows.sort((a, b) => eventRank(a.name) - eventRank(b.name) || (a.name < b.name ? -1 : 1))
   return rows
@@ -638,25 +712,182 @@ function buildCountryRosters(
     .sort((a, b) => b.players - a.players || a.country.localeCompare(b.country))
 }
 
+// ─── Pre-match builders ─────────────────────────────────────────────
+
+export function buildMultiEventEntries(
+  rosterByDraw: Map<string, MatchEntry[]> | undefined,
+  clubs: Record<string, string>,
+  names: Record<string, string>,
+): StatsMultiEventEntry[] {
+  if (!rosterByDraw || rosterByDraw.size === 0) return []
+  const eventsByPlayer = new Map<string, Set<string>>()
+  for (const entries of Array.from(rosterByDraw.values())) {
+    for (const e of entries) {
+      const eventKey = e.eventName ?? e.draw
+      if (!eventKey) continue
+      const all = [...e.team1, ...e.team2]
+      for (const p of all) {
+        if (!p.playerId) continue
+        let set = eventsByPlayer.get(p.playerId)
+        if (!set) {
+          set = new Set()
+          eventsByPlayer.set(p.playerId, set)
+        }
+        set.add(eventKey)
+      }
+    }
+  }
+  const out: StatsMultiEventEntry[] = []
+  for (const [playerId, eventSet] of Array.from(eventsByPlayer)) {
+    if (eventSet.size < 2) continue
+    out.push({
+      playerId,
+      name: names[playerId] ?? playerId,
+      club: clubs[playerId] ?? '',
+      events: Array.from(eventSet),
+    })
+  }
+  return out.sort((a, b) => {
+    if (b.events.length !== a.events.length) return b.events.length - a.events.length
+    return a.name.localeCompare(b.name)
+  })
+}
+
+export function buildSchedulePreview(
+  data: MatchesData,
+  dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
+): StatsSchedulePreview | undefined {
+  const firstDay = data.days.find((d) => d.hasMatches && d.dateIso)
+  if (!firstDay || !firstDay.dateIso) return undefined
+  const groups = dayGroupsByDate.get(firstDay.dateIso)
+  if (!groups || groups.length === 0) return undefined
+
+  const matchesByCourt = new Map<string, StatsScheduledMatch[]>()
+  let any = false
+  for (const g of groups) {
+    for (const m of g.matches) {
+      if (m.winner !== null) return undefined
+      if (!m.scheduledTime) continue
+      any = true
+      const court = m.court || (g.type === 'court' ? g.court : '—')
+      let list = matchesByCourt.get(court)
+      if (!list) {
+        list = []
+        matchesByCourt.set(court, list)
+      }
+      const sched: StatsScheduledMatch = {
+        time: m.scheduledTime,
+        event: m.eventName ?? m.draw,
+        round: m.round,
+        team1: m.team1.map((p) => p.name),
+        team2: m.team2.map((p) => p.name),
+      }
+      if (m.sequenceLabel) sched.sequenceLabel = m.sequenceLabel
+      list.push(sched)
+    }
+  }
+  if (!any) return undefined
+
+  const openingDayByCourt: StatsScheduleCourtBucket[] = Array.from(matchesByCourt.entries())
+    .map(([court, matches]) => ({
+      court,
+      matches: matches.sort((a, b) => a.time.localeCompare(b.time)),
+    }))
+    .sort((a, b) => a.court.localeCompare(b.court))
+
+  const allTimes = openingDayByCourt.flatMap((c) => c.matches.map((m) => m.time))
+  const opensAt = allTimes.sort()[0]
+  const matchCount = openingDayByCourt.reduce((acc, c) => acc + c.matches.length, 0)
+
+  return {
+    firstDayLabel: firstDay.label,
+    matchCount,
+    courts: openingDayByCourt.length,
+    opensAt,
+    openingDayByCourt,
+  }
+}
+
+export function buildPotentialCollisions(
+  overview: TournamentOverview | undefined,
+  clubs: Record<string, string>,
+): StatsPotentialCollision[] {
+  if (!overview) return []
+  const refOf = (seed: number, players: string[]): StatsCollisionSeedRef => {
+    const ref: StatsCollisionSeedRef = { seed, players }
+    const club = players.map((id) => clubs[id]).find((c) => c)
+    if (club) ref.club = club
+    return ref
+  }
+  const out: StatsPotentialCollision[] = []
+  for (const ev of overview.seedEvents) {
+    const byNum = new Map<number, string[]>()
+    for (const s of ev.seeds) byNum.set(s.seed, s.players)
+    const s1 = byNum.get(1), s2 = byNum.get(2), s3 = byNum.get(3), s4 = byNum.get(4)
+    if (!s1 || !s2 || !s3 || !s4) continue
+    const r1 = refOf(1, s1), r2 = refOf(2, s2), r3 = refOf(3, s3), r4 = refOf(4, s4)
+    out.push({
+      event: ev.eventName,
+      semis: [
+        { sideA: r1, sideB: r4 },
+        { sideA: r2, sideB: r3 },
+      ],
+      final: { sideA: r1, sideB: r2 },
+    })
+  }
+  return out
+}
+
+export function buildSeedHeadlines(
+  overview: TournamentOverview | undefined,
+  clubs: Record<string, string>,
+): StatsSeedHeadline[] {
+  if (!overview) return []
+  return overview.seedEvents.map((ev) => ({
+    event: ev.eventName,
+    seeds: ev.seeds
+      .filter((s) => s.seed === 1 || s.seed === 2)
+      .sort((a, b) => a.seed - b.seed)
+      .map((s) => {
+        const head: StatsSeedHeadlineSeed = { seed: s.seed, players: s.players }
+        const club = s.players.map((id) => clubs[id]).find((c) => c)
+        if (club) head.club = club
+        return head
+      }),
+  }))
+}
+
+export interface AggregateExtras {
+  draws?: DrawInfo[]
+  overview?: TournamentOverview
+  priorEditionWinners?: PriorEditionWinnerMap
+}
+
 export function aggregate(
   data: MatchesData,
   dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
   clubs: Record<string, string>,
   rosterByDraw?: Map<string, MatchEntry[]>,
   names: Record<string, string> = {},
+  extras: AggregateExtras = {},
 ): ComputedStats {
   const ctxs: MatchCtx[] = Array.from(iterateMatches(data, dayGroupsByDate))
   const rosterSize = rosterByDraw ? rosterByDraw.size : 0
   // clubRosters is derived purely from the clubs map (playerId -> club), so
   // it's meaningful even before any match is scheduled — register-then-show.
   if (ctxs.length === 0 && rosterSize === 0) {
-    return { ...EMPTY, clubRosters: buildClubRosters(clubs, names), countryRosters: buildCountryRosters(ctxs, rosterByDraw) }
+    const base: ComputedStats = {
+      ...EMPTY,
+      clubRosters: buildClubRosters(clubs, names),
+      countryRosters: buildCountryRosters(ctxs, rosterByDraw),
+    }
+    return decorateOptional(base, extras, clubs, names, rosterByDraw, data, dayGroupsByDate)
   }
   const { clubMedals, multiGoldPlayers } = buildClubMedalsAndMultiGold(ctxs, clubs)
-  return {
+  const base: ComputedStats = {
     kpis: buildKpis(ctxs, rosterByDraw),
     dailyVolume: buildDailyVolume(data, ctxs),
-    events: buildEvents(ctxs, rosterByDraw),
+    events: buildEvents(ctxs, rosterByDraw, extras.draws, extras.overview, clubs),
     drama: buildDrama(ctxs),
     topPlayers: buildTopPlayers(ctxs, clubs),
     courtUtilization: buildCourtUtilization(ctxs),
@@ -666,4 +897,48 @@ export function aggregate(
     countryRosters: buildCountryRosters(ctxs, rosterByDraw),
     integrity: buildIntegrity(ctxs),
   }
+  return decorateOptional(base, extras, clubs, names, rosterByDraw, data, dayGroupsByDate)
+}
+
+function decorateOptional(
+  base: ComputedStats,
+  extras: AggregateExtras,
+  clubs: Record<string, string>,
+  names: Record<string, string>,
+  rosterByDraw: Map<string, MatchEntry[]> | undefined,
+  data: MatchesData,
+  dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
+): ComputedStats {
+  const seedHeadlines = buildSeedHeadlines(extras.overview, clubs)
+  if (seedHeadlines.length) base.seedHeadlines = seedHeadlines
+  const multiEventEntries = buildMultiEventEntries(rosterByDraw, clubs, names)
+  if (multiEventEntries.length) base.multiEventEntries = multiEventEntries
+  const collisions = buildPotentialCollisions(extras.overview, clubs)
+  if (collisions.length) base.potentialCollisions = collisions
+  const defending = buildDefendingChampion(extras.priorEditionWinners, extras.overview)
+  if (defending.length) base.defendingChampion = defending
+  const preview = buildSchedulePreview(data, dayGroupsByDate)
+  if (preview) base.schedulePreview = preview
+  return base
+}
+
+export function buildDefendingChampion(
+  winners: PriorEditionWinnerMap | undefined,
+  overview: TournamentOverview | undefined,
+): StatsDefendingChampion[] {
+  if (!winners || !overview) return []
+  const out: StatsDefendingChampion[] = []
+  for (const ev of overview.seedEvents) {
+    const w = winners.get(ev.eventName)
+    if (!w) continue
+    const row: StatsDefendingChampion = {
+      event: ev.eventName,
+      players: w.players,
+      priorEditionId: w.priorEditionId,
+      priorEditionLabel: w.priorEditionLabel,
+    }
+    if (w.club) row.club = w.club
+    out.push(row)
+  }
+  return out
 }

@@ -127,8 +127,9 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   )
   if (error) return <div className="stats-error">{t('statsLoadFailed')}</div>
   if (!stats) return null
-  if (stats.kpis.matches === 0) return <div className="stats-empty">{t('statsEmptyState')}</div>
 
+  const hasDecided = stats.kpis.decided > 0
+  const dramaHasContent = !!(stats.drama.marathon || stats.drama.highestSet || stats.drama.highestScoringMatch || stats.drama.mostCourtTime)
   const dayMax = Math.max(1, ...stats.dailyVolume.map((d) => d.total))
   const courtMax = Math.max(1, ...stats.courtUtilization.map((c) => c.minutes))
   const playersPct = stats.kpis.players > 0
@@ -146,7 +147,15 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
         <h2>{t('statsSectionByNumbers')}</h2>
         <div className="stats-kpis">
           <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.events)}</div><div className="stats-kpi-lbl">{t('statsKpiEvents')}</div></div>
-          <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.decided)}</div><div className="stats-kpi-lbl">{t('statsKpiMatches')}</div></div>
+          {!hasDecided && stats.kpis.entries > 0 && (
+            <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.entries)}</div><div className="stats-kpi-lbl">{t('statsKpiEntries')}</div></div>
+          )}
+          {!hasDecided && stats.kpis.draws > 0 && (
+            <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.draws)}</div><div className="stats-kpi-lbl">{t('statsKpiDraws')}</div></div>
+          )}
+          {hasDecided && (
+            <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.decided)}</div><div className="stats-kpi-lbl">{t('statsKpiMatches')}</div></div>
+          )}
           <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.players)}</div><div className="stats-kpi-lbl">{t('statsKpiPlayers')}</div></div>
           <div className="stats-kpi">
             <div className="stats-kpi-num">
@@ -155,26 +164,118 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
             </div>
             <div className="stats-kpi-lbl">{t('statsKpiMultiEvent')}</div>
           </div>
-          <div className="stats-kpi"><div className="stats-kpi-num">{formatHours(stats.kpis.courtMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiCourtTime')}</div></div>
-          <div className="stats-kpi"><div className="stats-kpi-num">{formatMinutes(stats.kpis.avgMatchMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiAvgMatch')}</div></div>
-          <div className="stats-kpi">
-            <div className="stats-kpi-num">
-              {fmt(threeSetterCount)}
-              <span className="stats-kpi-sub"> ({pct(stats.kpis.threeSetterRate)})</span>
-            </div>
-            <div className="stats-kpi-lbl">{t('statsKpiThreeSetters')}</div>
-          </div>
-          <div className="stats-kpi">
-            <div className="stats-kpi-num">
-              {fmt(comebackCount)}
-              <span className="stats-kpi-sub"> ({pct(comebackRate)})</span>
-            </div>
-            <div className="stats-kpi-lbl">{t('statsKpiComebacks')}</div>
-          </div>
+          {hasDecided && (
+            <>
+              <div className="stats-kpi"><div className="stats-kpi-num">{formatHours(stats.kpis.courtMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiCourtTime')}</div></div>
+              <div className="stats-kpi"><div className="stats-kpi-num">{formatMinutes(stats.kpis.avgMatchMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiAvgMatch')}</div></div>
+              <div className="stats-kpi">
+                <div className="stats-kpi-num">
+                  {fmt(threeSetterCount)}
+                  <span className="stats-kpi-sub"> ({pct(stats.kpis.threeSetterRate)})</span>
+                </div>
+                <div className="stats-kpi-lbl">{t('statsKpiThreeSetters')}</div>
+              </div>
+              <div className="stats-kpi">
+                <div className="stats-kpi-num">
+                  {fmt(comebackCount)}
+                  <span className="stats-kpi-sub"> ({pct(comebackRate)})</span>
+                </div>
+                <div className="stats-kpi-lbl">{t('statsKpiComebacks')}</div>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
+      {/* Defending champions */}
+      {stats.defendingChampion && stats.defendingChampion.length > 0 && (
+        <section className="stats-section" data-stats-share="defending">
+          <h2>{t('statsSectionDefendingChampions')}</h2>
+          {stats.defendingChampion.map((d) => (
+            <div className="stats-defending-card" key={d.event}>
+              <div className="stats-defending-event">{d.event}</div>
+              <div className="stats-defending-name">{d.players.join(' / ')}</div>
+              {d.club && <div className="stats-defending-club">{d.club}</div>}
+              <div className="stats-defending-prior">{d.priorEditionLabel}</div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* Top seeds */}
+      {stats.seedHeadlines && stats.seedHeadlines.length > 0 && (
+        <section className="stats-section" data-stats-share="seeds">
+          <h2>{t('statsSectionSeedHeadlines')}</h2>
+          {stats.seedHeadlines.map((h) => (
+            <div className="stats-seed-card" key={h.event}>
+              <div className="stats-seed-event">{h.event}</div>
+              {h.seeds.map((s) => (
+                <div className="stats-seed-row" key={s.seed}>
+                  <span className="stats-seed-num">#{s.seed}</span>
+                  <span className="stats-seed-name">{s.players.join(' / ')}</span>
+                  {s.club && <span className="stats-seed-club">{s.club}</span>}
+                </div>
+              ))}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* Potential collisions */}
+      {stats.potentialCollisions && stats.potentialCollisions.length > 0 && (
+        <section className="stats-section" data-stats-share="collisions">
+          <h2>{t('statsSectionPotentialCollisions')}</h2>
+          {stats.potentialCollisions.map((c) => (
+            <div className="stats-collision-card" key={c.event}>
+              <div className="stats-collision-event">{c.event}</div>
+              {c.semis.map((p, i) => (
+                <div className="stats-collision-row" key={`sf-${i}`}>
+                  <span className="stats-collision-label">{t('statsCollisionsSf')}</span>
+                  <span className="stats-collision-side">#{p.sideA.seed} {p.sideA.players.join(' / ')}</span>
+                  <span className="stats-collision-vs">vs</span>
+                  <span className="stats-collision-side">#{p.sideB.seed} {p.sideB.players.join(' / ')}</span>
+                </div>
+              ))}
+              {c.final && (
+                <div className="stats-collision-row stats-collision-row-final">
+                  <span className="stats-collision-label">{t('statsCollisionsF')}</span>
+                  <span className="stats-collision-side">#{c.final.sideA.seed} {c.final.sideA.players.join(' / ')}</span>
+                  <span className="stats-collision-vs">vs</span>
+                  <span className="stats-collision-side">#{c.final.sideB.seed} {c.final.sideB.players.join(' / ')}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* Multi-event entries */}
+      {stats.multiEventEntries && stats.multiEventEntries.length > 0 && (
+        <section className="stats-section" data-stats-share="multi-entries">
+          <h2>{t('statsSectionMultiEventEntries')}</h2>
+          <table className="stats-table">
+            <thead><tr>
+              <th className="stats-num">#</th>
+              <th>{t('statsColPlayer')}</th>
+              <th className="stats-club-d">{t('statsColClub')}</th>
+              <th>{t('statsColEvents')}</th>
+            </tr></thead>
+            <tbody>
+              {stats.multiEventEntries.map((p) => (
+                <tr key={p.playerId}>
+                  <td className="stats-num"><b>{p.events.length}</b></td>
+                  <td>{p.name}{p.club && <div className="stats-club-m">{p.club}</div>}</td>
+                  <td className="stats-club-d">{p.club}</td>
+                  <td>{p.events.join(' + ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       {/* Drama */}
+      {dramaHasContent && (
       <section className="stats-section" data-stats-share="drama">
         <h2>{t('statsSectionDrama')}</h2>
 
@@ -224,6 +325,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           </div>
         )}
       </section>
+      )}
 
       {/* Club Medals */}
       {stats.clubMedals.length > 0 && (
@@ -264,6 +366,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       )}
 
       {/* Top players */}
+      {stats.topPlayers.length > 0 && (
       <section className="stats-section" data-stats-share="top-players">
         <h2>{t('statsSectionTopPlayers')}</h2>
         <table className="stats-table">
@@ -283,6 +386,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           </tbody>
         </table>
       </section>
+      )}
 
       {/* Multi-Gold */}
       {stats.multiGoldPlayers.length > 0 && (
@@ -313,23 +417,36 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
         <table className="stats-table stats-event-list">
           <thead><tr>
             <th>{t('statsSectionEvents')}</th>
+            <th className="stats-num">{t('statsColSize')}</th>
+            <th className="stats-num">{t('statsColType')}</th>
             <th className="stats-num">{t('statsColMatches')}</th>
             <th className="stats-num">{t('statsColPlayers')}</th>
             <th className="stats-num">{t('statsCol3Set')}</th>
             <th className="stats-num">{t('statsColAvg')}</th>
-            <th>{t('statsColWinner')}</th>
+            <th>{hasDecided ? t('statsColWinner') : t('statsColTopSeed')}</th>
           </tr></thead>
           <tbody>
             {stats.events.map((e) => (
               <tr key={e.name}>
                 <td className="stats-evname">{e.name}</td>
-                <td className="stats-num">{e.matches}</td>
-                <td className="stats-num">{fmt(e.players ?? 0)}</td>
-                <td className="stats-num">{e.decided === 0 ? '0%' : pct(e.threeSetters / e.decided)}</td>
-                <td className="stats-num">{formatMinutes(e.avgMinutes, lang)}</td>
+                <td className="stats-num">{e.size ?? '—'}</td>
+                <td className="stats-num">{e.type ?? '—'}</td>
+                <td className="stats-num">{e.decided === 0 ? '—' : e.matches}</td>
+                <td className="stats-num">{fmt(e.players ?? e.entries ?? 0)}</td>
+                <td className="stats-num">{e.decided === 0 ? '—' : pct(e.threeSetters / e.decided)}</td>
+                <td className="stats-num">{e.decided === 0 ? '—' : formatMinutes(e.avgMinutes, lang)}</td>
                 <td className="stats-winner-cell">
-                  {e.winner.join(' / ')}
-                  {e.winnerSeed && <span className="stats-seed"> {e.winnerSeed}</span>}
+                  {e.winner.length > 0 ? (
+                    <>
+                      {e.winner.join(' / ')}
+                      {e.winnerSeed && <span className="stats-seed"> {e.winnerSeed}</span>}
+                    </>
+                  ) : e.topSeed ? (
+                    <>
+                      {e.topSeed.players.join(' / ')}
+                      {e.topSeed.club && <div className="stats-club-m">{e.topSeed.club}</div>}
+                    </>
+                  ) : '—'}
                 </td>
               </tr>
             ))}
@@ -394,7 +511,34 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
         </section>
       )}
 
+      {/* Schedule preview */}
+      {stats.schedulePreview && (
+        <section className="stats-section" data-stats-share="schedule-preview">
+          <h2>{t('statsSectionSchedulePreview')} · {stats.schedulePreview.firstDayLabel}</h2>
+          <div className="stats-schedule-sub">
+            {stats.schedulePreview.matchCount} {lang === 'th' ? 'แมตช์' : 'matches'}
+             ·  {stats.schedulePreview.courts} {lang === 'th' ? 'สนาม' : 'courts'}
+            {stats.schedulePreview.opensAt && <>  ·  {t('statsScheduleOpensAt')} {stats.schedulePreview.opensAt}</>}
+          </div>
+          <div className="stats-schedule-grid">
+            {stats.schedulePreview.openingDayByCourt.map((c) => (
+              <div className="stats-schedule-court" key={c.court}>
+                <div className="stats-schedule-court-name">{c.court}</div>
+                {c.matches.map((m, i) => (
+                  <div className="stats-schedule-match" key={`${m.time}-${i}`}>
+                    <span className="stats-schedule-time">{m.time}</span>
+                    <span className="stats-schedule-evt"> {m.event} · {m.round}</span>
+                    <div className="stats-schedule-teams">{m.team1.join(' / ')} <span className="stats-schedule-vs">vs</span> {m.team2.join(' / ')}</div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Matches per day */}
+      {stats.dailyVolume.length > 0 && (
       <section className="stats-section">
         <h2>{t('statsSectionMatchesPerDay')}</h2>
         {stats.dailyVolume.map((d) => (
@@ -408,8 +552,10 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           </div>
         ))}
       </section>
+      )}
 
       {/* Court utilization */}
+      {stats.courtUtilization.length > 0 && (
       <section className="stats-section">
         <h2>{t('statsSectionCourtUtilization')}</h2>
         {stats.courtUtilization.map((c) => {
@@ -426,8 +572,10 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           )
         })}
       </section>
+      )}
 
       {/* Integrity */}
+      {hasDecided && (
       <section className="stats-section">
         <h2>{t('statsSectionIntegrity')}</h2>
         <div className="stats-grid-2">
@@ -445,6 +593,11 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           </div>
         </div>
       </section>
+      )}
+
+      {!hasDecided && (
+        <div className="stats-prematch-footer">{t('statsPreMatchFooter')}</div>
+      )}
     </div>
   )
 }
