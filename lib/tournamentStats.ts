@@ -915,7 +915,7 @@ function decorateOptional(
   if (multiEventEntries.length) base.multiEventEntries = multiEventEntries
   const collisions = buildPotentialCollisions(extras.overview, clubs)
   if (collisions.length) base.potentialCollisions = collisions
-  const defending = buildDefendingChampion(extras.priorEditionWinners, extras.overview, clubs)
+  const defending = buildDefendingChampion(extras.priorEditionWinners, extras.overview)
   if (defending.length) base.defendingChampion = defending
   const preview = buildSchedulePreview(data, dayGroupsByDate)
   if (preview) base.schedulePreview = preview
@@ -925,7 +925,6 @@ function decorateOptional(
 export function buildDefendingChampion(
   winners: PriorEditionWinnerMap | undefined,
   overview: TournamentOverview | undefined,
-  _clubs: Record<string, string>,
 ): StatsDefendingChampion[] {
   if (!winners || !overview) return []
   const out: StatsDefendingChampion[] = []

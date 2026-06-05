@@ -617,7 +617,7 @@ import type { PriorEditionWinnerMap } from '@/lib/priorEdition'
 
 describe('buildDefendingChampion', () => {
   test('returns [] when winners map is undefined', () => {
-    expect(buildDefendingChampion(undefined, undefined, {})).toEqual([])
+    expect(buildDefendingChampion(undefined, undefined)).toEqual([])
   })
 
   test('emits one row per event in overview that has a winner', () => {
@@ -630,7 +630,7 @@ describe('buildDefendingChampion', () => {
       ['MS', { players: ['p1'], club: 'A', priorEditionId: 'PRI', priorEditionLabel: 'Prior' }],
       ['MD', { players: ['p2', 'p3'], priorEditionId: 'PRI', priorEditionLabel: 'Prior' }],
     ])
-    const out = buildDefendingChampion(winners, overview, {})
+    const out = buildDefendingChampion(winners, overview)
     expect(out).toEqual([
       { event: 'MS', players: ['p1'], club: 'A', priorEditionId: 'PRI', priorEditionLabel: 'Prior' },
       { event: 'MD', players: ['p2', 'p3'], priorEditionId: 'PRI', priorEditionLabel: 'Prior' },
@@ -640,7 +640,7 @@ describe('buildDefendingChampion', () => {
   test('skips events that didn’t exist in the prior edition', () => {
     const overview: TournamentOverview = { notes: [], seedEvents: [{ eventName: 'NEW', seeds: [] }] }
     const winners: PriorEditionWinnerMap = new Map([['OLD', { players: ['x'], priorEditionId: 'P', priorEditionLabel: 'Prior' }]])
-    expect(buildDefendingChampion(winners, overview, {})).toEqual([])
+    expect(buildDefendingChampion(winners, overview)).toEqual([])
   })
 })
 
