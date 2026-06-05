@@ -102,6 +102,34 @@ describe('MinimalPlayerProfile', () => {
     expect(screen.getByText('1,380 pts')).toBeInTheDocument()
   })
 
+  it('hides the "tn" badge when tournaments is 0 (BWF leaderboard data)', () => {
+    render(
+      <MinimalPlayerProfile
+        provider="bwf"
+        slug="x"
+        displayName="X"
+        country="China"
+        playerRankings={[{ eventName: "Boy's singles U15", rank: 1, points: 4600, tournaments: 0 }]}
+        currentRanking={baseRanking}
+      />,
+    )
+    expect(screen.queryByText(/0 tn/)).not.toBeInTheDocument()
+  })
+
+  it('shows the "tn" badge when tournaments is positive (computed from cached detail)', () => {
+    render(
+      <MinimalPlayerProfile
+        provider="bwf"
+        slug="x"
+        displayName="X"
+        country="China"
+        playerRankings={[{ eventName: "Boy's singles U15", rank: 1, points: 4600, tournaments: 7 }]}
+        currentRanking={baseRanking}
+      />,
+    )
+    expect(screen.getByText('7 tn')).toBeInTheDocument()
+  })
+
   it('omits the BWF Badminton Asia Ranking section when there are no rankings', () => {
     render(
       <MinimalPlayerProfile

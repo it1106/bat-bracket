@@ -7,6 +7,7 @@ import {
   dedupePerTournament,
   bwfSectionsForTab,
   disciplineOfEventName,
+  countContributingTournaments,
   TOP_N,
 } from '@/lib/ranking/player-view'
 import type { RankingPlayerDetail, RankingPlayerTournament } from '@/lib/types'
@@ -199,6 +200,39 @@ describe('bwfSectionsForTab', () => {
     const u15 = sections.find(s => s.eventName === "Boy's singles U15")
     expect(u17?.top[0].creditInThisSection).toBe(150)
     expect(u15?.top[0].creditInThisSection).toBe(500)
+  })
+
+  describe('countContributingTournaments', () => {
+    it('counts deduped contributing tournaments for a target event, capped at TOP_N', () => {
+      const d = det([
+        tx('MS-U15', 960, [{ eventName: "Boy's singles U15", credit: 960 }], '2026-22', 'A'),
+        tx('MS U13', 2125, [{ eventName: "Boy's singles U15", credit: 637.5 }], '2025-45', 'B'),
+        tx('MS-U15', 500, [{ eventName: "Boy's singles U15", credit: 500 }], '2026-10', 'C'),
+      ])
+      expect(countContributingTournaments(d, "Boy's singles U15")).toBe(3)
+    })
+
+    it('returns 0 for events the player has no contribution to', () => {
+      const d = det([
+        tx('MS-U15', 960, [{ eventName: "Boy's singles U15", credit: 960 }]),
+      ])
+      expect(countContributingTournaments(d, "Boy's singles U17")).toBe(0)
+    })
+
+    it('dedupes (week, tournamentName) — two MS-U15 entries in same tournament count as 1', () => {
+      const d = det([
+        tx('MS-U15', 600, [{ eventName: "Boy's singles U15", credit: 600 }], '2026-22', 'Same'),
+        tx('MS-U17', 800, [{ eventName: "Boy's singles U15", credit: 240 }], '2026-22', 'Same'),
+      ])
+      expect(countContributingTournaments(d, "Boy's singles U15")).toBe(1)
+    })
+
+    it('caps at TOP_N when more contributing rows exist', () => {
+      const rows = Array.from({ length: TOP_N + 3 }, (_, i) =>
+        tx('MS-U15', 1000 - i, [{ eventName: "Boy's singles U15", credit: 1000 - i }], `2026-${20 - i}`, `T${i}`),
+      )
+      expect(countContributingTournaments(det(rows), "Boy's singles U15")).toBe(TOP_N)
+    })
   })
 
   it('section ordering: pure age desc — higher age group first', () => {

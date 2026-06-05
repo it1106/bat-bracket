@@ -21,7 +21,10 @@ function rankingEventToBoard(ev: RankingEvent): LeaderboardBoard {
     primaryClub: e.club,
     value: e.points,
     display: e.points.toLocaleString() + ' pts',
-    extra: `${e.tournaments} tn`,
+    // BWF rows have no tournaments-played column on the upstream page, so
+    // the value is 0 there. Hide the badge when there's no data; BAT rows
+    // (which carry an actual count) keep showing it.
+    extra: e.tournaments > 0 ? `${e.tournaments} tn` : undefined,
   }))
   return {
     id: `ranking-${ev.eventCode.toLowerCase()}`,

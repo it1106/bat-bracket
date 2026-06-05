@@ -273,3 +273,19 @@ export function bwfSectionsForTab(
 
   return sections
 }
+
+/** Count the deduped contributing tournaments toward a target ranking
+ *  event from a player's detail, capped at TOP_N. This is the number BWF
+ *  uses for the per-event "Tournaments" badge — the same set of rows that
+ *  sum into the ranking points for that event. */
+export function countContributingTournaments(
+  detail: RankingPlayerDetail,
+  eventName: string,
+): number {
+  const rows: RankingPlayerTournament[] = []
+  for (const row of detail.tournaments) {
+    if (targetsOf(row).some((t) => t.eventName === eventName)) rows.push(row)
+  }
+  if (rows.length === 0) return 0
+  return Math.min(TOP_N, dedupePerTournament(rows).length)
+}
