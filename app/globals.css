@@ -2902,6 +2902,51 @@ html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
   color: var(--fg);
 }
 
+/* BWF per-event sections inside the Ranking Detail panel.
+   One block per ranking event the player has credit toward (e.g.
+   "Boy's singles U15", "Boy's singles U17"). The header is heavier than
+   the inner Top/Others subheaders so the event boundary reads first. */
+.pp-rd-section-event {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 18px;
+}
+.pp-rd-section-event:first-of-type {
+  margin-top: 6px;
+}
+.pp-rd-section-event-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg);
+}
+.pp-rd-section-event-meta {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.pp-rd-section-subheader {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 8px 0 2px 0;
+}
+.pp-rd-section-subheader--divided {
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+
 /* Tournaments whose points will fall out of the 52-week window when next
    Tuesday's ranking publishes. Two tiers, distinct colors:
    --expiring        : amber/orange — falls out at the very next publication
