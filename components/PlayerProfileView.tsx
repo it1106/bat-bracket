@@ -175,7 +175,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
 
       {playerRankings && playerRankings.length > 0 && (
         <div className="pp-section pp-ranking-section">
-          <h2>Current Ranking{rankingPublishDate && (
+          <h2>{record.key.provider === 'bwf' ? 'BWF Badminton Asia Ranking' : 'Current Ranking'}{rankingPublishDate && (
             <span className="pp-stats-note">as of {rankingPublishDate}{rankingWeekKey && ` (${rankingWeekKey})`}</span>
           )}</h2>
           <div className="pp-ranking-list">
