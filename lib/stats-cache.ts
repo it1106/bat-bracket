@@ -75,3 +75,16 @@ export async function writeStatsCache(
 export function hashFullCacheBytes(buf: Buffer): string {
   return createHash('sha256').update(buf).digest('hex')
 }
+
+export function computePreMatchSourceVersion(
+  drawsBytes: Buffer,
+  overviewBytes: Buffer,
+  rosterBytes: Buffer,
+): string {
+  const h = createHash('sha1')
+  for (const p of [drawsBytes, overviewBytes, rosterBytes]) {
+    h.update(p)
+    h.update('\0')
+  }
+  return `pre:${h.digest('hex').slice(0, 16)}`
+}
