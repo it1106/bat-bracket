@@ -611,3 +611,27 @@ describe('events pre-match decoration', () => {
     expect(stats.events[0].type).toBeUndefined()
   })
 })
+
+describe('dailyVolume hybrid phase', () => {
+  test('emits a row for a scheduled day with 0 completed matches', () => {
+    const data = {
+      days: [{ date: '2026-06-10', label: 'Wed', dateIso: '2026-06-10', hasMatches: true }],
+    } as MatchesData
+    const groups: MatchScheduleGroup[] = [{
+      type: 'court', court: 'C1', matches: [
+        { draw: 'MS', drawNum: '1', round: 'R32',
+          team1: [{ name: 'A', playerId: 'a' }], team2: [{ name: 'B', playerId: 'b' }],
+          winner: null, scores: [], court: 'C1', walkover: false, retired: false, nowPlaying: false,
+          scheduledTime: '09:00' },
+        { draw: 'MS', drawNum: '1', round: 'R32',
+          team1: [{ name: 'C', playerId: 'c' }], team2: [{ name: 'D', playerId: 'd' }],
+          winner: null, scores: [], court: 'C1', walkover: false, retired: false, nowPlaying: false,
+          scheduledTime: '10:00' },
+      ],
+    }]
+    const stats = aggregate(data, new Map([['2026-06-10', groups]]), {}, undefined, {})
+    expect(stats.dailyVolume).toEqual([
+      { date: '2026-06-10', label: 'Wed', total: 2, decided: 0, minutes: 0 },
+    ])
+  })
+})
