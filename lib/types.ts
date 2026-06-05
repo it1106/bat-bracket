@@ -628,6 +628,16 @@ export interface RankingPlayerRank {
   tournaments: number
 }
 
+/** One target ranking event a tournament row contributes to, with the
+ *  credit value parsed from the Used-for marker. Credit equals the row's
+ *  raw `points` when the marker had no parenthesised value (same-tier),
+ *  or the parenthesised value when present (cross-tier, e.g. 30% of raw
+ *  for one tier up in BWF). */
+export interface RankingTargetCredit {
+  eventName: string
+  credit: number
+}
+
 /** One tournament row on a player's ranking detail page (BAT or BWF). */
 export interface RankingPlayerTournament {
   tournamentName: string
@@ -642,9 +652,13 @@ export interface RankingPlayerTournament {
   result: string
   /** Tournament points earned. */
   points: number
-  /** Ranking categories this row counts toward, parsed from the marker
-   *  img's title attribute. Empty when the row is not in any top-10. */
+  /** Raw strings parsed from the Used-for marker, e.g.
+   *  `["Boy's singles U17(288)", "Boy's singles U15"]`. Kept so BAT
+   *  callers (which only check `length > 0`) keep working. */
   countsTowardRankings: string[]
+  /** Structured per-target credits parsed from the same marker. Optional
+   *  so detail JSONs cached before this change still load. */
+  countsTowardRankingsParsed?: RankingTargetCredit[]
 }
 
 export interface RankingPlayerDetail {
