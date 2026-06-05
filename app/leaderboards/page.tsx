@@ -25,6 +25,7 @@ function rankingEventToBoard(ev: RankingEvent): LeaderboardBoard {
     // the value is 0 there. Hide the badge when there's no data; BAT rows
     // (which carry an actual count) keep showing it.
     extra: e.tournaments > 0 ? `${e.tournaments} tn` : undefined,
+    flagUrl: e.countryFlagUrl,
   }))
   return {
     id: `ranking-${ev.eventCode.toLowerCase()}`,
