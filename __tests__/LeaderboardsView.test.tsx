@@ -57,13 +57,13 @@ describe('LeaderboardsView', () => {
   it('shows provider tabs when multiple providers supplied', () => {
     renderLB([sample, sampleBwf])
     expect(screen.getByText('BAT')).toBeTruthy()
-    expect(screen.getByText('BWF Asia')).toBeTruthy()
+    expect(screen.getByText('BWF Asia Jr.')).toBeTruthy()
   })
 
   it('switches provider when tab clicked', () => {
     renderLB([sample, sampleBwf])
     expect(screen.queryByText('Ratchanok')).toBeNull()
-    fireEvent.click(screen.getByText('BWF Asia'))
+    fireEvent.click(screen.getByText('BWF Asia Jr.'))
     expect(screen.getByText('Ratchanok')).toBeTruthy()
   })
 
