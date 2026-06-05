@@ -56,3 +56,38 @@ describe('TournamentStatsPanel back-compat', () => {
     })
   })
 })
+
+const preMatchPayload = {
+  ...minimalLegacyPayload,
+  kpis: { ...minimalLegacyPayload.kpis, matches: 0, decided: 0, entries: 12, draws: 3, players: 8 },
+  seedHeadlines: [{ event: 'MS', seeds: [
+    { seed: 1, players: ['Alice'], club: 'A' },
+    { seed: 2, players: ['Bob'], club: 'B' },
+  ]}],
+  multiEventEntries: [{ playerId: 'p1', name: 'Alice', club: 'A', events: ['MS', 'XD'] }],
+  potentialCollisions: [{
+    event: 'MS',
+    semis: [
+      { sideA: { seed: 1, players: ['Alice'], club: 'A' }, sideB: { seed: 4, players: ['Dan'] } },
+      { sideA: { seed: 2, players: ['Bob'], club: 'B' }, sideB: { seed: 3, players: ['Cara'] } },
+    ],
+    final: { sideA: { seed: 1, players: ['Alice'], club: 'A' }, sideB: { seed: 2, players: ['Bob'], club: 'B' } },
+  }],
+}
+
+describe('TournamentStatsPanel pre-match render', () => {
+  test('renders pre-match sections and footer when decided=0', async () => {
+    fetchOnce(preMatchPayload)
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    await waitFor(() => screen.getByText('statsSectionSeedHeadlines'))
+    expect(screen.getByText('statsSectionPotentialCollisions')).toBeInTheDocument()
+    expect(screen.getByText('statsSectionMultiEventEntries')).toBeInTheDocument()
+    expect(screen.getByText('statsPreMatchFooter')).toBeInTheDocument()
+    // Result-phase sections must not appear:
+    expect(screen.queryByText('statsSectionDrama')).toBeNull()
+    expect(screen.queryByText('statsSectionTopPlayers')).toBeNull()
+    expect(screen.queryByText('statsSectionIntegrity')).toBeNull()
+  })
+})
