@@ -922,11 +922,24 @@ function decorateOptional(
   return base
 }
 
-// Temporary stub — replaced in Task 11 with the real implementation.
 export function buildDefendingChampion(
-  _winners: PriorEditionWinnerMap | undefined,
-  _overview: TournamentOverview | undefined,
+  winners: PriorEditionWinnerMap | undefined,
+  overview: TournamentOverview | undefined,
   _clubs: Record<string, string>,
 ): StatsDefendingChampion[] {
-  return []
+  if (!winners || !overview) return []
+  const out: StatsDefendingChampion[] = []
+  for (const ev of overview.seedEvents) {
+    const w = winners.get(ev.eventName)
+    if (!w) continue
+    const row: StatsDefendingChampion = {
+      event: ev.eventName,
+      players: w.players,
+      priorEditionId: w.priorEditionId,
+      priorEditionLabel: w.priorEditionLabel,
+    }
+    if (w.club) row.club = w.club
+    out.push(row)
+  }
+  return out
 }
