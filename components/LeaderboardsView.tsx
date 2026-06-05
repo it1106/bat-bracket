@@ -240,7 +240,10 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates }: 
                           {e.flagUrl && <img className="lb-flag" src={e.flagUrl} alt="" />}
                           {e.name}
                         </div>
-                        <div className="lb-club">{e.primaryClub}</div>
+                        {/* Hide the club/country line on rows that carry a
+                            flag (BWF ranking rows) — the country is already
+                            conveyed by the flag icon. */}
+                        {!e.flagUrl && <div className="lb-club">{e.primaryClub}</div>}
                       </div>
                       {e.extra && <div className="lb-extra">{e.extra}</div>}
                       <div className="lb-val">{e.display}</div>
