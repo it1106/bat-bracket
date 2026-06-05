@@ -205,6 +205,8 @@ export interface StatsKpis {
   courtMinutes: number
   avgMatchMinutes: number
   threeSetterRate: number
+  entries: number
+  draws: number
 }
 
 export interface StatsDailyRow {
@@ -225,6 +227,10 @@ export interface StatsEventRow {
   players: number
   winner: string[]
   winnerSeed?: string
+  size?: number
+  type?: 'KO' | 'RR+PO'
+  entries?: number
+  topSeed?: StatsSeedHead
 }
 
 export interface StatsCourtTimePlayer {
@@ -313,6 +319,76 @@ export interface StatsIntegrity {
   threeSetterByEvent: StatsIntegrityThreeSetter[]
 }
 
+export interface StatsSeedHead {
+  players: string[]
+  club?: string
+}
+
+export interface StatsSeedHeadlineSeed {
+  seed: number
+  players: string[]
+  club?: string
+}
+
+export interface StatsSeedHeadline {
+  event: string
+  seeds: StatsSeedHeadlineSeed[]
+}
+
+export interface StatsMultiEventEntry {
+  playerId: string
+  name: string
+  club: string
+  events: string[]
+}
+
+export interface StatsCollisionSeedRef {
+  seed: number
+  players: string[]
+  club?: string
+}
+
+export interface StatsCollisionPair {
+  sideA: StatsCollisionSeedRef
+  sideB: StatsCollisionSeedRef
+}
+
+export interface StatsPotentialCollision {
+  event: string
+  semis: StatsCollisionPair[]
+  final?: StatsCollisionPair
+}
+
+export interface StatsDefendingChampion {
+  event: string
+  players: string[]
+  club?: string
+  priorEditionId: string
+  priorEditionLabel: string
+}
+
+export interface StatsScheduledMatch {
+  time: string
+  event: string
+  round: string
+  team1: string[]
+  team2: string[]
+  sequenceLabel?: string
+}
+
+export interface StatsScheduleCourtBucket {
+  court: string
+  matches: StatsScheduledMatch[]
+}
+
+export interface StatsSchedulePreview {
+  firstDayLabel: string
+  matchCount: number
+  courts: number
+  opensAt?: string
+  openingDayByCourt: StatsScheduleCourtBucket[]
+}
+
 export interface ComputedStats {
   kpis: StatsKpis
   dailyVolume: StatsDailyRow[]
@@ -325,6 +401,11 @@ export interface ComputedStats {
   clubRosters: StatsClubRoster[]
   countryRosters: StatsCountryRoster[]
   integrity: StatsIntegrity
+  seedHeadlines?: StatsSeedHeadline[]
+  multiEventEntries?: StatsMultiEventEntry[]
+  potentialCollisions?: StatsPotentialCollision[]
+  defendingChampion?: StatsDefendingChampion[]
+  schedulePreview?: StatsSchedulePreview
 }
 
 export interface TournamentStats extends ComputedStats {
