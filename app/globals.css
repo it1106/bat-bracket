@@ -3000,3 +3000,106 @@ html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
   cursor: pointer;
 }
 .lb-show-more:hover { background: var(--info-bg); }
+
+/* ─── Pre-match stats sections ───────────────────────────────────── */
+.stats-defending-card,
+.stats-seed-card,
+.stats-collision-card {
+  border-top: 1px solid var(--border);
+  padding: 8px 0;
+}
+.stats-defending-event,
+.stats-seed-event,
+.stats-collision-event {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 2px;
+}
+.stats-defending-name { font-weight: 600; }
+.stats-defending-club,
+.stats-defending-prior { color: var(--muted); font-size: 0.85rem; }
+
+.stats-seed-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 2px 0;
+}
+.stats-seed-num {
+  width: 2.5em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.stats-seed-club {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-left: auto;
+}
+
+.stats-collision-row {
+  display: grid;
+  grid-template-columns: 2.5em 1fr auto 1fr;
+  gap: 6px;
+  align-items: baseline;
+  padding: 2px 0;
+}
+.stats-collision-label {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.stats-collision-vs {
+  color: var(--muted);
+  text-align: center;
+}
+.stats-collision-row-final {
+  font-weight: 600;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border);
+  margin-top: 4px;
+}
+
+.stats-schedule-sub {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+.stats-schedule-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 600px) {
+  .stats-schedule-grid { grid-template-columns: 1fr 1fr; }
+}
+.stats-schedule-court {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+.stats-schedule-court-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.stats-schedule-match {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.stats-schedule-time {
+  font-variant-numeric: tabular-nums;
+  margin-right: 8px;
+  font-weight: 600;
+}
+.stats-schedule-evt {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.stats-schedule-teams { font-size: 0.9rem; }
+.stats-schedule-vs { color: var(--muted); }
+
+.stats-prematch-footer {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
