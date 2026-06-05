@@ -365,3 +365,47 @@ describe('buildSeedHeadlines', () => {
     ])
   })
 })
+
+import { buildMultiEventEntries } from '@/lib/tournamentStats'
+
+function fakeRosterEntry(eventName: string, playerIds: string[]): MatchEntry {
+  return {
+    draw: eventName, drawNum: '', round: 'R32',
+    team1: playerIds.map((id) => ({ name: id, playerId: id })),
+    team2: [], winner: null, scores: [], court: '',
+    walkover: false, retired: false, nowPlaying: false,
+    eventName,
+  }
+}
+
+describe('buildMultiEventEntries', () => {
+  test('returns empty when rosterByDraw is undefined', () => {
+    expect(buildMultiEventEntries(undefined, {}, {})).toEqual([])
+  })
+
+  test('returns players entered in 2+ events sorted by count desc then name', () => {
+    const roster = new Map<string, MatchEntry[]>([
+      ['1', [fakeRosterEntry('MS', ['p1']), fakeRosterEntry('MS', ['p2'])]],
+      ['2', [fakeRosterEntry('MD', ['p1', 'p3'])]],
+      ['3', [fakeRosterEntry('XD', ['p1', 'p4'])]],
+      ['4', [fakeRosterEntry('WS', ['p3'])]],
+    ])
+    const clubs = { p1: 'CLUB-A', p3: 'CLUB-B' }
+    const names = { p1: 'Alice', p3: 'Cara' }
+    const out = buildMultiEventEntries(roster, clubs, names)
+    expect(out).toEqual([
+      { playerId: 'p1', name: 'Alice', club: 'CLUB-A', events: ['MS', 'MD', 'XD'] },
+      { playerId: 'p3', name: 'Cara', club: 'CLUB-B', events: ['MD', 'WS'] },
+    ])
+  })
+
+  test('falls back to playerId when name is missing', () => {
+    const roster = new Map<string, MatchEntry[]>([
+      ['1', [fakeRosterEntry('MS', ['p9'])]],
+      ['2', [fakeRosterEntry('MD', ['p9'])]],
+    ])
+    expect(buildMultiEventEntries(roster, {}, {})).toEqual([
+      { playerId: 'p9', name: 'p9', club: '', events: ['MS', 'MD'] },
+    ])
+  })
+})

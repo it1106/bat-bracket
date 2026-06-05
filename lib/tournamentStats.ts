@@ -655,6 +655,45 @@ function buildCountryRosters(
 
 // ─── Pre-match builders ─────────────────────────────────────────────
 
+export function buildMultiEventEntries(
+  rosterByDraw: Map<string, MatchEntry[]> | undefined,
+  clubs: Record<string, string>,
+  names: Record<string, string>,
+): StatsMultiEventEntry[] {
+  if (!rosterByDraw || rosterByDraw.size === 0) return []
+  const eventsByPlayer = new Map<string, Set<string>>()
+  for (const entries of rosterByDraw.values()) {
+    for (const e of entries) {
+      const eventKey = e.eventName ?? e.draw
+      if (!eventKey) continue
+      const all = [...e.team1, ...e.team2]
+      for (const p of all) {
+        if (!p.playerId) continue
+        let set = eventsByPlayer.get(p.playerId)
+        if (!set) {
+          set = new Set()
+          eventsByPlayer.set(p.playerId, set)
+        }
+        set.add(eventKey)
+      }
+    }
+  }
+  const out: StatsMultiEventEntry[] = []
+  for (const [playerId, eventSet] of eventsByPlayer) {
+    if (eventSet.size < 2) continue
+    out.push({
+      playerId,
+      name: names[playerId] ?? playerId,
+      club: clubs[playerId] ?? '',
+      events: Array.from(eventSet),
+    })
+  }
+  return out.sort((a, b) => {
+    if (b.events.length !== a.events.length) return b.events.length - a.events.length
+    return a.name.localeCompare(b.name)
+  })
+}
+
 export function buildSeedHeadlines(
   overview: TournamentOverview | undefined,
   clubs: Record<string, string>,
