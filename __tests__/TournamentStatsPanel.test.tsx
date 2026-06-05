@@ -91,3 +91,40 @@ describe('TournamentStatsPanel pre-match render', () => {
     expect(screen.queryByText('statsSectionIntegrity')).toBeNull()
   })
 })
+
+describe('TournamentStatsPanel mid-poll transition', () => {
+  test('drama appears and footer disappears after a polled refresh shows decided>0', async () => {
+    const postMatchPayload = {
+      ...preMatchPayload,
+      kpis: { ...preMatchPayload.kpis, matches: 1, decided: 1, courtMinutes: 45, avgMatchMinutes: 45, threeSetterRate: 0 },
+      drama: {
+        marathon: { draw: 'MS', round: 'R32', team1: ['A'], team2: ['B'], winnerSide: 1, scores: [{ t1: 21, t2: 19 }], durationMinutes: 45 },
+        highestSet: null, highestScoringMatch: null, comebackCount: 0, comebackHighlight: null, mostCourtTime: null,
+      },
+    }
+    let call = 0
+    global.fetch = jest.fn().mockImplementation(() => Promise.resolve({
+      ok: true,
+      json: async () => (call++ === 0 ? preMatchPayload : postMatchPayload),
+    })) as unknown as typeof fetch
+
+    jest.useFakeTimers()
+    try {
+      await act(async () => {
+        render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+      })
+      await waitFor(() => screen.getByText('statsPreMatchFooter'))
+      // Trigger the 30s poll:
+      await act(async () => {
+        jest.advanceTimersByTime(31_000)
+        // Allow microtasks (the fetch.then chain) to settle.
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      await waitFor(() => expect(screen.queryByText('statsPreMatchFooter')).toBeNull())
+      expect(screen.getByText('statsSectionDrama')).toBeInTheDocument()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+})
