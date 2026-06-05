@@ -3,15 +3,16 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { PlayerRecord, PlayerRanks, PlayerStats, WLRecord, OpponentTimeWindow } from '@/lib/types'
-import { weekKeyFromPublishDate } from '@/lib/bat-ranking-player-view'
+import { weekKeyFromPublishDate } from '@/lib/ranking/player-view'
+import { getRankingConfig } from '@/lib/ranking/config'
 import { useLanguage } from '@/lib/LanguageContext'
 import RankingDetailTabs from './RankingDetailTabs'
 
 interface Props {
   record: PlayerRecord
-  batRanking?: import('@/lib/types').BatRankingPlayerRank[]
+  playerRankings?: import('@/lib/types').RankingPlayerRank[]
   rankingPublishDate?: string
-  initialDetail?: import('@/lib/types').BatRankingPlayerDetail
+  initialDetail?: import('@/lib/types').RankingPlayerDetail
 }
 
 function fmtPct(n: number): string { return `${Math.round(n * 100)}%` }
@@ -48,7 +49,7 @@ const OPPONENT_WINDOWS: Array<{ key: OpponentTimeWindow; labelKey:
   { key: 'all',  labelKey: 'opponentsWinAll'  },
 ]
 
-export default function PlayerProfileView({ record, batRanking, rankingPublishDate, initialDetail }: Props) {
+export default function PlayerProfileView({ record, playerRankings, rankingPublishDate, initialDetail }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
   const [oppTab, setOppTab] = useState<OpponentTimeWindow>('all')
@@ -57,7 +58,9 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
   const winPct = record.totals.matches > 0
     ? Math.round((record.totals.wins / record.totals.matches) * 100)
     : 0
-  const rankingWeekKey = rankingPublishDate ? weekKeyFromPublishDate(rankingPublishDate) : null
+  const rankingWeekKey = rankingPublishDate
+    ? weekKeyFromPublishDate(rankingPublishDate, getRankingConfig(record.key.provider).dateFormat)
+    : null
 
   const goBack = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -167,13 +170,13 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
         </div>
       )}
 
-      {batRanking && batRanking.length > 0 && (
+      {playerRankings && playerRankings.length > 0 && (
         <div className="pp-section pp-ranking-section">
           <h2>Current Ranking{rankingPublishDate && (
             <span className="pp-stats-note">as of {rankingPublishDate}{rankingWeekKey && ` (${rankingWeekKey})`}</span>
           )}</h2>
           <div className="pp-ranking-list">
-            {batRanking.map(r => (
+            {playerRankings.map(r => (
               <div key={r.eventName} className="pp-ranking-row">
                 <span className="pp-ranking-event">{r.eventName}</span>
                 <span className="pp-ranking-pos">#{r.rank}</span>
@@ -185,8 +188,9 @@ export default function PlayerProfileView({ record, batRanking, rankingPublishDa
         </div>
       )}
 
-      {batRanking && batRanking.length > 0 && record.key.provider === 'bat' && (
+      {playerRankings && playerRankings.length > 0 && (
         <RankingDetailTabs
+          provider={record.key.provider}
           slug={record.key.slug}
           initialDetail={initialDetail}
           rankingPublishDate={rankingPublishDate}
