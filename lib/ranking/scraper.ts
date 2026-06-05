@@ -22,6 +22,18 @@ function playerIdFromCell(cell: string): string {
   return m ? m[1] : ''
 }
 
+/** Extract a country-flag image URL from a BWF row — looks for an
+ *  `<img ... class="...flag..." src="...">` in the row content. Returns the
+ *  raw src (protocol-relative). Empty string when no flag image is present
+ *  (BAT rows don't include one). */
+function flagUrlFromCell(cell: string): string {
+  const m = cell.match(/<img\b[^>]*class="[^"]*\bflag\b[^"]*"[^>]*\bsrc="([^"]+)"/i)
+  if (m) return m[1]
+  // Some pages put src before class; try the reverse order too.
+  const m2 = cell.match(/<img\b[^>]*\bsrc="([^"]+)"[^>]*class="[^"]*\bflag\b[^"]*"/i)
+  return m2 ? m2[1] : ''
+}
+
 function lastLinkText(cell: string): string {
   const matches = Array.from(cell.matchAll(/<a\s[^>]*>([\s\S]*?)<\/a>/gi))
   if (matches.length === 0) return stripTags(cell)
@@ -46,6 +58,7 @@ function parseEntries(html: string, limit = 50): RankingEntry[] {
     const name = playerLinkText(row)
     if (!name) continue
     const globalPlayerId = playerIdFromCell(row)
+    const countryFlagUrl = flagUrlFromCell(row)
 
     const tds = Array.from(row.matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/gi))
     const club = tds.length > 0 ? lastLinkText(tds[tds.length - 1][1]) : ''
@@ -58,6 +71,7 @@ function parseEntries(html: string, limit = 50): RankingEntry[] {
       points: isNaN(points) ? 0 : points,
       tournaments,
       globalPlayerId: globalPlayerId || undefined,
+      countryFlagUrl: countryFlagUrl || undefined,
     })
     if (entries.length >= limit) break
   }

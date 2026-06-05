@@ -593,6 +593,11 @@ export interface RankingEntry {
    *  this empty and falls back to its 3-hop discovery path at detail-fetch
    *  time. */
   globalPlayerId?: string
+  /** Flag image URL from the BWF page's `<img class="intext flag">`,
+   *  e.g. `//static.tournamentsoftware.com/content/images/flags/THA.svg`.
+   *  Always protocol-relative; consumers should prepend `https:` if needed.
+   *  Optional and BWF-only in practice. */
+  countryFlagUrl?: string
 }
 
 export interface RankingEvent {
