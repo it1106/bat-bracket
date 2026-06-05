@@ -25,7 +25,7 @@ const CATEGORIES: Array<{ id: LeaderboardCategory; key: TKey }> = [
 
 const PROVIDER_LABELS: Record<ProviderTag, string> = {
   bat: 'BAT',
-  bwf: 'BWF',
+  bwf: 'BWF Asia',
   combined: 'BAT+BWF',
 }
 
