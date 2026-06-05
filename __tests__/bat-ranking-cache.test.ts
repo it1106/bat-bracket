@@ -5,6 +5,7 @@ import { readBatRankingCache, writeBatRankingCache, __setBatRankingRootForTestin
 import type { BatRanking } from '@/lib/types'
 
 const sample: BatRanking = {
+  provider: 'bat',
   scrapedAt: '2026-05-20T10:00:00Z',
   publishDate: '2026-05-20',
   rankingId: '51771',
@@ -12,7 +13,7 @@ const sample: BatRanking = {
     {
       eventCode: 'MS',
       eventName: "Men's Singles",
-      entries: [{ rank: 1, name: 'TEST PLAYER', slug: 'test_player', club: 'Test Club', points: 1500 }],
+      entries: [{ rank: 1, name: 'TEST PLAYER', slug: 'test_player', club: 'Test Club', points: 1500, tournaments: 1 }],
     },
   ],
 }

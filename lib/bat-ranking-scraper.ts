@@ -115,7 +115,7 @@ export function parseBatRanking(html: string): BatRanking {
   const rankingId = parseRankingId(html)
 
   const tableMatch = html.match(/<table\s[^>]*class="ruler"[^>]*>([\s\S]*?)<\/table>/i)
-  if (!tableMatch) return { scrapedAt, publishDate, rankingId, events: [] }
+  if (!tableMatch) return { provider: 'bat', scrapedAt, publishDate, rankingId, events: [] }
   const tableContent = tableMatch[1]
 
   const headerRe = /<th[^>]*colspan="9"[^>]*>[\s\S]*?<a\s[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/th>/gi
@@ -139,5 +139,5 @@ export function parseBatRanking(html: string): BatRanking {
     }
   }
 
-  return { scrapedAt, publishDate, rankingId, events }
+  return { provider: 'bat', scrapedAt, publishDate, rankingId, events }
 }

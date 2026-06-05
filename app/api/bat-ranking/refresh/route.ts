@@ -76,7 +76,7 @@ export async function POST(req: Request) {
     }
 
     const scrapedAt = new Date().toISOString()
-    await writeBatRankingCache({ scrapedAt, publishDate, rankingId, events })
+    await writeBatRankingCache({ provider: 'bat', scrapedAt, publishDate, rankingId, events })
     console.log(`[bat-ranking/refresh] ok eventsFound=${events.length} publishDate=${publishDate}`)
     return NextResponse.json({ scrapedAt, eventsFound: events.length })
   } catch (err) {
