@@ -5,7 +5,6 @@
 // operates on the parsed UTC Date and is format-blind.
 
 import type {
-  Ranking,
   RankingPlayerDetail,
   RankingPlayerTournament,
   RankingTargetCredit,
@@ -226,11 +225,10 @@ function ageTierOfEventName(name: string): number {
 }
 
 /** BWF-only: one section per target ranking event the player has credit
- *  toward, filtered to the active discipline tab. */
+ *  toward, filtered to the active discipline tab. Sorted by age desc. */
 export function bwfSectionsForTab(
   detail: RankingPlayerDetail,
   discipline: Discipline,
-  rankCtx?: { slug: string; current: Ranking | null },
 ): RankingSection[] {
   // 1. Build per-event row map, filtered to the active discipline.
   const byEvent = new Map<string, RankingSectionRow[]>()

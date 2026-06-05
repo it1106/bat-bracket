@@ -115,11 +115,7 @@ export default function RankingDetailTabs({ provider, slug, initialDetail, ranki
     const cutoffs = computeExpiryCutoffs(rankingPublishDate, getRankingConfig(provider).dateFormat)
 
     if (provider === 'bwf') {
-      const sections = bwfSectionsForTab(
-        fetchState.detail,
-        active,
-        currentRanking ? { slug, current: currentRanking } : undefined,
-      )
+      const sections = bwfSectionsForTab(fetchState.detail, active)
       if (sections.length === 0) {
         return <div className="pp-rd-empty">{t('rankingDetailEmpty')}</div>
       }

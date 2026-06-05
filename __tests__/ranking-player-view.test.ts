@@ -9,7 +9,7 @@ import {
   disciplineOfEventName,
   TOP_N,
 } from '@/lib/ranking/player-view'
-import type { RankingPlayerDetail, RankingPlayerTournament, Ranking } from '@/lib/types'
+import type { RankingPlayerDetail, RankingPlayerTournament } from '@/lib/types'
 
 describe('weekKeyFromPublishDate', () => {
   it('handles Thai BE (BAT)', () => {
@@ -201,7 +201,7 @@ describe('bwfSectionsForTab', () => {
     expect(u15?.top[0].creditInThisSection).toBe(500)
   })
 
-  it('section ordering: pure age desc — higher age group first regardless of rank', () => {
+  it('section ordering: pure age desc — higher age group first', () => {
     const d = det([
       tx('MS-U15', 960, [
         { eventName: "Boy's singles U17", credit: 288 },
@@ -211,19 +211,10 @@ describe('bwfSectionsForTab', () => {
         { eventName: "Boy's singles U15", credit: 637.5 },
       ], '2025-45'),
     ])
-    const current: Ranking = {
-      provider: 'bwf', scrapedAt: 'x', publishDate: '03/06/2026', rankingId: '52035',
-      events: [
-        { eventCode: 'U15_MS', eventName: "Boy's singles U15", entries: [
-          { rank: 10, name: 'X', slug: 'x', club: '', points: 1598, tournaments: 2, globalPlayerId: '1' },
-        ]},
-        // No entry for U17 — player is not ranked there, but U17 still sorts above U15.
-      ],
-    }
-    const sections = bwfSectionsForTab(d, 'singles', { slug: 'x', current })
+    const sections = bwfSectionsForTab(d, 'singles')
     expect(sections.map(s => s.eventName)).toEqual([
-      "Boy's singles U17",   // higher age → first, even though player is unranked here
-      "Boy's singles U15",   // ranked #10 → second
+      "Boy's singles U17",   // higher age → first
+      "Boy's singles U15",
     ])
   })
 })
