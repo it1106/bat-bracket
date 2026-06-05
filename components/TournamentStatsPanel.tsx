@@ -147,7 +147,15 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
         <h2>{t('statsSectionByNumbers')}</h2>
         <div className="stats-kpis">
           <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.events)}</div><div className="stats-kpi-lbl">{t('statsKpiEvents')}</div></div>
-          <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.decided)}</div><div className="stats-kpi-lbl">{t('statsKpiMatches')}</div></div>
+          {!hasDecided && stats.kpis.entries > 0 && (
+            <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.entries)}</div><div className="stats-kpi-lbl">{t('statsKpiEntries')}</div></div>
+          )}
+          {!hasDecided && stats.kpis.draws > 0 && (
+            <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.draws)}</div><div className="stats-kpi-lbl">{t('statsKpiDraws')}</div></div>
+          )}
+          {hasDecided && (
+            <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.decided)}</div><div className="stats-kpi-lbl">{t('statsKpiMatches')}</div></div>
+          )}
           <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.players)}</div><div className="stats-kpi-lbl">{t('statsKpiPlayers')}</div></div>
           <div className="stats-kpi">
             <div className="stats-kpi-num">
@@ -156,22 +164,26 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
             </div>
             <div className="stats-kpi-lbl">{t('statsKpiMultiEvent')}</div>
           </div>
-          <div className="stats-kpi"><div className="stats-kpi-num">{formatHours(stats.kpis.courtMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiCourtTime')}</div></div>
-          <div className="stats-kpi"><div className="stats-kpi-num">{formatMinutes(stats.kpis.avgMatchMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiAvgMatch')}</div></div>
-          <div className="stats-kpi">
-            <div className="stats-kpi-num">
-              {fmt(threeSetterCount)}
-              <span className="stats-kpi-sub"> ({pct(stats.kpis.threeSetterRate)})</span>
-            </div>
-            <div className="stats-kpi-lbl">{t('statsKpiThreeSetters')}</div>
-          </div>
-          <div className="stats-kpi">
-            <div className="stats-kpi-num">
-              {fmt(comebackCount)}
-              <span className="stats-kpi-sub"> ({pct(comebackRate)})</span>
-            </div>
-            <div className="stats-kpi-lbl">{t('statsKpiComebacks')}</div>
-          </div>
+          {hasDecided && (
+            <>
+              <div className="stats-kpi"><div className="stats-kpi-num">{formatHours(stats.kpis.courtMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiCourtTime')}</div></div>
+              <div className="stats-kpi"><div className="stats-kpi-num">{formatMinutes(stats.kpis.avgMatchMinutes, lang)}</div><div className="stats-kpi-lbl">{t('statsKpiAvgMatch')}</div></div>
+              <div className="stats-kpi">
+                <div className="stats-kpi-num">
+                  {fmt(threeSetterCount)}
+                  <span className="stats-kpi-sub"> ({pct(stats.kpis.threeSetterRate)})</span>
+                </div>
+                <div className="stats-kpi-lbl">{t('statsKpiThreeSetters')}</div>
+              </div>
+              <div className="stats-kpi">
+                <div className="stats-kpi-num">
+                  {fmt(comebackCount)}
+                  <span className="stats-kpi-sub"> ({pct(comebackRate)})</span>
+                </div>
+                <div className="stats-kpi-lbl">{t('statsKpiComebacks')}</div>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -405,23 +417,36 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
         <table className="stats-table stats-event-list">
           <thead><tr>
             <th>{t('statsSectionEvents')}</th>
+            <th className="stats-num">{t('statsColSize')}</th>
+            <th className="stats-num">{t('statsColType')}</th>
             <th className="stats-num">{t('statsColMatches')}</th>
             <th className="stats-num">{t('statsColPlayers')}</th>
             <th className="stats-num">{t('statsCol3Set')}</th>
             <th className="stats-num">{t('statsColAvg')}</th>
-            <th>{t('statsColWinner')}</th>
+            <th>{hasDecided ? t('statsColWinner') : t('statsColTopSeed')}</th>
           </tr></thead>
           <tbody>
             {stats.events.map((e) => (
               <tr key={e.name}>
                 <td className="stats-evname">{e.name}</td>
-                <td className="stats-num">{e.matches}</td>
-                <td className="stats-num">{fmt(e.players ?? 0)}</td>
-                <td className="stats-num">{e.decided === 0 ? '0%' : pct(e.threeSetters / e.decided)}</td>
-                <td className="stats-num">{formatMinutes(e.avgMinutes, lang)}</td>
+                <td className="stats-num">{e.size ?? '—'}</td>
+                <td className="stats-num">{e.type ?? '—'}</td>
+                <td className="stats-num">{e.decided === 0 ? '—' : e.matches}</td>
+                <td className="stats-num">{fmt(e.players ?? e.entries ?? 0)}</td>
+                <td className="stats-num">{e.decided === 0 ? '—' : pct(e.threeSetters / e.decided)}</td>
+                <td className="stats-num">{e.decided === 0 ? '—' : formatMinutes(e.avgMinutes, lang)}</td>
                 <td className="stats-winner-cell">
-                  {e.winner.join(' / ')}
-                  {e.winnerSeed && <span className="stats-seed"> {e.winnerSeed}</span>}
+                  {e.winner.length > 0 ? (
+                    <>
+                      {e.winner.join(' / ')}
+                      {e.winnerSeed && <span className="stats-seed"> {e.winnerSeed}</span>}
+                    </>
+                  ) : e.topSeed ? (
+                    <>
+                      {e.topSeed.players.join(' / ')}
+                      {e.topSeed.club && <div className="stats-club-m">{e.topSeed.club}</div>}
+                    </>
+                  ) : '—'}
                 </td>
               </tr>
             ))}
