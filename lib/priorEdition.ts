@@ -53,13 +53,13 @@ export function buildPriorEditionWinners(
 ): PriorEditionWinnerMap {
   const out: PriorEditionWinnerMap = new Map()
   if (!prior) return out
-  for (const [event, w] of winnersByEvent) {
+  for (const [event, w] of Array.from(winnersByEvent)) {
     const entry: PriorEditionWinnerEntry = {
       players: w.players,
       priorEditionId: prior.id,
       priorEditionLabel: prior.name,
     }
-    const club = w.players.map((id) => clubs[id]).find((c) => c)
+    const club = w.players.map((id: string) => clubs[id]).find((c: string | undefined) => c)
     if (club) entry.club = club
     out.set(event, entry)
   }

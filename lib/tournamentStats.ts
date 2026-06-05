@@ -162,7 +162,7 @@ function buildKpis(
   let entries = 0
   const drawSet = new Set<string>()
   if (rosterByDraw) {
-    for (const [drawNum, list] of rosterByDraw) {
+    for (const [drawNum, list] of Array.from(rosterByDraw)) {
       drawSet.add(drawNum)
       entries += list.length
     }
@@ -305,7 +305,7 @@ function buildEvents(
   const entryCountByEvent = new Map<string, number>()
   if (rosterByDraw) {
     const playersByEvent = new Map<string, Set<string>>()
-    for (const entries of rosterByDraw.values()) {
+    for (const entries of Array.from(rosterByDraw.values())) {
       for (const e of entries) {
         const ev = e.eventName ?? e.draw
         if (!ev) continue
@@ -316,7 +316,7 @@ function buildEvents(
         }
       }
     }
-    for (const [ev, set] of playersByEvent) entryCountByEvent.set(ev, set.size)
+    for (const [ev, set] of Array.from(playersByEvent)) entryCountByEvent.set(ev, set.size)
   }
 
   const rows = Array.from(byEvent.entries()).map(([name, a]): ComputedStats['events'][number] => {
@@ -721,7 +721,7 @@ export function buildMultiEventEntries(
 ): StatsMultiEventEntry[] {
   if (!rosterByDraw || rosterByDraw.size === 0) return []
   const eventsByPlayer = new Map<string, Set<string>>()
-  for (const entries of rosterByDraw.values()) {
+  for (const entries of Array.from(rosterByDraw.values())) {
     for (const e of entries) {
       const eventKey = e.eventName ?? e.draw
       if (!eventKey) continue
@@ -738,7 +738,7 @@ export function buildMultiEventEntries(
     }
   }
   const out: StatsMultiEventEntry[] = []
-  for (const [playerId, eventSet] of eventsByPlayer) {
+  for (const [playerId, eventSet] of Array.from(eventsByPlayer)) {
     if (eventSet.size < 2) continue
     out.push({
       playerId,
