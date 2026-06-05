@@ -159,6 +159,15 @@ function buildKpis(
   let multiEventPlayers = 0
   for (const set of Array.from(playerEvents.values())) if (set.size >= 2) multiEventPlayers++
 
+  let entries = 0
+  const drawSet = new Set<string>()
+  if (rosterByDraw) {
+    for (const [drawNum, list] of rosterByDraw) {
+      drawSet.add(drawNum)
+      entries += list.length
+    }
+  }
+
   return {
     events: events.size,
     matches,
@@ -171,8 +180,8 @@ function buildKpis(
     courtMinutes,
     avgMatchMinutes: durationCount === 0 ? 0 : durationSum / durationCount,
     threeSetterRate: decided === 0 ? 0 : threeSetterDecided / decided,
-    entries: 0,
-    draws: 0,
+    entries,
+    draws: drawSet.size,
   }
 }
 

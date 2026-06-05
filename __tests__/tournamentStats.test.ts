@@ -545,3 +545,24 @@ describe('buildSchedulePreview', () => {
     expect(buildSchedulePreview(data, new Map([['2026-06-10', groups]]))).toBeUndefined()
   })
 })
+
+describe('kpis entries/draws', () => {
+  test('counts entries (sum across draws) and draws (number of rosterByDraw keys)', () => {
+    const data = { days: [] } as unknown as MatchesData
+    const roster = new Map<string, MatchEntry[]>([
+      ['1', [fakeRosterEntry('MS', ['a']), fakeRosterEntry('MS', ['b'])]],
+      ['2', [fakeRosterEntry('MD', ['a', 'c'])]],
+      ['3', [fakeRosterEntry('WS', ['d'])]],
+    ])
+    const stats = aggregate(data, new Map(), {}, roster, {})
+    expect(stats.kpis.entries).toBe(4)
+    expect(stats.kpis.draws).toBe(3)
+  })
+
+  test('entries/draws are zero when rosterByDraw is undefined', () => {
+    const data = { days: [] } as unknown as MatchesData
+    const stats = aggregate(data, new Map(), {}, undefined, {})
+    expect(stats.kpis.entries).toBe(0)
+    expect(stats.kpis.draws).toBe(0)
+  })
+})
