@@ -219,14 +219,6 @@ function targetsOf(row: RankingPlayerTournament): RankingTargetCredit[] {
   return deriveTargetsFromStrings(row.points, row.countsTowardRankings)
 }
 
-/** Player's rank in a given event from the current overview cache, or null
- *  if unranked / no cache. */
-function lookupRankIn(current: Ranking | null | undefined, eventName: string, slug: string): number | null {
-  if (!current) return null
-  const ev = current.events.find((e) => e.eventName === eventName)
-  return ev?.entries.find((e) => e.slug === slug)?.rank ?? null
-}
-
 /** Numeric age tier from an event name; Infinity for open events. */
 function ageTierOfEventName(name: string): number {
   const m = name.match(/U(\d+)/i)
@@ -275,15 +267,11 @@ export function bwfSectionsForTab(
     sections.push({ eventName, top, others, topTotal })
   }
 
-  // 3. Section ordering: ranked first (rank asc), then unranked (age desc).
-  sections.sort((a, b) => {
-    const ra = rankCtx ? lookupRankIn(rankCtx.current, a.eventName, rankCtx.slug) : null
-    const rb = rankCtx ? lookupRankIn(rankCtx.current, b.eventName, rankCtx.slug) : null
-    if (ra !== null && rb !== null) return ra - rb
-    if (ra !== null) return -1
-    if (rb !== null) return 1
-    return ageTierOfEventName(b.eventName) - ageTierOfEventName(a.eventName)
-  })
+  // 3. Section ordering: pure age desc — higher age group first. The
+  //  player's per-event rank is shown in the section header but does
+  //  NOT drive ordering, so a section the player dominates doesn't
+  //  jump above one they're carry-over-ranked in.
+  sections.sort((a, b) => ageTierOfEventName(b.eventName) - ageTierOfEventName(a.eventName))
 
   return sections
 }

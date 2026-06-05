@@ -201,7 +201,7 @@ describe('bwfSectionsForTab', () => {
     expect(u15?.top[0].creditInThisSection).toBe(500)
   })
 
-  it('section ordering: ranked sections first by rank asc, then unranked by age desc', () => {
+  it('section ordering: pure age desc — higher age group first regardless of rank', () => {
     const d = det([
       tx('MS-U15', 960, [
         { eventName: "Boy's singles U17", credit: 288 },
@@ -217,13 +217,13 @@ describe('bwfSectionsForTab', () => {
         { eventCode: 'U15_MS', eventName: "Boy's singles U15", entries: [
           { rank: 10, name: 'X', slug: 'x', club: '', points: 1598, tournaments: 2, globalPlayerId: '1' },
         ]},
-        // No entry for U17 — player is not ranked there.
+        // No entry for U17 — player is not ranked there, but U17 still sorts above U15.
       ],
     }
     const sections = bwfSectionsForTab(d, 'singles', { slug: 'x', current })
     expect(sections.map(s => s.eventName)).toEqual([
-      "Boy's singles U15",   // ranked #10 → first
-      "Boy's singles U17",   // unranked → after, by age desc would still put U17 over U15 but U15 is ranked
+      "Boy's singles U17",   // higher age → first, even though player is unranked here
+      "Boy's singles U15",   // ranked #10 → second
     ])
   })
 })
