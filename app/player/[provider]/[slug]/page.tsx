@@ -27,6 +27,7 @@ export default async function PlayerPage({ params }: Props) {
   const playerRankings: RankingPlayerRank[] = []
   let rankingName = ''
   let rankingCountry = ''
+  let rankingCountryFlagUrl = ''
   let bwfGlobalPlayerId = ''
   if (currentRanking) {
     for (const ev of currentRanking.events) {
@@ -41,6 +42,7 @@ export default async function PlayerPage({ params }: Props) {
         if (entry.globalPlayerId) bwfGlobalPlayerId = entry.globalPlayerId
         if (!rankingName) rankingName = entry.name
         if (!rankingCountry) rankingCountry = entry.club
+        if (!rankingCountryFlagUrl && entry.countryFlagUrl) rankingCountryFlagUrl = entry.countryFlagUrl
       }
     }
   }
@@ -77,6 +79,7 @@ export default async function PlayerPage({ params }: Props) {
         rankingPublishDate={rankingPublishDate}
         initialDetail={initialDetail}
         currentRanking={currentRanking}
+        countryFlagUrl={rankingCountryFlagUrl || undefined}
       />
     )
   }
@@ -87,6 +90,7 @@ export default async function PlayerPage({ params }: Props) {
       slug={params.slug}
       displayName={rankingName}
       country={rankingCountry}
+      countryFlagUrl={rankingCountryFlagUrl || undefined}
       playerRankings={playerRankings}
       rankingPublishDate={rankingPublishDate}
       initialDetail={initialDetail}
