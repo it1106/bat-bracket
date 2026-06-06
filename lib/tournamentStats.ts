@@ -55,6 +55,18 @@ interface MatchCtx {
   durationMinutes: number
 }
 
+// rosterByDraw value: keeps the raw drawName as the Map key (so the draws
+// count stays granular) but carries the collapsed eventName alongside the
+// entry list. Grouped formats ("<event> - Group X" + "<event>" playoff)
+// share an eventName so events.add() collapses them. Surviving the empty
+// case matters: RR group draws return [] from parseBracketEntries, and a
+// failed per-draw fetch also leaves entries empty — both still need the
+// eventName to drive correct event-count collapse.
+export interface RosterDraw {
+  eventName?: string
+  entries: MatchEntry[]
+}
+
 function* iterateMatches(
   data: MatchesData,
   dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
@@ -90,7 +102,7 @@ function isSemiFinal(round: string): boolean {
 
 function buildKpis(
   ctxs: MatchCtx[],
-  rosterByDraw?: Map<string, MatchEntry[]>,
+  rosterByDraw?: Map<string, RosterDraw>,
 ): StatsKpis {
   let matches = 0, decided = 0, walkovers = 0, retired = 0, nowPlaying = 0
   let courtMinutes = 0, durationCount = 0, durationSum = 0
@@ -135,15 +147,16 @@ function buildKpis(
   // (typically doubles, scheduled later in the week) haven't surfaced in the
   // per-day match feed. Match-volume stats above stay sourced from ctxs only.
   if (rosterByDraw) {
-    for (const [drawName, entries] of Array.from(rosterByDraw)) {
-      if (drawName) events.add(drawName)
-      for (const m of entries) {
+    for (const [drawName, draw] of Array.from(rosterByDraw)) {
+      const eventKey = draw.eventName ?? drawName
+      if (eventKey) events.add(eventKey)
+      for (const m of draw.entries) {
         for (const p of [...m.team1, ...m.team2]) {
           if (!p.playerId) continue
           players.add(p.playerId)
-          if (drawName) {
+          if (eventKey) {
             const set = playerEvents.get(p.playerId) ?? new Set<string>()
-            set.add(drawName)
+            set.add(eventKey)
             playerEvents.set(p.playerId, set)
           }
         }
@@ -154,12 +167,19 @@ function buildKpis(
   let multiEventPlayers = 0
   for (const set of Array.from(playerEvents.values())) if (set.size >= 2) multiEventPlayers++
 
+  // Entries = one per team-side that holds a real player. parseBracketEntries
+  // emits one MatchEntry per first-round MATCH (slot pair), so counting list
+  // length would double the answer; counting sides-with-playerIds yields the
+  // registered-entry count BAT shows, with byes excluded.
   let entries = 0
   const drawSet = new Set<string>()
   if (rosterByDraw) {
-    for (const [drawNum, list] of Array.from(rosterByDraw)) {
-      drawSet.add(drawNum)
-      entries += list.length
+    for (const [drawName, draw] of Array.from(rosterByDraw)) {
+      drawSet.add(drawName)
+      for (const m of draw.entries) {
+        if (m.team1.some((p) => p.playerId)) entries++
+        if (m.team2.some((p) => p.playerId)) entries++
+      }
     }
   }
 
@@ -222,7 +242,7 @@ export function eventRank(name: string): number {
 
 function buildEvents(
   ctxs: MatchCtx[],
-  rosterByDraw?: Map<string, MatchEntry[]>,
+  rosterByDraw?: Map<string, RosterDraw>,
   draws?: DrawInfo[],
   overview?: TournamentOverview,
   clubs?: Record<string, string>,
@@ -239,19 +259,20 @@ function buildEvents(
   })
   const byEvent = new Map<string, Acc>()
   // Seed with roster draws so events whose matches haven't been scheduled yet
-  // still appear in the table (with zero-filled stats).
+  // still appear in the table (with zero-filled stats). Collapse grouped
+  // draws via eventName so the parent event accumulates players from every
+  // group sheet rather than splitting into separate rows.
   if (rosterByDraw) {
-    for (const [drawName, entries] of Array.from(rosterByDraw)) {
-      if (!drawName) continue
-      const a = byEvent.get(drawName) ?? newAcc()
-      // Seed the unique-player set from the registered entries so the count is
-      // meaningful before any match has been played.
-      for (const m of entries) {
+    for (const [drawName, draw] of Array.from(rosterByDraw)) {
+      const key = draw.eventName ?? drawName
+      if (!key) continue
+      const a = byEvent.get(key) ?? newAcc()
+      for (const m of draw.entries) {
         for (const p of [...m.team1, ...m.team2]) {
           if (p.playerId) a.players.add(p.playerId)
         }
       }
-      byEvent.set(drawName, a)
+      byEvent.set(key, a)
     }
   }
   for (const { match } of ctxs) {
@@ -300,10 +321,10 @@ function buildEvents(
   const entryCountByEvent = new Map<string, number>()
   if (rosterByDraw) {
     const playersByEvent = new Map<string, Set<string>>()
-    for (const entries of Array.from(rosterByDraw.values())) {
-      for (const e of entries) {
-        const ev = e.eventName ?? e.draw
-        if (!ev) continue
+    for (const [drawName, draw] of Array.from(rosterByDraw)) {
+      const ev = draw.eventName ?? drawName
+      if (!ev) continue
+      for (const e of draw.entries) {
         let set = playersByEvent.get(ev)
         if (!set) { set = new Set(); playersByEvent.set(ev, set) }
         for (const p of [...e.team1, ...e.team2]) {
@@ -672,7 +693,7 @@ function buildClubRosters(
 
 function buildCountryRosters(
   ctxs: MatchCtx[],
-  rosterByDraw?: Map<string, MatchEntry[]>,
+  rosterByDraw?: Map<string, RosterDraw>,
 ): StatsCountryRoster[] {
   // BWF carries country + name on each MatchPlayer. Walk every unique
   // playerId we know about (scheduled matches + draw rosters), keep the
@@ -686,8 +707,8 @@ function buildCountryRosters(
     for (const p of [...match.team1, ...match.team2]) consider(p.playerId, p.country, p.name)
   }
   if (rosterByDraw) {
-    for (const entries of Array.from(rosterByDraw.values())) {
-      for (const m of entries) {
+    for (const draw of Array.from(rosterByDraw.values())) {
+      for (const m of draw.entries) {
         for (const p of [...m.team1, ...m.team2]) consider(p.playerId, p.country, p.name)
       }
     }
@@ -774,7 +795,7 @@ export function aggregate(
   data: MatchesData,
   dayGroupsByDate: Map<string, MatchScheduleGroup[]>,
   clubs: Record<string, string>,
-  rosterByDraw?: Map<string, MatchEntry[]>,
+  rosterByDraw?: Map<string, RosterDraw>,
   names: Record<string, string> = {},
   extras: AggregateExtras = {},
 ): ComputedStats {

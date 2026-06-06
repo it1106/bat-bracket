@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { promises as fs } from 'fs'
 import path from 'path'
-import { aggregate } from '@/lib/tournamentStats'
+import { aggregate, type RosterDraw } from '@/lib/tournamentStats'
+import { detectGroupedDraws } from '@/lib/scraper'
 import { readDayCache, readFullCache } from '@/lib/day-cache'
 import { readStatsCache, writeStatsCache, hashFullCacheBytes } from '@/lib/stats-cache'
 import { providerFor } from '@/lib/providers/resolve'
@@ -12,7 +13,6 @@ import { cache as overviewMemCache, readDiskSnapshot as readOverviewDisk } from 
 import { resolvePriorEdition, buildPriorEditionWinners } from '@/lib/priorEdition'
 import type {
   DrawInfo,
-  MatchEntry,
   MatchesData,
   MatchScheduleGroup,
   TournamentInfo,
@@ -111,7 +111,7 @@ interface DayMap {
 // poison the whole map — the draw just keeps its empty-seed entry so the
 // event still appears in the count with zero players, rather than getting
 // dropped entirely.
-async function fetchRosterByDraw(tournamentId: string): Promise<Map<string, MatchEntry[]> | null> {
+async function fetchRosterByDraw(tournamentId: string): Promise<Map<string, RosterDraw> | null> {
   const ref = resolveRef(tournamentId)
   if (!ref) return null
   const provider = providerFor(ref)
@@ -124,20 +124,28 @@ async function fetchRosterByDraw(tournamentId: string): Promise<Map<string, Matc
   }
   if (draws.length === 0) return null
 
-  // Seed every draw with an empty roster up front. This way the events
+  // Annotate grouped draws ("<event> - Group X" + the elim playoff). The
+  // eventName on each row collapses groups under the parent event in the
+  // stats aggregator, so headline events count matches BAT's overview
+  // (e.g. GD U9 = 1 event, not "GD U9", "GD U9 - Group A", "GD U9 - Group B").
+  const annotated = detectGroupedDraws(draws)
+
+  // Seed every draw with an empty entries list up front, carrying the
+  // eventName even before the per-draw fetch resolves. This way the events
   // count always matches the draws list — even if a per-draw fetch later
-  // fails, the event still shows up (with 0 players) instead of vanishing.
-  const roster = new Map<string, MatchEntry[]>()
-  for (const d of draws) roster.set(d.name, [])
+  // fails, the event still shows up (with 0 players) and stays correctly
+  // collapsed for grouped formats.
+  const roster = new Map<string, RosterDraw>()
+  for (const d of annotated) roster.set(d.name, { eventName: d.eventName, entries: [] })
 
   const results = await Promise.allSettled(
-    draws.map((d) => provider.getDrawMatches(ref, d.drawNum, d.name)),
+    annotated.map((d) => provider.getDrawMatches(ref, d.drawNum, d.name)),
   )
   for (let i = 0; i < results.length; i++) {
     const r = results[i]
-    const draw = draws[i]
+    const draw = annotated[i]
     if (r.status === 'fulfilled') {
-      roster.set(draw.name, r.value)
+      roster.set(draw.name, { eventName: draw.eventName, entries: r.value })
     } else {
       // NotImplementedError means the provider can't enumerate rosters at
       // all — bail out completely rather than seed a roster that has every

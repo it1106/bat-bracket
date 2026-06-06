@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { aggregate } from '@/lib/tournamentStats'
+import { aggregate, type RosterDraw } from '@/lib/tournamentStats'
 import type { MatchEntry, MatchesData, MatchScheduleGroup } from '@/lib/types'
 
 const FIX = path.join(__dirname, '..', 'fixtures')
@@ -235,10 +235,10 @@ describe('tournamentStats — roster augments live counts', () => {
   it('with roster: events count covers all registered draws, multi-event picks up crossovers', () => {
     // Full draw roster: 3 events. P1 is entered in MS-U13 + MD-U13 + XD-U13.
     // P2 is in MS-U13 + MD-U13. P3, P4 are roster-only.
-    const roster = new Map<string, MatchEntry[]>([
-      ['MS-U13', [entry('MS-U13', ['P1', 'P2'])]],
-      ['MD-U13', [doublesEntry('MD-U13', ['P1', 'P2', 'P3', 'P4'])]],
-      ['XD-U13', [doublesEntry('XD-U13', ['P1', 'P5', 'P6', 'P7'])]],
+    const roster = new Map<string, RosterDraw>([
+      ['MS-U13', { entries: [entry('MS-U13', ['P1', 'P2'])] }],
+      ['MD-U13', { entries: [doublesEntry('MD-U13', ['P1', 'P2', 'P3', 'P4'])] }],
+      ['XD-U13', { entries: [doublesEntry('XD-U13', ['P1', 'P5', 'P6', 'P7'])] }],
     ])
     const s = aggregate(emptyData, days, {}, roster)
     expect(s.kpis.events).toBe(3)
@@ -265,8 +265,8 @@ describe('tournamentStats — roster augments live counts', () => {
   })
 
   it('roster alone (no played matches) populates events and players', () => {
-    const roster = new Map<string, MatchEntry[]>([
-      ['WD-U17', [doublesEntry('WD-U17', ['A', 'B', 'C', 'D'])]],
+    const roster = new Map<string, RosterDraw>([
+      ['WD-U17', { entries: [doublesEntry('WD-U17', ['A', 'B', 'C', 'D'])] }],
     ])
     const s = aggregate(emptyData, new Map(), {}, roster)
     expect(s.kpis.events).toBe(1)
@@ -317,6 +317,60 @@ describe('tournamentStats — grouped events collapse to parent', () => {
     expect(bs.players).toBe(4)
     const gs = s.events.find((e) => e.name === 'GS U17')!
     expect(gs.players).toBe(2)
+  })
+
+  // YONEX-SINGHA-BAT-BTY 2026 regression: GD U9 lists as 3 draws on the BAT
+  // sport/draws page ("GD U9", "GD U9 - Group A", "GD U9 - Group B") but is
+  // 1 event. The roster path stamps eventName on each RosterDraw via
+  // detectGroupedDraws — buildKpis/buildEvents must read it instead of the
+  // raw draw name, otherwise the headline events count inflates.
+  it('roster path collapses grouped draws via eventName', () => {
+    const mk = (draw: string, eventName: string, p1: string, p2: string): MatchEntry => ({
+      draw, drawNum: '', round: '',
+      team1: [{ name: p1, playerId: p1 }], team2: [{ name: p2, playerId: p2 }],
+      winner: null, scores: [], court: '',
+      walkover: false, retired: false, nowPlaying: false, eventName,
+    })
+    const roster = new Map<string, RosterDraw>([
+      ['GD U9', { eventName: 'GD U9', entries: [mk('GD U9', 'GD U9', 'a', 'b')] }],
+      ['GD U9 - Group A', { eventName: 'GD U9', entries: [] }],
+      ['GD U9 - Group B', { eventName: 'GD U9', entries: [] }],
+      ['MS', { eventName: 'MS', entries: [mk('MS', 'MS', 'x', 'y')] }],
+    ])
+    const s = aggregate({ days: [] } as unknown as MatchesData, new Map(), {}, roster)
+    expect(s.kpis.events).toBe(2)
+    expect(s.kpis.draws).toBe(4)
+    expect(s.events.map((e) => e.name).sort()).toEqual(['GD U9', 'MS'])
+  })
+})
+
+// BAT's draws page lists each elimination draw with a "Size" column. The
+// stats roster path synthesizes one MatchEntry per first-round match (slot
+// pair), so counting list length doubles the answer. The KPI must count
+// team-sides with a real playerId to match BAT's registered-entries figure.
+describe('tournamentStats — entries count excludes byes', () => {
+  function pair(eventName: string, p1: string | null, p2: string | null): MatchEntry {
+    return {
+      draw: eventName, drawNum: '', round: '',
+      team1: p1 ? [{ name: p1, playerId: p1 }] : [{ name: '', playerId: '' }],
+      team2: p2 ? [{ name: p2, playerId: p2 }] : [{ name: '', playerId: '' }],
+      winner: null, scores: [], court: '',
+      walkover: false, retired: false, nowPlaying: false,
+      eventName,
+    }
+  }
+  it('counts each filled team-side once; bye sides do not count', () => {
+    const data = { days: [] } as unknown as MatchesData
+    // 3 first-round matches: 2 player-vs-player (4 entries) + 1 player-vs-bye (1 entry) = 5
+    const roster = new Map<string, RosterDraw>([
+      ['MS', { eventName: 'MS', entries: [
+        pair('MS', 'a', 'b'),
+        pair('MS', 'c', 'd'),
+        pair('MS', 'e', null),
+      ] }],
+    ])
+    const stats = aggregate(data, new Map(), {}, roster)
+    expect(stats.kpis.entries).toBe(5)
   })
 })
 
@@ -401,12 +455,14 @@ describe('buildSchedulePreview', () => {
 })
 
 describe('kpis entries/draws', () => {
-  test('counts entries (sum across draws) and draws (number of rosterByDraw keys)', () => {
+  test('counts entries (one per team-side with a real player) and draws (number of rosterByDraw keys)', () => {
     const data = { days: [] } as unknown as MatchesData
-    const roster = new Map<string, MatchEntry[]>([
-      ['1', [fakeRosterEntry('MS', ['a']), fakeRosterEntry('MS', ['b'])]],
-      ['2', [fakeRosterEntry('MD', ['a', 'c'])]],
-      ['3', [fakeRosterEntry('WS', ['d'])]],
+    // Each fakeRosterEntry puts players in team1 and leaves team2 empty, so
+    // each entry contributes exactly one "registered entry" (one side filled).
+    const roster = new Map<string, RosterDraw>([
+      ['1', { entries: [fakeRosterEntry('MS', ['a']), fakeRosterEntry('MS', ['b'])] }],
+      ['2', { entries: [fakeRosterEntry('MD', ['a', 'c'])] }],
+      ['3', { entries: [fakeRosterEntry('WS', ['d'])] }],
     ])
     const stats = aggregate(data, new Map(), {}, roster, {})
     expect(stats.kpis.entries).toBe(4)
@@ -427,8 +483,8 @@ describe('events pre-match decoration', () => {
   test('decorates with size, type, entries, topSeed when draws+overview present', () => {
     const data = { days: [] } as unknown as MatchesData
     // rosterByDraw is keyed by draw NAME (matches production: roster.set(d.name, ...))
-    const roster = new Map<string, MatchEntry[]>([
-      ['MS', [fakeRosterEntry('MS', ['p1']), fakeRosterEntry('MS', ['p2']), fakeRosterEntry('MS', ['p3'])]],
+    const roster = new Map<string, RosterDraw>([
+      ['MS', { entries: [fakeRosterEntry('MS', ['p1']), fakeRosterEntry('MS', ['p2']), fakeRosterEntry('MS', ['p3'])] }],
     ])
     const draws: DrawInfo[] = [{ drawNum: '10', name: 'MS', size: '16', type: 'Knockout', eventName: 'MS' }]
     const overview: TournamentOverview = { notes: [], seedEvents: [{ eventName: 'MS', seeds: [{ seed: 1, players: ['p1'] }] }] }
@@ -446,8 +502,8 @@ describe('events pre-match decoration', () => {
 
   test('maps Round Robin draws to RR+PO type', () => {
     const data = { days: [] } as unknown as MatchesData
-    const roster = new Map<string, MatchEntry[]>([
-      ['U17 MS', [fakeRosterEntry('U17 MS', ['x'])]],
+    const roster = new Map<string, RosterDraw>([
+      ['U17 MS', { entries: [fakeRosterEntry('U17 MS', ['x'])] }],
     ])
     const draws: DrawInfo[] = [{ drawNum: '11', name: 'U17 MS', size: '8', type: 'Round Robin', eventName: 'U17 MS' }]
     const stats = aggregate(data, new Map(), {}, roster, {}, { draws })
@@ -456,8 +512,8 @@ describe('events pre-match decoration', () => {
 
   test('leaves pre-match fields undefined when draws not provided', () => {
     const data = { days: [] } as unknown as MatchesData
-    const roster = new Map<string, MatchEntry[]>([
-      ['WS', [fakeRosterEntry('WS', ['w1'])]],
+    const roster = new Map<string, RosterDraw>([
+      ['WS', { entries: [fakeRosterEntry('WS', ['w1'])] }],
     ])
     const stats = aggregate(data, new Map(), {}, roster, {})
     expect(stats.events[0]).toEqual(expect.objectContaining({ name: 'WS' }))
