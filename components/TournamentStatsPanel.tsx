@@ -147,9 +147,6 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
         <h2>{t('statsSectionByNumbers')}</h2>
         <div className="stats-kpis">
           <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.events)}</div><div className="stats-kpi-lbl">{t('statsKpiEvents')}</div></div>
-          {!hasDecided && stats.kpis.entries > 0 && (
-            <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.entries)}</div><div className="stats-kpi-lbl">{t('statsKpiEntries')}</div></div>
-          )}
           {!hasDecided && stats.kpis.draws > 0 && (
             <div className="stats-kpi"><div className="stats-kpi-num">{fmt(stats.kpis.draws)}</div><div className="stats-kpi-lbl">{t('statsKpiDraws')}</div></div>
           )}

@@ -198,7 +198,6 @@ export type TKey =
   | 'statsLoadFailed'
   | 'statsSectionDefendingChampions'
   | 'statsSectionSchedulePreview'
-  | 'statsKpiEntries'
   | 'statsKpiDraws'
   | 'statsColSize'
   | 'statsColType'
@@ -395,7 +394,6 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsLoadFailed: 'Could not load stats. Try again.',
     statsSectionDefendingChampions: 'Defending champions',
     statsSectionSchedulePreview: 'Opening day',
-    statsKpiEntries: 'Entries',
     statsKpiDraws: 'Draws',
     statsColSize: 'Size',
     statsColType: 'Type',
@@ -624,7 +622,6 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsLoadFailed: 'ไม่สามารถโหลดสถิติได้ กรุณาลองใหม่',
     statsSectionDefendingChampions: 'แชมป์เก่า',
     statsSectionSchedulePreview: 'วันเปิด',
-    statsKpiEntries: 'ผู้ลงแข่งขัน',
     statsKpiDraws: 'สายแข่งขัน',
     statsColSize: 'ขนาด',
     statsColType: 'รูปแบบ',

@@ -344,36 +344,6 @@ describe('tournamentStats — grouped events collapse to parent', () => {
   })
 })
 
-// BAT's draws page lists each elimination draw with a "Size" column. The
-// stats roster path synthesizes one MatchEntry per first-round match (slot
-// pair), so counting list length doubles the answer. The KPI must count
-// team-sides with a real playerId to match BAT's registered-entries figure.
-describe('tournamentStats — entries count excludes byes', () => {
-  function pair(eventName: string, p1: string | null, p2: string | null): MatchEntry {
-    return {
-      draw: eventName, drawNum: '', round: '',
-      team1: p1 ? [{ name: p1, playerId: p1 }] : [{ name: '', playerId: '' }],
-      team2: p2 ? [{ name: p2, playerId: p2 }] : [{ name: '', playerId: '' }],
-      winner: null, scores: [], court: '',
-      walkover: false, retired: false, nowPlaying: false,
-      eventName,
-    }
-  }
-  it('counts each filled team-side once; bye sides do not count', () => {
-    const data = { days: [] } as unknown as MatchesData
-    // 3 first-round matches: 2 player-vs-player (4 entries) + 1 player-vs-bye (1 entry) = 5
-    const roster = new Map<string, RosterDraw>([
-      ['MS', { eventName: 'MS', entries: [
-        pair('MS', 'a', 'b'),
-        pair('MS', 'c', 'd'),
-        pair('MS', 'e', null),
-      ] }],
-    ])
-    const stats = aggregate(data, new Map(), {}, roster)
-    expect(stats.kpis.entries).toBe(5)
-  })
-})
-
 // ─── Pre-match builders ──────────────────────────────────────
 import type { TournamentOverview } from '@/lib/types'
 
@@ -454,25 +424,21 @@ describe('buildSchedulePreview', () => {
   })
 })
 
-describe('kpis entries/draws', () => {
-  test('counts entries (one per team-side with a real player) and draws (number of rosterByDraw keys)', () => {
+describe('kpis draws', () => {
+  test('counts draws (number of rosterByDraw keys, raw — not collapsed by eventName)', () => {
     const data = { days: [] } as unknown as MatchesData
-    // Each fakeRosterEntry puts players in team1 and leaves team2 empty, so
-    // each entry contributes exactly one "registered entry" (one side filled).
     const roster = new Map<string, RosterDraw>([
       ['1', { entries: [fakeRosterEntry('MS', ['a']), fakeRosterEntry('MS', ['b'])] }],
       ['2', { entries: [fakeRosterEntry('MD', ['a', 'c'])] }],
       ['3', { entries: [fakeRosterEntry('WS', ['d'])] }],
     ])
     const stats = aggregate(data, new Map(), {}, roster, {})
-    expect(stats.kpis.entries).toBe(4)
     expect(stats.kpis.draws).toBe(3)
   })
 
-  test('entries/draws are zero when rosterByDraw is undefined', () => {
+  test('draws is zero when rosterByDraw is undefined', () => {
     const data = { days: [] } as unknown as MatchesData
     const stats = aggregate(data, new Map(), {}, undefined, {})
-    expect(stats.kpis.entries).toBe(0)
     expect(stats.kpis.draws).toBe(0)
   })
 })

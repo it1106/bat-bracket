@@ -210,7 +210,7 @@ function emptyStats(tournamentId: string): TournamentStats {
     kpis: {
       events: 0, matches: 0, decided: 0, walkovers: 0, retired: 0, nowPlaying: 0,
       players: 0, multiEventPlayers: 0, courtMinutes: 0, avgMatchMinutes: 0, threeSetterRate: 0,
-      entries: 0, draws: 0,
+      draws: 0,
     },
     dailyVolume: [],
     events: [],

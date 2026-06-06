@@ -25,7 +25,7 @@ const EMPTY: ComputedStats = {
   kpis: {
     events: 0, matches: 0, decided: 0, walkovers: 0, retired: 0, nowPlaying: 0,
     players: 0, multiEventPlayers: 0, courtMinutes: 0, avgMatchMinutes: 0,
-    threeSetterRate: 0, entries: 0, draws: 0,
+    threeSetterRate: 0, draws: 0,
   },
   dailyVolume: [],
   events: [],
@@ -167,20 +167,9 @@ function buildKpis(
   let multiEventPlayers = 0
   for (const set of Array.from(playerEvents.values())) if (set.size >= 2) multiEventPlayers++
 
-  // Entries = one per team-side that holds a real player. parseBracketEntries
-  // emits one MatchEntry per first-round MATCH (slot pair), so counting list
-  // length would double the answer; counting sides-with-playerIds yields the
-  // registered-entry count BAT shows, with byes excluded.
-  let entries = 0
   const drawSet = new Set<string>()
   if (rosterByDraw) {
-    for (const [drawName, draw] of Array.from(rosterByDraw)) {
-      drawSet.add(drawName)
-      for (const m of draw.entries) {
-        if (m.team1.some((p) => p.playerId)) entries++
-        if (m.team2.some((p) => p.playerId)) entries++
-      }
-    }
+    for (const drawName of Array.from(rosterByDraw.keys())) drawSet.add(drawName)
   }
 
   return {
@@ -195,7 +184,6 @@ function buildKpis(
     courtMinutes,
     avgMatchMinutes: durationCount === 0 ? 0 : durationSum / durationCount,
     threeSetterRate: decided === 0 ? 0 : threeSetterDecided / decided,
-    entries,
     draws: drawSet.size,
   }
 }

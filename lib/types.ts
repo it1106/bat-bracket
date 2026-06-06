@@ -205,7 +205,6 @@ export interface StatsKpis {
   courtMinutes: number
   avgMatchMinutes: number
   threeSetterRate: number
-  entries: number
   draws: number
 }
 
