@@ -60,10 +60,15 @@ export default async function LeaderboardsPage() {
   if (batRanking?.publishDate) rankingPublishDates.bat = batRanking.publishDate
   if (bwfRanking?.publishDate) rankingPublishDates.bwf = bwfRanking.publishDate
 
+  const rankingIds: Partial<Record<ProviderTag, string>> = {}
+  if (batRanking?.rankingId) rankingIds.bat = batRanking.rankingId
+  if (bwfRanking?.rankingId) rankingIds.bwf = bwfRanking.rankingId
+
   return (
     <LeaderboardsView
       leaderboards={providers.length ? providers : [EMPTY]}
       rankingPublishDates={rankingPublishDates}
+      rankingIds={rankingIds}
     />
   )
 }

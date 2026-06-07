@@ -10,7 +10,11 @@ import type { TKey } from '@/lib/i18n'
 
 interface SearchHit { slug: string; name: string; club: string; provider: ProviderTag }
 
-interface Props { leaderboards: Leaderboards[]; rankingPublishDates?: Partial<Record<ProviderTag, string>> }
+interface Props {
+  leaderboards: Leaderboards[];
+  rankingPublishDates?: Partial<Record<ProviderTag, string>>;
+  rankingIds?: Partial<Record<ProviderTag, string>>;
+}
 
 // Tab order matters: first entry is the default active tab when none is
 // explicitly selected (also the fallback when the requested category has
@@ -29,7 +33,17 @@ const PROVIDER_LABELS: Record<ProviderTag, string> = {
   combined: 'BAT+BWF',
 }
 
-export default function LeaderboardsView({ leaderboards, rankingPublishDates }: Props) {
+// Build the upstream "Overview" URL for a given week. BAT 404s on the static
+// series-id form (`rid=188`) and only resolves with the weekly rankingId via
+// `id=<rankingId>`; BWF accepts both, so `id=` works uniformly.
+function rankingOverviewHref(provider: 'bat' | 'bwf', rankingId: string): string {
+  const base = provider === 'bat'
+    ? 'https://bat.tournamentsoftware.com/ranking/ranking.aspx'
+    : 'https://www.tournamentsoftware.com/ranking/ranking.aspx'
+  return `${base}?id=${rankingId}`
+}
+
+export default function LeaderboardsView({ leaderboards, rankingPublishDates, rankingIds }: Props) {
   const { t } = useLanguage()
   const router = useRouter()
   const [activeProvider, setActiveProvider] = useState<ProviderTag>(leaderboards[0]?.provider ?? 'bat')
@@ -187,7 +201,25 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates }: 
         ))}
       </div>
       {effectiveActive === 'ranking' && activeRankingPublishDate && (
-        <div className="lb-sub lb-ranking-asof">{t('lbRankingAsOf')} {activeRankingPublishDate}{rankingWeekKey && ` (${rankingWeekKey})`}</div>
+        <div className="lb-sub lb-ranking-asof">
+          {t('lbRankingAsOf')} {activeRankingPublishDate}{rankingWeekKey && ` (${rankingWeekKey})`}
+          {(activeProvider === 'bat' || activeProvider === 'bwf') && rankingIds?.[activeProvider] && (
+            <a
+              className="lb-ranking-src"
+              href={rankingOverviewHref(activeProvider, rankingIds[activeProvider]!)}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={t('lbRankingSource')}
+              aria-label={t('lbRankingSource')}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M14 3h7v7" />
+                <path d="M10 14L21 3" />
+                <path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" />
+              </svg>
+            </a>
+          )}
+        </div>
       )}
       <div className="lb-grid">
         {visible.map(b => {
