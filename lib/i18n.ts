@@ -199,8 +199,6 @@ export type TKey =
   | 'statsSectionDefendingChampions'
   | 'statsSectionSchedulePreview'
   | 'statsKpiDraws'
-  | 'statsColSize'
-  | 'statsColType'
   | 'statsColTopSeed'
   | 'statsScheduleOpensAt'
   | 'statsScheduleMatchesAcrossCourts'
@@ -382,8 +380,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsHighestScoringBadge: 'Highest-scoring match',
     statsComebacksBadge: 'comeback wins',
     statsMostCourtTimeBadge: 'Most court time',
-    statsCol3Set: '3-set',
-    statsColAvg: 'Avg',
+    statsCol3Set: '3-Game',
+    statsColAvg: 'Avg Time',
     statsColMatches: 'Matches',
     statsColWinner: 'Winner(s)',
     statsColPlayer: 'Player',
@@ -395,8 +393,6 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionDefendingChampions: 'Defending champions',
     statsSectionSchedulePreview: 'Opening day',
     statsKpiDraws: 'Draws',
-    statsColSize: 'Size',
-    statsColType: 'Type',
     statsColTopSeed: 'Top seed',
     statsScheduleOpensAt: 'Opens at',
     statsScheduleMatchesAcrossCourts: 'matches across courts',
@@ -623,8 +619,6 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionDefendingChampions: 'แชมป์เก่า',
     statsSectionSchedulePreview: 'วันเปิด',
     statsKpiDraws: 'สายแข่งขัน',
-    statsColSize: 'ขนาด',
-    statsColType: 'รูปแบบ',
     statsColTopSeed: 'มือวางอันดับ 1',
     statsScheduleOpensAt: 'เริ่ม',
     statsScheduleMatchesAcrossCourts: 'แมตช์ ในหลายสนาม',

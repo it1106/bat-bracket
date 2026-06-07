@@ -342,10 +342,8 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
         <table className="stats-table stats-event-list">
           <thead><tr>
             <th>{t('statsSectionEvents')}</th>
-            <th className="stats-num">{t('statsColSize')}</th>
-            <th className="stats-num">{t('statsColType')}</th>
-            <th className="stats-num">{t('statsColMatches')}</th>
             <th className="stats-num">{t('statsColPlayers')}</th>
+            <th className="stats-num">{t('statsColMatches')}</th>
             <th className="stats-num">{t('statsCol3Set')}</th>
             <th className="stats-num">{t('statsColAvg')}</th>
             <th>{hasDecided ? t('statsColWinner') : t('statsColTopSeed')}</th>
@@ -354,10 +352,8 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
             {stats.events.map((e) => (
               <tr key={e.name}>
                 <td className="stats-evname">{e.name}</td>
-                <td className="stats-num">{e.size ?? '—'}</td>
-                <td className="stats-num">{e.type ?? '—'}</td>
-                <td className="stats-num">{e.decided === 0 ? '—' : e.matches}</td>
                 <td className="stats-num">{fmt(e.players ?? e.entries ?? 0)}</td>
+                <td className="stats-num">{e.decided === 0 ? '—' : e.matches}</td>
                 <td className="stats-num">{e.decided === 0 ? '—' : pct(e.threeSetters / e.decided)}</td>
                 <td className="stats-num">{e.decided === 0 ? '—' : formatMinutes(e.avgMinutes, lang)}</td>
                 <td className="stats-winner-cell">
