@@ -57,8 +57,10 @@ export async function POST(req: Request, ctx: Ctx) {
 
     // Upstream caps `ps` at 100 per page, so loop pages 1..MAX_PAGES until
     // we hit the TARGET, get an empty page, or get a short page (last).
-    const TARGET = 500
-    const MAX_PAGES = 5
+    // BWF Asia U-XX events are small and we only surface the top 10 on
+    // the leaderboards, so one page is enough; BAT covers a larger pool.
+    const TARGET = provider === 'bwf' ? 100 : 500
+    const MAX_PAGES = provider === 'bwf' ? 1 : 5
     const events: RankingEvent[] = []
     for (const cat of categories) {
       const entries: RankingEntry[] = []
