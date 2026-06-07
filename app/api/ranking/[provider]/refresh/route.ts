@@ -9,7 +9,7 @@ import {
   parseRankingId,
 } from '@/lib/ranking/scraper'
 import { readRankingCache, writeRankingCache } from '@/lib/ranking/cache'
-import type { RankingEvent, ProviderTag } from '@/lib/types'
+import type { RankingEntry, RankingEvent, ProviderTag } from '@/lib/types'
 
 const TTL_MS = 24 * 60 * 60 * 1000
 
@@ -55,18 +55,29 @@ export async function POST(req: Request, ctx: Ctx) {
       return NextResponse.json({ error: 'rankingId not found on overview page' }, { status: 502 })
     }
 
+    // Upstream caps `ps` at 100 per page, so loop pages 1..MAX_PAGES until
+    // we hit the TARGET, get an empty page, or get a short page (last).
+    const TARGET = 500
+    const MAX_PAGES = 5
     const events: RankingEvent[] = []
     for (const cat of categories) {
-      const url = cfg.categoryUrl(rankingId, cat.id)
+      const entries: RankingEntry[] = []
       try {
-        const res = await rankingFetch(provider, 'cat', url)
-        if (!res.ok) continue
-        const html = await res.text()
-        const entries = parseCategoryPage(html)
-        if (entries.length > 0) {
-          events.push({ eventCode: eventCodeFromName(cat.name), eventName: cat.name, entries })
+        for (let page = 1; page <= MAX_PAGES; page++) {
+          const url = cfg.categoryUrl(rankingId, cat.id, page)
+          const res = await rankingFetch(provider, 'cat', url)
+          if (!res.ok) break
+          const html = await res.text()
+          const pageEntries = parseCategoryPage(html)
+          if (pageEntries.length === 0) break
+          entries.push(...pageEntries)
+          if (entries.length >= TARGET || pageEntries.length < 100) break
         }
       } catch { /* skip failed categories */ }
+      if (entries.length > TARGET) entries.length = TARGET
+      if (entries.length > 0) {
+        events.push({ eventCode: eventCodeFromName(cat.name), eventName: cat.name, entries })
+      }
     }
 
     // Don't overwrite a populated cache with nothing.

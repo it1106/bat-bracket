@@ -18,7 +18,7 @@ export type DateFormat = 'thai-be' | 'en-gb'
 export interface RankingProviderConfig {
   provider: 'bat' | 'bwf'
   overviewUrl: string
-  categoryUrl: (rankingId: string, categoryId: string) => string
+  categoryUrl: (rankingId: string, categoryId: string, page?: number) => string
   playerUrl:   (rankingId: string, globalPlayerId: string) => string
   headers: Record<string, string>
   dateFormat: DateFormat
@@ -35,7 +35,10 @@ export const PROVIDER_CONFIG: Record<'bat' | 'bwf', RankingProviderConfig> = {
   bat: {
     provider: 'bat',
     overviewUrl: `${BAT_BASE}/ranking.aspx?rid=188`,
-    categoryUrl: (rid, cat) => `${BAT_BASE}/category.aspx?id=${rid}&category=${cat}&ps=100`,
+    categoryUrl: (rid, cat, page) => {
+      const base = `${BAT_BASE}/category.aspx?id=${rid}&category=${cat}&ps=100`
+      return page && page > 1 ? `${base}&p=${page}` : base
+    },
     playerUrl:   (rid, pid) => `${BAT_BASE}/player.aspx?id=${rid}&player=${pid}`,
     headers: { 'User-Agent': UA },
     dateFormat: 'thai-be',
@@ -44,7 +47,10 @@ export const PROVIDER_CONFIG: Record<'bat' | 'bwf', RankingProviderConfig> = {
   bwf: {
     provider: 'bwf',
     overviewUrl: `${BWF_BASE}/ranking.aspx?rid=186`,
-    categoryUrl: (rid, cat) => `${BWF_BASE}/category.aspx?id=${rid}&category=${cat}&ps=100`,
+    categoryUrl: (rid, cat, page) => {
+      const base = `${BWF_BASE}/category.aspx?id=${rid}&category=${cat}&ps=100`
+      return page && page > 1 ? `${base}&p=${page}` : base
+    },
     playerUrl:   (rid, pid) => `${BWF_BASE}/player.aspx?id=${rid}&player=${pid}`,
     // www.tournamentsoftware.com 302s to /cookiewall unless an `st` cookie is
     // present. cp=23 = purposes 1|2|4|16 (full opt-in); l=2057 = en-GB locale
