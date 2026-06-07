@@ -4,6 +4,7 @@ import { readRankingCache } from '@/lib/ranking/cache'
 import { readRankingPlayerDetail } from '@/lib/ranking/player-cache'
 import { readPlayerIdEntry } from '@/lib/bat-player-id-map'
 import { countContributingTournaments } from '@/lib/ranking/player-view'
+import { rankingSlugAlias } from '@/lib/ranking/aliases'
 import PlayerProfileView from '@/components/PlayerProfileView'
 import MinimalPlayerProfile from '@/components/MinimalPlayerProfile'
 import type { ProviderTag, RankingPlayerRank, RankingPlayerDetail } from '@/lib/types'
@@ -31,8 +32,9 @@ export default async function PlayerPage({ params }: Props) {
   let rankingCountryFlagUrl = ''
   let bwfGlobalPlayerId = ''
   if (currentRanking) {
+    const aliasSlug = rankingSlugAlias(provider, params.slug)
     for (const ev of currentRanking.events) {
-      const entry = ev.entries.find(e => e.slug === params.slug)
+      const entry = ev.entries.find(e => e.slug === params.slug || e.slug === aliasSlug)
       if (entry) {
         playerRankings.push({
           eventName: ev.eventName,

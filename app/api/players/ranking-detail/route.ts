@@ -12,6 +12,7 @@ import {
   writePlayerIdFailure,
 } from '@/lib/bat-player-id-map'
 import { readIndexCache } from '@/lib/player-index-cache'
+import { rankingSlugAlias } from '@/lib/ranking/aliases'
 import { extractProfileUrl } from '@/lib/scraper'
 import { parseRankingPlayerPage } from '@/lib/ranking/player-scraper'
 import { rankingFetch } from '@/lib/ranking/fetch'
@@ -71,8 +72,9 @@ async function discoverBatGlobalPlayerId(slug: string): Promise<{ id: string } |
 async function lookupBwfGlobalPlayerId(slug: string): Promise<string | null> {
   const cache = await readRankingCache('bwf')
   if (!cache) return null
+  const alias = rankingSlugAlias('bwf', slug)
   for (const ev of cache.events) {
-    const hit = ev.entries.find(e => e.slug === slug && e.globalPlayerId)
+    const hit = ev.entries.find(e => (e.slug === slug || e.slug === alias) && e.globalPlayerId)
     if (hit?.globalPlayerId) return hit.globalPlayerId
   }
   return null

@@ -1,0 +1,7 @@
+{
+  "_comment": "Manual map of match-data slug -> ranking-data slug, scoped per provider. Use when the same person is registered under two transliterations across the match feed and the ranking feed. Verify with rank + points + partner before adding.",
+  "bat": {},
+  "bwf": {
+    "krittayod_klinjun": "krittayod_klinchan"
+  }
+}
