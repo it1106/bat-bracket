@@ -9,12 +9,13 @@ const EMPTY: Leaderboards = { version: 1, provider: 'bat', generatedAt: 'never',
 
 // Number of ranking entries we ship to the client per ranking board.
 // The client renders the first 10 by default and reveals the rest behind
-// a 'Show top 30' toggle. The upstream cache holds up to 50 per event,
-// but past 30 the names get long-tail enough that ~all users won't look.
-const RANKING_BOARD_LIMIT = 30
+// a Show more toggle. BAT stops at 30 (long-tail past that); BWF Asia
+// Jr. surfaces the full top-100 since the pool is smaller and the cache
+// already caps at that depth.
+const RANKING_BOARD_LIMIT: Record<'bat' | 'bwf', number> = { bat: 30, bwf: 100 }
 
-function rankingEventToBoard(ev: RankingEvent): LeaderboardBoard {
-  const entries: LeaderboardEntry[] = ev.entries.slice(0, RANKING_BOARD_LIMIT).map(e => ({
+function rankingEventToBoard(ev: RankingEvent, provider: 'bat' | 'bwf'): LeaderboardBoard {
+  const entries: LeaderboardEntry[] = ev.entries.slice(0, RANKING_BOARD_LIMIT[provider]).map(e => ({
     rank: e.rank,
     slug: e.slug,
     name: e.name,
@@ -38,7 +39,8 @@ function rankingEventToBoard(ev: RankingEvent): LeaderboardBoard {
 
 function attachRanking(base: Leaderboards | null, ranking: Ranking | null): Leaderboards | null {
   if (!base) return null
-  const rankingBoards = ranking?.events.map(rankingEventToBoard) ?? []
+  const provider = ranking?.provider === 'bwf' ? 'bwf' : 'bat'
+  const rankingBoards = ranking?.events.map(ev => rankingEventToBoard(ev, provider)) ?? []
   return { ...base, boards: [...base.boards, ...rankingBoards] }
 }
 
