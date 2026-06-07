@@ -40,7 +40,7 @@ function lastLinkText(cell: string): string {
   return stripTags(matches[matches.length - 1][1])
 }
 
-function parseEntries(html: string, limit = 50): RankingEntry[] {
+function parseEntries(html: string, limit = 100): RankingEntry[] {
   const rankRowRe = /<tr[^>]*>([\s\S]*?<td\s+class="rank"[\s\S]*?)<\/tr>/gi
   const entries: RankingEntry[] = []
   let m: RegExpExecArray | null
@@ -112,7 +112,7 @@ export function parseCategoryList(html: string): Array<{ id: string; name: strin
 
 /** Parse entries from a single category page (category.aspx?...). */
 export function parseCategoryPage(html: string): RankingEntry[] {
-  return parseEntries(html, 50)
+  return parseEntries(html, 100)
 }
 
 /** Parse publish date string from the overview page (raw upstream form). */

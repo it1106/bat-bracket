@@ -35,7 +35,7 @@ export const PROVIDER_CONFIG: Record<'bat' | 'bwf', RankingProviderConfig> = {
   bat: {
     provider: 'bat',
     overviewUrl: `${BAT_BASE}/ranking.aspx?rid=188`,
-    categoryUrl: (rid, cat) => `${BAT_BASE}/category.aspx?id=${rid}&category=${cat}&ps=50`,
+    categoryUrl: (rid, cat) => `${BAT_BASE}/category.aspx?id=${rid}&category=${cat}&ps=100`,
     playerUrl:   (rid, pid) => `${BAT_BASE}/player.aspx?id=${rid}&player=${pid}`,
     headers: { 'User-Agent': UA },
     dateFormat: 'thai-be',
@@ -44,7 +44,7 @@ export const PROVIDER_CONFIG: Record<'bat' | 'bwf', RankingProviderConfig> = {
   bwf: {
     provider: 'bwf',
     overviewUrl: `${BWF_BASE}/ranking.aspx?rid=186`,
-    categoryUrl: (rid, cat) => `${BWF_BASE}/category.aspx?id=${rid}&category=${cat}&ps=50`,
+    categoryUrl: (rid, cat) => `${BWF_BASE}/category.aspx?id=${rid}&category=${cat}&ps=100`,
     playerUrl:   (rid, pid) => `${BWF_BASE}/player.aspx?id=${rid}&player=${pid}`,
     // www.tournamentsoftware.com 302s to /cookiewall unless an `st` cookie is
     // present. cp=23 = purposes 1|2|4|16 (full opt-in); l=2057 = en-GB locale
