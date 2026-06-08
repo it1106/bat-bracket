@@ -25,3 +25,24 @@ describe('bracket-cache done inheritance', () => {
     expect(bracketCache.get(makeBracketKey('6e65c36e-aaaa', '1'))?.done).toBe(true)
   })
 })
+
+describe('feederLookupCache', () => {
+  it('exposes a globalThis-backed Map shared across imports', () => {
+    const { feederLookupCache } = require('../lib/bracket-cache')
+    expect(feederLookupCache).toBeInstanceOf(Map)
+  })
+
+  it('round-trips a per-draw feeder lookup', () => {
+    const { feederLookupCache } = require('../lib/bracket-cache')
+    const childMatches = [
+      [[{ name: 'A1', playerId: '11' }]],
+      [[{ name: 'B1', playerId: '21' }]],
+    ]
+    const lookup = new Map([['11,21', childMatches]])
+    feederLookupCache.set('TID:1', { lookup, ts: 12345 })
+    const got = feederLookupCache.get('TID:1')
+    expect(got?.ts).toBe(12345)
+    expect(got?.lookup.get('11,21')).toEqual(childMatches)
+    feederLookupCache.delete('TID:1')
+  })
+})

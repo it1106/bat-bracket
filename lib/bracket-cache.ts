@@ -23,6 +23,10 @@ interface BracketCacheState {
   playerClubCache: Map<string, string>
   playerNameCache: Map<string, string>
   siblingLookupCache: Map<string, { lookup: Map<string, string>; ts: number }>
+  feederLookupCache: Map<
+    string,
+    { lookup: Map<string, import('./types').MatchPlayer[][][]>; ts: number }
+  >
   dirty: boolean
   flushTimer: NodeJS.Timeout | null
 }
@@ -38,6 +42,7 @@ const state: BracketCacheState = globalState.__bracketCacheState ??= {
   playerClubCache: new Map(),
   playerNameCache: new Map(),
   siblingLookupCache: new Map(),
+  feederLookupCache: new Map(),
   dirty: false,
   flushTimer: null,
 }
@@ -120,6 +125,7 @@ export const rawHtmlCache = state.rawHtmlCache
 // underlying bracket entry's `ts` advances. `ts` here mirrors `cache.get(key).ts`
 // at the moment the lookup was built.
 export const siblingLookupCache = state.siblingLookupCache
+export const feederLookupCache = state.feederLookupCache
 // Tiered TTLs by draw activity.
 //   live   = at least one match still has no winner → poll on a tight cycle
 //            so users see results soon after a match finishes.
