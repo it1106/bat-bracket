@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import { parseTournaments, parseEvents, parseBracket, parseBracketEntries, extractProfileUrl, parseMatchesPartial, orderScheduleGroups } from '@/lib/scraper'
+import { parseTournaments, parseEvents, parseBracket, parseBracketEntries, extractProfileUrl, parseMatchesPartial, orderScheduleGroups, extractMatchTeams, extractFlatPlayerIds } from '@/lib/scraper'
+import * as cheerio from 'cheerio'
 import type { MatchScheduleGroup, MatchEntry } from '@/lib/types'
 
 const fixtureHtml = (name: string) =>
@@ -85,6 +86,88 @@ describe('parseBracketEntries', () => {
 
   it('returns an empty array when no bracket markup is present', () => {
     expect(parseBracketEntries('<html><body></body></html>', '1', 'MS')).toEqual([])
+  })
+})
+
+describe('extractMatchTeams', () => {
+  it('returns two teams from a populated singles match element', () => {
+    const html = `
+      <div class="match">
+        <div class="match__row">
+          <div class="match__row-title-value"><a href="?player=11"><span class="nav-link__value">Alpha</span></a></div>
+        </div>
+        <div class="match__row">
+          <div class="match__row-title-value"><a href="?player=22"><span class="nav-link__value">Beta</span></a></div>
+        </div>
+      </div>`
+    const $ = cheerio.load(html)
+    const teams = extractMatchTeams($, $('.match')[0])
+    expect(teams).toEqual([
+      [{ name: 'Alpha', playerId: '11' }],
+      [{ name: 'Beta', playerId: '22' }],
+    ])
+  })
+
+  it('drops teams whose players all have empty names (bye row)', () => {
+    const html = `
+      <div class="match">
+        <div class="match__row">
+          <div class="match__row-title-value"><a href="?player=11"><span class="nav-link__value">Alpha</span></a></div>
+        </div>
+        <div class="match__row">
+          <div class="match__row-title-value"><a></a></div>
+        </div>
+      </div>`
+    const $ = cheerio.load(html)
+    const teams = extractMatchTeams($, $('.match')[0])
+    expect(teams).toEqual([[{ name: 'Alpha', playerId: '11' }]])
+  })
+
+  it('returns two players per team for doubles', () => {
+    const html = `
+      <div class="match">
+        <div class="match__row">
+          <div class="match__row-title-value"><a href="?player=11"><span class="nav-link__value">A1</span></a></div>
+          <div class="match__row-title-value"><a href="?player=12"><span class="nav-link__value">A2</span></a></div>
+        </div>
+        <div class="match__row">
+          <div class="match__row-title-value"><a href="?player=21"><span class="nav-link__value">B1</span></a></div>
+          <div class="match__row-title-value"><a href="?player=22"><span class="nav-link__value">B2</span></a></div>
+        </div>
+      </div>`
+    const $ = cheerio.load(html)
+    const teams = extractMatchTeams($, $('.match')[0])
+    expect(teams).toEqual([
+      [{ name: 'A1', playerId: '11' }, { name: 'A2', playerId: '12' }],
+      [{ name: 'B1', playerId: '21' }, { name: 'B2', playerId: '22' }],
+    ])
+  })
+})
+
+describe('extractFlatPlayerIds', () => {
+  it('returns all player IDs across both rows', () => {
+    const html = `
+      <div class="match">
+        <div class="match__row">
+          <div class="match__row-title-value"><a href="?player=11"><span class="nav-link__value">Alpha</span></a></div>
+        </div>
+        <div class="match__row">
+          <div class="match__row-title-value"><a href="?player=22"><span class="nav-link__value">Beta</span></a></div>
+        </div>
+      </div>`
+    const $ = cheerio.load(html)
+    expect(extractFlatPlayerIds($, $('.match')[0])).toEqual(['11', '22'])
+  })
+
+  it('skips links without a player= query parameter', () => {
+    const html = `
+      <div class="match">
+        <div class="match__row">
+          <div class="match__row-title-value"><a href="/no-id">No</a></div>
+        </div>
+      </div>`
+    const $ = cheerio.load(html)
+    expect(extractFlatPlayerIds($, $('.match')[0])).toEqual([])
   })
 })
 

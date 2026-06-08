@@ -536,6 +536,41 @@ export function parseBracketEntries(
   return entries
 }
 
+// Extracts each row's named players from a bracket .match element.
+// Returns MatchPlayer[][] where the outer array is teams (rows) and the
+// inner is players within that team. Drops slots with empty names and
+// drops whole teams that end up empty (bye rows).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractMatchTeams($: cheerio.CheerioAPI, matchEl: any): MatchPlayer[][] {
+  const teams: MatchPlayer[][] = []
+  $(matchEl).find('.match__row').each((_, row) => {
+    const players: MatchPlayer[] = []
+    $(row).find('.match__row-title-value').each((_, tv) => {
+      const a = $(tv).find('a')
+      const name = a.find('.nav-link__value').length
+        ? a.find('.nav-link__value').first().text().trim()
+        : a.text().trim()
+      const hrefMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
+      if (name) players.push({ name, playerId: hrefMatch ? hrefMatch[1] : '' })
+    })
+    if (players.length > 0) teams.push(players)
+  })
+  return teams
+}
+
+// Flat list of every player ID inside a .match element (both rows).
+// Same shape as parseBracketSiblings's inner walk — used to build the
+// join key against the schedule's matchPlayerKey.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractFlatPlayerIds($: cheerio.CheerioAPI, matchEl: any): string[] {
+  const ids: string[] = []
+  $(matchEl).find('.match__row a').each((_, a) => {
+    const hrefMatch = ($(a).attr('href') ?? '').match(/player=(\d+)/)
+    if (hrefMatch) ids.push(hrefMatch[1])
+  })
+  return ids
+}
+
 // Walks each round's match-group-wrappers in the raw bracket HTML; each
 // wrapper contains the 2 matches whose winners feed into the same next-round
 // slot, so the matches inside a wrapper ARE bracket siblings. Returns one
