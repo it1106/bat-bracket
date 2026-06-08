@@ -610,6 +610,61 @@ export function parseBracketSiblings(html: string): Array<{ players: string[]; s
   return result
 }
 
+// For each round-R+1 slot in a bracket, returns the two R-round child
+// matches whose winners feed it. Side selection (which child holds the
+// populated player, which holds the candidate opponents) is done by
+// elimination at stamp time in the schedule enricher — not here.
+//
+// `players` is the sorted flat list of player IDs for the R+1 match,
+// used to join against the schedule's matchPlayerKey.
+// `childMatches` is exactly the 2 R-round matches in the wrapper that
+// feeds this R+1 slot, each as MatchPlayer[][] (teams × players).
+export function parseBracketFeeders(
+  html: string,
+): Array<{ players: string[]; childMatches: MatchPlayer[][][] }> {
+  const $ = cheerio.load(html, { xmlMode: false })
+  const bracket = $('.bracket.js-bracket')
+  if (!bracket.length) return []
+
+  const allSlides = bracket.find('swiper-container > swiper-slide')
+  const slides = allSlides.filter(
+    (_, slide) =>
+      $(slide).find('.bracket-round__match-group-wrapper').length > 0,
+  )
+
+  const result: Array<{ players: string[]; childMatches: MatchPlayer[][][] }> = []
+
+  for (let r = 0; r < slides.length - 1; r++) {
+    const rSlide = slides.eq(r)
+    const r1Slide = slides.eq(r + 1)
+
+    const rGroups = rSlide.find('.bracket-round__match-group-wrapper')
+    // Flat list of every R+1 match in DOM order; index `gi` is the R+1
+    // match fed by rGroups[gi] (each R wrapper holds 2 sibling matches
+    // whose winners meet in one R+1 match).
+    const r1Matches = r1Slide.find('.bracket-round__match-group-wrapper .match')
+
+    rGroups.each((gi, group) => {
+      const childMatchEls = $(group).find('.match')
+      if (childMatchEls.length !== 2) return
+
+      const childMatches: MatchPlayer[][][] = []
+      childMatchEls.each((_, child) => {
+        childMatches.push(extractMatchTeams($, child))
+      })
+
+      const r1Match = r1Matches.eq(gi)
+      if (!r1Match.length) return
+      const r1PlayerIds = extractFlatPlayerIds($, r1Match[0]).slice().sort()
+      if (r1PlayerIds.length === 0) return
+
+      result.push({ players: r1PlayerIds, childMatches })
+    })
+  }
+
+  return result
+}
+
 // Splits a "Duration: 23m | Main Location - 5" tooltip into its parts.
 // Either segment may be missing; venue-address-only tooltips fall through
 // as `court` (caller decides whether to keep that or discard it).
