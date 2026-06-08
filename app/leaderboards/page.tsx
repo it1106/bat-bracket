@@ -27,7 +27,8 @@ function rankingEventToBoard(ev: RankingEvent, provider: 'bat' | 'bwf'): Leaderb
     // the value is 0 there. Hide the badge when there's no data; BAT rows
     // (which carry an actual count) keep showing it.
     extra: e.tournaments > 0 ? `${e.tournaments} tn` : undefined,
-    flagUrl: e.countryFlagUrl,
+    // BAT rows surface the club line instead of a country flag.
+    flagUrl: provider === 'bwf' ? e.countryFlagUrl : undefined,
   }))
   return {
     id: `ranking-${ev.eventCode.toLowerCase()}`,
