@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState, useEffect } from 'react'
-import type { MatchScheduleGroup, MatchDay, MatchEntry } from '@/lib/types'
+import type { MatchScheduleGroup, MatchDay, MatchEntry, MatchPlayer } from '@/lib/types'
 import { matchLiveCourt, type CourtLive } from '@/lib/live-score'
 import { useLanguage } from '@/lib/LanguageContext'
 import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
@@ -230,6 +230,22 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     return club || p.country || undefined
   }
 
+  const renderTbdOpp = (candidates: MatchPlayer[][]) => (
+    <div className="ms-tbd-opp">
+      {candidates.map((team, i) => (
+        <span key={i}>
+          {i > 0 && <span className="ms-tbd-or"> {t('tbdOr')} </span>}
+          {team.map((p, j) => (
+            <span key={j}>
+              {j > 0 && '/'}
+              <span>{p.name}</span>
+            </span>
+          ))}
+        </span>
+      ))}
+    </div>
+  )
+
   const renderMatch = (m: MatchEntry, gi: number, mi: number, showCourt: boolean) => {
     const matchKey = `${gi}-${mi}`
     const isTarget = matchKey === targetKey
@@ -317,9 +333,11 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       </div>
 
       <div className={`ms-team ms-team--1 ms-d${m.winner === 1 ? ' winner' : ''}`}>
-        {m.team1.map((p, i) => (
-          <div key={i}>{flag(p)}<span className={nameCls(p)} title={teamTooltip(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</span>{i === 0 && m.winner === 1 && <span className="ms-team-dot" aria-label="winner" />}</div>
-        ))}
+        {m.team1.length === 0 && m.team2.length > 0 && m.tbdOpponents && m.tbdOpponents.length > 0
+          ? renderTbdOpp(m.tbdOpponents)
+          : m.team1.map((p, i) => (
+              <div key={i}>{flag(p)}<span className={nameCls(p)} title={teamTooltip(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</span>{i === 0 && m.winner === 1 && <span className="ms-team-dot" aria-label="winner" />}</div>
+            ))}
       </div>
       <div className="ms-score ms-d">
         {(() => {
@@ -350,15 +368,19 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         })()}
       </div>
       <div className={`ms-team ms-team--2 ms-d${m.winner === 2 ? ' winner' : ''}`}>
-        {m.team2.map((p, i) => (
-          <div key={i}>{flag(p)}<span className={nameCls(p)} title={teamTooltip(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</span>{i === 0 && m.winner === 2 && <span className="ms-team-dot" aria-label="winner" />}</div>
-        ))}
+        {m.team2.length === 0 && m.team1.length > 0 && m.tbdOpponents && m.tbdOpponents.length > 0
+          ? renderTbdOpp(m.tbdOpponents)
+          : m.team2.map((p, i) => (
+              <div key={i}>{flag(p)}<span className={nameCls(p)} title={teamTooltip(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</span>{i === 0 && m.winner === 2 && <span className="ms-team-dot" aria-label="winner" />}</div>
+            ))}
       </div>
 
       <div className="ms-board ms-m">
         <div className={`ms-board-row${m.winner === 1 ? ' winner' : ''}`}>
           <div className="ms-board-players">
-            {m.team1.map((p, i) => <div key={i}>{flag(p)}<span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</span></div>)}
+            {m.team1.length === 0 && m.team2.length > 0 && m.tbdOpponents && m.tbdOpponents.length > 0
+              ? renderTbdOpp(m.tbdOpponents)
+              : m.team1.map((p, i) => <div key={i}>{flag(p)}<span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(1)}{p.name}</span></div>)}
           </div>
           {winnerDot(1)}
           {m.walkover
@@ -378,7 +400,9 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         </div>
         <div className={`ms-board-row${m.winner === 2 ? ' winner' : ''}`}>
           <div className="ms-board-players">
-            {m.team2.map((p, i) => <div key={i}>{flag(p)}<span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</span></div>)}
+            {m.team2.length === 0 && m.team1.length > 0 && m.tbdOpponents && m.tbdOpponents.length > 0
+              ? renderTbdOpp(m.tbdOpponents)
+              : m.team2.map((p, i) => <div key={i}>{flag(p)}<span className={nameCls(p)} onClick={onPlayerClick && p.playerId ? (e) => { e.stopPropagation(); recordMatchView(m); onPlayerClick(p.playerId) } : undefined}>{medal(2)}{p.name}</span></div>)}
           </div>
           {winnerDot(2)}
           {m.walkover
