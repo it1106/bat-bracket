@@ -2,7 +2,40 @@
 
 **Date:** 2026-06-09
 
+**Status:** ❌ Not feasible with current data sources. Spec retained for the
+historical record. Implementation was attempted in-session against this
+spec, then reverted after manual verification confirmed the schedule data
+lacks the information required to join both-empty matches to the bracket.
+
 **Builds on:** `docs/superpowers/specs/2026-06-08-tbd-opponent-design.md`
+
+## Why this isn't feasible
+
+The single-empty case works because the populated team's player IDs serve
+as the join key into `feederLookupCache` — the cache maps
+`sortedPlayerIds → childMatches`, and `parseBracketFeeders` emits R+1
+slot entries keyed on those player IDs.
+
+For a **both-empty** schedule entry, there are no player IDs to join
+against the bracket:
+
+- The schedule HTML for an unscheduled / unplayed future-round match
+  carries only `draw`, `round`, and (sometimes) `court`/`time`. No
+  bracket-position identifier, no slot number, no `data-match-id`.
+- The bracket HTML carries no `datetime` and no court/hall information
+  on any match (verified against `fixtures/bracket-bat-ysb-bsu13.html`),
+  so `(court, scheduledTime)` is not a viable join either.
+- Multiple R32 matches in the same draw share `round=Round of 32`, so
+  `(drawNum, round)` collides — no way to discriminate which R32 slot
+  a given schedule entry corresponds to.
+
+The architecture below assumed `enrichBracketContext` could locate the
+bracket entry for a both-empty schedule entry. It can't. The architecture
+itself is sound; the join is the blocker.
+
+## Original spec follows (preserved for context)
+
+---
 
 ## Summary
 
