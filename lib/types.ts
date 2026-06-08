@@ -85,6 +85,10 @@ export interface MatchEntry {
   // Comma-separated, sorted player IDs of the bracket sibling match (the
   // match whose winner this match's winner would face if they advance).
   siblingPlayerIds?: string
+  // Potential opponents from the bracket's prior round when one side of the
+  // match has no players yet (waiting on a previous-round match to resolve).
+  // Length 1 means the other prior-round side was a bye or itself TBD.
+  tbdOpponents?: MatchPlayer[][]
 }
 
 export interface H2HRecord {
