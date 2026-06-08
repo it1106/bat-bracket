@@ -65,3 +65,29 @@ describe('selectTbdCandidates', () => {
     expect(selectTbdCandidates([p('1')], [] as MatchPlayer[][][])).toBeNull()
   })
 })
+
+import fs from 'fs'
+import path from 'path'
+import { parseBracketFeeders } from '@/lib/scraper'
+
+const THATCHATHAM_ID = '2832' // ธัชธรรม์ เหมาะประสิทธิ์ วรสุภาพ
+const RONAKORN_ID    = '3512' // รณกร รัตนบัญญัติ
+const RYAN_ID        = '2585' // Wong Hao Feng RYAN
+
+describe('enrichBracketContext (worked example via selectTbdCandidates)', () => {
+  it('resolves ธัชธรรม์ R64 to รณกร + Wong Hao Feng RYAN as TBD opponents', () => {
+    const html = fs.readFileSync(
+      path.join(process.cwd(), 'fixtures', 'bracket-bat-ysb-bsu13.html'),
+      'utf-8',
+    )
+    const entries = parseBracketFeeders(html)
+    const r64 = entries.find((e) => e.players.includes(THATCHATHAM_ID))
+    expect(r64).toBeDefined()
+
+    const populated = [p(THATCHATHAM_ID, 'ธัชธรรม์')]
+    const candidates = selectTbdCandidates(populated, r64!.childMatches)
+    expect(candidates).not.toBeNull()
+    const flatIds = candidates!.flat().map((q) => q.playerId).sort()
+    expect(flatIds).toEqual([RONAKORN_ID, RYAN_ID].sort())
+  })
+})

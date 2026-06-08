@@ -28,6 +28,7 @@ jest.mock('../lib/bracket-cache', () => ({
   cache: { get: jest.fn(() => null) },
   rawHtmlCache: { get: jest.fn(() => null) },
   siblingLookupCache: { get: jest.fn(() => null), set: jest.fn() },
+  feederLookupCache: { get: jest.fn(() => null), set: jest.fn() },
   fetchAndCache: jest.fn().mockResolvedValue(undefined),
   makeBracketKey: jest.fn((t: string, d: string) => `${t}:${d}`),
 }))
@@ -41,6 +42,7 @@ jest.mock('../lib/scraper', () => ({
     groups: [{ type: 'time', time: '10:00', matches: [] }],
   })),
   parseBracketSiblings: jest.fn(() => []),
+  parseBracketFeeders: jest.fn(() => []),
 }))
 
 import { batFetch } from '@/lib/bat-fetch'

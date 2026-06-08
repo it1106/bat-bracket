@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
-import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings } from '@/lib/scraper'
-import { cache as bracketCache, fetchAndCache, rawHtmlCache, siblingLookupCache, makeBracketKey } from '@/lib/bracket-cache'
+import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings, parseBracketFeeders } from '@/lib/scraper'
+import { cache as bracketCache, fetchAndCache, rawHtmlCache, siblingLookupCache, feederLookupCache, makeBracketKey } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
 import { readDayCache, writeDayCache, isDayComplete, shouldMemcacheDayResult, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
 import { providerFor } from '@/lib/providers/resolve'
 import { getTodayIso } from '@/lib/today'
 import { persistMetaIfChanged } from '@/lib/tournament-meta'
-import type { MatchScheduleGroup, MatchEntry, MatchesData } from '@/lib/types'
+import type { MatchScheduleGroup, MatchEntry, MatchesData, MatchPlayer } from '@/lib/types'
 
 export const maxDuration = 30
 
@@ -121,10 +121,10 @@ export function selectTbdCandidates(
 }
 
 // For each unique drawNum in `groups`, pull the bracket from cache (or fetch
-// it), extract sibling pairs, and stamp `siblingPlayerIds` onto each schedule
-// match. Failures per draw are swallowed so one broken bracket doesn't sink
-// the whole schedule response.
-async function enrichWithSiblings(
+// it), extract sibling pairs AND feeder candidates, and stamp
+// `siblingPlayerIds` + `tbdOpponents` onto each schedule match. Failures per
+// draw are swallowed so one broken bracket doesn't sink the whole schedule.
+async function enrichBracketContext(
   tournamentId: string,
   groups: MatchScheduleGroup[],
 ): Promise<void> {
@@ -137,6 +137,7 @@ async function enrichWithSiblings(
   if (drawNums.size === 0) return
 
   const siblingByDraw = new Map<string, Map<string, string>>()
+  const feederByDraw = new Map<string, Map<string, MatchPlayer[][][]>>()
 
   await Promise.all(
     Array.from(drawNums).map(async (drawNum) => {
@@ -154,19 +155,34 @@ async function enrichWithSiblings(
         if (!html) return
 
         const bracketTs = bracketCache.get(key)?.ts ?? 0
-        const cachedLookup = siblingLookupCache.get(key)
-        let lookup = cachedLookup && cachedLookup.ts === bracketTs ? cachedLookup.lookup : null
-        if (!lookup) {
+
+        // Siblings (existing).
+        const cachedSibling = siblingLookupCache.get(key)
+        let siblingLookup =
+          cachedSibling && cachedSibling.ts === bracketTs ? cachedSibling.lookup : null
+        if (!siblingLookup) {
           const pairs = parseBracketSiblings(html)
-          lookup = new Map<string, string>()
+          siblingLookup = new Map<string, string>()
           for (const p of pairs) {
-            lookup.set(p.players.join(','), p.siblingPlayers.join(','))
+            siblingLookup.set(p.players.join(','), p.siblingPlayers.join(','))
           }
-          if (lookup.size > 0) siblingLookupCache.set(key, { lookup, ts: bracketTs })
+          if (siblingLookup.size > 0) siblingLookupCache.set(key, { lookup: siblingLookup, ts: bracketTs })
         }
-        if (lookup.size > 0) siblingByDraw.set(drawNum, lookup)
+        if (siblingLookup.size > 0) siblingByDraw.set(drawNum, siblingLookup)
+
+        // Feeders (new).
+        const cachedFeeder = feederLookupCache.get(key)
+        let feederLookup =
+          cachedFeeder && cachedFeeder.ts === bracketTs ? cachedFeeder.lookup : null
+        if (!feederLookup) {
+          const entries = parseBracketFeeders(html)
+          feederLookup = new Map<string, MatchPlayer[][][]>()
+          for (const e of entries) feederLookup.set(e.players.join(','), e.childMatches)
+          if (feederLookup.size > 0) feederLookupCache.set(key, { lookup: feederLookup, ts: bracketTs })
+        }
+        if (feederLookup.size > 0) feederByDraw.set(drawNum, feederLookup)
       } catch {
-        // ignore — this draw just won't have sibling info
+        // ignore — this draw just won't have sibling/feeder info
       }
     }),
   )
@@ -174,12 +190,28 @@ async function enrichWithSiblings(
   for (const g of groups) {
     for (const m of g.matches) {
       if (!m.drawNum) continue
-      const lookup = siblingByDraw.get(m.drawNum)
-      if (!lookup) continue
       const key = matchPlayerKey(m)
       if (!key) continue
-      const sibling = lookup.get(key)
-      if (sibling) m.siblingPlayerIds = sibling
+
+      const siblingLookup = siblingByDraw.get(m.drawNum)
+      if (siblingLookup) {
+        const sibling = siblingLookup.get(key)
+        if (sibling) m.siblingPlayerIds = sibling
+      }
+
+      const feederLookup = feederByDraw.get(m.drawNum)
+      if (feederLookup) {
+        const onlyOneSideEmpty =
+          (m.team1.length === 0) !== (m.team2.length === 0)
+        if (onlyOneSideEmpty) {
+          const childMatches = feederLookup.get(key)
+          if (childMatches) {
+            const populated = m.team1.length > 0 ? m.team1 : m.team2
+            const candidates = selectTbdCandidates(populated, childMatches)
+            if (candidates) m.tbdOpponents = candidates
+          }
+        }
+      }
     }
   }
 }
@@ -270,7 +302,7 @@ export async function GET(request: Request) {
           })
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
           data = parseMatchesPartial(await res.text())
-          await enrichWithSiblings(tournamentId, data.groups)
+          await enrichBracketContext(tournamentId, data.groups)
         }
         // Fetch succeeded — BAT is healthy again, clear any stale backoff
         // so future calls aren't suppressed.
@@ -385,7 +417,7 @@ export async function GET(request: Request) {
       // Sibling enrichment is skipped on the full-schedule path — it costs an
       // extra BAT round-trip per draw (2-5 s on cold tournaments) and the
       // client backfills siblings by immediately fetching the per-day endpoint
-      // for `currentDate`, which does run enrichWithSiblings.
+      // for `currentDate`, which does run enrichBracketContext.
       matchesFullCache.set(tournamentId, { data, ts: Date.now() })
       void persistMetaIfChanged(tournamentId, data)
 
