@@ -1661,6 +1661,15 @@ html.dark .ms-board-set.live {
   -webkit-box-decoration-break: clone;
 }
 
+.ms-tbd-opp {
+  font-style: italic;
+  opacity: 0.7;
+  font-size: 0.9em;
+}
+.ms-tbd-or {
+  opacity: 0.85;
+}
+
 /* Disable yellow highlighting when user unchecks the "Highlight" option */
 body.no-highlight .bk-row.tracked,
 body.no-highlight .match__row.highlighted {
