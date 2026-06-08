@@ -16,7 +16,7 @@ jest.mock('../lib/providers/resolve', () => ({ providerFor: jest.fn() }))
 jest.mock('../lib/tournament-meta', () => ({ persistMetaIfChanged: jest.fn() }))
 jest.mock('../lib/today', () => ({ getTodayIso: jest.fn(() => '2026-06-02') }))
 
-import { selectTbdCandidates } from '@/app/api/matches/route'
+import { selectTbdCandidates } from '@/lib/tbdOpponents'
 import type { MatchPlayer } from '@/lib/types'
 
 const p = (id: string, name = id): MatchPlayer => ({ name, playerId: id })

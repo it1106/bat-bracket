@@ -120,6 +120,7 @@ export type TKey =
   | 'filterMixed'
   | 'vs'
   | 'vsMatch'
+  | 'tbdOr'
   | 'clearSearch'
   | 'highlight'
   | 'excludeCompleted'
@@ -315,6 +316,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     filterMixed: 'Mixed',
     vs: 'vs',
     vsMatch: 'vs.',
+    tbdOr: 'or',
     clearSearch: 'Clear search',
     highlight: 'Highlight',
     excludeCompleted: 'Excl. Completed',
@@ -542,6 +544,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     filterMixed: 'คู่ผสม',
     vs: 'พบ',
     vsMatch: 'พบ',
+    tbdOr: 'หรือ',
     clearSearch: 'ล้างคำค้น',
     highlight: 'ไฮไลท์',
     excludeCompleted: 'ไม่รวมที่จบแล้ว',
