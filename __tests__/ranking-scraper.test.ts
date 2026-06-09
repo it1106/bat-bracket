@@ -5,6 +5,7 @@ import {
   parseCategoryList,
   parseCategoryPage,
   parseRankingId,
+  parsePreviousRankingId,
   parsePublishDate,
   eventCodeFromName,
 } from '@/lib/ranking/scraper'
@@ -100,5 +101,25 @@ describe('parsePublishDate', () => {
 describe('parseRankingId', () => {
   it('finds id= on first category.aspx link', () => {
     expect(parseRankingId('<a href="category.aspx?id=51771&category=1">x</a>')).toBe('51771')
+  })
+})
+
+describe('parsePreviousRankingId', () => {
+  const overview = `
+    <select name="dlPublication" class="publication">
+      <option selected="selected" value="52131">9/6/2569</option>
+      <option value="52008">2/6/2569</option>
+      <option value="51869">26/5/2569</option>
+    </select>
+  `
+  it('returns the first non-selected option value', () => {
+    expect(parsePreviousRankingId(overview)).toBe('52008')
+  })
+  it('returns null when there is only one publication', () => {
+    const only = `<select class="publication"><option selected="selected" value="52131">9/6/2569</option></select>`
+    expect(parsePreviousRankingId(only)).toBeNull()
+  })
+  it('returns null when no publication select is present', () => {
+    expect(parsePreviousRankingId('<div>no select here</div>')).toBeNull()
   })
 })

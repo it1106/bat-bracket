@@ -7,10 +7,11 @@ import {
   parsePublishDate,
   eventCodeFromName,
   parseRankingId,
+  parsePreviousRankingId,
 } from '@/lib/ranking/scraper'
 import { readRankingCache, writeRankingCache } from '@/lib/ranking/cache'
 import { mergePreviousRanks } from '@/lib/ranking/previous-rank'
-import type { RankingEntry, RankingEvent, ProviderTag } from '@/lib/types'
+import type { Ranking, RankingEntry, RankingEvent, ProviderTag } from '@/lib/types'
 
 const TTL_MS = 24 * 60 * 60 * 1000
 
@@ -48,6 +49,7 @@ export async function POST(req: Request, ctx: Ctx) {
     const publishDate = parsePublishDate(overviewHtml)
     const categories = parseCategoryList(overviewHtml)
     const rankingId = parseRankingId(overviewHtml)
+    const previousRankingId = parsePreviousRankingId(overviewHtml)
 
     if (categories.length === 0) {
       return NextResponse.json({ error: 'no categories found on overview page' }, { status: 502 })
@@ -56,30 +58,33 @@ export async function POST(req: Request, ctx: Ctx) {
       return NextResponse.json({ error: 'rankingId not found on overview page' }, { status: 502 })
     }
 
-    // Upstream caps `ps` at 100 per page, so loop pages 1..MAX_PAGES until
-    // we hit the TARGET, get an empty page, or get a short page (last).
-    const TARGET = 500
-    const MAX_PAGES = 5
-    const events: RankingEvent[] = []
-    for (const cat of categories) {
-      const entries: RankingEntry[] = []
-      try {
-        for (let page = 1; page <= MAX_PAGES; page++) {
-          const url = cfg.categoryUrl(rankingId, cat.id, page)
-          const res = await rankingFetch(provider, 'cat', url)
-          if (!res.ok) break
-          const html = await res.text()
-          const pageEntries = parseCategoryPage(html)
-          if (pageEntries.length === 0) break
-          entries.push(...pageEntries)
-          if (entries.length >= TARGET || pageEntries.length < 100) break
+    // Upstream caps `ps` at 100 per page, so loop pages 1..maxPages until
+    // we hit the target, get an empty page, or get a short page (last).
+    const scrapeEvents = async (rid: string, maxPages: number, target: number): Promise<RankingEvent[]> => {
+      const evs: RankingEvent[] = []
+      for (const cat of categories) {
+        const entries: RankingEntry[] = []
+        try {
+          for (let page = 1; page <= maxPages; page++) {
+            const url = cfg.categoryUrl(rid, cat.id, page)
+            const res = await rankingFetch(provider, 'cat', url)
+            if (!res.ok) break
+            const html = await res.text()
+            const pageEntries = parseCategoryPage(html)
+            if (pageEntries.length === 0) break
+            entries.push(...pageEntries)
+            if (entries.length >= target || pageEntries.length < 100) break
+          }
+        } catch { /* skip failed categories */ }
+        if (entries.length > target) entries.length = target
+        if (entries.length > 0) {
+          evs.push({ eventCode: eventCodeFromName(cat.name), eventName: cat.name, entries })
         }
-      } catch { /* skip failed categories */ }
-      if (entries.length > TARGET) entries.length = TARGET
-      if (entries.length > 0) {
-        events.push({ eventCode: eventCodeFromName(cat.name), eventName: cat.name, entries })
       }
+      return evs
     }
+
+    const events = await scrapeEvents(rankingId, 5, 500)
 
     // Don't overwrite a populated cache with nothing.
     if (events.length === 0) {
@@ -87,12 +92,31 @@ export async function POST(req: Request, ctx: Ctx) {
       return NextResponse.json({ error: 'no entries scraped; cache preserved' }, { status: 502 })
     }
 
+    // Scrape the prior publication to get a fresh, deploy-independent source
+    // for `previousRank`. Capped at 2 pages (200 rows) per event — anyone
+    // currently in the rendered top-100 who fell from below rank 200 is a
+    // 100+ position swing in one week and rare enough to live with "NEW".
+    // Fall back to the local cache if upstream prev fetch yields nothing.
+    let prevForMerge: Ranking | null = null
+    if (previousRankingId) {
+      try {
+        const prevEvents = await scrapeEvents(previousRankingId, 2, 200)
+        if (prevEvents.length > 0) {
+          prevForMerge = {
+            provider, scrapedAt: new Date().toISOString(),
+            publishDate: `__prev_${previousRankingId}`,
+            rankingId: previousRankingId, events: prevEvents,
+          }
+        }
+      } catch { /* fall through to cache fallback */ }
+    }
+    if (!prevForMerge) prevForMerge = await readRankingCache(provider)
+
     const scrapedAt = new Date().toISOString()
-    const prev = await readRankingCache(provider)
-    const eventsWithPrev = mergePreviousRanks(prev, events, publishDate)
+    const eventsWithPrev = mergePreviousRanks(prevForMerge, events, publishDate)
     await writeRankingCache({ provider, scrapedAt, publishDate, rankingId, events: eventsWithPrev })
-    console.log(`[ranking/${provider}/refresh] ok eventsFound=${events.length} publishDate=${publishDate}`)
-    return NextResponse.json({ scrapedAt, eventsFound: events.length })
+    console.log(`[ranking/${provider}/refresh] ok eventsFound=${events.length} publishDate=${publishDate} prev=${previousRankingId ?? 'none'}`)
+    return NextResponse.json({ scrapedAt, eventsFound: events.length, previousRankingId })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown'
     console.log(`[ranking/${provider}/refresh] error err=${msg}`)

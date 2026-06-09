@@ -130,6 +130,23 @@ export function parseRankingId(html: string): string {
   return ply ? ply[1] : ''
 }
 
+/** Extract the previous publication's rankingId from the overview page's
+ *  publication dropdown. The dropdown lists publications newest-first with
+ *  the current week pre-selected; we want the first non-selected option.
+ *  Returns null when there's no prior publication (single-option dropdown,
+ *  or the dropdown isn't on the page at all). */
+export function parsePreviousRankingId(html: string): string | null {
+  const selectMatch = html.match(/<select[^>]*class="[^"]*publication[^"]*"[^>]*>([\s\S]*?)<\/select>/i)
+  if (!selectMatch) return null
+  const optRe = /<option\b([^>]*)value="(\d+)"[^>]*>/gi
+  let m: RegExpExecArray | null
+  while ((m = optRe.exec(selectMatch[1])) !== null) {
+    if (/\bselected\b/i.test(m[1])) continue
+    return m[2]
+  }
+  return null
+}
+
 /** Parse the full overview into a Ranking envelope (provider, publishDate,
  *  rankingId, and per-event preview rows). `dateFormat` is currently unused
  *  here — the raw publishDate string is stored as-is; week-key parsing
