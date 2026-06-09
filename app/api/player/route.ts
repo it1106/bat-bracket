@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { parsePlayerProfile, extractProfileUrl, parseGlobalProfileDetails } from '@/lib/scraper'
 import { playerClubCache } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
+import { readBatPlayer, writeBatPlayer, isFresh } from '@/lib/bat-player-cache'
+import { readFullCache } from '@/lib/day-cache'
 
 export const maxDuration = 30
 
@@ -14,9 +16,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const tournamentId = searchParams.get('tournament')
   const playerId = searchParams.get('player')
+  const force = searchParams.get('force') === 'true'
 
   if (!tournamentId || !playerId) {
     return NextResponse.json({ error: 'tournament and player params required' }, { status: 400 })
+  }
+
+  if (!force) {
+    const cached = await readBatPlayer(tournamentId, playerId)
+    if (cached && isFresh(cached)) {
+      return NextResponse.json(cached.profile, { headers: { 'X-Cache-Source': cached.done ? 'disk-done' : 'disk' } })
+    }
   }
 
   try {
@@ -48,6 +58,12 @@ export async function GET(request: Request) {
         }
       } catch { /* non-fatal */ }
     }
+
+    // Stamp done=true when the tournament has a pinned full-cache (every day is
+    // in the past). Done entries are served indefinitely; live ones honour the
+    // 30-min TTL.
+    const done = (await readFullCache(tournamentId)) !== null
+    await writeBatPlayer(tournamentId, playerId, profile, done)
 
     return NextResponse.json(profile)
   } catch (err) {
