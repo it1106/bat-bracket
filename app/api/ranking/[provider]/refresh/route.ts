@@ -9,6 +9,7 @@ import {
   parseRankingId,
 } from '@/lib/ranking/scraper'
 import { readRankingCache, writeRankingCache } from '@/lib/ranking/cache'
+import { mergePreviousRanks } from '@/lib/ranking/previous-rank'
 import type { RankingEntry, RankingEvent, ProviderTag } from '@/lib/types'
 
 const TTL_MS = 24 * 60 * 60 * 1000
@@ -87,7 +88,9 @@ export async function POST(req: Request, ctx: Ctx) {
     }
 
     const scrapedAt = new Date().toISOString()
-    await writeRankingCache({ provider, scrapedAt, publishDate, rankingId, events })
+    const prev = await readRankingCache(provider)
+    const eventsWithPrev = mergePreviousRanks(prev, events, publishDate)
+    await writeRankingCache({ provider, scrapedAt, publishDate, rankingId, events: eventsWithPrev })
     console.log(`[ranking/${provider}/refresh] ok eventsFound=${events.length} publishDate=${publishDate}`)
     return NextResponse.json({ scrapedAt, eventsFound: events.length })
   } catch (err) {
