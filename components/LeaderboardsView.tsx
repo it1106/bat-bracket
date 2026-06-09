@@ -276,9 +276,9 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
                 <>
                   {visibleEntries.map(e => (
                     <Link key={e.slug} href={`/player/${e.provider ?? lb.provider}/${e.slug}`}
-                      prefetch={false} className={`lb-row${e.extra ? ' lb-row-extra' : ''}`}>
+                      prefetch={false} className={`lb-row${e.extra ? ' lb-row-extra' : ''}${b.category === 'ranking' ? ' lb-row-ranking' : ''}`}>
                       <div className={`lb-rk ${e.rank === 1 ? 'lb-r1' : e.rank === 2 ? 'lb-r2' : e.rank === 3 ? 'lb-r3' : ''}`}>
-                        {e.rank}
+                        <span className="lb-rk-n">{e.rank}</span>
                         {effectiveActive === 'ranking' && renderRankDelta(e.rank, e.previousRank)}
                       </div>
                       <div>

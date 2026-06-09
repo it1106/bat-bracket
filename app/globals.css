@@ -2708,12 +2708,29 @@ html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
 .lb-row-extra { grid-template-columns: 22px 1fr auto auto; }
 .lb-row:first-of-type { border-top: none; }
 .lb-row .lb-rk { font-weight: 700; color: var(--muted); font-size: 11px; text-align: right; }
+.lb-row .lb-rk.lb-r1 .lb-rk-n,
 .lb-row .lb-rk.lb-r1 { color: #d4af37; }
+.lb-row .lb-rk.lb-r2 .lb-rk-n,
 .lb-row .lb-rk.lb-r2 { color: #c0c0c0; }
+.lb-row .lb-rk.lb-r3 .lb-rk-n,
 .lb-row .lb-rk.lb-r3 { color: #cd7f32; }
-.lb-row .lb-rk-delta-up   { color: var(--win-fg); font-size: 10px; margin-left: 3px; font-weight: 700; }
-.lb-row .lb-rk-delta-down { color: var(--red);    font-size: 10px; margin-left: 3px; font-weight: 700; }
-.lb-row .lb-rk-delta-new  { color: var(--muted);  font-size:  9px; margin-left: 3px; font-weight: 700; letter-spacing: 0.5px; }
+/* Ranking rows widen the rank cell into two slots: the rank number sits
+   right-aligned in its 22px slot, the delta badge sits left-aligned in
+   its 34px slot. This keeps rank numbers vertically aligned across rows
+   regardless of whether a badge is present. */
+.lb-row-ranking { grid-template-columns: 60px 1fr auto; }
+.lb-row-ranking.lb-row-extra { grid-template-columns: 60px 1fr auto auto; }
+.lb-row-ranking .lb-rk {
+  display: grid;
+  grid-template-columns: 22px 34px;
+  column-gap: 4px;
+  align-items: baseline;
+  text-align: initial;
+}
+.lb-row-ranking .lb-rk-n { text-align: right; }
+.lb-row .lb-rk-delta-up   { color: var(--win-fg); font-size: 10px; font-weight: 700; text-align: left; }
+.lb-row .lb-rk-delta-down { color: var(--red);    font-size: 10px; font-weight: 700; text-align: left; }
+.lb-row .lb-rk-delta-new  { color: var(--muted);  font-size:  9px; font-weight: 700; text-align: left; letter-spacing: 0.5px; }
 .lb-row .lb-club { font-size: 10px; color: var(--muted); }
 .lb-row .lb-flag {
   display: inline-block;
