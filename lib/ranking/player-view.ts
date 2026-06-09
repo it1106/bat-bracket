@@ -43,6 +43,27 @@ export function ageGroupRank(sourceEvent: string): number {
   return parseInt(m[1], 10)
 }
 
+/** Keep only entries whose event name's `U<NN>` age group is one of the
+ *  two lowest (youngest) values present across the input. Entries with no
+ *  parseable `U<NN>` prefix are always retained — they're either non-junior
+ *  events or upstream-formatted oddities, neither of which we want to
+ *  silently drop. When fewer than three distinct age groups are present
+ *  the input is returned unchanged. */
+export function filterToLowestTwoAgeGroups<T extends { eventName: string }>(rankings: T[]): T[] {
+  const ages = new Set<number>()
+  for (const r of rankings) {
+    const m = r.eventName.match(/U(\d+)/i)
+    if (m) ages.add(parseInt(m[1], 10))
+  }
+  if (ages.size <= 2) return rankings
+  const keep = new Set(Array.from(ages).sort((a, b) => a - b).slice(0, 2))
+  return rankings.filter(r => {
+    const m = r.eventName.match(/U(\d+)/i)
+    if (!m) return true
+    return keep.has(parseInt(m[1], 10))
+  })
+}
+
 /** Parse a publish-date string into a UTC Date, branching on the provider's
  *  date format. Each branch rejects values that look like the other format
  *  so a typo or upstream locale change can't silently drift dates by 543

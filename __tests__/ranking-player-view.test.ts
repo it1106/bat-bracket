@@ -8,6 +8,7 @@ import {
   bwfSectionsForTab,
   disciplineOfEventName,
   countContributingTournaments,
+  filterToLowestTwoAgeGroups,
   TOP_N,
 } from '@/lib/ranking/player-view'
 import type { RankingPlayerDetail, RankingPlayerTournament } from '@/lib/types'
@@ -249,6 +250,73 @@ describe('bwfSectionsForTab', () => {
     expect(sections.map(s => s.eventName)).toEqual([
       "Boy's singles U17",   // higher age → first
       "Boy's singles U15",
+    ])
+  })
+})
+
+describe('filterToLowestTwoAgeGroups', () => {
+  const mk = (names: string[]) => names.map(n => ({ eventName: n, rank: 1, points: 0, tournaments: 0 }))
+
+  it('keeps only the two lowest age groups when three are present (BAT)', () => {
+    const input = mk([
+      'U17 Boys singles',
+      'U17 Mixed doubles',
+      'U19 Boys singles',
+      'U19 Mixed doubles',
+      'U23 Men\'s singles',
+      'U23 Mixed doubles',
+    ])
+    const out = filterToLowestTwoAgeGroups(input).map(r => r.eventName)
+    expect(out).toEqual([
+      'U17 Boys singles',
+      'U17 Mixed doubles',
+      'U19 Boys singles',
+      'U19 Mixed doubles',
+    ])
+  })
+
+  it('keeps the two lowest when four+ are present', () => {
+    const input = mk(['U13 Boys singles', 'U15 Boys singles', 'U17 Boys singles', 'U19 Boys singles'])
+    const out = filterToLowestTwoAgeGroups(input).map(r => r.eventName)
+    expect(out).toEqual(['U13 Boys singles', 'U15 Boys singles'])
+  })
+
+  it('handles BWF event-name shape (age suffix)', () => {
+    const input = mk([
+      "Boy's singles U13",
+      "Boy's singles U15",
+      "Boy's singles U17",
+    ])
+    const out = filterToLowestTwoAgeGroups(input).map(r => r.eventName)
+    expect(out).toEqual(["Boy's singles U13", "Boy's singles U15"])
+  })
+
+  it('returns the input unchanged when only two age groups present', () => {
+    const input = mk(['U15 Boys singles', 'U17 Boys singles'])
+    expect(filterToLowestTwoAgeGroups(input)).toEqual(input)
+  })
+
+  it('returns the input unchanged when only one age group present', () => {
+    const input = mk(['U17 Boys singles', 'U17 Mixed doubles'])
+    expect(filterToLowestTwoAgeGroups(input)).toEqual(input)
+  })
+
+  it('returns the input unchanged when empty', () => {
+    expect(filterToLowestTwoAgeGroups([])).toEqual([])
+  })
+
+  it('retains entries with no parseable U<NN> prefix alongside the two lowest', () => {
+    const input = mk([
+      'U17 Boys singles',
+      'U19 Boys singles',
+      'U23 Men\'s singles',
+      'Senior Men\'s singles',  // no U<NN>
+    ])
+    const out = filterToLowestTwoAgeGroups(input).map(r => r.eventName)
+    expect(out).toEqual([
+      'U17 Boys singles',
+      'U19 Boys singles',
+      'Senior Men\'s singles',
     ])
   })
 })

@@ -3,7 +3,7 @@ import { readIndexCache } from '@/lib/player-index-cache'
 import { readRankingCache } from '@/lib/ranking/cache'
 import { readRankingPlayerDetail } from '@/lib/ranking/player-cache'
 import { readPlayerIdEntry } from '@/lib/bat-player-id-map'
-import { countContributingTournaments } from '@/lib/ranking/player-view'
+import { countContributingTournaments, filterToLowestTwoAgeGroups } from '@/lib/ranking/player-view'
 import { rankingSlugAlias } from '@/lib/ranking/aliases'
 import PlayerProfileView from '@/components/PlayerProfileView'
 import MinimalPlayerProfile from '@/components/MinimalPlayerProfile'
@@ -86,11 +86,17 @@ export default async function PlayerPage({ params }: Props) {
     }
   }
 
+  // Players who compete across more than two age tiers (e.g. U17/U19/U23
+  // for a strong senior junior) end up with a cluttered Current Ranking
+  // section. Show only the two lowest tiers so the section reflects the
+  // player's actual competing age band.
+  const displayedRankings = filterToLowestTwoAgeGroups(playerRankings)
+
   if (record) {
     return (
       <PlayerProfileView
         record={record}
-        playerRankings={playerRankings.length ? playerRankings : undefined}
+        playerRankings={displayedRankings.length ? displayedRankings : undefined}
         rankingPublishDate={rankingPublishDate}
         initialDetail={initialDetail}
         currentRanking={currentRanking}
@@ -106,7 +112,7 @@ export default async function PlayerPage({ params }: Props) {
       displayName={rankingName}
       country={rankingCountry}
       countryFlagUrl={rankingCountryFlagUrl || undefined}
-      playerRankings={playerRankings}
+      playerRankings={displayedRankings}
       rankingPublishDate={rankingPublishDate}
       initialDetail={initialDetail}
       currentRanking={currentRanking}
