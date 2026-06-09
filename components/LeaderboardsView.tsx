@@ -14,7 +14,9 @@ function renderRankDelta(rank: number, previousRank: number | undefined): React.
   if (previousRank === undefined) {
     return <span className="lb-rk-delta-new">NEW</span>
   }
-  if (previousRank === rank) return null
+  if (previousRank === rank) {
+    return <span className="lb-rk-delta-same" aria-label="unchanged">—</span>
+  }
   if (previousRank > rank) {
     return <span className="lb-rk-delta-up">▲{previousRank - rank}</span>
   }

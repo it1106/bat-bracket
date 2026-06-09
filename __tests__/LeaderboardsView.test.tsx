@@ -134,8 +134,10 @@ describe('LeaderboardsView ranking delta badge', () => {
     expect(badge.className).toContain('lb-rk-delta-new')
   })
 
-  it('renders nothing when rank is unchanged', () => {
+  it('renders an em dash when rank is unchanged', () => {
     renderLB(makeRankingBoard([{ rank: 4, slug: 'a', previousRank: 4 }]))
+    const badge = screen.getByText('—')
+    expect(badge.className).toContain('lb-rk-delta-same')
     expect(screen.queryByText(/▲|▼|NEW/)).toBeNull()
   })
 
@@ -151,6 +153,6 @@ describe('LeaderboardsView ranking delta badge', () => {
       }],
     }
     renderLB(lb)
-    expect(screen.queryByText(/▲|▼|NEW/)).toBeNull()
+    expect(screen.queryByText(/▲|▼|NEW|—/)).toBeNull()
   })
 })

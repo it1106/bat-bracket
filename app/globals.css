@@ -2731,6 +2731,7 @@ html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
 .lb-row .lb-rk-delta-up   { color: var(--win-fg); font-size: 10px; font-weight: 700; text-align: left; }
 .lb-row .lb-rk-delta-down { color: var(--red);    font-size: 10px; font-weight: 700; text-align: left; }
 .lb-row .lb-rk-delta-new  { color: var(--muted);  font-size:  9px; font-weight: 700; text-align: left; letter-spacing: 0.5px; }
+.lb-row .lb-rk-delta-same { color: var(--muted);  font-size: 10px; font-weight: 700; text-align: left; }
 .lb-row .lb-club { font-size: 10px; color: var(--muted); }
 .lb-row .lb-flag {
   display: inline-block;
