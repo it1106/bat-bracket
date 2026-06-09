@@ -29,6 +29,7 @@ function rankingEventToBoard(ev: RankingEvent, provider: 'bat' | 'bwf'): Leaderb
     extra: e.tournaments > 0 ? `${e.tournaments} tn` : undefined,
     // BAT rows surface the club line instead of a country flag.
     flagUrl: provider === 'bwf' ? e.countryFlagUrl : undefined,
+    previousRank: e.previousRank,
   }))
   return {
     id: `ranking-${ev.eventCode.toLowerCase()}`,
