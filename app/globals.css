@@ -2711,6 +2711,9 @@ html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
 .lb-row .lb-rk.lb-r1 { color: #d4af37; }
 .lb-row .lb-rk.lb-r2 { color: #c0c0c0; }
 .lb-row .lb-rk.lb-r3 { color: #cd7f32; }
+.lb-row .lb-rk-delta-up   { color: var(--win-fg); font-size: 10px; margin-left: 3px; font-weight: 700; }
+.lb-row .lb-rk-delta-down { color: var(--red);    font-size: 10px; margin-left: 3px; font-weight: 700; }
+.lb-row .lb-rk-delta-new  { color: var(--muted);  font-size:  9px; margin-left: 3px; font-weight: 700; letter-spacing: 0.5px; }
 .lb-row .lb-club { font-size: 10px; color: var(--muted); }
 .lb-row .lb-flag {
   display: inline-block;
