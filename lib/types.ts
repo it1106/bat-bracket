@@ -609,6 +609,9 @@ export interface LeaderboardEntry {
   /** Country-flag image URL (protocol-relative). Today populated only for
    *  BWF ranking entries; the renderer shows nothing when absent. */
   flagUrl?: string
+  /** Mirrors RankingEntry.previousRank. Populated only on ranking-category
+   *  entries; other categories ignore it. */
+  previousRank?: number
 }
 
 export type LeaderboardCategory = 'headline' | 'discipline' | 'character' | 'activity' | 'ranking'
@@ -647,6 +650,10 @@ export interface RankingEntry {
    *  Always protocol-relative; consumers should prepend `https:` if needed.
    *  Optional and BWF-only in practice. */
   countryFlagUrl?: string
+  /** This player's rank in the immediately previous weekly publication for
+   *  the same event/provider. Absent when the player wasn't in the prior
+   *  snapshot (genuinely new entrant, or first-ever scrape). */
+  previousRank?: number
 }
 
 export interface RankingEvent {
