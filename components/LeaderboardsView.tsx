@@ -10,6 +10,17 @@ import type { TKey } from '@/lib/i18n'
 
 interface SearchHit { slug: string; name: string; club: string; provider: ProviderTag }
 
+function renderRankDelta(rank: number, previousRank: number | undefined): React.ReactElement | null {
+  if (previousRank === undefined) {
+    return <span className="lb-rk-delta-new">NEW</span>
+  }
+  if (previousRank === rank) return null
+  if (previousRank > rank) {
+    return <span className="lb-rk-delta-up">▲{previousRank - rank}</span>
+  }
+  return <span className="lb-rk-delta-down">▼{rank - previousRank}</span>
+}
+
 interface Props {
   leaderboards: Leaderboards[];
   rankingPublishDates?: Partial<Record<ProviderTag, string>>;
@@ -266,7 +277,10 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
                   {visibleEntries.map(e => (
                     <Link key={e.slug} href={`/player/${e.provider ?? lb.provider}/${e.slug}`}
                       prefetch={false} className={`lb-row${e.extra ? ' lb-row-extra' : ''}`}>
-                      <div className={`lb-rk ${e.rank === 1 ? 'lb-r1' : e.rank === 2 ? 'lb-r2' : e.rank === 3 ? 'lb-r3' : ''}`}>{e.rank}</div>
+                      <div className={`lb-rk ${e.rank === 1 ? 'lb-r1' : e.rank === 2 ? 'lb-r2' : e.rank === 3 ? 'lb-r3' : ''}`}>
+                        {e.rank}
+                        {effectiveActive === 'ranking' && renderRankDelta(e.rank, e.previousRank)}
+                      </div>
                       <div>
                         <div>
                           {e.flagUrl && <img className="lb-flag" src={e.flagUrl} alt="" />}

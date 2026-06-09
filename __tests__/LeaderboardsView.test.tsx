@@ -92,3 +92,65 @@ describe('LeaderboardsView', () => {
     expect(hrefs).toContain('/player/bwf/b')
   })
 })
+
+describe('LeaderboardsView ranking delta badge', () => {
+  const makeRankingBoard = (entries: Array<{ rank: number; slug: string; previousRank?: number }>): Leaderboards => ({
+    version: 1,
+    provider: 'bat',
+    generatedAt: 'T',
+    sourceVersion: 'v',
+    boards: [{
+      id: 'ranking-ms',
+      titleKey: "Men's Singles",
+      icon: '🏸',
+      category: 'ranking',
+      entries: entries.map(e => ({
+        rank: e.rank,
+        slug: e.slug,
+        name: `Player ${e.slug}`,
+        primaryClub: 'Club',
+        value: 100,
+        display: '100 pts',
+        previousRank: e.previousRank,
+      })),
+    }],
+  })
+
+  it('renders an up arrow with magnitude when the player climbed', () => {
+    renderLB(makeRankingBoard([{ rank: 3, slug: 'a', previousRank: 7 }]))
+    const badge = screen.getByText('▲4')
+    expect(badge.className).toContain('lb-rk-delta-up')
+  })
+
+  it('renders a down arrow with magnitude when the player fell', () => {
+    renderLB(makeRankingBoard([{ rank: 9, slug: 'a', previousRank: 5 }]))
+    const badge = screen.getByText('▼4')
+    expect(badge.className).toContain('lb-rk-delta-down')
+  })
+
+  it('renders a NEW badge when previousRank is absent', () => {
+    renderLB(makeRankingBoard([{ rank: 1, slug: 'a' }]))
+    const badge = screen.getByText('NEW')
+    expect(badge.className).toContain('lb-rk-delta-new')
+  })
+
+  it('renders nothing when rank is unchanged', () => {
+    renderLB(makeRankingBoard([{ rank: 4, slug: 'a', previousRank: 4 }]))
+    expect(screen.queryByText(/▲|▼|NEW/)).toBeNull()
+  })
+
+  it('does not render a badge on non-ranking-category boards even when previousRank is present', () => {
+    const lb: Leaderboards = {
+      version: 1, provider: 'bat', generatedAt: 'T', sourceVersion: 'v',
+      boards: [{
+        id: 'headline.titles', titleKey: 'lbMostTitles', icon: '🏆', category: 'headline',
+        entries: [{
+          rank: 1, slug: 'a', name: 'Anuwat', primaryClub: 'BKK', value: 12, display: '12',
+          previousRank: 5,
+        }],
+      }],
+    }
+    renderLB(lb)
+    expect(screen.queryByText(/▲|▼|NEW/)).toBeNull()
+  })
+})
