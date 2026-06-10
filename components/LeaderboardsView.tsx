@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLanguage } from '@/lib/LanguageContext'
+import { track } from '@/lib/analytics'
 import { weekKeyFromPublishDate } from '@/lib/ranking/player-view'
 import { getRankingConfig } from '@/lib/ranking/config'
 import type { Leaderboards, LeaderboardCategory, ProviderTag } from '@/lib/types'
@@ -124,6 +125,20 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
     if (!didMountRef.current) { didMountRef.current = true; return }
     window.scrollTo(0, 0)
   }, [active])
+
+  // Fire-once page-view event. Runs on mount only — provider/tab changes
+  // are intentionally not tracked here; if we want those they're separate
+  // events on the same surface.
+  const trackedViewRef = useRef(false)
+  useEffect(() => {
+    if (trackedViewRef.current) return
+    trackedViewRef.current = true
+    track('leaderboards_viewed', {
+      provider: activeProvider,
+      provider_count: leaderboards.length,
+      board_count: leaderboards.reduce((sum, l) => sum + l.boards.length, 0),
+    })
+  }, [activeProvider, leaderboards])
 
   // Close a click-opened tooltip when tapping elsewhere (mobile).
   useEffect(() => {
