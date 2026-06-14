@@ -909,7 +909,7 @@ export default function Home() {
           )}
 
           {/* Player search */}
-          {viewMode !== 'custom' && (
+          {viewMode !== 'custom' && viewMode !== 'overview' && (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5">
               <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
