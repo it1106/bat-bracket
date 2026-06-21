@@ -184,7 +184,6 @@ export default function Home() {
   const autoSelectedTournamentRef = useRef(false)
   const [headerVisible, setHeaderVisible] = useState(true)
   const [searchHelpOpen, setSearchHelpOpen] = useState(false)
-  const [showPastTournaments, setShowPastTournaments] = useState(false)
   const [alerts, setAlerts] = useState<AlertItem[]>([])
   // True when the most-recent /api/matches response carried X-Stale-Cache.
   // Cleared on the next successful response that doesn't carry the header.
@@ -291,8 +290,8 @@ export default function Home() {
       if (stored === 'true' || stored === 'false') setHighlightResults(stored === 'true')
       // excludeCompleted intentionally does not persist; clear any legacy value
       localStorage.removeItem('batbracket.excludeCompleted')
-      const past = localStorage.getItem('batbracket.showPastTournaments')
-      if (past === 'true') setShowPastTournaments(true)
+      // Past events are always shown now; drop the legacy toggle preference.
+      localStorage.removeItem('batbracket.showPastTournaments')
     } catch {}
     setCustomTabs(loadCustomTabs())
   }, [])
@@ -535,7 +534,6 @@ export default function Home() {
     if (saved) {
       const match = tournaments.find((t) => t.id === saved)
       if (match) {
-        if (match.done) setShowPastTournaments(true)
         handleTournamentChange(saved)
       }
     }
@@ -845,19 +843,6 @@ export default function Home() {
               <label className="text-[14px] font-semibold uppercase tracking-wide" style={{ color: 'var(--red)' }}>
                 {t('tournament')}
               </label>
-              {recentPastTournaments.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !showPastTournaments
-                    setShowPastTournaments(next)
-                    try { localStorage.setItem('batbracket.showPastTournaments', String(next)) } catch {}
-                  }}
-                  className="text-[10px] font-semibold text-[var(--muted)] hover:text-[var(--fg)] uppercase tracking-wide"
-                >
-                  {showPastTournaments ? `▾ ${t('hidePast')}` : `▸ ${t('showPast')}`}
-                </button>
-              )}
             </div>
             <select
               value={selectedTournament}
@@ -871,7 +856,7 @@ export default function Home() {
               {tournaments.filter((tn) => !tn.done).map((tn) => (
                 <option key={tn.id} value={tn.id}>{tn.name}</option>
               ))}
-              {showPastTournaments && (() => {
+              {(() => {
                 const past = recentPastTournaments
                 if (past.length === 0) return null
                 const groups: Array<{ year: string; items: TournamentInfo[] }> = []
