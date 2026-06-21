@@ -134,12 +134,14 @@ export async function warmActiveFullSchedules(): Promise<{
   warmed: number
   skipped: number
   failed: number
+  todayTargets: Array<{ id: string; date: string }>
 }> {
   const todayIso = getTodayIso()
   const ids = await gatherTournamentIds()
   let warmed = 0
   let skipped = 0
   let failed = 0
+  const todayTargets: Array<{ id: string; date: string }> = []
   for (const id of ids) {
     try {
       if ((await readFullCacheMtimeMs(id)) != null) {
@@ -159,6 +161,10 @@ export async function warmActiveFullSchedules(): Promise<{
       if (data && data.days.length > 0 && data.groups.length > 0 && !isAllPast(data, todayIso)) {
         setMatchesFull(id, data)
         warmed++
+        // If this active tournament plays today, surface the day param so the
+        // caller can also warm today's per-day view (the slow path) via the route.
+        const todayDay = data.days.find((d) => d.dateIso === todayIso)
+        if (todayDay?.date) todayTargets.push({ id, date: todayDay.date })
       } else {
         skipped++
       }
@@ -167,5 +173,5 @@ export async function warmActiveFullSchedules(): Promise<{
       console.warn(`[matches-warm] failed ${id}:`, err instanceof Error ? err.message : err)
     }
   }
-  return { warmed, skipped, failed }
+  return { warmed, skipped, failed, todayTargets }
 }

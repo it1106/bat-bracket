@@ -83,18 +83,37 @@ export async function register() {
       }
     })().catch((err) => console.warn('[instrumentation] prewarm error:', err))
 
-    // Per-worker full-schedule warmer. Re-fetches active tournaments' full
-    // schedules and re-seeds this worker's in-memory cache so a user's first
-    // reach never hits a cold cache. NOT leader-gated: the memcache is
-    // per-process, so every worker must keep its own copy hot. It does no disk
-    // writes (pinning stays leader-only below), so running on all workers can't
-    // race. The 4-min cadence sits just under the 5-min memcache TTL so an
-    // entry is refreshed before it can expire — no cold gap between warms.
+    // Per-worker warmer for the full schedule AND today's per-day view, so a
+    // user's first reach never hits a cold cache. NOT leader-gated: the
+    // memcaches are per-process, so every worker must keep its own copy hot. It
+    // does no disk writes (pinning stays leader-only below), so running on all
+    // workers can't race. The 4-min cadence sits just under the 5-min memcache
+    // TTLs so entries are refreshed before they can expire — no cold gap.
+    const warmOrigin = `http://127.0.0.1:${process.env.PORT || '3000'}`
     const warmTick = async () => {
       try {
         const r = await warmActiveFullSchedules()
-        if (r.warmed > 0 || r.failed > 0) {
-          console.log(`[matches-warm] warmed=${r.warmed} skipped=${r.skipped} failed=${r.failed}`)
+        // Warm today's per-day view for active tournaments playing today, via
+        // the route (origin fetch) so it reuses the day fetch + bracket
+        // enrichment + gzip and seeds the same matchesDayCache users read.
+        // fresh=1 refreshes the entry each tick before the calm TTL lapses (no
+        // cold gap); calm days stay hot, live days (60s TTL) get refreshed too —
+        // harmless, their own viewers keep them warm regardless. On a multi-
+        // worker cluster this only warms whichever worker the origin call lands
+        // on; prod runs a single worker, so it self-warms.
+        let today = 0
+        let todayFail = 0
+        for (const t of r.todayTargets) {
+          try {
+            const res = await fetch(`${warmOrigin}/api/matches?tournament=${encodeURIComponent(t.id)}&date=${encodeURIComponent(t.date)}&fresh=1`)
+            if (res.ok) today++
+            else todayFail++
+          } catch {
+            todayFail++
+          }
+        }
+        if (r.warmed > 0 || r.failed > 0 || today > 0 || todayFail > 0) {
+          console.log(`[matches-warm] full(warmed=${r.warmed} skipped=${r.skipped} failed=${r.failed}) today(warmed=${today} failed=${todayFail})`)
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'unknown'

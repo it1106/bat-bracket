@@ -21,10 +21,23 @@ export const maxDuration = 30
 // immutable in practice, future days only update with schedule changes, and
 // today's matches need near-real-time freshness for the live scoreboard.
 const matchesDayCache = new Map<string, { data: Pick<MatchesData, 'groups'>; ts: number }>()
-function dayCacheTtlMs(dateIso: string, todayIso: string): number {
-  if (dateIso < todayIso) return 60 * 60_000 // past: 60 min
-  if (dateIso > todayIso) return 10 * 60_000 // future: 10 min
-  return 60_000                              // today: 60 s
+
+// Today's cache lifetime adapts to whether play is in progress. nowPlaying is
+// BAT's in-court indicator (icon-sport2), carried through parseMatchGroups →
+// parseSingleMatch onto every schedule match. While any match is live, results
+// and the schedule shift minute-to-minute, so cache tightly (60 s). When the
+// day is calm — nothing on court — the schedule barely moves, so cache long
+// enough that the per-worker warmer can keep it hot for a fast first reach.
+// This must exceed the warmer's ~4-min cadence (else a cold gap reopens) and
+// also bounds how long live-mode activation can lag once a session starts.
+const TODAY_CALM_TTL_MS = 5 * 60_000
+function hasLiveMatches(data: Pick<MatchesData, 'groups'>): boolean {
+  return data.groups.some((g) => g.matches.some((m) => m.nowPlaying))
+}
+function dayCacheTtlMs(dateIso: string, todayIso: string, data?: Pick<MatchesData, 'groups'>): number {
+  if (dateIso < todayIso) return 60 * 60_000                       // past: 60 min
+  if (dateIso > todayIso) return 10 * 60_000                       // future: 10 min
+  return data && hasLiveMatches(data) ? 60_000 : TODAY_CALM_TTL_MS // today: live vs calm
 }
 
 // Circuit breaker for BAT outages. When a fetch fails for a given mem-cache
@@ -212,7 +225,10 @@ export async function GET(request: Request) {
       const fresh = searchParams.get('fresh') === '1'
       const todayIso = getTodayIso()
       const dateIso = toIsoDate(date)
-      const memKey = `${tournamentId}:${dateIso}`
+      // Upper-case the id so requests differing only in casing share one entry
+      // and the background warmer (which seeds with canonical upper-case ids)
+      // is actually hit — same normalization as the full-schedule memcache.
+      const memKey = `${tournamentId.toUpperCase()}:${dateIso}`
 
       if (!fresh) {
         const disk = await readDayCache(tournamentId, dateIso)
@@ -229,7 +245,7 @@ export async function GET(request: Request) {
           })
         }
         const cached = matchesDayCache.get(memKey)
-        if (cached && Date.now() - cached.ts < dayCacheTtlMs(dateIso, todayIso)) {
+        if (cached && Date.now() - cached.ts < dayCacheTtlMs(dateIso, todayIso, cached.data)) {
           return NextResponse.json(cached.data, {
             headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=60' },
           })
