@@ -861,7 +861,16 @@ export default function Home() {
                 <option key={tn.id} value={tn.id}>{tn.name}</option>
               ))}
               {showPastTournaments && (() => {
-                const past = tournaments.filter((tn) => tn.done)
+                // Dropdown-only filter: show past tournaments whose start date is
+                // within 30 days of today. The underlying list is left intact so
+                // leaderboard stats still aggregate every tournament. Undated
+                // entries stay visible since their start date couldn't be derived.
+                const cutoffIso = new Date(
+                  new Date(getTodayIso() + 'T00:00:00Z').getTime() - 30 * 86400000,
+                ).toISOString().slice(0, 10)
+                const past = tournaments.filter(
+                  (tn) => tn.done && (!tn.startDateIso || tn.startDateIso >= cutoffIso),
+                )
                 if (past.length === 0) return null
                 const groups: Array<{ year: string; items: TournamentInfo[] }> = []
                 for (const tn of past) {
