@@ -9,9 +9,10 @@ import type { MatchesData } from '../lib/types'
 
 function fakeSchedule(label: string): MatchesData {
   return {
-    days: [{ date: '20260621', dateIso: '2026-06-21', label } as MatchesData['days'][number]],
+    days: [{ date: '25690621', dateIso: '2026-06-21', label }],
+    currentDate: '25690621',
     groups: [],
-  } as MatchesData
+  }
 }
 
 describe('matches-full-memcache', () => {

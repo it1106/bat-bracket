@@ -25,6 +25,16 @@ export async function batFetch(
   const start = Date.now()
   const { timeoutMs = DEFAULT_TIMEOUT_MS, signal: externalSignal, ...rest } = init ?? {}
 
+  // Request compression. BAT serves the matches HTML uncompressed by default
+  // (~1.3 MB), and the transfer dominates cold-fetch latency — on prod the
+  // body streamed ~15 s without gzip vs ~1.5 s with it (the ~1.3 MB collapses
+  // to ~145 KB). Node's fetch (undici) decompresses transparently, so callers
+  // still read plain HTML from res.text(). A caller may opt out by setting its
+  // own Accept-Encoding. (BAT's TTFB — its server generating the HTML — is
+  // unaffected by this and remains the irreducible floor.)
+  const headers = new Headers((rest as RequestInit).headers)
+  if (!headers.has('accept-encoding')) headers.set('accept-encoding', 'gzip, deflate, br')
+
   let signal: AbortSignal
   let timer: ReturnType<typeof setTimeout> | null = null
   if (externalSignal) {
@@ -39,7 +49,7 @@ export async function batFetch(
   }
 
   try {
-    const res = await fetch(url, { ...rest, signal })
+    const res = await fetch(url, { ...rest, headers, signal })
     if (timer) {
       clearTimeout(timer)
       timer = null
