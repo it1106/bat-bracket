@@ -6,7 +6,8 @@ export async function register() {
     const { prewarmDrawsCache } = await import('./lib/draws-cache')
     const { prewarmBracketCache } = await import('./lib/bracket-cache')
     const { prewarmEventBundleCache } = await import('./lib/event-bundle-cache')
-    const { prewarmMatchesFullCache } = await import('./lib/matches-full-cache')
+    const { prewarmMatchesFullCache, warmActiveFullSchedules } = await import('./lib/matches-full-cache')
+    const { setMatchesFull } = await import('./lib/matches-full-memcache')
     const { runDiscoveryCycle, buildDefaultDeps } = await import('./lib/discovery-runner')
     const { getBangkokHour } = await import('./lib/today')
 
@@ -16,6 +17,11 @@ export async function register() {
 
     ;(async () => {
       const { activeData: bootActiveData } = await prewarmMatchesFullCache()
+      // Seed the route's in-memory full-schedule cache from the schedules
+      // prewarm just fetched, so the first user request to this worker doesn't
+      // pay the cold ~3-5s BAT fetch. Free: the data is already in hand.
+      for (const [id, data] of Array.from(bootActiveData)) setMatchesFull(id, data)
+      console.log(`[matches-full-cache] boot-seed: ${bootActiveData.size} active tournament(s)`)
       await prewarmDrawsCache()
       await prewarmBracketCache()
       await prewarmEventBundleCache()
@@ -77,12 +83,33 @@ export async function register() {
       }
     })().catch((err) => console.warn('[instrumentation] prewarm error:', err))
 
-    // Leader-only across PM2 workers. Today this is a 1-worker cluster, so
-    // we run unconditionally on the worker (NODE_APP_INSTANCE may be 0, 1, or
-    // undefined depending on how PM2 was started — none of which signals
-    // "not the leader" when there's only one worker). If we ever scale to N>1,
-    // change this to gate on "lowest NODE_APP_INSTANCE".
-    const isLeader = true
+    // Per-worker full-schedule warmer. Re-fetches active tournaments' full
+    // schedules and re-seeds this worker's in-memory cache so a user's first
+    // reach never hits a cold cache. NOT leader-gated: the memcache is
+    // per-process, so every worker must keep its own copy hot. It does no disk
+    // writes (pinning stays leader-only below), so running on all workers can't
+    // race. The 4-min cadence sits just under the 5-min memcache TTL so an
+    // entry is refreshed before it can expire — no cold gap between warms.
+    const warmTick = async () => {
+      try {
+        const r = await warmActiveFullSchedules()
+        if (r.warmed > 0 || r.failed > 0) {
+          console.log(`[matches-warm] warmed=${r.warmed} skipped=${r.skipped} failed=${r.failed}`)
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'unknown'
+        console.warn(`[matches-warm] tick failed: ${msg}`)
+      }
+    }
+    setInterval(warmTick, 4 * 60 * 1000)
+
+    // Leader-only across PM2 workers. PM2 cluster sets NODE_APP_INSTANCE to
+    // 0,1,...,N-1 per worker; it is unset under `next start`/dev (single
+    // process). Gating on instance 0 (or unset) means a multi-worker cluster
+    // runs the discovery cycle, ranking polls, and BWF recycle exactly once —
+    // and avoids the multi-worker races on the disk caches those paths write.
+    const appInstance = process.env.NODE_APP_INSTANCE
+    const isLeader = appInstance === undefined || appInstance === '' || appInstance === '0'
     if (isLeader) {
       const deps = buildDefaultDeps()
       const port = process.env.PORT || '3000'

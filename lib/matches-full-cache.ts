@@ -6,6 +6,7 @@ import { persistMetaIfChanged } from './tournament-meta'
 import { loadDiscovered } from './discovery-store'
 import { providerFor } from '@/lib/providers/resolve'
 import { resolveRef, listAllTournaments } from '@/lib/tournaments-registry'
+import { setMatchesFull } from './matches-full-memcache'
 import type { MatchesData } from './types'
 
 const HEADERS = {
@@ -30,7 +31,7 @@ export type FullCacheStatus = 'cached' | 'pinned' | 'active'
 // one extra round-trip per day. Tune here if BAT load matters.
 const PIN_REVALIDATE_TTL_MS = 24 * 60 * 60_000
 
-async function fetchSchedule(tournamentId: string): Promise<MatchesData | null> {
+export async function fetchSchedule(tournamentId: string): Promise<MatchesData | null> {
   const ref = resolveRef(tournamentId) ?? { id: tournamentId.toUpperCase(), provider: 'bat' as const }
   if (ref.provider !== 'bat') {
     return await providerFor(ref).getMatchesFull(ref)
@@ -39,6 +40,19 @@ async function fetchSchedule(tournamentId: string): Promise<MatchesData | null> 
   const res = await batFetch('matches-full-prewarm', url, { headers: HEADERS, cache: 'no-store' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return parseMatchesFull(await res.text())
+}
+
+// The set of tournament ids worth warming/pinning: every registered tournament
+// plus any discovered event that has a published bracket. Upper-cased so the
+// ids line up with the memcache key normalization and the discovered store.
+export async function gatherTournamentIds(): Promise<string[]> {
+  const ids = new Set<string>()
+  for (const ref of listAllTournaments()) ids.add(ref.id)
+  const discovered = await loadDiscovered()
+  for (const e of discovered.entries) {
+    if (e.hasBracket) ids.add(e.id.toUpperCase())
+  }
+  return Array.from(ids)
 }
 
 export async function ensureFullCachePersisted(
@@ -88,15 +102,10 @@ export async function prewarmMatchesFullCache(): Promise<{
   activeData: Map<string, MatchesData>
 }> {
   const todayIso = getTodayIso()
-  const ids = new Set<string>()
-  for (const ref of listAllTournaments()) ids.add(ref.id)
-  const discovered = await loadDiscovered()
-  for (const e of discovered.entries) {
-    if (e.hasBracket) ids.add(e.id.toUpperCase())
-  }
+  const ids = await gatherTournamentIds()
   const newlyPinned: string[] = []
   const activeData = new Map<string, MatchesData>()
-  for (const id of Array.from(ids)) {
+  for (const id of ids) {
     try {
       const { status, data } = await ensureFullCachePersisted(id, todayIso)
       if (status === 'pinned') newlyPinned.push(id)
@@ -108,4 +117,55 @@ export async function prewarmMatchesFullCache(): Promise<{
     }
   }
   return { newlyPinned, activeData }
+}
+
+// Keeps the in-memory full-schedule cache hot for active tournaments so the
+// first user request to THIS worker doesn't pay the cold ~3-5s BAT fetch.
+//
+// Runs per-worker (not leader-gated): the memcache is per-process, so every
+// worker must warm its own copy. Crucially it does NO disk writes or pinning —
+// those stay leader-only on the discovery tick — so running it on every worker
+// can't race on the on-disk caches. Disk-pinned (all-past) tournaments are
+// served from disk by the route and need no warming, so they're skipped via a
+// cheap mtime check rather than a full read. A just-finished tournament
+// (all-past but not yet pinned) is deliberately not seeded; the leader pins it
+// shortly after, and the route then serves it from disk.
+export async function warmActiveFullSchedules(): Promise<{
+  warmed: number
+  skipped: number
+  failed: number
+}> {
+  const todayIso = getTodayIso()
+  const ids = await gatherTournamentIds()
+  let warmed = 0
+  let skipped = 0
+  let failed = 0
+  for (const id of ids) {
+    try {
+      if ((await readFullCacheMtimeMs(id)) != null) {
+        skipped++ // disk-pinned: route serves it from disk, no memcache needed
+        continue
+      }
+      const data = await fetchSchedule(id)
+      // Only seed a non-degenerate, still-active schedule. An empty/transient
+      // BAT 200 parses to days:[] — and isAllPast() returns false for that, so
+      // without the length checks the warmer would proactively cache "no
+      // matches" and serve it for the full TTL with no user present (the SAT
+      // NSDF symptom, unattended). isDayComplete-style emptiness is filtered by
+      // requiring at least one day and one group. A just-finished tournament
+      // (all-past) is skipped too; the leader pins it to disk shortly after.
+      // (The route's own full-path set is left ungated — it only fires on a
+      // real request and is wrapped by the circuit breaker + stale fallback.)
+      if (data && data.days.length > 0 && data.groups.length > 0 && !isAllPast(data, todayIso)) {
+        setMatchesFull(id, data)
+        warmed++
+      } else {
+        skipped++
+      }
+    } catch (err) {
+      failed++
+      console.warn(`[matches-warm] failed ${id}:`, err instanceof Error ? err.message : err)
+    }
+  }
+  return { warmed, skipped, failed }
 }

@@ -7,16 +7,15 @@ import { resolveRef } from '@/lib/tournaments-registry'
 import { providerFor } from '@/lib/providers/resolve'
 import { getTodayIso } from '@/lib/today'
 import { persistMetaIfChanged } from '@/lib/tournament-meta'
+import { MATCHES_FULL_TTL_MS, getMatchesFull, setMatchesFull } from '@/lib/matches-full-memcache'
 import type { MatchScheduleGroup, MatchEntry, MatchesData, MatchPlayer } from '@/lib/types'
 
 export const maxDuration = 30
 
 // Full-schedule cache: feeds the day-list and group skeletons. Live updates
-// flow through the per-day path below, so this can be cached longer. BWF
-// pays N upstream hits per miss (one per tournament day), making short TTLs
-// especially expensive.
-const MATCHES_FULL_TTL_MS = 5 * 60_000
-const matchesFullCache = new Map<string, { data: MatchesData; ts: number }>()
+// flow through the per-day path below, so this can be cached longer. The Map
+// itself lives in lib/matches-full-memcache so the background warmer
+// (instrumentation) and this route share one instance.
 
 // Per-day cache TTL mirrors the Cache-Control logic below: past days are
 // immutable in practice, future days only update with schedule changes, and
@@ -343,7 +342,7 @@ export async function GET(request: Request) {
         return NextResponse.json(fullDisk, { headers: { 'X-Cache-Source': 'disk' } })
       }
 
-      const cached = matchesFullCache.get(tournamentId)
+      const cached = getMatchesFull(tournamentId)
       if (cached && Date.now() - cached.ts < MATCHES_FULL_TTL_MS) {
         return NextResponse.json(cached.data)
       }
@@ -353,7 +352,7 @@ export async function GET(request: Request) {
       // Same circuit-breaker shape as the day branch. The full-schedule key
       // is just the tournamentId so any failure pauses BAT for the whole
       // tournament's full route for BAT_BACKOFF_MS.
-      const fullMemEntry = matchesFullCache.get(tournamentId)
+      const fullMemEntry = getMatchesFull(tournamentId)
       if (inBackoff(tournamentId) && fullMemEntry) {
         console.log(`[matches] backoff serve full tournament=${tournamentId}`)
         return NextResponse.json(fullMemEntry.data, { headers: staleHeaders() })
@@ -380,7 +379,7 @@ export async function GET(request: Request) {
         // so the client surfaces the unreachable banner. Disk-pinned past
         // tournaments already short-circuit above; this guards active ones.
         markBatFailure(tournamentId)
-        const stale = matchesFullCache.get(tournamentId)
+        const stale = getMatchesFull(tournamentId)
         if (stale) {
           const message = err instanceof Error ? err.message : 'unknown'
           console.log(`[matches] stale fallback full tournament=${tournamentId} err=${message}`)
@@ -392,7 +391,7 @@ export async function GET(request: Request) {
       // extra BAT round-trip per draw (2-5 s on cold tournaments) and the
       // client backfills siblings by immediately fetching the per-day endpoint
       // for `currentDate`, which does run enrichBracketContext.
-      matchesFullCache.set(tournamentId, { data, ts: Date.now() })
+      setMatchesFull(tournamentId, data)
       void persistMetaIfChanged(tournamentId, data)
 
       if (isAllPast(data, todayIso)) {
