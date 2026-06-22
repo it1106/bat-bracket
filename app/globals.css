@@ -2302,6 +2302,68 @@ html.dark .ms-match--next-opp {
 }
 .stats-share-capture .stats-roster-tip { display: none !important; }
 
+.stats-wl-cell {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+  outline: none;
+}
+.stats-wl-tip {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 280px;
+  max-width: 380px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  font-weight: normal;
+  text-align: left;
+  white-space: normal;
+}
+.stats-wl-cell:hover .stats-wl-tip,
+.stats-wl-cell:focus .stats-wl-tip,
+.stats-wl-cell:focus-within .stats-wl-tip {
+  display: flex;
+}
+.stats-wl-tip-row {
+  display: grid;
+  grid-template-columns: auto 14px 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  line-height: 1.35;
+}
+.stats-wl-tip-where {
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.stats-wl-tip-res { font-weight: 700; text-align: center; }
+.stats-wl-tip-res.is-win { color: #16a34a; }
+.stats-wl-tip-res.is-loss { color: #dc2626; }
+.stats-wl-tip-opp {
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stats-wl-tip-score {
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.stats-share-capture .stats-wl-tip { display: none !important; }
+
 .stats-court-row {
   display: grid;
   grid-template-columns: 50px 1fr 70px;
