@@ -64,6 +64,13 @@ export async function ensureFullCachePersisted(
     const mtimeMs = await readFullCacheMtimeMs(tournamentId)
     const fresh = mtimeMs != null && Date.now() - mtimeMs < PIN_REVALIDATE_TTL_MS
     if (fresh) return { status: 'cached', data: existing }
+    // Browser-based providers (BWF) cost a full Chromium launch to re-fetch, and a
+    // broken/stuck primer relaunches — and leaks ~1 GB / ~30 min — the browser on
+    // every prewarm pass (the June 2026 OOM). A finished, pinned event won't be
+    // extended, so trust its pin; only BAT (cheap HTTP) revalidates for the rare
+    // late extension.
+    const ref = resolveRef(tournamentId)
+    if (ref && ref.provider !== 'bat') return { status: 'cached', data: existing }
     // Stale — re-check upstream to catch extensions of previously-pinned tournaments.
     try {
       const data = await fetchSchedule(tournamentId)

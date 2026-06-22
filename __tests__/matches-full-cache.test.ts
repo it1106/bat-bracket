@@ -21,6 +21,7 @@ import { parseMatchesFull } from '@/lib/scraper'
 import { readFullCache, writeFullCache, isAllPast, readFullCacheMtimeMs, deleteFullCache } from '@/lib/day-cache'
 import { loadDiscovered } from '@/lib/discovery-store'
 import { listAllTournaments, resolveRef } from '@/lib/tournaments-registry'
+import { providerFor } from '@/lib/providers/resolve'
 import { ensureFullCachePersisted, prewarmMatchesFullCache } from '@/lib/matches-full-cache'
 
 describe('matches-full-cache', () => {
@@ -76,6 +77,20 @@ describe('matches-full-cache', () => {
       expect(data).toEqual({ days: [], source: 'pinned' })
       expect(deleteFullCache).not.toHaveBeenCalled()
       expect(writeFullCache).not.toHaveBeenCalled()
+    })
+
+    it("does NOT revalidate a stale pinned cache for a browser-based (BWF) provider — avoids the Chromium relaunch/leak", async () => {
+      ;(resolveRef as jest.Mock).mockReturnValue({ id: 'BWFEVT', provider: 'bwf' })
+      const getMatchesFull = jest.fn()
+      ;(providerFor as jest.Mock).mockReturnValue({ getMatchesFull })
+      ;(readFullCache as jest.Mock).mockResolvedValue({ days: [], source: 'pinned' })
+      ;(readFullCacheMtimeMs as jest.Mock).mockResolvedValue(Date.now() - 25 * 60 * 60_000) // stale
+      const { status, data } = await ensureFullCachePersisted('BWFEVT', '2026-05-27')
+      expect(status).toBe('cached')
+      expect(data).toEqual({ days: [], source: 'pinned' })
+      expect(getMatchesFull).not.toHaveBeenCalled() // no browser launch for a finished BWF event
+      expect(writeFullCache).not.toHaveBeenCalled()
+      expect(deleteFullCache).not.toHaveBeenCalled()
     })
 
     it("returns 'pinned' and writes the cache when the tournament is all-past", async () => {

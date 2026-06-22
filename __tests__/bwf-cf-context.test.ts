@@ -114,4 +114,26 @@ describe('cf-context state machine', () => {
     await closeContext()
     expect(m.calls.close).toBe(0)
   })
+
+  it('prime tears down the browser when token extraction fails (no leaked context)', async () => {
+    const m = makeMockDriver()
+    m.setNextPageHtml('<html><head><title>no token here</title></head></html>')
+    _setDriverForTesting(m.driver as any)
+    await expect(primeIfNeeded()).rejects.toThrow(/cannot extract token/)
+    expect(m.calls.launch).toBe(1)
+    expect(m.calls.close).toBe(1) // browser closed, not left holding the leaking primer page
+    expect(_internals.getToken()).toBeNull()
+  })
+
+  it('re-primes cleanly on the next call after a prime failure', async () => {
+    const m = makeMockDriver()
+    m.setNextPageHtml('<html>no token</html>')
+    _setDriverForTesting(m.driver as any)
+    await expect(primeIfNeeded()).rejects.toThrow(/cannot extract token/)
+    // A failed prime must not wedge the mutex or leave a stale context.
+    m.setNextPageHtml('<html><head></head><script>token: "tok-2"</script></html>')
+    await primeIfNeeded()
+    expect(m.calls.launch).toBe(2)
+    expect(_internals.getToken()).toBe('tok-2')
+  })
 })

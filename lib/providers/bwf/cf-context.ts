@@ -123,14 +123,27 @@ async function prime(): Promise<void> {
   if (!state.driver) state.driver = await getRealDriver()
   if (state.context) { try { await state.context.close() } catch {} }
   state.context = await state.driver.launch()
-  state.apiPage = await state.context.newPage()
-  await state.apiPage.goto(PRIMER_URL)
-  const html = await state.apiPage.content()
-  const t = extractTokenFromHtml(html)
-  if (!t) throw new Error('cannot extract token from primer page')
-  state.token = t
-  state.lastPrime = Date.now()
-  console.log('[bwf-cf] primed: token=' + (state.token ? 'extracted' : 'missing'))
+  try {
+    state.apiPage = await state.context.newPage()
+    await state.apiPage.goto(PRIMER_URL)
+    const html = await state.apiPage.content()
+    const t = extractTokenFromHtml(html)
+    if (!t) throw new Error('cannot extract token from primer page')
+    state.token = t
+    state.lastPrime = Date.now()
+    console.log('[bwf-cf] primed: token=' + (state.token ? 'extracted' : 'missing'))
+  } catch (err) {
+    // A failed prime (e.g. a changed/broken primer page) must not leave the
+    // browser sitting on bwfbadminton.com's ad/analytics JS, which leaks ~1 GB /
+    // ~30 min while held open. Tear it down and clear state so the next call
+    // re-primes cold instead of accumulating leaked contexts.
+    try { await state.context.close() } catch {}
+    state.context = null
+    state.apiPage = null
+    state.token = null
+    state.lastPrime = 0
+    throw err
+  }
 }
 
 // Tear the browser down and clear state so its memory is reclaimed. The open
