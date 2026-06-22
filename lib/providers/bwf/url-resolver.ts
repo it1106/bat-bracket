@@ -13,7 +13,13 @@ const RX = {
   slug: /\btournamentSlug\s*:\s*['"]([^'"]+)['"]/,
   // title looks like: <title>Tournament | MITH YONEX ...</title>
   name: /<title>\s*[^|<]*\|\s*([^<]+?)\s*<\/title>/,
-  token: /\btoken\s*:\s*["']([^"']+)["']/,
+  // The token has shipped in two shapes: a JS object literal (`token: "..."`)
+  // and, since the site's 2026 rework, HTML-entity-encoded JSON inside an
+  // element attribute (`&quot;token&quot;:&quot;...&quot;`). Accept an optional
+  // quote — real or the &quot; entity — around the key, and either quote style
+  // around the value. The value class excludes & so it stops at the closing
+  // &quot; entity rather than swallowing it.
+  token: /(?:&quot;|["'])?\btoken\b(?:&quot;|["'])?\s*:\s*(?:&quot;|["'])([^"'&]+)(?:&quot;|["'])/,
 }
 
 export function extractTokenFromHtml(html: string): string | null {

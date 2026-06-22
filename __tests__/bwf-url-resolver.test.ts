@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { extractMetaFromPageHtml, extractDatesFromPageHtml } from '@/lib/providers/bwf/url-resolver'
+import { extractMetaFromPageHtml, extractDatesFromPageHtml, extractTokenFromHtml } from '@/lib/providers/bwf/url-resolver'
 
 const html = () => fs.readFileSync(path.join(process.cwd(), 'fixtures', 'bwf', 'tournament-page.html'), 'utf-8')
 
@@ -22,6 +22,26 @@ describe('extractMetaFromPageHtml', () => {
 
   it('returns null when only some fields present', () => {
     expect(extractMetaFromPageHtml('<script>var tmtId = 1;</script>')).toBeNull()
+  })
+})
+
+describe('extractTokenFromHtml', () => {
+  it('extracts the HTML-entity-encoded JSON token from the reworked primer page', () => {
+    // Real shape observed on https://bwfbadminton.com/calendar/ (June 2026).
+    const html = '<div data-page="{&quot;version&quot;:&quot;2024.11.0&quot;,&quot;token&quot;:&quot;1df603e8c147496b9cf81eef6d5d8e92&quot;,&quot;server&quot;:1}">x</div>'
+    expect(extractTokenFromHtml(html)).toBe('1df603e8c147496b9cf81eef6d5d8e92')
+  })
+
+  it('still extracts the legacy object-literal token', () => {
+    expect(extractTokenFromHtml('<script>token: "2|NaXRu9JnMpSdb8"</script>')).toBe('2|NaXRu9JnMpSdb8')
+  })
+
+  it('extracts a raw (non-entity) JSON token', () => {
+    expect(extractTokenFromHtml('{"token":"abc123def456"}')).toBe('abc123def456')
+  })
+
+  it('returns null when no token is present', () => {
+    expect(extractTokenFromHtml('<html>no token here</html>')).toBeNull()
   })
 })
 

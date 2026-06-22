@@ -122,11 +122,36 @@ export async function register() {
     }
     setInterval(warmTick, 4 * 60 * 1000)
 
+    // BWF Chromium recycle heartbeat — PER-WORKER, deliberately NOT leader-gated.
+    // A browser is a per-process resource and primeIfNeeded() can launch one on
+    // ANY worker (boot prime + lazy per-request prime), so every worker must
+    // recycle its own — a leader-only tick can't close a browser a non-leader
+    // holds (that gap was part of the 22 Jun OOM). primeIfNeeded() only re-primes
+    // after PRIME_TTL_MS, so idle periods could let a browser drift past the cap;
+    // this poke every 5 min honors the TTL regardless of demand. When no BWF
+    // tournament is active a browser may still be open from a sparse request
+    // (users viewing finished events) — left open, bwfbadminton.com's ad/analytics
+    // JS leaks ~1 GB per ~30 min (the overnight container-memory spike), so close
+    // it outright; the next request re-primes cold. Does no disk writes, so
+    // running on every worker is race-free (same rationale as the warmer above).
+    const bwfRecycleTick = async () => {
+      const hasActiveBwf = listAllTournaments().some((t) => t.provider === 'bwf' && !t.done)
+      try {
+        const cf = await import('./lib/providers/bwf/cf-context')
+        if (hasActiveBwf) await cf.primeIfNeeded()
+        else await cf.closeContext()
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'unknown'
+        console.warn(`[bwf-recycle] tick failed: ${msg}`)
+      }
+    }
+    setInterval(bwfRecycleTick, 5 * 60 * 1000)
+
     // Leader-only across PM2 workers. PM2 cluster sets NODE_APP_INSTANCE to
     // 0,1,...,N-1 per worker; it is unset under `next start`/dev (single
     // process). Gating on instance 0 (or unset) means a multi-worker cluster
-    // runs the discovery cycle, ranking polls, and BWF recycle exactly once —
-    // and avoids the multi-worker races on the disk caches those paths write.
+    // runs the discovery cycle and ranking polls exactly once — and avoids the
+    // multi-worker races on the disk caches those paths write.
     const appInstance = process.env.NODE_APP_INSTANCE
     const isLeader = appInstance === undefined || appInstance === '' || appInstance === '0'
     if (isLeader) {
@@ -171,32 +196,6 @@ export async function register() {
       }
       setTimeout(tick, 30_000)
       setInterval(tick, 15 * 60 * 1000)
-
-      // BWF Chromium recycle heartbeat. primeIfNeeded() only fires on the
-      // first request after PRIME_TTL_MS — so during idle periods the heap
-      // can drift past the cap unnoticed, get whacked by max_memory_restart
-      // when the next traffic burst lands, and produce a reload-overlap
-      // memory spike. This setInterval pokes it every 5 min so any expired
-      // TTL gets honored regardless of demand.
-      //
-      // When no BWF tournament is active, a browser may still be open from the
-      // last sparse request (users viewing finished events). Skipping the tick
-      // would leave that browser holding the bwfbadminton.com primer page open
-      // for hours — its own ad/analytics JS leaks ~1 GB per ~30 min, which is
-      // the overnight (9pm–7am) container-memory spike. So when idle we close
-      // it outright instead; the next request re-primes cold.
-      const bwfRecycleTick = async () => {
-        const hasActiveBwf = listAllTournaments().some((t) => t.provider === 'bwf' && !t.done)
-        try {
-          const cf = await import('./lib/providers/bwf/cf-context')
-          if (hasActiveBwf) await cf.primeIfNeeded()
-          else await cf.closeContext()
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : 'unknown'
-          console.warn(`[bwf-recycle] tick failed: ${msg}`)
-        }
-      }
-      setInterval(bwfRecycleTick, 5 * 60 * 1000)
 
       // Ranking weekly refresh — one poll per provider. Each upstream
       // publishes once a week (BAT on Tuesday, BWF on Wednesday in BKK
