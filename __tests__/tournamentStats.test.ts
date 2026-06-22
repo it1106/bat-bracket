@@ -108,6 +108,63 @@ describe('tournamentStats — top players', () => {
     expect(s.topPlayers[0].losses).toBe(0)
     expect(s.topPlayers.length).toBeLessThanOrEqual(12)
   })
+
+  it('attaches per-match results that reconcile with the W-L record', () => {
+    const { data, days, clubs } = loadSprc()
+    const s = aggregate(data, days, clubs)
+    for (const p of s.topPlayers) {
+      expect(p.results).toBeDefined()
+      const won = p.results!.filter((r) => r.won).length
+      const lost = p.results!.filter((r) => !r.won).length
+      expect(won).toBe(p.wins)
+      expect(lost).toBe(p.losses)
+    }
+  })
+
+  it('orients scores to the player perspective', () => {
+    const { data, days, clubs } = loadSprc()
+    const s = aggregate(data, days, clubs)
+    let checked = 0
+    for (const p of s.topPlayers) {
+      for (const r of p.results!) {
+        if (r.retired || r.scores.length === 0) continue
+        // Winner takes the last game; oriented scores put the player on t1.
+        const last = r.scores[r.scores.length - 1]
+        if (r.won) expect(last.t1).toBeGreaterThan(last.t2)
+        else expect(last.t1).toBeLessThan(last.t2)
+        checked++
+      }
+    }
+    expect(checked).toBeGreaterThan(0) // guard against a vacuous pass
+  })
+
+  it('orders a player results by event then round depth (shallow first)', () => {
+    const { data, days, clubs } = loadSprc()
+    const s = aggregate(data, days, clubs)
+    const top = s.topPlayers[0]
+    expect(top.results!.length).toBe(top.wins + top.losses)
+    // Bracket "size" of a round: larger = shallower (R128 huge, Final = 2).
+    const size = (round: string): number => {
+      const r = round.toLowerCase()
+      if (r === 'final') return 2
+      if (r.includes('semi')) return 4
+      if (r.includes('quarter')) return 8
+      const m = /(\d+)/.exec(r)
+      return m ? Number(m[1]) : Number.POSITIVE_INFINITY
+    }
+    // Within each event group, rounds run shallow→deep (sizes non-increasing).
+    const byEvent = new Map<string, typeof top.results>()
+    for (const r of top.results!) {
+      const arr = byEvent.get(r.event) ?? []
+      arr!.push(r)
+      byEvent.set(r.event, arr!)
+    }
+    for (const arr of Array.from(byEvent.values())) {
+      for (let i = 1; i < arr!.length; i++) {
+        expect(size(arr![i].round)).toBeLessThanOrEqual(size(arr![i - 1].round))
+      }
+    }
+  })
 })
 
 describe('tournamentStats — courts + integrity', () => {

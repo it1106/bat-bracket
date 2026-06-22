@@ -1,11 +1,14 @@
-import { longRoundL } from './i18n'
+import { abbrevRoundL, longRoundL } from './i18n'
 import type {
   ComputedStats,
   DrawInfo,
   MatchEntry,
+  MatchPlayer,
   MatchScheduleGroup,
+  MatchScore,
   MatchesData,
   StatsClubMedalist,
+  StatsPlayerResult,
   StatsClubRoster,
   StatsCountryRoster,
   StatsCourtTimePlayer,
@@ -456,30 +459,65 @@ function buildDrama(ctxs: MatchCtx[]): ComputedStats['drama'] {
   }
 }
 
+// Bracket size of a round, used to sort a player's results shallow→deep
+// (R128 first … Final last). abbrevRoundL normalizes any locale/spelling to
+// F / SF / QF / R{n}; unknown rounds (e.g. round-robin) sink to the front.
+function roundSize(round: string): number {
+  const a = abbrevRoundL(round, 'en')
+  if (a === 'F') return 2
+  if (a === 'SF') return 4
+  if (a === 'QF') return 8
+  const m = /^R(\d+)$/.exec(a)
+  if (m) return Number(m[1])
+  // Unknown rounds (round-robin, group stages) sort to the front. Use a large
+  // *finite* sentinel — Infinity would yield Infinity-Infinity = NaN in the
+  // comparator when a player has two such matches in one event.
+  return 512
+}
+
 function buildTopPlayers(ctxs: MatchCtx[], clubs: Record<string, string>): ComputedStats['topPlayers'] {
-  interface Rec { name: string; wins: number; losses: number }
+  interface Rec { name: string; wins: number; losses: number; results: StatsPlayerResult[] }
   const tally = new Map<string, Rec>()
   // BWF payloads carry no clubs but tag each MatchPlayer with a country code
   // (e.g. "THA", "IDN"). Remember the first country seen per playerId so we
   // can fall back to it when the clubs map is empty.
   const countryByPid = new Map<string, string>()
+
+  const recordSide = (
+    players: MatchPlayer[],
+    side: 1 | 2,
+    winSide: 1 | 2,
+    opponents: MatchPlayer[],
+    scores: MatchScore[],
+    match: MatchEntry,
+  ) => {
+    // Scores are stored team1-perspective. Flip for team2 so the player's own
+    // points always read on the left (a win shows 21–18, not 18–21).
+    const oriented = side === 1 ? scores : scores.map((s) => ({ t1: s.t2, t2: s.t1 }))
+    const opponent = opponents.map((p) => extractSeed(p.name).plain)
+    for (const p of players) {
+      if (!p.playerId) continue
+      const r = tally.get(p.playerId) ?? { name: p.name, wins: 0, losses: 0, results: [] }
+      const won = winSide === side
+      if (won) r.wins++; else r.losses++
+      r.results.push({
+        event: match.draw,
+        round: match.round,
+        won,
+        opponent,
+        scores: oriented,
+        retired: match.retired || undefined,
+      })
+      tally.set(p.playerId, r)
+      if (p.country && !countryByPid.has(p.playerId)) countryByPid.set(p.playerId, p.country)
+    }
+  }
+
   for (const { match } of ctxs) {
     if (match.winner === null || match.walkover) continue
     const winSide = match.winner
-    for (const p of match.team1) {
-      if (!p.playerId) continue
-      const r = tally.get(p.playerId) ?? { name: p.name, wins: 0, losses: 0 }
-      if (winSide === 1) r.wins++; else r.losses++
-      tally.set(p.playerId, r)
-      if (p.country && !countryByPid.has(p.playerId)) countryByPid.set(p.playerId, p.country)
-    }
-    for (const p of match.team2) {
-      if (!p.playerId) continue
-      const r = tally.get(p.playerId) ?? { name: p.name, wins: 0, losses: 0 }
-      if (winSide === 2) r.wins++; else r.losses++
-      tally.set(p.playerId, r)
-      if (p.country && !countryByPid.has(p.playerId)) countryByPid.set(p.playerId, p.country)
-    }
+    recordSide(match.team1, 1, winSide, match.team2, match.scores, match)
+    recordSide(match.team2, 2, winSide, match.team1, match.scores, match)
   }
   const clubOf = (pid: string) => {
     const c = (clubs[pid] ?? '').trim()
@@ -489,7 +527,12 @@ function buildTopPlayers(ctxs: MatchCtx[], clubs: Record<string, string>): Compu
   }
   const rows = Array.from(tally.entries()).map(([playerId, r]) => {
     const { plain, seed } = extractSeed(r.name)
-    return { playerId, name: plain, seed, club: clubOf(playerId), wins: r.wins, losses: r.losses }
+    const results = r.results.slice().sort((a, b) =>
+      eventRank(a.event) - eventRank(b.event) ||
+      (a.event < b.event ? -1 : a.event > b.event ? 1 : 0) ||
+      roundSize(b.round) - roundSize(a.round),
+    )
+    return { playerId, name: plain, seed, club: clubOf(playerId), wins: r.wins, losses: r.losses, results }
   })
   rows.sort((a, b) => b.wins - a.wins || a.losses - b.losses || (a.playerId < b.playerId ? -1 : 1))
   return rows.slice(0, 12)

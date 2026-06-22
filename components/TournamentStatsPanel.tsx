@@ -5,7 +5,8 @@ import { useLanguage } from '@/lib/LanguageContext'
 import { track } from '@/lib/analytics'
 import { useLongPress } from '@/lib/useLongPress'
 import { buildFilename, captureStatsImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
-import type { StatsClubMedalist, TournamentStats } from '@/lib/types'
+import { abbrevRoundL } from '@/lib/i18n'
+import type { StatsClubMedalist, StatsPlayerResult, TournamentStats } from '@/lib/types'
 
 interface Props {
   tournamentId: string
@@ -305,7 +306,9 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
                   {p.club && <div className="stats-club-m">{p.club}</div>}
                 </td>
                 <td className="stats-club-d">{p.club}</td>
-                <td className="stats-num stats-wl"><b>{p.wins}</b>–<i>{p.losses}</i></td>
+                <td className="stats-num stats-wl">
+                  <WLCell wins={p.wins} losses={p.losses} results={p.results} lang={lang} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -570,6 +573,38 @@ function MedalCell({
           <span className="stats-medal-tip-row" key={`${m.playerId}-${m.event}-${i}`}>
             <span className="stats-medal-tip-name">{stripSeedSuffix(m.name)}</span>
             <span className="stats-medal-tip-event">{m.event}</span>
+          </span>
+        ))}
+      </span>
+    </span>
+  )
+}
+
+function WLCell({
+  wins,
+  losses,
+  results,
+  lang,
+}: {
+  wins: number
+  losses: number
+  results?: StatsPlayerResult[]
+  lang: 'en' | 'th'
+}) {
+  const cell = <><b>{wins}</b>–<i>{losses}</i></>
+  if (!results || results.length === 0) return cell
+  return (
+    <span className="stats-wl-cell" tabIndex={0}>
+      {cell}
+      <span className="stats-wl-tip" role="tooltip">
+        {results.map((r, i) => (
+          <span className="stats-wl-tip-row" key={i}>
+            <span className="stats-wl-tip-where">{r.event} · {abbrevRoundL(r.round, lang)}</span>
+            <span className={`stats-wl-tip-res ${r.won ? 'is-win' : 'is-loss'}`}>{r.won ? 'W' : 'L'}</span>
+            <span className="stats-wl-tip-opp">
+              {r.opponent.join(' / ')}{r.retired ? ' (ret.)' : ''}
+            </span>
+            <span className="stats-wl-tip-score">{r.scores.map((s) => `${s.t1}–${s.t2}`).join(', ')}</span>
           </span>
         ))}
       </span>
