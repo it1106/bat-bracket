@@ -28,6 +28,9 @@ interface Props {
   leaderboards: Leaderboards[];
   rankingPublishDates?: Partial<Record<ProviderTag, string>>;
   rankingIds?: Partial<Record<ProviderTag, string>>;
+  /** Provider tab to open on first render (from a `?provider=` deep link,
+   *  e.g. the ranking-update alert). Ignored if that provider has no boards. */
+  initialProvider?: ProviderTag;
 }
 
 // Tab order matters: first entry is the default active tab when none is
@@ -57,10 +60,14 @@ function rankingOverviewHref(provider: 'bat' | 'bwf', rankingId: string): string
   return `${base}?id=${rankingId}`
 }
 
-export default function LeaderboardsView({ leaderboards, rankingPublishDates, rankingIds }: Props) {
+export default function LeaderboardsView({ leaderboards, rankingPublishDates, rankingIds, initialProvider }: Props) {
   const { t } = useLanguage()
   const router = useRouter()
-  const [activeProvider, setActiveProvider] = useState<ProviderTag>(leaderboards[0]?.provider ?? 'bat')
+  const defaultProvider =
+    initialProvider && leaderboards.some((l) => l.provider === initialProvider)
+      ? initialProvider
+      : leaderboards[0]?.provider ?? 'bat'
+  const [activeProvider, setActiveProvider] = useState<ProviderTag>(defaultProvider)
   const [active, setActive] = useState<LeaderboardCategory>('ranking')
   const activeRankingPublishDate = rankingPublishDates?.[activeProvider]
   const rankingWeekKey = activeRankingPublishDate && (activeProvider === 'bat' || activeProvider === 'bwf')

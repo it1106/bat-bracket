@@ -44,7 +44,12 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
     (a): a is Extract<AlertItem, { kind: 'schedule' }> => a.kind === 'schedule',
   )
   const rankingItems = alerts.filter(
-    (a): a is Extract<AlertItem, { kind: 'ranking' }> => a.kind === 'ranking',
+    // Require `provider`: ranking alerts persisted by an older build (pre
+    // multi-provider) lack it, and would otherwise crash on `.toUpperCase()`
+    // / produce a `provider=undefined` link. Such stale items age out of the
+    // pending cap on their own.
+    (a): a is Extract<AlertItem, { kind: 'ranking' }> =>
+      a.kind === 'ranking' && typeof a.provider === 'string',
   )
 
   const dismissWith = (via: 'item' | 'outside' | 'escape') => {
@@ -195,13 +200,13 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
                 {rankingItems.map((a) => (
                   <a
                     key={a.id}
-                    href="/leaderboards"
+                    href={`/leaderboards?provider=${a.provider}`}
                     onClick={handleItemClick}
                     className="block w-full text-left px-4 py-2.5 text-[13px] text-[var(--fg)] hover:bg-[var(--info-bg)]"
                   >
                     <div>{t('alertsRankingTitle')}</div>
                     <div className="text-[11px] text-[var(--muted)] mt-0.5">
-                      {a.publishDate}
+                      {a.provider.toUpperCase()} · {a.publishDate}
                     </div>
                   </a>
                 ))}

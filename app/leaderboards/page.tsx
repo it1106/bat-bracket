@@ -47,7 +47,12 @@ function attachRanking(base: Leaderboards | null, ranking: Ranking | null): Lead
   return { ...base, boards: [...base.boards, ...rankingBoards] }
 }
 
-export default async function LeaderboardsPage() {
+export default async function LeaderboardsPage(
+  { searchParams }: { searchParams?: { provider?: string } },
+) {
+  const requested = searchParams?.provider
+  const initialProvider: ProviderTag | undefined =
+    requested === 'bat' || requested === 'bwf' ? requested : undefined
   const [bat, bwf, batRanking, bwfRanking] = await Promise.all([
     readLeaderboardsCache('bat'),
     readLeaderboardsCache('bwf'),
@@ -74,6 +79,7 @@ export default async function LeaderboardsPage() {
       leaderboards={providers.length ? providers : [EMPTY]}
       rankingPublishDates={rankingPublishDates}
       rankingIds={rankingIds}
+      initialProvider={initialProvider}
     />
   )
 }

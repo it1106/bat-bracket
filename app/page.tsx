@@ -358,16 +358,18 @@ export default function Home() {
       .finally(() => setLoadingTournaments(false))
   }, [])
 
-  // Poll for new BAT ranking publication on mount. The endpoint is a tiny
-  // JSON {publishDate, scrapedAt} — no big payload. recordRankingSnapshot
-  // is bootstrap-aware: first call ever just seeds, doesn't alert.
+  // Poll for new ranking publications (BAT + BWF) on mount. The endpoint is a
+  // tiny JSON of per-provider {publishDate, scrapedAt} — no big payload.
+  // recordRankingSnapshot seeds each provider's baseline on first sighting, so
+  // it alerts only on genuinely new editions.
   useEffect(() => {
     fetch('/api/ranking-meta')
       .then((r) => safeJson(r))
       .then((data) => {
         if (isApiError(data)) return
-        const meta = data as { publishDate: string | null }
-        setAlerts(recordRankingSnapshot(meta.publishDate))
+        const meta = data as Partial<Record<'bat' | 'bwf', { publishDate: string | null }>>
+        recordRankingSnapshot('bat', meta.bat?.publishDate ?? null)
+        setAlerts(recordRankingSnapshot('bwf', meta.bwf?.publishDate ?? null))
       })
       .catch(() => {})
   }, [])

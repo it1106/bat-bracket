@@ -1,4 +1,4 @@
-import type { MatchDay, TournamentInfo } from '@/lib/types'
+import type { MatchDay, TournamentInfo, ProviderTag } from '@/lib/types'
 import { getTodayIso } from '@/lib/today'
 
 export interface AlertItemTournament {
@@ -21,6 +21,7 @@ export interface AlertItemSchedule {
 export interface AlertItemRanking {
   kind: 'ranking'
   id: string
+  provider: ProviderTag
   publishDate: string
   addedAt: string
 }
@@ -31,6 +32,13 @@ const KEY_BOOTSTRAP = 'batbracket.alerts.bootstrapped'
 const KEY_TOURNAMENTS = 'batbracket.alerts.seenTournaments'
 const KEY_SCHEDULES = 'batbracket.alerts.seenScheduleDays'
 const KEY_RANKING_PUBLISH = 'batbracket.alerts.seenRankingPublishDate'
+
+/** Per-provider last-seen-publishDate key. BAT keeps the original unsuffixed
+ *  key so existing baselines aren't lost (and don't fire a spurious alert on
+ *  upgrade); BWF and any future provider get a suffixed key. */
+function rankingSeenKey(provider: ProviderTag): string {
+  return provider === 'bat' ? KEY_RANKING_PUBLISH : `${KEY_RANKING_PUBLISH}.${provider}`
+}
 const KEY_PENDING = 'batbracket.alerts.pending'
 const PENDING_CAP = 50
 
@@ -124,37 +132,41 @@ export function recordTournamentSnapshot(list: TournamentInfo[]): AlertItem[] {
 }
 
 /**
- * Records the latest known BAT-ranking publishDate and fires an alert when
- * it differs from the one we last saw. Mirrors recordTournamentSnapshot's
- * "first-ever call seeds the baseline, no alert" behavior so the bell doesn't
- * scream on a freshly-cleared localStorage.
+ * Records the latest known publishDate for one ranking provider (BAT or BWF)
+ * and fires an alert when it differs from the one we last saw for that
+ * provider. The first sighting of a provider seeds its baseline silently —
+ * the user didn't ask to be told about an edition that was already published
+ * before they opened the app. Providers are tracked independently, so a new
+ * BWF edition alerts even while BAT is unchanged.
  *
  * Returns the updated pending alert list (same shape as the other recorders).
  */
-export function recordRankingSnapshot(publishDate: string | null | undefined): AlertItem[] {
+export function recordRankingSnapshot(
+  provider: ProviderTag,
+  publishDate: string | null | undefined,
+): AlertItem[] {
   if (!isBrowser()) return []
   if (!publishDate) return getAlerts() // nothing to compare yet (cold cache)
 
-  const seen = readJson<string | null>(KEY_RANKING_PUBLISH, null)
+  const key = rankingSeenKey(provider)
+  const seen = readJson<string | null>(key, null)
 
-  if (!isBootstrapped()) {
-    // First visit ever — seed and don't alert; the user didn't ask to be
-    // told about a ranking that was already published before they opened
-    // the app.
-    writeJson(KEY_RANKING_PUBLISH, publishDate)
-    setBootstrapped()
+  if (seen === null) {
+    // First time we've ever seen this provider's ranking — seed, don't alert.
+    writeJson(key, publishDate)
     return getAlerts()
   }
 
   if (seen === publishDate) return getAlerts()
 
-  writeJson(KEY_RANKING_PUBLISH, publishDate)
+  writeJson(key, publishDate)
   const now = new Date().toISOString()
   return appendPending([{
     kind: 'ranking',
-    // Stable id per publish edition: dismissing an alert and re-seeing the
+    provider,
+    // Stable id per provider+edition: dismissing an alert and re-seeing the
     // same publishDate must not re-add it.
-    id: `r:${publishDate}`,
+    id: `r:${provider}:${publishDate}`,
     publishDate,
     addedAt: now,
   }])

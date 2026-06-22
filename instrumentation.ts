@@ -147,18 +147,41 @@ export async function register() {
     }
     setInterval(bwfRecycleTick, 5 * 60 * 1000)
 
-    // Leader-only across PM2 workers. PM2 cluster sets NODE_APP_INSTANCE to
-    // 0,1,...,N-1 per worker; it is unset under `next start`/dev (single
-    // process). Gating on instance 0 (or unset) means a multi-worker cluster
-    // runs the discovery cycle and ranking polls exactly once — and avoids the
-    // multi-worker races on the disk caches those paths write.
-    const appInstance = process.env.NODE_APP_INSTANCE
-    const isLeader = appInstance === undefined || appInstance === '' || appInstance === '0'
-    if (isLeader) {
+    // Leader election for the once-per-cluster jobs (discovery cycle + ranking
+    // polls), which fetch upstream and write shared disk caches — running them
+    // on multiple workers means double scraping and write races. The old gate
+    // keyed on NODE_APP_INSTANCE === '0', but PM2 reassigns that index across
+    // reloads (a single worker drifts to '1' after an odd number of reloads),
+    // silently dropping the leader. Instead each worker maintains a heartbeat
+    // lease: whoever holds a non-stale lease is the leader. Index-independent,
+    // and self-healing — if the leader dies, another worker takes over once the
+    // lease ages past LEASE_TTL_MS. `amLeader` is re-checked per tick (not once
+    // at boot) so leadership can transfer mid-process.
+    const { acquireOrRenewLease } = await import('./lib/leader-lease')
+    const { join: joinPath } = await import('path')
+    const LEASE_FILE = joinPath(process.cwd(), '.cache', 'ranking-leader.lock')
+    const LEASE_TTL_MS = 60_000
+    const LEASE_HEARTBEAT_MS = 20_000
+    const leaderId = `${process.pid}-${Date.now()}`
+    let amLeader = false
+    const renewLease = async () => {
+      try {
+        const was = amLeader
+        amLeader = await acquireOrRenewLease(LEASE_FILE, leaderId, Date.now(), LEASE_TTL_MS)
+        if (amLeader !== was) console.log(`[leader] ${amLeader ? 'acquired' : 'released'} lease id=${leaderId}`)
+      } catch (err) {
+        amLeader = false
+        console.warn('[leader] lease renew failed:', err instanceof Error ? err.message : err)
+      }
+    }
+    await renewLease()
+    setInterval(renewLease, LEASE_HEARTBEAT_MS)
+    {
       const deps = buildDefaultDeps()
       const port = process.env.PORT || '3000'
       const origin = `http://127.0.0.1:${port}`
       const tick = async () => {
+        if (!amLeader) return
         try {
           const h = getBangkokHour()
           if (h >= 0 && h < 8) {
@@ -242,6 +265,7 @@ export async function register() {
       for (const provider of ['bat', 'bwf'] as const) {
         const cfg = PROVIDER_CONFIG[provider]
         const tick = async () => {
+          if (!amLeader) return
           const cached = await readRankingCache(provider)
           const cacheAgeMs = cached ? Date.now() - new Date(cached.scrapedAt).getTime() : null
           const action = decideTick({ clock: getBangkokClock(), schedule: cfg.pollSchedule, cacheAgeMs })
@@ -249,6 +273,7 @@ export async function register() {
           await peekAndMaybeRefresh(provider)
         }
         setTimeout(async () => {
+          if (!amLeader) return
           const cached = await readRankingCache(provider)
           const cacheAgeMs = cached ? Date.now() - new Date(cached.scrapedAt).getTime() : null
           const action = decideBootKick({ clock: getBangkokClock(), schedule: cfg.pollSchedule, cacheAgeMs })

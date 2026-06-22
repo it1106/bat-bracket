@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { readRankingCache } from '@/lib/ranking/cache'
 
-// Tiny endpoint surfacing just the *metadata* of the latest BAT ranking
-// scrape — used by the client-side alert system to detect when a new edition
-// has been published. Kept separate from /api/leaderboards so the home page
-// (where AlertBell lives) doesn't have to download the full 450KB ranking
-// payload just to learn the publishDate string.
+// Tiny endpoint surfacing just the *metadata* of the latest ranking scrape
+// for each provider — used by the client-side alert system to detect when a
+// new edition has been published (BAT or BWF). Kept separate from
+// /api/leaderboards so the home page (where AlertBell lives) doesn't have to
+// download the full ranking payload just to learn the publishDate strings.
 //
 // Cache is server-rendered, so we mark this route dynamic for the same
 // reason /api/tournaments is: we want any newly-written ranking cache to be
@@ -13,12 +13,12 @@ import { readRankingCache } from '@/lib/ranking/cache'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const cached = await readRankingCache('bat')
-  if (!cached) {
-    return NextResponse.json({ publishDate: null, scrapedAt: null })
-  }
+  const [bat, bwf] = await Promise.all([
+    readRankingCache('bat'),
+    readRankingCache('bwf'),
+  ])
   return NextResponse.json({
-    publishDate: cached.publishDate,
-    scrapedAt: cached.scrapedAt,
+    bat: { publishDate: bat?.publishDate ?? null, scrapedAt: bat?.scrapedAt ?? null },
+    bwf: { publishDate: bwf?.publishDate ?? null, scrapedAt: bwf?.scrapedAt ?? null },
   })
 }
