@@ -121,6 +121,23 @@ describe('tournamentStats — top players', () => {
     }
   })
 
+  it('orients scores to the player perspective', () => {
+    const { data, days, clubs } = loadSprc()
+    const s = aggregate(data, days, clubs)
+    let checked = 0
+    for (const p of s.topPlayers) {
+      for (const r of p.results!) {
+        if (r.retired || r.scores.length === 0) continue
+        // Winner takes the last game; oriented scores put the player on t1.
+        const last = r.scores[r.scores.length - 1]
+        if (r.won) expect(last.t1).toBeGreaterThan(last.t2)
+        else expect(last.t1).toBeLessThan(last.t2)
+        checked++
+      }
+    }
+    expect(checked).toBeGreaterThan(0) // guard against a vacuous pass
+  })
+
   it('orders a player results by event then round depth (shallow first)', () => {
     const { data, days, clubs } = loadSprc()
     const s = aggregate(data, days, clubs)

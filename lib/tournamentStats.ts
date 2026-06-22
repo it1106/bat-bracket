@@ -469,7 +469,10 @@ function roundSize(round: string): number {
   if (a === 'QF') return 8
   const m = /^R(\d+)$/.exec(a)
   if (m) return Number(m[1])
-  return Number.POSITIVE_INFINITY
+  // Unknown rounds (round-robin, group stages) sort to the front. Use a large
+  // *finite* sentinel — Infinity would yield Infinity-Infinity = NaN in the
+  // comparator when a player has two such matches in one event.
+  return 512
 }
 
 function buildTopPlayers(ctxs: MatchCtx[], clubs: Record<string, string>): ComputedStats['topPlayers'] {
