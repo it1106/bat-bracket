@@ -254,6 +254,15 @@ export interface StatsDrama {
   mostCourtTime: StatsCourtTimePlayer | null
 }
 
+export interface StatsPlayerResult {
+  event: string        // match.draw, e.g. "MD", "BS U15"
+  round: string        // raw round string; rendered via abbrevRoundL at display time
+  won: boolean
+  opponent: string[]   // opposing team player names, seed-stripped
+  scores: MatchScore[] // PLAYER-perspective: t1 is always the player's side
+  retired?: boolean    // retired matches still count in W-L; flagged for a "(ret.)" marker
+}
+
 export interface StatsTopPlayer {
   playerId: string
   name: string
@@ -261,6 +270,7 @@ export interface StatsTopPlayer {
   club: string
   wins: number
   losses: number
+  results?: StatsPlayerResult[]
 }
 
 export interface StatsCourt {
