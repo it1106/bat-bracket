@@ -111,3 +111,50 @@ describe('TournamentStatsPanel mid-poll transition', () => {
     }
   })
 })
+
+const topPlayersPayload = {
+  ...minimalLegacyPayload,
+  topPlayers: [
+    {
+      playerId: 'p1',
+      name: 'Alpha',
+      club: 'Club A',
+      wins: 2,
+      losses: 1,
+      results: [
+        { event: 'MD', round: 'QF', won: true, opponent: ['Smith', 'Lee'], scores: [{ t1: 21, t2: 18 }, { t1: 21, t2: 15 }] },
+        { event: 'MD', round: 'SF', won: true, opponent: ['Tan', 'Wong'], scores: [{ t1: 19, t2: 21 }, { t1: 21, t2: 17 }, { t1: 21, t2: 12 }] },
+        { event: 'MD', round: 'Final', won: false, opponent: ['Cho', 'Park'], scores: [{ t1: 18, t2: 21 }, { t1: 17, t2: 21 }] },
+      ],
+    },
+  ],
+}
+
+describe('TournamentStatsPanel — top players W-L tooltip', () => {
+  test('renders a tooltip row per match with opponent and score', async () => {
+    fetchOnce(topPlayersPayload)
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    await waitFor(() => {
+      expect(screen.getByText('Smith / Lee')).toBeInTheDocument()
+    })
+    expect(screen.getByText('21–18, 21–15')).toBeInTheDocument()
+    expect(screen.getByText('Cho / Park')).toBeInTheDocument()
+  })
+
+  test('renders plain W-L with no tooltip when results are absent', async () => {
+    const noResults = {
+      ...minimalLegacyPayload,
+      topPlayers: [{ playerId: 'p1', name: 'Alpha', club: 'Club A', wins: 5, losses: 0 }],
+    }
+    fetchOnce(noResults)
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    await waitFor(() => {
+      expect(screen.getByText('Alpha')).toBeInTheDocument()
+    })
+    expect(document.querySelector('.stats-wl-tip')).toBeNull()
+  })
+})
