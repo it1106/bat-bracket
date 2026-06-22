@@ -7,6 +7,22 @@ import type { RankingPlayerDetail, RankingPlayerDetailCache, ProviderTag } from 
 // Read returns null on missing file, version mismatch, or corrupt JSON —
 // caller treats null as "fetch fresh".
 
+// A player's detail is cached per publication, but the upstream can revise a
+// *published* edition in place (backfilling late-processed tournament results)
+// without bumping its publish date. So a matching publishDate alone isn't
+// enough to trust a cached copy — also require the scrape to be younger than
+// this. Both the API route and the SSR page guard on it so neither serves a
+// stale-but-same-edition detail.
+export const DETAIL_REVISION_TTL_MS = 24 * 60 * 60 * 1000
+
+/** True when a cache entry's scrape time is recent enough to trust against an
+ *  edition the upstream may have revised in place. Unparsable timestamps read
+ *  as stale (forcing a re-fetch). */
+export function isDetailScrapeFresh(scrapedAt: string, now: number = Date.now()): boolean {
+  const age = now - new Date(scrapedAt).getTime()
+  return Number.isFinite(age) && age < DETAIL_REVISION_TTL_MS
+}
+
 let root = path.join(process.cwd(), '.cache', 'players', 'ranking-detail')
 
 export function __setRankingPlayerCacheRootForTesting(dir: string): void { root = dir }

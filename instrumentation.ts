@@ -202,7 +202,7 @@ export async function register() {
       // time); we cheaply peek the overview page every 30 min inside the
       // configured window and only fire the full per-category refresh
       // when publishDate changes. See lib/ranking/scheduler.ts.
-      const { decideTick, decideBootKick, publishDateChanged } = await import('./lib/ranking/scheduler')
+      const { decideTick, decideBootKick, shouldRefresh } = await import('./lib/ranking/scheduler')
       const { PROVIDER_CONFIG } = await import('./lib/ranking/config')
       const { getBangkokClock } = await import('./lib/today')
       const { rankingFetch } = await import('./lib/ranking/fetch')
@@ -221,11 +221,15 @@ export async function register() {
           const upstreamPublishDate = parsePublishDate(html)
           const cached = await readRankingCache(provider)
           const cachedPublishDate = cached?.publishDate ?? null
-          if (!publishDateChanged(cachedPublishDate, upstreamPublishDate)) {
-            console.log(`[ranking/${provider}/poll] publishDate unchanged (${upstreamPublishDate || 'unparsable'}), no refresh`)
+          const cacheAgeMs = cached ? Date.now() - new Date(cached.scrapedAt).getTime() : null
+          if (!shouldRefresh(cachedPublishDate, upstreamPublishDate, cacheAgeMs, cfg.pollSchedule.staleBootKickMs)) {
+            console.log(`[ranking/${provider}/poll] publishDate unchanged (${upstreamPublishDate || 'unparsable'}) and cache fresh, no refresh`)
             return
           }
-          console.log(`[ranking/${provider}/poll] new publishDate: ${cachedPublishDate ?? '(none)'} -> ${upstreamPublishDate}, triggering refresh`)
+          const reason = cachedPublishDate === upstreamPublishDate
+            ? `in-place revision suspected (cacheAge>${(cfg.pollSchedule.staleBootKickMs / 86_400_000).toFixed(0)}d)`
+            : `new publishDate ${cachedPublishDate ?? '(none)'} -> ${upstreamPublishDate}`
+          console.log(`[ranking/${provider}/poll] triggering refresh: ${reason}`)
           const refreshRes = await fetch(`${origin}/api/ranking/${provider}/refresh?force=true`, { method: 'POST' })
           const body = await refreshRes.text()
           console.log(`[ranking/${provider}/poll] refresh status=${refreshRes.status} body=${body.slice(0, 200)}`)
@@ -238,7 +242,9 @@ export async function register() {
       for (const provider of ['bat', 'bwf'] as const) {
         const cfg = PROVIDER_CONFIG[provider]
         const tick = async () => {
-          const action = decideTick({ clock: getBangkokClock(), schedule: cfg.pollSchedule })
+          const cached = await readRankingCache(provider)
+          const cacheAgeMs = cached ? Date.now() - new Date(cached.scrapedAt).getTime() : null
+          const action = decideTick({ clock: getBangkokClock(), schedule: cfg.pollSchedule, cacheAgeMs })
           if (action === 'skip') return
           await peekAndMaybeRefresh(provider)
         }

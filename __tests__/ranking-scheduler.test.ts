@@ -1,4 +1,4 @@
-import { decideTick, decideBootKick, publishDateChanged } from '@/lib/ranking/scheduler'
+import { decideTick, decideBootKick, publishDateChanged, shouldRefresh } from '@/lib/ranking/scheduler'
 import { PROVIDER_CONFIG } from '@/lib/ranking/config'
 
 const BAT = PROVIDER_CONFIG.bat.pollSchedule
@@ -28,6 +28,33 @@ describe('decideTick', () => {
   it('endpoints are inclusive', () => {
     expect(decideTick({ clock: { dayOfWeek: 2, hour: 23, minute: 30 }, schedule: BAT }))
       .toBe('peek-and-maybe-refresh')
+  })
+  it('peeks off-window when the cache is stale enough to have missed an in-place revision', () => {
+    expect(decideTick({ clock: { dayOfWeek: 0, hour: 12, minute: 0 }, schedule: BAT, cacheAgeMs: 7 * 86400000 }))
+      .toBe('peek-and-maybe-refresh')
+  })
+  it('still skips off-window when the cache is fresh', () => {
+    expect(decideTick({ clock: { dayOfWeek: 0, hour: 12, minute: 0 }, schedule: BAT, cacheAgeMs: FRESH }))
+      .toBe('skip')
+  })
+})
+
+describe('shouldRefresh', () => {
+  const TTL = 6 * 86400000
+  it('refreshes when the publishDate changed (new edition)', () => {
+    expect(shouldRefresh('19/5/2569', '26/5/2569', 60_000, TTL)).toBe(true)
+  })
+  it('refreshes when publishDate is unchanged but the cache is older than the revision TTL', () => {
+    expect(shouldRefresh('03/06/2026', '03/06/2026', 7 * 86400000, TTL)).toBe(true)
+  })
+  it('does not refresh when publishDate is unchanged and the cache is fresh', () => {
+    expect(shouldRefresh('03/06/2026', '03/06/2026', 60_000, TTL)).toBe(false)
+  })
+  it('does not refresh on an empty/unparsable upstream date when the cache is fresh', () => {
+    expect(shouldRefresh('03/06/2026', '', 60_000, TTL)).toBe(false)
+  })
+  it('treats a null cache age as not-stale (only publishDate can trigger)', () => {
+    expect(shouldRefresh('03/06/2026', '03/06/2026', null, TTL)).toBe(false)
   })
 })
 

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { readIndexCache } from '@/lib/player-index-cache'
 import { readRankingCache } from '@/lib/ranking/cache'
-import { readRankingPlayerDetail } from '@/lib/ranking/player-cache'
+import { readRankingPlayerDetail, isDetailScrapeFresh } from '@/lib/ranking/player-cache'
 import { readPlayerIdEntry } from '@/lib/bat-player-id-map'
 import { countContributingTournaments, filterToLowestTwoAgeGroups } from '@/lib/ranking/player-view'
 import { rankingSlugAlias } from '@/lib/ranking/aliases'
@@ -53,8 +53,9 @@ export default async function PlayerPage({ params }: Props) {
   // 404 only when nothing is known about this slug.
   if (!record && playerRankings.length === 0) notFound()
 
-  // SSR pre-fetch the per-player detail when we know the id and the cache
-  // is fresh against the current publishDate. BAT gets its id from the
+  // SSR pre-fetch the per-player detail when we know the id and the cache is
+  // fresh against the current publishDate AND within the revision TTL (the
+  // upstream can revise a published edition in place). BAT gets its id from the
   // slug↔id map (built by the 3-hop discovery on first request); BWF gets
   // it directly from the matching ranking entry (no discovery needed).
   let initialDetail: RankingPlayerDetail | undefined
@@ -67,7 +68,11 @@ export default async function PlayerPage({ params }: Props) {
   }
   if (globalPlayerId && currentRanking) {
     const cached = await readRankingPlayerDetail(provider, globalPlayerId)
-    if (cached?.detail && cached.detail.publishDate === currentRanking.publishDate) {
+    if (
+      cached?.detail &&
+      cached.detail.publishDate === currentRanking.publishDate &&
+      isDetailScrapeFresh(cached.detail.scrapedAt)
+    ) {
       initialDetail = cached.detail
     }
   }

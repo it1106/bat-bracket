@@ -19,6 +19,12 @@ export type SchedulerAction = 'skip' | 'peek-and-maybe-refresh'
 export interface SchedulerInputs {
   clock: BangkokClock
   schedule: PollSchedule
+  /** Time since the overview cache was written, in ms. When older than
+   *  schedule.staleBootKickMs we peek even off the weekly publish window:
+   *  an upstream can revise a *published* edition in place (backfilling
+   *  late-processed results) without bumping its publish date, and only a
+   *  peek can discover that. Omit/null to disable the off-window safety net. */
+  cacheAgeMs?: number | null
 }
 
 export interface BootKickInputs extends SchedulerInputs {
@@ -27,11 +33,16 @@ export interface BootKickInputs extends SchedulerInputs {
   cacheAgeMs: number | null
 }
 
-export function decideTick({ clock, schedule }: SchedulerInputs): SchedulerAction {
-  if (clock.dayOfWeek !== schedule.dayOfWeek) return 'skip'
-  if (clock.hour < schedule.startHour) return 'skip'
-  if (clock.hour > schedule.endHour) return 'skip'
-  return 'peek-and-maybe-refresh'
+export function decideTick({ clock, schedule, cacheAgeMs }: SchedulerInputs): SchedulerAction {
+  const inWindow =
+    clock.dayOfWeek === schedule.dayOfWeek &&
+    clock.hour >= schedule.startHour &&
+    clock.hour <= schedule.endHour
+  if (inWindow) return 'peek-and-maybe-refresh'
+  // Off-window safety net: a cache this old may have missed an in-place
+  // revision of the current edition, so peek to find out.
+  if (cacheAgeMs != null && cacheAgeMs > schedule.staleBootKickMs) return 'peek-and-maybe-refresh'
+  return 'skip'
 }
 
 /** Boot kick: when the server first comes up, fire an immediate peek if
@@ -48,4 +59,19 @@ export function decideBootKick(inputs: BootKickInputs): SchedulerAction {
 export function publishDateChanged(cached: string | null, upstream: string): boolean {
   if (!upstream) return false
   return (cached ?? '').trim() !== upstream.trim()
+}
+
+/** Decide whether a cheap peek should escalate to a full per-category
+ *  refresh. True when the upstream publishDate changed (a new edition) OR
+ *  the cache is older than `revisionTtlMs` — the safety net for an upstream
+ *  that revises a published edition in place without bumping its date. A
+ *  null `cacheAgeMs` (cold cache) leaves only the publishDate signal. */
+export function shouldRefresh(
+  cachedPublishDate: string | null,
+  upstreamPublishDate: string,
+  cacheAgeMs: number | null,
+  revisionTtlMs: number,
+): boolean {
+  if (publishDateChanged(cachedPublishDate, upstreamPublishDate)) return true
+  return cacheAgeMs != null && cacheAgeMs > revisionTtlMs
 }

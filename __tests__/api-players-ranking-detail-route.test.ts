@@ -8,6 +8,8 @@ jest.mock('../lib/ranking/player-cache', () => ({
   readRankingPlayerDetail: jest.fn(),
   writeRankingPlayerDetail: jest.fn().mockResolvedValue(undefined),
   writeRankingPlayerNotFound: jest.fn().mockResolvedValue(undefined),
+  // Pure predicate — use the real implementation so the TTL logic is exercised.
+  isDetailScrapeFresh: jest.requireActual('../lib/ranking/player-cache').isDetailScrapeFresh,
 }))
 jest.mock('../lib/ranking/fetch', () => ({
   rankingFetch: jest.fn(),
@@ -56,6 +58,12 @@ const bwfCurrent = (
   }],
 })
 
+// The detail cache is keyed on publishDate but the upstream can revise a
+// published edition in place, so a matching publishDate is only trusted while
+// the cached copy is younger than the revision TTL (24h).
+const freshTs = () => new Date().toISOString()
+const staleTs = () => new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+
 beforeEach(() => { jest.clearAllMocks() })
 
 describe('GET /api/players/ranking-detail (BAT)', () => {
@@ -70,12 +78,12 @@ describe('GET /api/players/ranking-detail (BAT)', () => {
     expect(res.status).toBe(503)
   })
 
-  it('cache hit + matching publishDate short-circuits without any BAT call', async () => {
+  it('cache hit + matching publishDate + fresh scrape short-circuits without any BAT call', async () => {
     ;(readRankingCache as jest.Mock).mockResolvedValue(batCurrent())
     ;(readPlayerIdEntry as jest.Mock).mockResolvedValue({ globalPlayerId: '3903158' })
     const cached = {
       version: 1 as const,
-      detail: { globalPlayerId: '3903158', publishDate: '26/5/2569', scrapedAt: 'x', tournaments: [] },
+      detail: { globalPlayerId: '3903158', publishDate: '26/5/2569', scrapedAt: freshTs(), tournaments: [] },
     }
     ;(readRankingPlayerDetail as jest.Mock).mockResolvedValue(cached)
     const res = await GET(batReq('ravin'))
@@ -83,6 +91,22 @@ describe('GET /api/players/ranking-detail (BAT)', () => {
     expect(await res.json()).toEqual({ detail: cached.detail })
     expect(batFetch).not.toHaveBeenCalled()
     expect(rankingFetch).not.toHaveBeenCalled()
+  })
+
+  it('matching publishDate but a scrape older than the revision TTL triggers refetch', async () => {
+    ;(readRankingCache as jest.Mock).mockResolvedValue(batCurrent())
+    ;(readPlayerIdEntry as jest.Mock).mockResolvedValue({ globalPlayerId: '3903158' })
+    ;(readRankingPlayerDetail as jest.Mock).mockResolvedValue({
+      version: 1, detail: { globalPlayerId: '3903158', publishDate: '26/5/2569', scrapedAt: staleTs(), tournaments: [] },
+    })
+    ;(rankingFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => '<table></table>' })
+    const res = await GET(batReq('ravin'))
+    expect(res.status).toBe(200)
+    expect(rankingFetch).toHaveBeenCalledWith(
+      'bat',
+      'player-detail',
+      'https://bat.tournamentsoftware.com/ranking/player.aspx?id=51869&player=3903158',
+    )
   })
 
   it('cache hit but stale publishDate triggers refetch', async () => {
@@ -200,11 +224,28 @@ describe('GET /api/players/ranking-detail (BWF)', () => {
       bwfCurrent('03/06/2026', '52035', [{ slug: 'x', globalPlayerId: '999' }]),
     )
     ;(readRankingPlayerDetail as jest.Mock).mockResolvedValue({
-      version: 1, detail: { globalPlayerId: '999', publishDate: '03/06/2026', scrapedAt: 'x', tournaments: [] },
+      version: 1, detail: { globalPlayerId: '999', publishDate: '03/06/2026', scrapedAt: freshTs(), tournaments: [] },
     })
     const res = await GET(bwfReq('x'))
     expect(res.status).toBe(200)
     expect(rankingFetch).not.toHaveBeenCalled()
+  })
+
+  it('re-fetches a BWF detail whose publishDate matches but whose scrape predates an in-place revision', async () => {
+    ;(readRankingCache as jest.Mock).mockResolvedValue(
+      bwfCurrent('03/06/2026', '52035', [{ slug: 'x', globalPlayerId: '999' }]),
+    )
+    ;(readRankingPlayerDetail as jest.Mock).mockResolvedValue({
+      version: 1, detail: { globalPlayerId: '999', publishDate: '03/06/2026', scrapedAt: staleTs(), tournaments: [] },
+    })
+    ;(rankingFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => '<table></table>' })
+    const res = await GET(bwfReq('x'))
+    expect(res.status).toBe(200)
+    expect(rankingFetch).toHaveBeenCalledWith(
+      'bwf',
+      'player-detail',
+      'https://www.tournamentsoftware.com/ranking/player.aspx?id=52035&player=999',
+    )
   })
 
   it('fetches the per-player page via rankingFetch when detail cache is stale', async () => {

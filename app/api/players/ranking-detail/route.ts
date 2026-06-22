@@ -5,6 +5,7 @@ import {
   readRankingPlayerDetail,
   writeRankingPlayerDetail,
   writeRankingPlayerNotFound,
+  isDetailScrapeFresh,
 } from '@/lib/ranking/player-cache'
 import {
   readPlayerIdEntry,
@@ -124,10 +125,18 @@ export async function GET(req: Request) {
   }
 
   const cached = await readRankingPlayerDetail(providerParam, globalPlayerId)
-  if (cached?.detail && cached.detail.publishDate === current.publishDate) {
+  if (
+    cached?.detail &&
+    cached.detail.publishDate === current.publishDate &&
+    isDetailScrapeFresh(cached.detail.scrapedAt)
+  ) {
     return NextResponse.json({ detail: cached.detail })
   }
-  if (cached?.notFound && cached.notFound.publishDate === current.publishDate) {
+  if (
+    cached?.notFound &&
+    cached.notFound.publishDate === current.publishDate &&
+    isDetailScrapeFresh(cached.notFound.scrapedAt)
+  ) {
     return NextResponse.json({ error: 'no detail page for this player' }, { status: 404 })
   }
 
