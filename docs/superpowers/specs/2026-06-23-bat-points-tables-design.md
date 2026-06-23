@@ -32,13 +32,15 @@ points(level, age, round) = round( 40000 × 0.8^(level-1) × ageFactor(age) × 0
 
 - `level`: 1–6.
 - `round` index: 0 = Winner, 1 = Runner-Up, 2 = SF (3/4), 3 = QF (5/8),
-  4 = R9/16, 5 = R17/32, 6 = R33/64.
+  4 = R9/16, 5 = R17/32, 6 = R33/64. The same formula extends below 64 for the
+  larger brackets that occasionally occur: 7 = R65/128, 8 = R129/256.
 - `ageFactor`: Open = 1; U19 = 0.625; each step down ×0.64 →
   U17 = 0.4, U15 = 0.256, U13 = 0.16384, U11 = 0.1048576, U9 = 0.067108864.
 
 Because the formula is exact, the engine **generates** the tables rather than
 hardcoding 294 numbers. A unit test pins the full generated grid against the
-transcribed published values.
+transcribed published values (the 7 official rows); the R128/R256 extension
+rows are asserted separately.
 
 ## Placement rule (which row a player earns)
 
@@ -53,16 +55,16 @@ with worked examples:
    went on to win at least one match.
 3. **Won 0 matches** (eliminated in their first played match) → credited as a
    **first-round loss** → the row for the draw's **opening round**, derived from
-   `drawSize`: 64→Round 33/64, 32→Round 17/32, 16→Round 9/16, 8→Round 5/8,
-   4→SF, 2→Runner-Up.
+   `drawSize`: 256→Round 129/256, 128→Round 65/128, 64→Round 33/64,
+   32→Round 17/32, 16→Round 9/16, 8→Round 5/8, 4→SF, 2→Runner-Up.
 
 Definitions:
 - **`wins`** counts won matches only. A **walkover-received** (`WO-W`) and a
   **retirement-received** (`RET-W`) **count as wins**. A **bye** is never a match
   and never counts. (The existing index already computes `wins` this way.)
 - **`drawSize`** is the bracket's opening-round size = the largest round present
-  in the event (R64→64, R32→32, …, Final→2). Needed **only** for the 0-win
-  branch; that is the branch the bye rule corrects.
+  in the event (R256→256, R128→128, R64→64, …, Final→2). Needed **only** for the
+  0-win branch; that is the branch the bye rule corrects.
 
 Worked examples (all confirmed):
 - GD U13 Lv4, bye into R32→R16 then lost, 0 wins, drawSize 32 → Round 17/32 →
@@ -71,6 +73,8 @@ Worked examples (all confirmed):
   **3,355**.
 - BS U15 Lv1, bye round 1 then won R16/QF/SF, lost final (3 wins) → Runner-Up →
   **8,192** (not demoted to SF).
+- BS U15 Lv1, eliminated in the round of 128, 0 wins, drawSize 128 →
+  Round 65/128 → **2,147**.
 - Normal R16 loser (won their R32 match) → Round 9/16.
 
 **Doubles/mixed:** both partners share the same `wins`, `drawSize`, and
@@ -108,14 +112,15 @@ thin consumers.
 Exports:
 
 - Types: `AgeGroup = 'Open'|'U19'|'U17'|'U15'|'U13'|'U11'|'U9'`,
-  `PointsRound` (Winner, RunnerUp, SF, QF, R16, R32, R64).
+  `PointsRound` (Winner, RunnerUp, SF, QF, R16, R32, R64, R128, R256).
+  `PUBLISHED_ROUNDS` = the first 7 (officially published) rows.
 - `pointsFor(level, age, round): number` — the formula.
 - `ageGroupFromEvent(eventName): AgeGroup | null` — `"BS U15"`→`U15`,
   `"MS"`/`"XD"`→`Open`, U-ages outside the table (U7, U23)→`null`.
 - `pointsRoundFromResult(bestFinish: string, wins: number, drawSize: number | undefined): PointsRound | null`
   — implements the placement rule above. Returns `null` when the row can't be
-  determined (group-only/`RR`, off-table `R128`, missing `drawSize` on a 0-win
-  result).
+  determined (group-only/`RR`, draws larger than 256, missing `drawSize` on a
+  0-win result).
 - `levelTable(level): Record<AgeGroup, number[]>` — the full grid for the viewer.
 - `AGE_GROUPS`, `POINTS_ROUNDS`, `ROUND_LABELS` constants for rendering.
 
@@ -134,7 +139,8 @@ unaffected).
 ### Feature 3 — Reference viewer (Leaderboards "Points" tab)
 
 - `components/PointsTableReference.tsx` (client) renders the six level tables via
-  `levelTable()`. Static; no fetch.
+  `levelTable()`, including the R65/128 and R129/256 extension rows. Static; no
+  fetch.
 - `components/LeaderboardsView.tsx` gains a static `'points'` tab, shown **only
   for the BAT provider**; when active, the body renders `<PointsTableReference />`
   instead of the boards grid.
@@ -163,7 +169,8 @@ unaffected).
 | Tournament level unknown | No points for that tournament. |
 | Age group outside {U9…U19, Open} (U23, U7) | No points for that event. |
 | 0 wins but `drawSize` missing (pre-rebuild index) | No points (graceful). |
-| Group-only result (`RR`) / off-table `R128` | No points. |
+| Group-only result (`RR`) / draw larger than 256 | No points. |
+| 128- or 256-pax draw | Same formula, extended rows (R65/128, R129/256). |
 | Walkover-received | Counts as a win (keeps actual placement). |
 | Bye then loss (0 wins) | First-round-loss points (drawSize's opening round). |
 | Doubles/mixed | Both partners get the same full points (shared inputs). |
@@ -174,7 +181,8 @@ unaffected).
 - **Unit (`lib/points/bat-points.ts`)**: full 294-cell grid; `ageGroupFromEvent`
   including `null` cases; `pointsRoundFromResult` across champion / ≥1-win exit /
   0-win-with-drawSize (the bye cases — incl. GD U13 Lv4 → Round 17/32 and the
-  3-win finalist → Runner-Up) / missing-drawSize / off-table.
+  3-win finalist → Runner-Up) / 0-win 128/256 draws → R128/R256 /
+  missing-drawSize / draws larger than 256.
 - **Unit (`lib/playerIndex.ts`)**: an event whose bracket has an R32 round
   yields `drawSize: 32` on each player's event result, including a player whose
   own deepest match is R16 (byed the first round).

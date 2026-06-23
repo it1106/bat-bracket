@@ -1,6 +1,6 @@
 import {
   pointsFor, levelTable, ageGroupFromEvent, pointsRoundFromResult,
-  AGE_GROUPS, POINTS_ROUNDS,
+  AGE_GROUPS, POINTS_ROUNDS, PUBLISHED_ROUNDS,
   type AgeGroup,
 } from '@/lib/points/bat-points'
 
@@ -19,15 +19,26 @@ describe('bat-points formula', () => {
   it('reproduces every published cell exactly', () => {
     for (let level = 1; level <= 6; level++) {
       for (const age of AGE_GROUPS) {
-        POINTS_ROUNDS.forEach((round, i) => {
+        PUBLISHED_ROUNDS.forEach((round, i) => {
           expect(pointsFor(level, age, round)).toBe(PUBLISHED[level][age][i])
         })
       }
     }
   })
 
-  it('levelTable returns the full grid for a level', () => {
-    expect(levelTable(2)).toEqual(PUBLISHED[2])
+  it('levelTable matches the published grid on the first 7 rows', () => {
+    for (const age of AGE_GROUPS) {
+      expect(levelTable(2)[age].slice(0, 7)).toEqual(PUBLISHED[2][age])
+    }
+  })
+
+  it('extends the same formula below Round 33/64 for 128/256 draws', () => {
+    // Each deeper round is the previous ×0.8 (rounded). BS U15 Lv1 R64 = 2684.
+    expect(pointsFor(1, 'U15', 'R128')).toBe(2147)  // Round 65/128
+    expect(pointsFor(1, 'U15', 'R256')).toBe(1718)  // Round 129/256
+    // levelTable exposes all nine rounds for the reference viewer.
+    expect(levelTable(1).U15).toHaveLength(POINTS_ROUNDS.length)
+    expect(levelTable(1).U15.slice(7)).toEqual([2147, 1718])
   })
 })
 
@@ -60,10 +71,15 @@ describe('pointsRoundFromResult', () => {
     expect(pointsRoundFromResult('R16', 0, 32)).toBe('R32')      // bye into R16 then lost, 32-draw
     expect(pointsRoundFromResult('R16', 0, 16)).toBe('R16')      // genuine first-round loss in a 16-draw
     expect(pointsRoundFromResult('R32', 0, 64)).toBe('R64')      // two byes then lost, 64-draw
+    expect(pointsRoundFromResult('R128', 0, 128)).toBe('R128')   // first-round loss in a 128-draw
+    expect(pointsRoundFromResult('R64', 0, 256)).toBe('R256')    // bye into R128 then lost, 256-draw
+  })
+  it('uses the exit round for a 128-draw player who won a match', () => {
+    expect(pointsRoundFromResult('R64', 1, 128)).toBe('R64')     // won R128, lost R64 → Round 33/64
   })
   it('returns null when a row cannot be determined', () => {
     expect(pointsRoundFromResult('R16', 0, undefined)).toBeNull() // 0 wins, drawSize missing
-    expect(pointsRoundFromResult('R128', 1, 128)).toBeNull()      // off table
+    expect(pointsRoundFromResult('R256', 0, 512)).toBeNull()      // draw larger than 256, off table
     expect(pointsRoundFromResult('RR', 1, undefined)).toBeNull()  // group-only
   })
 })
