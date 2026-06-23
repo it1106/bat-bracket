@@ -480,7 +480,7 @@ export interface PlayerEventResult {
   eventId: string
   eventName: string
   discipline: Discipline
-  bestFinish: 'Champion' | 'F' | 'SF' | 'QF' | 'R16' | 'R32' | 'R64' | 'R128' | 'RR'
+  bestFinish: 'Champion' | 'F' | 'SF' | 'QF' | 'R16' | 'R32' | 'R64' | 'R128' | 'R256' | 'RR'
   wins: number
   losses: number
   /** Opening-round size of the event's bracket (largest round present:

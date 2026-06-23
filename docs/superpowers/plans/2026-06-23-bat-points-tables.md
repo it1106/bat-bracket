@@ -20,6 +20,29 @@
 
 ---
 
+## Addendum (2026-06-23): 128/256-pax brackets
+
+After the original 5 tasks merged, a follow-up extended the model to the larger
+brackets that occasionally occur (128- and 256-pax draws). The same formula
+applies; only two more rows are added below "Round 33/64". The embedded code
+snippets below reflect the original 64-max version — the live code supersedes
+them with these deltas:
+
+- `PointsRound` adds `R128`, `R256`; `POINTS_ROUNDS` becomes 9 entries
+  (roundIndex 7 = R65/128, 8 = R129/256); `PUBLISHED_ROUNDS` = the first 7
+  (official) rows, used for the 294-cell assertion.
+- `ROUND_LABELS`: `R128: 'Round 65/128'`, `R256: 'Round 129/256'`.
+- `ROUND_FROM_FINISH` and `SIZE_TO_ROUND` add `128`/`256` entries; draws larger
+  than 256 still return `null`.
+- `PlayerEventResult.bestFinish` adds `'R256'` (`'R128'` already present).
+- `lib/playerIndex.ts`: `ROUND_MAP` adds a Round-of-256 pattern; `ROUND_SIZE`
+  adds `R256: 256`; `ROUND_ORDER` adds `'R256'` after `'R128'`.
+- Reference viewer (Task 3/4) renders all 9 `POINTS_ROUNDS` rows automatically.
+- Worked example: BS U15 Lv1 eliminated in the round of 128 (0 wins,
+  drawSize 128) → Round 65/128 → **2,147**.
+
+---
+
 ### Task 1: Core points engine
 
 **Files:**

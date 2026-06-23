@@ -42,3 +42,22 @@ describe('buildIndex — drawSize per event', () => {
     expect(ev.drawSize).toBe(32)
   })
 })
+
+describe('buildIndex — drawSize for large brackets', () => {
+  // A 128-draw: a "Round of 128" first-round match exists.
+  const r128: MatchEntry = {
+    draw: 'BS U15', drawNum: '9', round: 'Round of 128',
+    team1: [{ name: 'Eve', playerId: 'e' }],
+    team2: [{ name: 'Frank', playerId: 'f' }],
+    winner: 1, scores: [{ t1: 21, t2: 5 }, { t1: 21, t2: 7 }],
+    court: '1', walkover: false, retired: false, nowPlaying: false,
+  }
+  const { index } = buildIndex('bat', [input([r128])])
+
+  it('records drawSize 128 and a Round-of-128 best finish', () => {
+    const ev = index.players['frank'].tournaments[0].events[0]
+    expect(ev.drawSize).toBe(128)
+    expect(ev.bestFinish).toBe('R128')
+    expect(ev.wins).toBe(0)
+  })
+})

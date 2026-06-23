@@ -31,6 +31,7 @@ export function nameToSlug(raw: string): string {
 }
 
 const ROUND_MAP: Array<[RegExp, string]> = [
+  [/^(round\s*of\s*256|r256|1\/128)$/i, 'R256'],
   [/^(round\s*of\s*128|r128|1\/64)$/i, 'R128'],
   [/^(round\s*of\s*64|r64|1\/32)$/i, 'R64'],
   [/^(round\s*of\s*32|r32|1\/16)$/i, 'R32'],
@@ -42,7 +43,7 @@ const ROUND_MAP: Array<[RegExp, string]> = [
 ]
 
 const ROUND_SIZE: Record<string, number> = {
-  Final: 2, SF: 4, QF: 8, R16: 16, R32: 32, R64: 64, R128: 128,
+  Final: 2, SF: 4, QF: 8, R16: 16, R32: 32, R64: 64, R128: 128, R256: 256,
 }
 
 const ROUND_THAI: Record<string, string> = {
@@ -432,7 +433,7 @@ export function buildIndex(
   // green `.pp-noplace` non-podium pill. The events.sort() below also uses
   // ROUND_ORDER.indexOf, so keeping the array and the return type in lockstep
   // is necessary for ordering Champion → F → SF → … too.
-  const ROUND_ORDER: PlayerEventResult['bestFinish'][] = ['F','SF','QF','R16','R32','R64','R128','RR']
+  const ROUND_ORDER: PlayerEventResult['bestFinish'][] = ['F','SF','QF','R16','R32','R64','R128','R256','RR']
   // Sort key for "latest match first" inside an event. Final maps to the
   // same depth as bestFinish 'F' so ROUND_ORDER stays the single source of
   // truth. PlayerMatchRef.round uses the long-form 'Final'; everything else
