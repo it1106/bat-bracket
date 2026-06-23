@@ -4,6 +4,11 @@ import type { MatchesData } from './types'
 
 export interface TournamentMeta {
   startDateIso?: string
+  // BAT tournament level (1-6) parsed from the regulations page. Absent until
+  // looked up. `levelChecked` records that a lookup ran so tournaments with no
+  // level in their regulations aren't re-fetched on every dropdown load.
+  level?: number
+  levelChecked?: boolean
 }
 
 const META_ROOT = path.join(process.cwd(), '.cache', 'meta')
@@ -46,5 +51,12 @@ export async function persistMetaIfChanged(id: string, data: MatchesData): Promi
   if (!startDateIso) return
   const prev = await readMeta(id)
   if (prev?.startDateIso === startDateIso) return
-  await writeMeta(id, { startDateIso })
+  // Merge so a concurrently-written level field isn't clobbered.
+  await writeMeta(id, { ...prev, startDateIso })
+}
+
+// Read-modify-write a subset of the meta sidecar, preserving other fields.
+export async function patchMeta(id: string, patch: Partial<TournamentMeta>): Promise<void> {
+  const prev = await readMeta(id)
+  await writeMeta(id, { ...prev, ...patch })
 }

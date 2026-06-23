@@ -51,6 +51,12 @@ function isApiError(data: unknown): data is ApiError {
   return typeof data === 'object' && data !== null && 'error' in data
 }
 
+// Dropdown label: tournament name with the BAT level appended as e.g. "(L2)",
+// only when a positive level is known. BWF/unknown entries render bare.
+function tournamentLabel(tn: TournamentInfo): string {
+  return tn.level && tn.level > 0 ? `${tn.name} (L${tn.level})` : tn.name
+}
+
 async function safeJson(res: Response): Promise<unknown> {
   const text = await res.text()
   try {
@@ -856,12 +862,12 @@ export default function Home() {
                 {loadingTournaments ? t('loading') : t('selectTournament')}
               </option>
               {tournaments.filter((tn) => !tn.done).map((tn) => (
-                <option key={tn.id} value={tn.id}>{tn.name}</option>
+                <option key={tn.id} value={tn.id}>{tournamentLabel(tn)}</option>
               ))}
               {recentPastTournaments.length > 0 && (
                 <optgroup label={t('pastEvents')}>
                   {recentPastTournaments.map((tn) => (
-                    <option key={tn.id} value={tn.id}>{tn.name}</option>
+                    <option key={tn.id} value={tn.id}>{tournamentLabel(tn)}</option>
                   ))}
                 </optgroup>
               )}

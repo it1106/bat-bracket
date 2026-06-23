@@ -3,6 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { readFullCache, isAllPast } from '@/lib/day-cache'
 import { readMeta } from '@/lib/tournament-meta'
+import { resolveBatLevel } from '@/lib/providers/bat-level-runtime'
 import { getTodayIso } from '@/lib/today'
 import { loadDiscovered } from '@/lib/discovery-store'
 import { mergeForApi, sortTournamentsForDropdown } from '@/lib/tournaments-merge'
@@ -40,10 +41,15 @@ async function annotateEntries(
     const startDateIso = meta?.startDateIso ?? cached?.days[0]?.dateIso
     const autoDone = !e.done && cached ? isAllPast(cached, todayIso) : false
     const done = e.done || autoDone
+    // Background-populate the level for BAT entries that haven't been checked;
+    // the lookup self-guards, so the dropdown returns now and shows it next load.
+    const isBat = !e.provider || e.provider === 'bat'
+    if (isBat && !meta?.levelChecked) void resolveBatLevel(e.id)
     out.push({
       ...e,
       ...(done && { done: true }),
       ...(startDateIso && { startDateIso }),
+      ...(meta?.level != null && { level: meta.level }),
     })
   }
   return out

@@ -34,6 +34,8 @@ export interface TournamentInfo {
   done?: boolean
   startDateIso?: string
   provider?: ProviderTag
+  /** BAT tournament level (1-6) parsed from the regulations page, when known. */
+  level?: number
 }
 
 export interface BracketData {
