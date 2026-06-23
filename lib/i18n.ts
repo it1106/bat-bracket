@@ -143,6 +143,9 @@ export type TKey =
   | 'bracketRoundHint'
   | 'searchNotFound'
   | 'filterMatchCount'
+  | 'filterWonCount'
+  | 'filterLossCount'
+  | 'filterUndecidedCount'
   | 'searchHelp'
   | 'pleaseSelectTournament'
   | 'customTab'
@@ -339,6 +342,9 @@ const dict: Record<Lang, Record<TKey, string>> = {
     bracketRoundHint: 'Tip: click a round header to collapse the bracket to that round.',
     searchNotFound: 'Search not found.  Searched player or team does not compete today',
     filterMatchCount: '{n} match{s}',
+    filterWonCount: 'won {n}',
+    filterLossCount: 'loss {n}',
+    filterUndecidedCount: 'undecided {n}',
     searchHelp: 'Player name, club, or event. You can use & (and) or | (or) to search — e.g. kba & BS U15 will show only Kasemsak players in the U15 event.',
     pleaseSelectTournament: 'Please select a tournament',
     customTab: 'Custom',
@@ -567,6 +573,9 @@ const dict: Record<Lang, Record<TKey, string>> = {
     bracketRoundHint: 'กดที่รอบแข่งเพื่อกระชับตารางแข่ง',
     searchNotFound: 'ไม่พบข้อมูลที่ค้นหา นักกีฬาหรือทีมที่ค้นหาไม่มีการแข่งขันในวันนี้',
     filterMatchCount: '{n} แมตช์',
+    filterWonCount: 'ชนะ {n}',
+    filterLossCount: 'แพ้ {n}',
+    filterUndecidedCount: 'ยังไม่แข่ง {n}',
     searchHelp: 'ชื่อนักกีฬา ทีม หรือประเภทแข่งขัน สามารถใช้ & (and) หรือ | (or) ในการค้นหาเช่น kba & BS U15 จะแสดงผลทีมเกษมศักดิ์ฯ ในรายการ U15 เท่านั้น',
     pleaseSelectTournament: 'เลือกรายการแข่งขัน',
     customTab: 'กำหนดเอง',

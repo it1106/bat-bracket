@@ -70,10 +70,54 @@ function scoreStr(
   return { done, liveText }
 }
 
+// A single AND-group is satisfied by one side iff the draw name matches the
+// group OR a player on that side matches it. Shared by the search filter
+// (both sides combined) and the win/loss breakdown (one side at a time) so the
+// two can never drift apart.
+function sideMatchesGroup(
+  team: MatchPlayer[],
+  entry: MatchEntry,
+  group: string[],
+  clubMap?: Record<string, string>,
+): boolean {
+  if (group.some((q) => entry.draw.toLowerCase().includes(q))) return true
+  return team.some((p) => playerMatchesQuery(p, group, clubMap))
+}
+
 function entryMatchesGroup(entry: MatchEntry, group: string[], clubMap?: Record<string, string>): boolean {
-  const drawLc = entry.draw.toLowerCase()
-  if (group.some((q) => drawLc.includes(q))) return true
-  return [...entry.team1, ...entry.team2].some((p) => playerMatchesQuery(p, group, clubMap))
+  return sideMatchesGroup([...entry.team1, ...entry.team2], entry, group, clubMap)
+}
+
+// Tally the searched player/club's record over a set of already-filtered
+// matches: a decided match counts as a win/loss for whichever searched side
+// won/lost (a club-derby where both sides match adds one of each), and any
+// match without a winner (incl. live/in-progress) counts as unplayed.
+export function summarizeSearchResults(
+  matches: MatchEntry[],
+  query: string,
+  clubMap?: Record<string, string>,
+): { total: number; won: number; lost: number; unplayed: number } {
+  const groups = parseSearchQuery(query)
+  const sideSearched = (team: MatchPlayer[], entry: MatchEntry): boolean =>
+    groups.length > 0 && groups.every((g) => sideMatchesGroup(team, entry, g, clubMap))
+  let won = 0
+  let lost = 0
+  let unplayed = 0
+  for (const m of matches) {
+    if (m.winner === null) {
+      unplayed++
+      continue
+    }
+    if (sideSearched(m.team1, m)) {
+      if (m.winner === 1) won++
+      else lost++
+    }
+    if (sideSearched(m.team2, m)) {
+      if (m.winner === 2) won++
+      else lost++
+    }
+  }
+  return { total: matches.length, won, lost, unplayed }
 }
 
 function matchesQuery(entry: MatchEntry, query: string, clubMap?: Record<string, string>): boolean {
@@ -483,6 +527,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       {selectedDay !== 'stats' && !loading && (() => {
         const filterActive = playerQuery.trim() !== '' || excludeCompleted
         let total = 0
+        const allFiltered: MatchEntry[] = []
         const rendered = groups.map((group, gi) => {
           const queryFiltered = playerQuery
             ? group.matches.filter((m) => matchesQuery(m, playerQuery, playerClubMap))
@@ -492,6 +537,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
             : queryFiltered
           if (filtered.length === 0) return null
           total += filtered.length
+          allFiltered.push(...filtered)
 
           const headerText = group.type === 'court' ? group.court : group.time
 
@@ -515,10 +561,28 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           )
         }
         if (filterActive && hasVisible) {
-          const label = t('filterMatchCount').replace('{n}', String(total)).replace('{s}', total === 1 ? '' : 'es')
+          const countLabel = t('filterMatchCount').replace('{n}', String(total)).replace('{s}', total === 1 ? '' : 'es')
+          // Win/loss only makes sense for an actual search, and only when
+          // completed matches aren't hidden (otherwise "won 0, loss 0" misleads).
+          const summary =
+            playerQuery.trim() !== '' && !excludeCompleted
+              ? summarizeSearchResults(allFiltered, playerQuery, playerClubMap)
+              : null
           return (
             <>
-              <div className="match-schedule__filter-count">{label}</div>
+              <div className="match-schedule__filter-count">
+                {countLabel}
+                {summary && (
+                  <>
+                    {', '}
+                    <span className="ms-fc-won">{t('filterWonCount').replace('{n}', String(summary.won))}</span>
+                    {', '}
+                    <span className="ms-fc-lost">{t('filterLossCount').replace('{n}', String(summary.lost))}</span>
+                    {', '}
+                    <span className="ms-fc-undecided">{t('filterUndecidedCount').replace('{n}', String(summary.unplayed))}</span>
+                  </>
+                )}
+              </div>
               {rendered}
             </>
           )
