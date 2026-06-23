@@ -2640,6 +2640,11 @@ html.dark .pp-ev-chip.pp-third { background: rgba(205,127,50,0.18);
   border-color: #34d399; color: #14532d; }
 html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
   border-color: rgba(52,211,153,0.45); color: #a7f3d0; }
+/* Active: still alive in the draw (won their deepest match, next match pending). */
+.pp-ev-chip.pp-active { background: linear-gradient(135deg, #fef9c3, #fde047);
+  border-color: #eab308; color: #713f12; }
+html.dark .pp-ev-chip.pp-active { background: rgba(234,179,8,0.20);
+  border-color: rgba(234,179,8,0.55); color: #fde047; }
 .pp-ev-chip.pp-ev-chip-has-tip { position: relative; cursor: pointer; }
 .pp-ev-tip { display: none; position: absolute; left: 0; top: calc(100% + 6px);
   z-index: 20; min-width: 240px; max-width: 360px; padding: 8px 10px;

@@ -47,6 +47,18 @@ describe('PlayerProfileView — projected points', () => {
     expect(screen.getByText(/≈3,355 pts/)).toBeTruthy()
   })
 
+  it('shows the next-round-up floor and a yellow pill for an active event', () => {
+    // Won the SF at a Level-2 BS U17 event, final pending → floor = Runner-Up
+    // = 10,240 (not SF = 8,192), and the pill is the active (yellow) variant.
+    const { container } = renderWith(
+      [{ tournamentId: 'T', eventId: '1', eventName: 'BS U17', discipline: 'singles', bestFinish: 'SF', wins: 3, losses: 0, drawSize: 32, active: true }],
+      { T: 2 },
+    )
+    expect(screen.getByText(/≈10,240 pts/)).toBeTruthy()
+    expect(screen.queryByText(/≈8,192 pts/)).toBeNull()
+    expect(container.querySelector('.pp-active')).toBeTruthy()
+  })
+
   it('shows no points for a first-round walkover-loss (no-show)', () => {
     renderWith(
       [{ tournamentId: 'T', eventId: '1', eventName: 'BS U15', discipline: 'singles', bestFinish: 'R32', wins: 0, losses: 1, drawSize: 32, lostByWalkover: true }],

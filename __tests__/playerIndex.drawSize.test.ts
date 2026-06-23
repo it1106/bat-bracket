@@ -62,6 +62,28 @@ describe('buildIndex — drawSize for large brackets', () => {
   })
 })
 
+describe('buildIndex — active (advanced, next match pending)', () => {
+  // Ivy won her SF; the final isn't recorded yet (tournament in progress).
+  const sfWin: MatchEntry = {
+    draw: 'BS U17', drawNum: '9', round: 'SF',
+    team1: [{ name: 'Ivy', playerId: 'i' }],
+    team2: [{ name: 'Jane', playerId: 'j' }],
+    winner: 1, scores: [{ t1: 21, t2: 18 }, { t1: 21, t2: 15 }],
+    court: '1', walkover: false, retired: false, nowPlaying: false,
+  }
+  const { index } = buildIndex('bat', [input([sfWin])])
+
+  it('marks the SF winner active and the SF loser not active', () => {
+    const ivy = index.players['ivy'].tournaments[0].events[0]
+    expect(ivy.bestFinish).toBe('SF')
+    expect(ivy.wins).toBe(1)
+    expect(ivy.active).toBe(true)
+    const jane = index.players['jane'].tournaments[0].events[0]
+    expect(jane.bestFinish).toBe('SF')
+    expect(jane.active).toBeFalsy()
+  })
+})
+
 describe('buildIndex — first-round walkover-loss flag', () => {
   // Grace beats Heidi, but Heidi lost by walkover (no-show). Heidi won 0 matches.
   const woMatch: MatchEntry = {
