@@ -82,6 +82,14 @@ describe('pointsRoundFromResult', () => {
     expect(pointsRoundFromResult('R32', 0, 32, false)).toBe('R32')// played/retired first-round loss → row
     expect(pointsRoundFromResult('R16', 1, 32, true)).toBe('R16') // walkover-loss after a win → exit round
   })
+  it('gives an active player (won their deepest match) the next-round-up floor', () => {
+    // Won the SF, final not yet played → guaranteed at least Runner-Up.
+    expect(pointsRoundFromResult('SF', 3, 32, false, true)).toBe('RunnerUp')
+    // Won the QF, SF pending → guaranteed at least SF.
+    expect(pointsRoundFromResult('QF', 2, 32, false, true)).toBe('SF')
+    // Won their first match (R32), R16 pending → guaranteed at least R16.
+    expect(pointsRoundFromResult('R32', 1, 64, false, true)).toBe('R16')
+  })
   it('returns null when a row cannot be determined', () => {
     expect(pointsRoundFromResult('R16', 0, undefined)).toBeNull() // 0 wins, drawSize missing
     expect(pointsRoundFromResult('R256', 0, 512)).toBeNull()      // draw larger than 256, off table

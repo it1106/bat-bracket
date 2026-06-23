@@ -82,6 +82,12 @@ const SIZE_TO_ROUND: Record<number, PointsRound> = {
   2: 'RunnerUp', 4: 'SF', 8: 'QF', 16: 'R16', 32: 'R32', 64: 'R64', 128: 'R128', 256: 'R256',
 }
 
+// The row one step better than `r` (toward Winner), floored at Winner. Used for
+// an active player who won their deepest match and advanced to the next round.
+function betterRow(r: PointsRound): PointsRound {
+  return POINTS_ROUNDS[Math.max(0, ROUND_INDEX[r] - 1)]
+}
+
 // Decide the points row for a player's result, applying the bye rule:
 //  - Champion → Winner.
 //  - Won ≥1 match → the round they actually reached (bestFinish). A bye earlier
@@ -93,6 +99,10 @@ const SIZE_TO_ROUND: Record<number, PointsRound> = {
 //    Exception: if that first-round loss was itself a walkover (no-show, WO-L),
 //    the player earns nothing — `lostByWalkover` short-circuits to null. A
 //    played or retired first-round loss still earns the row.
+//  - `active` (won their deepest recorded match and advanced — the next match
+//    isn't played yet, e.g. won the SF with the final pending): the locked-in
+//    floor is the *next round up*, since reaching that round is already
+//    guaranteed. Won SF → Runner-Up; won QF → SF; etc.
 // Returns null when no row applies (off-table round, group-only, a 0-win result
 // with no drawSize available, or a first-round walkover-loss).
 export function pointsRoundFromResult(
@@ -100,8 +110,13 @@ export function pointsRoundFromResult(
   wins: number,
   drawSize: number | undefined,
   lostByWalkover = false,
+  active = false,
 ): PointsRound | null {
   if (bestFinish === 'Champion') return 'Winner'
+  if (active) {
+    const row = ROUND_FROM_FINISH[bestFinish]
+    return row ? betterRow(row) : null
+  }
   if (wins <= 0) {
     if (lostByWalkover) return null
     return drawSize ? SIZE_TO_ROUND[drawSize] ?? null : null

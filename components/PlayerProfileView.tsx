@@ -253,7 +253,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
             for (const e of t.events) {
               const key = e.eventId + e.eventName
               const ageG = ageGroupFromEvent(e.eventName)
-              const round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize, e.lostByWalkover)
+              const round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize, e.lostByWalkover, e.active)
               const pts = lvl && ageG && round ? pointsFor(lvl, ageG, round) : null
               evPts.set(key, pts)
               if (pts != null) {
@@ -277,7 +277,10 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
                   // bronze. Badminton awards both losing semifinalists 3rd.
                   // Everyone who didn't podium gets green so a 'participated'
                   // chip can't be mistaken for the silver runner-up.
-                  const medalClass = e.bestFinish === 'Champion' ? 'pp-champ'
+                  // Active (still alive in the draw) takes precedence over the
+                  // placement tint — a yellow pill flags "not eliminated yet".
+                  const medalClass = e.active ? 'pp-active'
+                    : e.bestFinish === 'Champion' ? 'pp-champ'
                     : e.bestFinish === 'F' ? 'pp-runnerup'
                     : e.bestFinish === 'SF' ? 'pp-third'
                     : 'pp-noplace'
@@ -313,7 +316,11 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
                       {evPoints != null && (
                         <> · <span
                           className={`pp-ev-chip-pts ${counts ? '' : 'pp-ev-chip-pts-superseded'}`}
-                          title={counts ? 'Projected ranking points (from tournament level)' : 'Superseded — a higher-scoring result in this discipline counts toward ranking'}
+                          title={!counts
+                            ? 'Superseded — a higher-scoring result in this discipline counts toward ranking'
+                            : e.active
+                              ? 'Guaranteed minimum — still active in this event'
+                              : 'Projected ranking points (from tournament level)'}
                         >≈{evPoints.toLocaleString('en-US')} pts</span></>
                       )}
                       {hasTip && <span className="pp-ev-tip" role="tooltip">{tip}</span>}

@@ -511,6 +511,21 @@ export function buildIndex(
         // A 0-win player's eliminating loss was a no-show walkover (WO-L): such a
         // first-round walkover-loss earns no points (a played/retired loss does).
         const lostByWalkover = wins === 0 && eventRefs.some(er => er.outcome === 'WO-L')
+        // Active = won their deepest recorded match and advanced; the next match
+        // isn't recorded yet (e.g. won the SF, final pending). Excludes champions
+        // (won the final) and round-robin. A completed event with full data has
+        // the next match recorded, so an SF winner's deepest is the final — never
+        // flagged here.
+        let deepestDepth = Number.POSITIVE_INFINITY
+        let wonDeepest = false
+        for (const er of eventRefs) {
+          const d = roundDepth(er.round)
+          if (d < deepestDepth) {
+            deepestDepth = d
+            wonDeepest = er.outcome === 'W' || er.outcome === 'WO-W' || er.outcome === 'RET-W'
+          }
+        }
+        const active = wonDeepest && finish !== 'Champion' && finish !== 'RR'
         events.push({
           tournamentId: t.tournamentId,
           eventId,
@@ -520,6 +535,7 @@ export function buildIndex(
           wins, losses,
           ...(drawSize && { drawSize }),
           ...(lostByWalkover && { lostByWalkover: true }),
+          ...(active && { active: true }),
         })
         // Persist per-event matches for the Tournament History tooltip,
         // sorted deepest round first. Within the same round (only possible

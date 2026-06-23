@@ -491,6 +491,11 @@ export interface PlayerEventResult {
    *  walkover (no-show, WO-L). Such a first-round walkover-loss earns no
    *  ranking points. Optional; absent on older indexes. */
   lostByWalkover?: boolean
+  /** True when the player won their deepest recorded match and advanced — the
+   *  next match isn't played yet (e.g. won the SF, final pending). They are
+   *  still alive in the draw, so their points floor is the next round up and
+   *  the UI shows them as active rather than eliminated. Optional. */
+  active?: boolean
 }
 
 export interface DisciplineSummary {
