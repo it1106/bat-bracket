@@ -892,8 +892,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* Player search */}
-          {viewMode !== 'custom' && viewMode !== 'overview' && selectedTournament && (
+          {/* Player search (hidden on the stats tab, which has no match list to filter) */}
+          {viewMode !== 'custom' && viewMode !== 'overview' && selectedTournament && selectedDay !== 'stats' && (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5">
               <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
