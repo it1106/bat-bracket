@@ -5,26 +5,23 @@ Status: Approved (approach), pending spec review
 
 ## Summary
 
-BAT tournaments award accumulated ranking points that depend on three inputs:
-the tournament **level** (1–6), the event's **age group** (Open, U19, U17, U15,
-U13, U11, U9), and the **round/placement** the player reached (Winner → R33/64).
-The app already scrapes each player's *official* points after BAT publishes a
-weekly ranking, but those values are absent for in-progress and not-yet-scored
-tournaments.
+BAT tournaments award accumulated ranking points that depend on the tournament
+**level** (1–6), the event's **age group** (Open, U19, U17, U15, U13, U11, U9),
+and the **placement** the player earned. The app already scrapes each player's
+*official* points after BAT publishes a weekly ranking, but those values are
+absent for in-progress and not-yet-scored tournaments.
 
 This work adds two BAT-only features built on one shared points engine:
 
 1. **Reference viewer** — a new "Points" tab in the Leaderboards page that
    displays all six level tables for lookup.
 2. **Player projection** — in the player profile's Tournament-History section,
-   show the **locked-in** points a player has secured per event (the points for
-   the deepest round they have reached), computed from level + age group +
-   `bestFinish`.
+   show the **locked-in** points a player has secured per event.
 
 Both are **BAT-only**. BWF tournaments and BWF player profiles never show these
 points.
 
-## Verified data model
+## Verified points formula
 
 The published 2563 (2020) tables are reproduced **exactly** by a closed-form
 formula (verified against all 294 cells, 0 mismatches):
@@ -41,94 +38,127 @@ points(level, age, round) = round( 40000 × 0.8^(level-1) × ageFactor(age) × 0
 
 Because the formula is exact, the engine **generates** the tables rather than
 hardcoding 294 numbers. A unit test pins the full generated grid against the
-transcribed published values so any future formula change is caught.
+transcribed published values.
+
+## Placement rule (which row a player earns)
+
+A player's points row is **not** simply the deepest round they reached, because
+a **bye is not a win** and must not earn placement credit. The rule, confirmed
+with worked examples:
+
+1. **Champion** (won the final) → **Winner** row.
+2. **Won ≥ 1 match** → the player's **actual exit round** (`bestFinish`):
+   `F`→Runner-Up, `SF`→SF, `QF`→Round 5/8, `R16`→Round 9/16, `R32`→Round 17/32,
+   `R64`→Round 33/64. A bye earlier in the run does **not** demote a player who
+   went on to win at least one match.
+3. **Won 0 matches** (eliminated in their first played match) → credited as a
+   **first-round loss** → the row for the draw's **opening round**, derived from
+   `drawSize`: 64→Round 33/64, 32→Round 17/32, 16→Round 9/16, 8→Round 5/8,
+   4→SF, 2→Runner-Up.
+
+Definitions:
+- **`wins`** counts won matches only. A **walkover-received** (`WO-W`) and a
+  **retirement-received** (`RET-W`) **count as wins**. A **bye** is never a match
+  and never counts. (The existing index already computes `wins` this way.)
+- **`drawSize`** is the bracket's opening-round size = the largest round present
+  in the event (R64→64, R32→32, …, Final→2). Needed **only** for the 0-win
+  branch; that is the branch the bye rule corrects.
+
+Worked examples (all confirmed):
+- GD U13 Lv4, bye into R32→R16 then lost, 0 wins, drawSize 32 → Round 17/32 →
+  **1,100**.
+- BS U15 Lv1, bye into R16 then lost, 0 wins, drawSize 32 → Round 17/32 →
+  **3,355**.
+- BS U15 Lv1, bye round 1 then won R16/QF/SF, lost final (3 wins) → Runner-Up →
+  **8,192** (not demoted to SF).
+- Normal R16 loser (won their R32 match) → Round 9/16.
+
+**Doubles/mixed:** both partners share the same `wins`, `drawSize`, and
+`bestFinish`, so each receives the **same full points** automatically — never
+split, no special handling.
 
 ## Architecture
 
-One pure core module plus two thin consumers.
+One pure core module, one index-build change to capture `drawSize`, and two
+thin consumers.
 
 ### Core engine — `lib/points/bat-points.ts` (pure, no I/O)
 
 Exports:
 
 - Types: `AgeGroup = 'Open'|'U19'|'U17'|'U15'|'U13'|'U11'|'U9'`,
-  `PointsRound` (the 7 rounds above).
-- `pointsFor(level: number, age: AgeGroup, round: PointsRound): number` — the
-  formula.
-- `ageGroupFromEvent(eventName: string): AgeGroup | null` — parses the age
-  group from an event name (e.g. `"BS U15"` → `U15`, `"MS"`/`"XD"` → `Open`).
-  Returns `null` for U-ages outside the table (e.g. `U7`, `U23`).
-- `roundFromBestFinish(bestFinish: string): PointsRound | null` — maps
-  `Champion|F|SF|QF|R16|R32|R64` to a row; returns `null` for `R128`/`RR`
-  (outside the published table).
-- `levelTable(level: number): Record<AgeGroup, number[]>` — the full grid for
-  one level, for the viewer.
-- `ROUND_LABELS` / `AGE_GROUPS` constants for rendering.
+  `PointsRound` (Winner, RunnerUp, SF, QF, R16, R32, R64).
+- `pointsFor(level, age, round): number` — the formula.
+- `ageGroupFromEvent(eventName): AgeGroup | null` — `"BS U15"`→`U15`,
+  `"MS"`/`"XD"`→`Open`, U-ages outside the table (U7, U23)→`null`.
+- `pointsRoundFromResult(bestFinish: string, wins: number, drawSize: number | undefined): PointsRound | null`
+  — implements the placement rule above. Returns `null` when the row can't be
+  determined (group-only/`RR`, off-table `R128`, missing `drawSize` on a 0-win
+  result).
+- `levelTable(level): Record<AgeGroup, number[]>` — the full grid for the viewer.
+- `AGE_GROUPS`, `POINTS_ROUNDS`, `ROUND_LABELS` constants for rendering.
 
-This module has no dependency on the meta sidecar, React, or fetch — it is
-unit-testable in isolation.
+No dependency on the meta sidecar, React, or fetch — unit-testable in isolation.
+
+### Index change — `drawSize` per event
+
+`PlayerEventResult` gains `drawSize?: number`. In `lib/playerIndex.ts`, a
+pre-pass over **all** players' match refs computes, per `${tournamentId}:${eventName}`,
+the largest round size present (the full bracket is visible at index-build time;
+a single player's record can't reveal byes). Each event result is annotated with
+that `drawSize`. Optional field so previously-cached indexes still load (0-win
+results simply show no points until the index is rebuilt; `wins ≥ 1` results are
+unaffected).
 
 ### Feature 3 — Reference viewer (Leaderboards "Points" tab)
 
-- `components/PointsTableReference.tsx` (client) renders the six level tables
-  using `levelTable()` and the shared constants. Static content; no data fetch.
-- `components/LeaderboardsView.tsx` gains a `'points'` tab. Because existing
-  tabs are data-driven from `lb.boards`, the `'points'` tab is a **static** tab
-  appended to the tab strip and special-cased in the body: when active, render
-  `<PointsTableReference />` instead of the boards grid. The tab is **only
-  shown for the BAT provider** (hidden when the BWF provider tab is active).
-- i18n: add the tab label key (EN/TH) to `lib/i18n.ts`.
+- `components/PointsTableReference.tsx` (client) renders the six level tables via
+  `levelTable()`. Static; no fetch.
+- `components/LeaderboardsView.tsx` gains a static `'points'` tab, shown **only
+  for the BAT provider**; when active, the body renders `<PointsTableReference />`
+  instead of the boards grid.
+- i18n: add the tab label key (EN/TH).
 
 ### Feature 2 — Player projection (Tournament History)
 
-Data flow:
-
 1. **SSR** (`app/player/[provider]/[slug]/page.tsx`): when `provider === 'bat'`,
-   read the meta sidecar (`readMeta`) for every `tournamentId` in
-   `record.tournaments`, building `tournamentLevels: Record<string, number>`
-   (only entries with a known positive `level`). Pass it as a new prop to
-   `PlayerProfileView`. For BWF, pass nothing.
-2. **`PlayerProfileView`**: accepts optional `tournamentLevels`. In the
-   Tournament-History section, for each event compute
-   `pts = pointsFor(level, ageGroupFromEvent(eventName), roundFromBestFinish(bestFinish))`
-   and render it next to the result. Render nothing when level/age/round is
-   unavailable.
-
-Computed points are visually distinguished from official scraped points (which
-live in the separate ranking-detail section) — e.g. prefixed with `≈` or a
-small "proj." marker and a tooltip ("projected from tournament level").
-
-### Why locked-in needs no extra logic
-
-`bestFinish` is the deepest round the player has reached. If they have won
-through to the SF but the SF has not been played, `bestFinish` is already `SF`
-and the SF row is their guaranteed (locked-in) placement. So
-`roundFromBestFinish(bestFinish)` yields the locked-in row directly, and the
-value updates naturally as the player advances and the index is rebuilt.
+   read the meta sidecar for every `tournamentId` in `record.tournaments`,
+   building `tournamentLevels: Record<string, number>` (positive levels only).
+   Pass it to `PlayerProfileView`. For BWF, pass nothing.
+2. **`PlayerProfileView`**: for each event compute
+   `round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize)` and, when a
+   level + age group + round are all available,
+   `pts = pointsFor(level, age, round)`. Render it next to the result, marked
+   distinct from official scraped points (e.g. `≈` + a "projected" tooltip).
 
 ## Edge cases
 
 | Case | Behavior |
 |------|----------|
-| BWF tournament / BWF profile | No points anywhere (feature is BAT-only). |
-| Tournament level unknown (not yet fetched, or regulations omit it) | No points for that tournament. |
-| Age group outside {U9…U19, Open} (e.g. U23, U7) | No points for that event. |
-| `bestFinish` = `R128` or `RR` | No points (outside the published table). |
-| Walkover/retirement affecting placement | Uses `bestFinish` as-is; no special points adjustment (matches "deepest round reached"). |
+| BWF tournament / BWF profile | No points anywhere (BAT-only). |
+| Tournament level unknown | No points for that tournament. |
+| Age group outside {U9…U19, Open} (U23, U7) | No points for that event. |
+| 0 wins but `drawSize` missing (pre-rebuild index) | No points (graceful). |
+| Group-only result (`RR`) / off-table `R128` | No points. |
+| Walkover-received | Counts as a win (keeps actual placement). |
+| Bye then loss (0 wins) | First-round-loss points (drawSize's opening round). |
+| Doubles/mixed | Both partners get the same full points (shared inputs). |
 
 ## Testing
 
-- **Unit (`lib/points/bat-points.ts`)**: assert the full generated grid equals
-  the transcribed published grid for all 6 levels × 7 age groups × 7 rounds
-  (294 cells). Assert `ageGroupFromEvent` and `roundFromBestFinish` mappings,
-  including the `null` cases (U23, R128, RR).
-- **Component**: light render checks that the viewer shows six tables and that
-  the projection renders a value for a known (level, event, finish) and nothing
-  for unknown inputs.
+- **Unit (`lib/points/bat-points.ts`)**: full 294-cell grid; `ageGroupFromEvent`
+  including `null` cases; `pointsRoundFromResult` across champion / ≥1-win exit /
+  0-win-with-drawSize (the bye cases — incl. GD U13 Lv4 → Round 17/32 and the
+  3-win finalist → Runner-Up) / missing-drawSize / off-table.
+- **Unit (`lib/playerIndex.ts`)**: an event whose bracket has an R32 round
+  yields `drawSize: 32` on each player's event result, including a player whose
+  own deepest match is R16 (byed the first round).
+- **Component**: viewer renders six tables; projection renders a value for a
+  known input and nothing for unknown ones.
 
 ## Out of scope (YAGNI)
 
-- No "potential max if they win out" projection (locked-in only, per decision).
-- No backfilling official/ranking displays with computed points.
+- No "potential max if they win out" projection (locked-in only).
+- No backfilling official ranking displays with computed points.
 - No persistence of computed points (derived at render time).
 - No editing/overriding levels or points in the UI.
