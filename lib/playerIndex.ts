@@ -508,6 +508,9 @@ export function buildIndex(
         }
         const eventId = eventRefs[0].eventId
         const drawSize = drawSizeByEvent.get(`${t.tournamentId}:${eventName}`)
+        // A 0-win player's eliminating loss was a no-show walkover (WO-L): such a
+        // first-round walkover-loss earns no points (a played/retired loss does).
+        const lostByWalkover = wins === 0 && eventRefs.some(er => er.outcome === 'WO-L')
         events.push({
           tournamentId: t.tournamentId,
           eventId,
@@ -516,6 +519,7 @@ export function buildIndex(
           bestFinish: finish,
           wins, losses,
           ...(drawSize && { drawSize }),
+          ...(lostByWalkover && { lostByWalkover: true }),
         })
         // Persist per-event matches for the Tournament History tooltip,
         // sorted deepest round first. Within the same round (only possible

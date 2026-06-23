@@ -61,3 +61,23 @@ describe('buildIndex — drawSize for large brackets', () => {
     expect(ev.wins).toBe(0)
   })
 })
+
+describe('buildIndex — first-round walkover-loss flag', () => {
+  // Grace beats Heidi, but Heidi lost by walkover (no-show). Heidi won 0 matches.
+  const woMatch: MatchEntry = {
+    draw: 'BS U15', drawNum: '9', round: 'R32',
+    team1: [{ name: 'Grace', playerId: 'g' }],
+    team2: [{ name: 'Heidi', playerId: 'h' }],
+    winner: 1, scores: [],
+    court: '1', walkover: true, retired: false, nowPlaying: false,
+  }
+  const { index } = buildIndex('bat', [input([woMatch])])
+
+  it('flags lostByWalkover for the no-show loser only', () => {
+    const heidi = index.players['heidi'].tournaments[0].events[0]
+    expect(heidi.wins).toBe(0)
+    expect(heidi.lostByWalkover).toBe(true)
+    const grace = index.players['grace'].tournaments[0].events[0]
+    expect(grace.lostByWalkover).toBeUndefined()
+  })
+})

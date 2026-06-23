@@ -487,6 +487,10 @@ export interface PlayerEventResult {
    *  R64→64, R32→32, …, Final→2). Drives the bye-aware first-round-loss
    *  points row. Optional so previously-cached indexes still load. */
   drawSize?: number
+  /** True when the player won no matches and their eliminating loss was a
+   *  walkover (no-show, WO-L). Such a first-round walkover-loss earns no
+   *  ranking points. Optional; absent on older indexes. */
+  lostByWalkover?: boolean
 }
 
 export interface DisciplineSummary {

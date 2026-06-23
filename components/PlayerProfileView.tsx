@@ -253,7 +253,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
             for (const e of t.events) {
               const key = e.eventId + e.eventName
               const ageG = ageGroupFromEvent(e.eventName)
-              const round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize)
+              const round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize, e.lostByWalkover)
               const pts = lvl && ageG && round ? pointsFor(lvl, ageG, round) : null
               evPts.set(key, pts)
               if (pts != null) {

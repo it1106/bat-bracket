@@ -43,6 +43,22 @@ them with these deltas:
 
 ---
 
+## Addendum (2026-06-23): first-round walkover-loss earns nothing
+
+A 0-win player whose eliminating loss was a **walkover** (no-show, `WO-L`) gets
+**no points**; a retirement (`RET-L`) or played loss still earns the
+first-round-loss row, and a walkover-loss after ≥1 win keeps exit-round points.
+
+- `pointsRoundFromResult` gains a 4th param `lostByWalkover = false`; in the
+  0-win branch, `if (lostByWalkover) return null` before the drawSize lookup.
+- `PlayerEventResult` adds `lostByWalkover?: boolean`.
+- `lib/playerIndex.ts`: `lostByWalkover = wins === 0 && eventRefs.some(er => er.outcome === 'WO-L')`, attached to the event result.
+- `PlayerProfileView` passes `e.lostByWalkover` into `pointsRoundFromResult`.
+- Worked example: BS U15 Lv1 first-round no-show → **0 points**; won R32 then
+  withdrew in R16 → Round 9/16 → **4,194**.
+
+---
+
 ### Task 1: Core points engine
 
 **Files:**

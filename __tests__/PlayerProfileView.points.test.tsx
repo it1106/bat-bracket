@@ -47,6 +47,14 @@ describe('PlayerProfileView — projected points', () => {
     expect(screen.getByText(/≈3,355 pts/)).toBeTruthy()
   })
 
+  it('shows no points for a first-round walkover-loss (no-show)', () => {
+    renderWith(
+      [{ tournamentId: 'T', eventId: '1', eventName: 'BS U15', discipline: 'singles', bestFinish: 'R32', wins: 0, losses: 1, drawSize: 32, lostByWalkover: true }],
+      { T: 1 },
+    )
+    expect(screen.queryByText(/pts/)).toBeNull()
+  })
+
   it('shows no points when the tournament level is unknown', () => {
     renderWith(
       [{ tournamentId: 'T', eventId: '1', eventName: 'BS U15', discipline: 'singles', bestFinish: 'R16', wins: 0, losses: 1, drawSize: 32 }],
