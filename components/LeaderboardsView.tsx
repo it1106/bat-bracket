@@ -6,6 +6,7 @@ import { useLanguage } from '@/lib/LanguageContext'
 import { track } from '@/lib/analytics'
 import { weekKeyFromPublishDate } from '@/lib/ranking/player-view'
 import { getRankingConfig } from '@/lib/ranking/config'
+import PointsTableReference from './PointsTableReference'
 import type { Leaderboards, LeaderboardCategory, ProviderTag } from '@/lib/types'
 import type { TKey } from '@/lib/i18n'
 
@@ -44,6 +45,8 @@ const CATEGORIES: Array<{ id: LeaderboardCategory; key: TKey }> = [
   { id: 'activity', key: 'lbActivity' },
 ]
 
+type ActiveTab = LeaderboardCategory | 'points'
+
 const PROVIDER_LABELS: Record<ProviderTag, string> = {
   bat: 'BAT',
   bwf: 'BWF Asia Jr.',
@@ -68,7 +71,7 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
       ? initialProvider
       : leaderboards[0]?.provider ?? 'bat'
   const [activeProvider, setActiveProvider] = useState<ProviderTag>(defaultProvider)
-  const [active, setActive] = useState<LeaderboardCategory>('ranking')
+  const [active, setActive] = useState<ActiveTab>('ranking')
   const activeRankingPublishDate = rankingPublishDates?.[activeProvider]
   const rankingWeekKey = activeRankingPublishDate && (activeProvider === 'bat' || activeProvider === 'bwf')
     ? weekKeyFromPublishDate(activeRankingPublishDate, getRankingConfig(activeProvider).dateFormat)
@@ -174,7 +177,10 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
   }
 
   const availableCategories = CATEGORIES.filter(c => lb.boards.some(b => b.category === c.id))
-  const effectiveActive = availableCategories.some(c => c.id === active) ? active : availableCategories[0]?.id ?? active
+  const pointsActive = active === 'points' && activeProvider === 'bat'
+  const effectiveActive = pointsActive
+    ? active
+    : (availableCategories.some(c => c.id === active) ? (active as LeaderboardCategory) : availableCategories[0]?.id ?? (active as LeaderboardCategory))
   const visible = lb.boards.filter(b => b.category === effectiveActive)
   const multiProvider = leaderboards.length > 1
 
@@ -234,8 +240,15 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
             {t(c.key)}
           </button>
         ))}
+        {activeProvider === 'bat' && (
+          <button
+            className={`lb-tab ${pointsActive ? 'lb-active' : ''}`}
+            onClick={() => setActive('points')}>
+            {t('lbPoints')}
+          </button>
+        )}
       </div>
-      {effectiveActive === 'ranking' && activeRankingPublishDate && (
+      {!pointsActive && effectiveActive === 'ranking' && activeRankingPublishDate && (
         <div className="lb-sub lb-ranking-asof">
           {t('lbRankingAsOf')} {activeRankingPublishDate}{rankingWeekKey && ` (${rankingWeekKey})`}
           {(activeProvider === 'bat' || activeProvider === 'bwf') && rankingIds?.[activeProvider] && (
@@ -256,7 +269,8 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
           )}
         </div>
       )}
-      <div className="lb-grid">
+      {pointsActive && <PointsTableReference />}
+      {!pointsActive && <div className="lb-grid">
         {visible.map(b => {
           const helpKey = `${b.titleKey}Help` as TKey
           const isOpen = openHelp === b.id
@@ -335,7 +349,7 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
             })()}
           </div>
         )})}
-      </div>
+      </div>}
     </div>
   )
 }

@@ -246,6 +246,7 @@ export type TKey =
   | 'leaderboards'
   | 'leaderboardsSub'
   | 'lbHeadline' | 'lbDiscipline' | 'lbCharacter' | 'lbActivity' | 'lbRanking'
+  | 'lbPoints'
   | 'lbRankingAsOf'
   | 'lbRankingSource'
   | 'leaderboardsShowMore' | 'leaderboardsShowLess'
@@ -455,6 +456,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbCharacter: '3 Gamers',
     lbActivity: 'Activity',
     lbRanking: 'Ranking',
+    lbPoints: 'Points',
     lbRankingAsOf: 'Published',
     lbRankingSource: 'View on tournamentsoftware.com',
     leaderboardsShowMore: 'Show more',
@@ -686,6 +688,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbCharacter: '3 เกม',
     lbActivity: 'กิจกรรม',
     lbRanking: 'อันดับ',
+    lbPoints: 'ตารางคะแนน',
     lbRankingAsOf: 'แรงค์กิ้งของวันที่',
     lbRankingSource: 'ดูบน tournamentsoftware.com',
     leaderboardsShowMore: 'ดูเพิ่มเติม',
