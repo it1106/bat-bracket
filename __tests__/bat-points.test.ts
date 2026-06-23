@@ -77,6 +77,11 @@ describe('pointsRoundFromResult', () => {
   it('uses the exit round for a 128-draw player who won a match', () => {
     expect(pointsRoundFromResult('R64', 1, 128)).toBe('R64')     // won R128, lost R64 → Round 33/64
   })
+  it('zeroes a first-round walkover-loss but not a played/retired one', () => {
+    expect(pointsRoundFromResult('R32', 0, 32, true)).toBeNull()  // no-show first round → no points
+    expect(pointsRoundFromResult('R32', 0, 32, false)).toBe('R32')// played/retired first-round loss → row
+    expect(pointsRoundFromResult('R16', 1, 32, true)).toBe('R16') // walkover-loss after a win → exit round
+  })
   it('returns null when a row cannot be determined', () => {
     expect(pointsRoundFromResult('R16', 0, undefined)).toBeNull() // 0 wins, drawSize missing
     expect(pointsRoundFromResult('R256', 0, 512)).toBeNull()      // draw larger than 256, off table

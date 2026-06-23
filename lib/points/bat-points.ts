@@ -85,18 +85,26 @@ const SIZE_TO_ROUND: Record<number, PointsRound> = {
 // Decide the points row for a player's result, applying the bye rule:
 //  - Champion → Winner.
 //  - Won ≥1 match → the round they actually reached (bestFinish). A bye earlier
-//    in the run does not demote a player who went on to win a match.
+//    in the run does not demote a player who went on to win a match. (A later
+//    walkover-loss after a win still earns this exit-round row.)
 //  - Won 0 matches → first-round loss, credited at the draw's opening round
 //    (this is the only branch the bye rule corrects, and the only one needing
 //    drawSize). Walkovers-received already count toward `wins`; byes never do.
-// Returns null when no row applies (off-table round, group-only, or a 0-win
-// result with no drawSize available).
+//    Exception: if that first-round loss was itself a walkover (no-show, WO-L),
+//    the player earns nothing — `lostByWalkover` short-circuits to null. A
+//    played or retired first-round loss still earns the row.
+// Returns null when no row applies (off-table round, group-only, a 0-win result
+// with no drawSize available, or a first-round walkover-loss).
 export function pointsRoundFromResult(
   bestFinish: string,
   wins: number,
   drawSize: number | undefined,
+  lostByWalkover = false,
 ): PointsRound | null {
   if (bestFinish === 'Champion') return 'Winner'
-  if (wins <= 0) return drawSize ? SIZE_TO_ROUND[drawSize] ?? null : null
+  if (wins <= 0) {
+    if (lostByWalkover) return null
+    return drawSize ? SIZE_TO_ROUND[drawSize] ?? null : null
+  }
   return ROUND_FROM_FINISH[bestFinish] ?? null
 }
