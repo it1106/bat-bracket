@@ -77,6 +77,27 @@ Worked examples (all confirmed):
 `bestFinish`, so each receives the **same full points** automatically — never
 split, no special handling.
 
+## Per-discipline crediting (only one entry per discipline counts)
+
+Within a single tournament, a player may enter multiple age groups in the same
+discipline (e.g. BS U13 **and** BS U15). Only **one** entry per discipline
+counts toward ranking: **the highest-points one** (usually, but not always, the
+older age group). The other same-discipline entries are **superseded** — still
+shown, but flagged as not counting.
+
+Disciplines are independent: a player who plays BS, BD, and XD earns a counting
+result in each. Grouping uses the existing `PlayerEventResult.discipline`
+(`singles` | `doubles` | `mixed`), which for a given player maps 1:1 to BS/GS,
+BD/GD, and XD respectively.
+
+Example: a player who plays BS U15, BS U13, and BD U13 in one tournament gets
+the higher-points BS result (U15 or U13) **plus** the BD result — two counting
+results. Ties (equal points) break toward the older age group.
+
+This applies to the projection (Feature 2): per tournament, compute each event's
+points, then within each discipline mark the max-points event as **counting**
+and render the rest struck-through with a "superseded" tooltip.
+
 ## Architecture
 
 One pure core module, one index-build change to capture `drawSize`, and two
@@ -125,11 +146,14 @@ unaffected).
    read the meta sidecar for every `tournamentId` in `record.tournaments`,
    building `tournamentLevels: Record<string, number>` (positive levels only).
    Pass it to `PlayerProfileView`. For BWF, pass nothing.
-2. **`PlayerProfileView`**: for each event compute
-   `round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize)` and, when a
-   level + age group + round are all available,
-   `pts = pointsFor(level, age, round)`. Render it next to the result, marked
-   distinct from official scraped points (e.g. `≈` + a "projected" tooltip).
+2. **`PlayerProfileView`**: for each tournament, first compute every event's
+   points (`round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize)`;
+   `pts = pointsFor(level, age, round)` when level + age + round are all known).
+   Then, per discipline, mark the **max-points** event as counting. Render each
+   event's points next to its result, marked distinct from official scraped
+   points (e.g. `≈` + a "projected" tooltip); superseded same-discipline entries
+   render struck-through with a "superseded — higher {discipline} result counts"
+   tooltip.
 
 ## Edge cases
 
@@ -143,6 +167,7 @@ unaffected).
 | Walkover-received | Counts as a win (keeps actual placement). |
 | Bye then loss (0 wins) | First-round-loss points (drawSize's opening round). |
 | Doubles/mixed | Both partners get the same full points (shared inputs). |
+| Multiple age groups, same discipline | Only the highest-points entry counts; others shown struck-through (superseded). Ties break to the older age group. |
 
 ## Testing
 

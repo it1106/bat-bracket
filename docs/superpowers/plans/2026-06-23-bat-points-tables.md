@@ -668,7 +668,7 @@ Add this prop to the `<PlayerProfileView ... />` element:
 In `components/PlayerProfileView.tsx`, add the import:
 
 ```ts
-import { pointsFor, ageGroupFromEvent, pointsRoundFromResult } from '@/lib/points/bat-points'
+import { pointsFor, ageGroupFromEvent, pointsRoundFromResult, AGE_GROUPS } from '@/lib/points/bat-points'
 ```
 
 Add to the `Props` interface (after `countryFlagUrl?: string`):
@@ -685,16 +685,55 @@ Add `tournamentLevels` to the destructured params (line ~58):
 export default function PlayerProfileView({ record, playerRankings, rankingPublishDate, initialDetail, currentRanking, countryFlagUrl, tournamentLevels }: Props) {
 ```
 
-- [ ] **Step 3: Compute and render points on each event chip**
+- [ ] **Step 3: Precompute points + per-discipline "counts" per tournament**
 
-In the Tournament-History map (the `t.events.map(e => { ... })` block, around
-line 249), after the `const medalClass = ...` assignment, add:
+The Tournament-History list maps `t.events` inside `[...record.tournaments]
+.sort(...).map(t => ( <div className="pp-tour" ...> ... ))`. Convert that outer
+arrow to a block body so we can precompute per tournament. Change:
+
+```tsx
+            .map(t => (
+            <div className="pp-tour" key={t.tournamentId}>
+```
+
+to:
+
+```tsx
+            .map(t => {
+            // Points per event, then per discipline the max-points event is the
+            // one that counts toward ranking (others are superseded). Ties break
+            // to the older age group (lower AGE_GROUPS index).
+            const lvl = tournamentLevels?.[t.tournamentId]
+            const evPts = new Map<string, number | null>()
+            const bestByDisc = new Map<string, { key: string; pts: number; ageRank: number }>()
+            for (const e of t.events) {
+              const key = e.eventId + e.eventName
+              const ageG = ageGroupFromEvent(e.eventName)
+              const round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize)
+              const pts = lvl && ageG && round ? pointsFor(lvl, ageG, round) : null
+              evPts.set(key, pts)
+              if (pts != null) {
+                const ageRank = ageG ? AGE_GROUPS.indexOf(ageG) : 99
+                const cur = bestByDisc.get(e.discipline)
+                if (!cur || pts > cur.pts || (pts === cur.pts && ageRank < cur.ageRank)) {
+                  bestByDisc.set(e.discipline, { key, pts, ageRank })
+                }
+              }
+            }
+            return (
+            <div className="pp-tour" key={t.tournamentId}>
+```
+
+Then add the matching close: the outer map currently ends with `))` after the
+tournament `</div>`. Change that `))` to `)})`.
+
+In the inner `t.events.map(e => { ... })` block, after the `const medalClass =
+...` assignment, add:
 
 ```ts
-                  const lvl = tournamentLevels?.[t.tournamentId]
-                  const ageG = ageGroupFromEvent(e.eventName)
-                  const ptsRound = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize)
-                  const evPoints = lvl && ageG && ptsRound ? pointsFor(lvl, ageG, ptsRound) : null
+                  const evKey = e.eventId + e.eventName
+                  const evPoints = evPts.get(evKey) ?? null
+                  const counts = bestByDisc.get(e.discipline)?.key === evKey
 ```
 
 In the returned chip JSX, after the W–L span (line ~284), add:
@@ -702,7 +741,10 @@ In the returned chip JSX, after the W–L span (line ~284), add:
 ```tsx
                       <span className="pp-ev-chip-wl">{e.wins}–{e.losses}</span>
                       {evPoints != null && (
-                        <> · <span className="pp-ev-chip-pts" title="Projected from tournament level">≈{evPoints.toLocaleString('en-US')} pts</span></>
+                        <> · <span
+                          className={`pp-ev-chip-pts ${counts ? '' : 'pp-ev-chip-pts-superseded'}`}
+                          title={counts ? 'Projected ranking points (from tournament level)' : 'Superseded — a higher-scoring result in this discipline counts toward ranking'}
+                        >≈{evPoints.toLocaleString('en-US')} pts</span></>
                       )}
 ```
 
@@ -712,6 +754,7 @@ Append to `app/globals.css`:
 
 ```css
 .pp-ev-chip-pts { color: var(--muted); font-variant-numeric: tabular-nums; }
+.pp-ev-chip-pts-superseded { text-decoration: line-through; opacity: 0.6; }
 ```
 
 - [ ] **Step 5: Typecheck**
