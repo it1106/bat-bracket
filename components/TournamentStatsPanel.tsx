@@ -599,8 +599,10 @@ function WLCell({
       <span className="stats-wl-tip" role="tooltip">
         {results.map((r, i) => (
           <span className="stats-wl-tip-row" key={i}>
-            <span className="stats-wl-tip-where">{r.event} · {abbrevRoundL(r.round, lang)}</span>
-            <span className={`stats-wl-tip-res ${r.won ? 'is-win' : 'is-loss'}`}>{r.won ? 'W' : 'L'}</span>
+            <span className="stats-wl-tip-head">
+              <span className="stats-wl-tip-where">{r.event} · {abbrevRoundL(r.round, lang)}</span>
+              <span className={`stats-wl-tip-res ${r.won ? 'is-win' : 'is-loss'}`}>{r.won ? 'W' : 'L'}</span>
+            </span>
             <span className="stats-wl-tip-opp">
               {r.opponent.join(' / ')}{r.retired ? ' (ret.)' : ''}
             </span>

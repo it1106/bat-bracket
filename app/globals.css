@@ -2337,30 +2337,34 @@ html.dark .ms-match--next-opp {
   display: flex;
 }
 .stats-wl-tip-row {
-  display: grid;
-  grid-template-columns: auto 14px 1fr auto;
-  gap: 8px;
-  align-items: baseline;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   line-height: 1.35;
+}
+.stats-wl-tip-row + .stats-wl-tip-row {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--border);
+}
+.stats-wl-tip-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 .stats-wl-tip-where {
   color: var(--muted);
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.stats-wl-tip-res { font-weight: 700; text-align: center; }
+.stats-wl-tip-res { font-weight: 700; }
 .stats-wl-tip-res.is-win { color: #16a34a; }
 .stats-wl-tip-res.is-loss { color: #dc2626; }
 .stats-wl-tip-opp {
   color: var(--fg);
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .stats-wl-tip-score {
   color: var(--muted);
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  text-align: right;
 }
 .stats-share-capture .stats-wl-tip { display: none !important; }
 
