@@ -41,6 +41,10 @@ const ROUND_MAP: Array<[RegExp, string]> = [
   [/^(round[-\s]?robin|rr|group(\s+\w+)?|pool(\s+\w+)?)$/i, 'RR'],
 ]
 
+const ROUND_SIZE: Record<string, number> = {
+  Final: 2, SF: 4, QF: 8, R16: 16, R32: 32, R64: 64, R128: 128,
+}
+
 const ROUND_THAI: Record<string, string> = {
   'รอบชิงชนะเลิศ': 'Final',
   'รอบรองชนะเลิศ': 'SF',
@@ -460,6 +464,18 @@ export function buildIndex(
     return 'RR'
   }
 
+  // Per-event opening-round size, read from the whole bracket. A single
+  // player's refs can omit early rounds (byes), so we scan all players.
+  const drawSizeByEvent = new Map<string, number>()
+  for (const sc of Array.from(scratches.values())) {
+    for (const r of sc.refs) {
+      const sz = ROUND_SIZE[r.round]
+      if (!sz) continue
+      const key = `${r.tournamentId}:${r.eventName}`
+      if (sz > (drawSizeByEvent.get(key) ?? 0)) drawSizeByEvent.set(key, sz)
+    }
+  }
+
   for (const [slug, rec] of Array.from(records.entries())) {
     const refs = scratches.get(slug)?.refs || []
     const byTournament = new Map<string, Map<string, PlayerMatchRef[]>>()
@@ -490,6 +506,7 @@ export function buildIndex(
           else losses++
         }
         const eventId = eventRefs[0].eventId
+        const drawSize = drawSizeByEvent.get(`${t.tournamentId}:${eventName}`)
         events.push({
           tournamentId: t.tournamentId,
           eventId,
@@ -497,6 +514,7 @@ export function buildIndex(
           discipline: classifyDiscipline(teamSize, eventName),
           bestFinish: finish,
           wins, losses,
+          ...(drawSize && { drawSize }),
         })
         // Persist per-event matches for the Tournament History tooltip,
         // sorted deepest round first. Within the same round (only possible
