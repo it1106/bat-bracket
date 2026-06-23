@@ -5,6 +5,7 @@ import { readRankingPlayerDetail, isDetailScrapeFresh } from '@/lib/ranking/play
 import { readPlayerIdEntry } from '@/lib/bat-player-id-map'
 import { countContributingTournaments, filterToLowestTwoAgeGroups } from '@/lib/ranking/player-view'
 import { rankingSlugAlias } from '@/lib/ranking/aliases'
+import { readMeta } from '@/lib/tournament-meta'
 import PlayerProfileView from '@/components/PlayerProfileView'
 import MinimalPlayerProfile from '@/components/MinimalPlayerProfile'
 import type { ProviderTag, RankingPlayerRank, RankingPlayerDetail } from '@/lib/types'
@@ -98,6 +99,19 @@ export default async function PlayerPage({ params }: Props) {
   const displayedRankings = filterToLowestTwoAgeGroups(playerRankings)
 
   if (record) {
+    let tournamentLevels: Record<string, number> | undefined
+    if (provider === 'bat') {
+      const pairs = await Promise.all(
+        record.tournaments.map(async (t) => {
+          const meta = await readMeta(t.tournamentId.toUpperCase())
+          return [t.tournamentId, meta?.level] as const
+        }),
+      )
+      tournamentLevels = {}
+      for (const [id, lvl] of pairs) {
+        if (typeof lvl === 'number' && lvl > 0) tournamentLevels[id] = lvl
+      }
+    }
     return (
       <PlayerProfileView
         record={record}
@@ -106,6 +120,7 @@ export default async function PlayerPage({ params }: Props) {
         initialDetail={initialDetail}
         currentRanking={currentRanking}
         countryFlagUrl={rankingCountryFlagUrl || undefined}
+        tournamentLevels={tournamentLevels}
       />
     )
   }

@@ -3162,3 +3162,17 @@ html.dark .pp-ev-chip.pp-noplace { background: rgba(52,211,153,0.16);
   padding: 8px 12px;
   border-top: 1px solid var(--border);
 }
+
+/* Points reference tables (Leaderboards → Points tab) */
+.pts-ref { display: flex; flex-direction: column; gap: 20px; }
+.pts-ref-title { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: var(--fg); }
+.pts-ref-scroll { overflow-x: auto; }
+.pts-ref-table { border-collapse: collapse; font-size: 12px; min-width: 560px; }
+.pts-ref-table th, .pts-ref-table td {
+  border: 1px solid var(--border); padding: 4px 8px; text-align: right; white-space: nowrap;
+}
+.pts-ref-table thead th { background: var(--surface-2, #f3f4f6); text-align: center; }
+.pts-ref-table tbody th[scope="row"] { text-align: left; font-weight: 600; }
+
+.pp-ev-chip-pts { color: var(--muted); font-variant-numeric: tabular-nums; }
+.pp-ev-chip-pts-superseded { text-decoration: line-through; opacity: 0.6; }

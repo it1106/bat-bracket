@@ -7,6 +7,7 @@ import { weekKeyFromPublishDate } from '@/lib/ranking/player-view'
 import { getRankingConfig } from '@/lib/ranking/config'
 import { useLanguage } from '@/lib/LanguageContext'
 import RankingDetailTabs from './RankingDetailTabs'
+import { pointsFor, ageGroupFromEvent, pointsRoundFromResult, AGE_GROUPS } from '@/lib/points/bat-points'
 
 interface Props {
   record: PlayerRecord
@@ -19,6 +20,9 @@ interface Props {
   /** Optional BWF country-flag URL captured at scrape time. When present,
    *  rendered next to the country name instead of the globe glyph. */
   countryFlagUrl?: string
+  /** BAT tournamentId → level (1-6). Present only for BAT profiles; drives the
+   *  locked-in points shown per event. Absent for BWF. */
+  tournamentLevels?: Record<string, number>
 }
 
 function fmtPct(n: number): string { return `${Math.round(n * 100)}%` }
@@ -55,7 +59,7 @@ const OPPONENT_WINDOWS: Array<{ key: OpponentTimeWindow; labelKey:
   { key: 'all',  labelKey: 'opponentsWinAll'  },
 ]
 
-export default function PlayerProfileView({ record, playerRankings, rankingPublishDate, initialDetail, currentRanking, countryFlagUrl }: Props) {
+export default function PlayerProfileView({ record, playerRankings, rankingPublishDate, initialDetail, currentRanking, countryFlagUrl, tournamentLevels }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
   const [oppTab, setOppTab] = useState<OpponentTimeWindow>('all')
@@ -239,7 +243,28 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
           <h2>Tournament history</h2>
           {[...record.tournaments]
             .sort((a, b) => (b.tournamentDateIso ?? '').localeCompare(a.tournamentDateIso ?? ''))
-            .map(t => (
+            .map(t => {
+            // Points per event, then per discipline the max-points event is the
+            // one that counts toward ranking (others are superseded). Ties break
+            // to the older age group (lower AGE_GROUPS index).
+            const lvl = tournamentLevels?.[t.tournamentId]
+            const evPts = new Map<string, number | null>()
+            const bestByDisc = new Map<string, { key: string; pts: number; ageRank: number }>()
+            for (const e of t.events) {
+              const key = e.eventId + e.eventName
+              const ageG = ageGroupFromEvent(e.eventName)
+              const round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize)
+              const pts = lvl && ageG && round ? pointsFor(lvl, ageG, round) : null
+              evPts.set(key, pts)
+              if (pts != null) {
+                const ageRank = ageG ? AGE_GROUPS.indexOf(ageG) : 99
+                const cur = bestByDisc.get(e.discipline)
+                if (!cur || pts > cur.pts || (pts === cur.pts && ageRank < cur.ageRank)) {
+                  bestByDisc.set(e.discipline, { key, pts, ageRank })
+                }
+              }
+            }
+            return (
             <div className="pp-tour" key={t.tournamentId}>
               <div className="pp-tour-name-row">
                 <div className="pp-tour-name">{t.tournamentName}</div>
@@ -256,6 +281,9 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
                     : e.bestFinish === 'F' ? 'pp-runnerup'
                     : e.bestFinish === 'SF' ? 'pp-third'
                     : 'pp-noplace'
+                  const evKey = e.eventId + e.eventName
+                  const evPoints = evPts.get(evKey) ?? null
+                  const counts = bestByDisc.get(e.discipline)?.key === evKey
                   const tipKey = `${t.tournamentId}:${e.eventId}`
                   const matches = record.tournamentMatches?.[tipKey] ?? []
                   // Mirror the recentForm tip format: one line per match with
@@ -282,13 +310,19 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
                       {e.bestFinish === 'Champion' ? '🏆 ' : ''}{e.eventName} ·{' '}
                       <span className="pp-ev-chip-finish">{e.bestFinish}</span> ·{' '}
                       <span className="pp-ev-chip-wl">{e.wins}–{e.losses}</span>
+                      {evPoints != null && (
+                        <> · <span
+                          className={`pp-ev-chip-pts ${counts ? '' : 'pp-ev-chip-pts-superseded'}`}
+                          title={counts ? 'Projected ranking points (from tournament level)' : 'Superseded — a higher-scoring result in this discipline counts toward ranking'}
+                        >≈{evPoints.toLocaleString('en-US')} pts</span></>
+                      )}
                       {hasTip && <span className="pp-ev-tip" role="tooltip">{tip}</span>}
                     </span>
                   )
                 })}
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
 

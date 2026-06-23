@@ -483,6 +483,10 @@ export interface PlayerEventResult {
   bestFinish: 'Champion' | 'F' | 'SF' | 'QF' | 'R16' | 'R32' | 'R64' | 'R128' | 'RR'
   wins: number
   losses: number
+  /** Opening-round size of the event's bracket (largest round present:
+   *  R64→64, R32→32, …, Final→2). Drives the bye-aware first-round-loss
+   *  points row. Optional so previously-cached indexes still load. */
+  drawSize?: number
 }
 
 export interface DisciplineSummary {
