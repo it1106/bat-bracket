@@ -205,6 +205,72 @@ describe('tournamentStats — medals', () => {
   })
 })
 
+// YONEX-SINGHA-BAT-BTY 2026 regression: GD U19's Final was decided by a
+// walkover (winner set, walkover=true). The bracket page shows the champion,
+// but the stats panel showed "pending" because winner/medal detection skipped
+// walkover matches. A walkover final still crowns a champion (gold/silver) and
+// a walkover semi still earns the loser bronze — only the play-derived stats
+// (decided, three-setters, drama) should exclude walkovers.
+describe('tournamentStats — walkover final still crowns a champion', () => {
+  const data: MatchesData = {
+    days: [{ date: '20260519', label: '19/05', dateIso: '2026-05-19', hasMatches: true }],
+    currentDate: '20260519',
+    groups: [],
+  }
+  const dbl = (
+    round: string,
+    t1: [string, string],
+    t2: [string, string],
+    winner: 1 | 2,
+    walkover: boolean,
+  ): MatchEntry => ({
+    draw: 'GD U19', drawNum: '1', round,
+    team1: [{ name: t1[0], playerId: t1[0] }, { name: t1[1], playerId: t1[1] }],
+    team2: [{ name: t2[0], playerId: t2[0] }, { name: t2[1], playerId: t2[1] }],
+    winner,
+    scores: walkover ? [] : [{ t1: 21, t2: 12 }, { t1: 21, t2: 14 }],
+    court: 'Court 1', walkover, retired: false, nowPlaying: false,
+  })
+  const dayGroups: MatchScheduleGroup[] = [{
+    type: 'time' as const,
+    time: '09:00',
+    matches: [
+      dbl('Semi final', ['A1', 'A2'], ['C1', 'C2'], 1, false),
+      dbl('Semi final', ['B1', 'B2'], ['D1', 'D2'], 1, false),
+      // Final: B beats A by walkover (A withdrew)
+      dbl('Final', ['A1', 'A2'], ['B1', 'B2'], 2, true),
+    ],
+  }]
+  const days = new Map([['2026-05-19', dayGroups]])
+  const clubs: Record<string, string> = {
+    A1: 'ClubA', A2: 'ClubA', B1: 'ClubB', B2: 'ClubB',
+    C1: 'ClubC', C2: 'ClubC', D1: 'ClubD', D2: 'ClubD',
+  }
+
+  it('shows the walkover winner in the events table', () => {
+    const s = aggregate(data, days, clubs)
+    const gd = s.events.find((e) => e.name === 'GD U19')!
+    expect(gd.winner).toEqual(['B1', 'B2'])
+  })
+
+  it('still excludes the walkover from the decided count', () => {
+    const s = aggregate(data, days, clubs)
+    const gd = s.events.find((e) => e.name === 'GD U19')!
+    expect(gd.matches).toBe(3)
+    expect(gd.decided).toBe(2) // two semis; walkover final excluded
+  })
+
+  it('credits gold/silver for the walkover final and bronze for semi losers', () => {
+    const s = aggregate(data, days, clubs)
+    // Medals are credited per medalist, so each doubles pair contributes 2.
+    const byClub = Object.fromEntries(s.clubMedals.map((m) => [m.club, m]))
+    expect(byClub['ClubB']?.gold).toBe(2)
+    expect(byClub['ClubA']?.silver).toBe(2)
+    expect(byClub['ClubC']?.bronze).toBe(2)
+    expect(byClub['ClubD']?.bronze).toBe(2)
+  })
+})
+
 describe('tournamentStats — empty', () => {
   it('zero matches → all empty arrays', () => {
     const empty = JSON.parse(
