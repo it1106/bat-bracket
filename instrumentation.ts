@@ -231,6 +231,8 @@ export async function register() {
       const { rankingFetch } = await import('./lib/ranking/fetch')
       const { parsePublishDate } = await import('./lib/ranking/scraper')
       const { readRankingCache } = await import('./lib/ranking/cache')
+      const { runU15Backfill } = await import('./lib/ranking/u15-backfill')
+      const { BackfillBusyError } = await import('./lib/ranking/detail-backfill')
 
       const peekAndMaybeRefresh = async (provider: 'bat' | 'bwf') => {
         const cfg = PROVIDER_CONFIG[provider]
@@ -256,6 +258,21 @@ export async function register() {
           const refreshRes = await fetch(`${origin}/api/ranking/${provider}/refresh?force=true`, { method: 'POST' })
           const body = await refreshRes.text()
           console.log(`[ranking/${provider}/poll] refresh status=${refreshRes.status} body=${body.slice(0, 200)}`)
+          // After a successful BAT refresh, the new publication invalidates every
+          // cohort player's cached detail (publishDate moved on), so re-fill the
+          // top-50 U15 details against the new baseline. Paced/single-flight via
+          // runDetailBackfill; gap-fill skips any already fresh. Leader-only (we
+          // are inside the leader tick). This is what keeps the Projected Ranking
+          // checkbox live week-to-week without a manual run.
+          if (provider === 'bat' && refreshRes.ok) {
+            try {
+              const r = await runU15Backfill()
+              console.log(`[ranking/bat/poll] U15 detail backfill: ${JSON.stringify(r)}`)
+            } catch (e) {
+              if (e instanceof BackfillBusyError) console.log('[ranking/bat/poll] U15 backfill already running, skipped')
+              else console.warn(`[ranking/bat/poll] U15 backfill failed: ${e instanceof Error ? e.message : 'unknown'}`)
+            }
+          }
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'unknown'
           console.warn(`[ranking/${provider}/poll] tick failed: ${msg}`)
