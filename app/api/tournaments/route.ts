@@ -22,7 +22,7 @@ function parseTournamentsTxt(): ParsedTxt {
       onUnresolved: (url) => { resolveBwfUrl(url).catch(() => {}) },
     })
   } catch {
-    return { manualEntries: [], denySet: new Set(), denyNamePatterns: [] }
+    return { manualEntries: [], denySet: new Set(), denyNamePatterns: [], levelOverrides: new Map() }
   }
 }
 
@@ -34,6 +34,7 @@ function parseTournamentsTxt(): ParsedTxt {
 async function annotateEntries(
   entries: TournamentInfo[],
   todayIso: string,
+  levelOverrides: Map<string, number>,
 ): Promise<TournamentInfo[]> {
   const out: TournamentInfo[] = []
   for (const e of entries) {
@@ -41,26 +42,29 @@ async function annotateEntries(
     const startDateIso = meta?.startDateIso ?? cached?.days[0]?.dateIso
     const autoDone = !e.done && cached ? isAllPast(cached, todayIso) : false
     const done = e.done || autoDone
-    // Background-populate the level for BAT entries that haven't been checked;
-    // the lookup self-guards, so the dropdown returns now and shows it next load.
+    // Manual override wins over the auto-parsed level (for tournaments whose
+    // regulations page omits a parseable level). Only background-fetch the
+    // level when there's no override AND it hasn't been checked yet.
+    const override = levelOverrides.get(e.id.toUpperCase())
     const isBat = !e.provider || e.provider === 'bat'
-    if (isBat && !meta?.levelChecked) void resolveBatLevel(e.id)
+    if (isBat && override == null && !meta?.levelChecked) void resolveBatLevel(e.id)
+    const level = override ?? meta?.level
     out.push({
       ...e,
       ...(done && { done: true }),
       ...(startDateIso && { startDateIso }),
-      ...(meta?.level != null && { level: meta.level }),
+      ...(level != null && { level }),
     })
   }
   return out
 }
 
 export async function GET() {
-  const { manualEntries, denySet, denyNamePatterns } = parseTournamentsTxt()
+  const { manualEntries, denySet, denyNamePatterns, levelOverrides } = parseTournamentsTxt()
   const discovered = await loadDiscovered()
   const merged = mergeForApi(manualEntries, denySet, discovered, denyNamePatterns)
   const todayIso = getTodayIso()
-  const annotated = await annotateEntries(merged, todayIso)
+  const annotated = await annotateEntries(merged, todayIso, levelOverrides)
   const sorted = sortTournamentsForDropdown(annotated)
   return NextResponse.json(sorted)
 }

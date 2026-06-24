@@ -6,6 +6,7 @@ import { readPlayerIdEntry } from '@/lib/bat-player-id-map'
 import { countContributingTournaments, filterToLowestTwoAgeGroups } from '@/lib/ranking/player-view'
 import { rankingSlugAlias } from '@/lib/ranking/aliases'
 import { readMeta } from '@/lib/tournament-meta'
+import { getLevelOverrides } from '@/lib/tournament-level-overrides'
 import PlayerProfileView from '@/components/PlayerProfileView'
 import MinimalPlayerProfile from '@/components/MinimalPlayerProfile'
 import type { ProviderTag, RankingPlayerRank, RankingPlayerDetail } from '@/lib/types'
@@ -101,10 +102,13 @@ export default async function PlayerPage({ params }: Props) {
   if (record) {
     let tournamentLevels: Record<string, number> | undefined
     if (provider === 'bat') {
+      const overrides = getLevelOverrides()
       const pairs = await Promise.all(
         record.tournaments.map(async (t) => {
+          // Manual override wins over the auto-parsed sidecar level.
           const meta = await readMeta(t.tournamentId.toUpperCase())
-          return [t.tournamentId, meta?.level] as const
+          const lvl = overrides.get(t.tournamentId.toUpperCase()) ?? meta?.level
+          return [t.tournamentId, lvl] as const
         }),
       )
       tournamentLevels = {}
