@@ -5,53 +5,70 @@ import { __setRankingCacheRootForTesting } from '@/lib/ranking/cache'
 import {
   __setRankingPlayerCacheRootForTesting, writeRankingPlayerDetail,
 } from '@/lib/ranking/player-cache'
-import { loadCohort, cohortReadiness, COHORT_SIZE } from '@/lib/ranking/u15-cohort'
+import {
+  loadCohort, loadU15BackfillSet, cohortReadiness, u15BoardByEvent,
+  U15_BOARDS, COHORT_SIZE,
+} from '@/lib/ranking/u15-cohort'
 
-async function seedRanking(dir: string) {
-  const entries = Array.from({ length: 60 }, (_, i) => ({
-    rank: i + 1, name: `P${i}`, slug: `p${i}`, club: 'C', points: 1000 - i,
-    tournaments: 5, globalPlayerId: `g${i}`, previousRank: i + 1,
+// Build a ranking with all five U15 boards. Each board has 60 players; boards
+// share some globalPlayerIds (a player appears across disciplines) so the
+// backfill union is smaller than the naive sum.
+function eventEntries(prefix: string) {
+  return Array.from({ length: 60 }, (_, i) => ({
+    rank: i + 1, name: `${prefix}P${i}`, slug: `${prefix.toLowerCase()}p${i}`, club: 'C',
+    points: 1000 - i, tournaments: 5, globalPlayerId: `${prefix}g${i}`, previousRank: i + 1,
   }))
-  const ranking = {
-    provider: 'bat', scrapedAt: 'now', publishDate: '23/6/2569', rankingId: '52346',
-    events: [{ eventCode: 'U15_MS', eventName: 'U15 Boys singles', entries }],
-  }
-  await fs.writeFile(path.join(dir, 'ranking-bat.json'), JSON.stringify(ranking))
 }
 
-describe('u15-cohort', () => {
+async function seedRanking(dir: string) {
+  const events = U15_BOARDS.map(b => ({
+    eventCode: b.eventCode, eventName: b.eventCode, entries: eventEntries(b.eventCode),
+  }))
+  await fs.writeFile(path.join(dir, 'ranking-bat.json'), JSON.stringify({
+    provider: 'bat', scrapedAt: 'now', publishDate: '23/6/2569', rankingId: '52346', events,
+  }))
+}
+
+describe('u15-cohort (all U15 boards)', () => {
   let dir: string
   beforeEach(async () => {
     dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cohort-'))
-    __setRankingCacheRootForTesting(dir)                       // ranking-bat.json lives here
+    __setRankingCacheRootForTesting(dir)
     __setRankingPlayerCacheRootForTesting(path.join(dir, 'detail'))
     await seedRanking(dir)
   })
 
-  it('loads exactly the top COHORT_SIZE players by rank', async () => {
-    const c = await loadCohort()
-    expect(c).not.toBeNull()
-    expect(c!.players).toHaveLength(COHORT_SIZE)
-    expect(c!.players[0]).toMatchObject({ slug: 'p0', globalPlayerId: 'g0', officialRank: 1 })
-    expect(c!.publishDate).toBe('23/6/2569')
+  it('maps every board id/discipline and resolves by event code', () => {
+    expect(U15_BOARDS).toHaveLength(5)
+    expect(u15BoardByEvent('U15_MD')).toMatchObject({ boardId: 'ranking-u15_md', discipline: 'doubles' })
+    expect(u15BoardByEvent('U15_MXD')).toMatchObject({ discipline: 'mixed' })
+    expect(u15BoardByEvent('NOPE')).toBeUndefined()
   })
 
-  it('readiness is false until all cohort details are fresh for the publishDate', async () => {
-    expect(await cohortReadiness()).toMatchObject({ ready: false, have: 0, total: COHORT_SIZE })
-    for (let i = 0; i < COHORT_SIZE; i++) {
+  it('loads exactly the top COHORT_SIZE players of a named board', async () => {
+    const c = await loadCohort('U15_WS')
+    expect(c!.players).toHaveLength(COHORT_SIZE)
+    expect(c!.players[0]).toMatchObject({ globalPlayerId: 'U15_WSg0', officialRank: 1 })
+  })
+
+  it('backfill set is the de-duped union of all boards top-50', async () => {
+    const set = await loadU15BackfillSet()
+    // 5 boards x 50, all distinct gids here -> 250 unique.
+    expect(set!.gids).toHaveLength(250)
+    expect(new Set(set!.gids).size).toBe(250)
+  })
+
+  it('readiness is false until every union player is fresh, then true', async () => {
+    const before = await cohortReadiness()
+    expect(before).toMatchObject({ ready: false, have: 0, total: 250 })
+
+    const set = await loadU15BackfillSet()
+    for (const gid of set!.gids) {
       await writeRankingPlayerDetail('bat', {
-        globalPlayerId: `g${i}`, publishDate: '23/6/2569',
+        globalPlayerId: gid, publishDate: '23/6/2569',
         scrapedAt: new Date().toISOString(), tournaments: [],
       })
     }
-    expect(await cohortReadiness()).toMatchObject({ ready: true, have: COHORT_SIZE })
-  })
-
-  it('a detail from a different publishDate does not count as ready', async () => {
-    await writeRankingPlayerDetail('bat', {
-      globalPlayerId: 'g0', publishDate: '16/6/2569',
-      scrapedAt: new Date().toISOString(), tournaments: [],
-    })
-    expect((await cohortReadiness()).have).toBe(0)
+    expect(await cohortReadiness()).toMatchObject({ ready: true, have: 250, total: 250 })
   })
 })

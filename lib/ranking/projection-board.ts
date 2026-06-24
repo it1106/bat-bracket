@@ -2,20 +2,21 @@ import type {
   RankingPlayerDetail, PlayerEventResult, RankingPlayerTournament,
 } from '@/lib/types'
 import { ProjectionRow, projectPlayer } from '@/lib/ranking/projection'
-import { disciplineOf, weekSortKey } from '@/lib/ranking/player-view'
+import { disciplineOf, weekSortKey, type Discipline } from '@/lib/ranking/player-view'
 import { ageGroupFromEvent, pointsFor, pointsRoundFromResult } from '@/lib/points/bat-points'
 import type { CohortPlayer } from '@/lib/ranking/u15-cohort'
 
-/** Every boys-SINGLES detail row, credit = the row's own `points`. Do NOT key
- *  on `countsTowardRankingsParsed` — that array is populated ONLY for currently-
- *  counting rows, so keying on it hides the 11th+ rows Rule 2 must promote on
- *  expiry. For the U15 pilot every cohort member is U15-eligible, so each of
- *  their singles results credits U15 at its own points. (When the pilot widens
- *  to other boards this will need a per-event credit model + a target param.) */
-export function buildBaseRows(detail: RankingPlayerDetail): ProjectionRow[] {
+/** Every detail row of the board's `discipline`, credit = the row's own
+ *  `points`. Do NOT key on `countsTowardRankingsParsed` — that array is
+ *  populated ONLY for currently-counting rows, so keying on it hides the 11th+
+ *  rows Rule 2 must promote on expiry. Every U15 cohort member is U15-eligible,
+ *  so each of their results in this discipline credits the board at its own
+ *  points (verified on prod for singles/doubles/mixed). Gender is handled by
+ *  cohort membership, so discipline is the only filter needed. */
+export function buildBaseRows(detail: RankingPlayerDetail, discipline: Discipline): ProjectionRow[] {
   const out: ProjectionRow[] = []
   for (const t of detail.tournaments as RankingPlayerTournament[]) {
-    if (disciplineOf(t.sourceEvent) !== 'singles') continue
+    if (disciplineOf(t.sourceEvent) !== discipline) continue
     out.push({ week: t.week, sourceEvent: t.sourceEvent, tournamentName: t.tournamentName, credit: t.points })
   }
   return out
@@ -45,10 +46,11 @@ export function buildAddedRows(
   events: PlayerEventResult[],
   ctx: AddCtx,
   horizonWeek: string,
+  discipline: Discipline,
 ): ProjectionRow[] {
   const out: ProjectionRow[] = []
   for (const e of events) {
-    if (e.discipline !== 'singles') continue                 // U15 Boys *singles* board
+    if (e.discipline !== discipline) continue                // only this board's discipline
     const week = ctx.weekOf(e.tournamentId)
     if (!week) continue
     if (weekSortKey(week) <= weekSortKey(horizonWeek)) continue // already in the snapshot
@@ -74,6 +76,7 @@ export interface ProjectedEntry {
 
 export interface AssembleDeps {
   publishDate: string
+  discipline: Discipline
   detailOf: (gid: string) => Promise<RankingPlayerDetail | null>
   eventsOf: (slug: string) => PlayerEventResult[]
   addCtx: AddCtx
@@ -101,12 +104,12 @@ export async function assembleProjectedBoard(
   // and derive the global snapshot horizon from them.
   const loaded = await Promise.all(cohort.map(async p => {
     const detail = await deps.detailOf(p.globalPlayerId)
-    return { p, base: detail ? buildBaseRows(detail) : [] }
+    return { p, base: detail ? buildBaseRows(detail, deps.discipline) : [] }
   }))
   const horizon = snapshotHorizonWeek(loaded.map(l => l.base))
 
   const scored = loaded.map(({ p, base }) => {
-    const added = buildAddedRows(deps.eventsOf(p.slug), deps.addCtx, horizon)
+    const added = buildAddedRows(deps.eventsOf(p.slug), deps.addCtx, horizon, deps.discipline)
     const { projectedTotal } = projectPlayer(base, added, deps.publishDate)
     return { p, projectedPoints: projectedTotal }
   })

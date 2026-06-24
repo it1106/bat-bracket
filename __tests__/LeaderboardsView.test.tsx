@@ -157,12 +157,14 @@ describe('LeaderboardsView ranking delta badge', () => {
   })
 })
 
-describe('Projected Ranking (beta) checkbox', () => {
+describe('Next Ranking (beta) checkbox', () => {
   const u15LB: Leaderboards = {
     version: 1, provider: 'bat', generatedAt: 'T', sourceVersion: 'v',
     boards: [
       { id: 'ranking-u15_ms', titleKey: 'U15 Boys singles', icon: '🏸', category: 'ranking',
         entries: [{ rank: 1, slug: 'p0', name: 'P0', primaryClub: 'C', value: 1000, display: '1,000 pts', previousRank: 1 }] },
+      { id: 'ranking-u15_md', titleKey: 'U15 Boys doubles', icon: '🏸', category: 'ranking',
+        entries: [{ rank: 1, slug: 'd0', name: 'D0', primaryClub: 'C', value: 1000, display: '1,000 pts', previousRank: 1 }] },
     ],
   }
   const renderWith = (ready: { ready: boolean; have: number; total: number }) =>
@@ -176,35 +178,36 @@ describe('Projected Ranking (beta) checkbox', () => {
       </LanguageProvider>,
     )
 
-  it('is disabled with progress text when not ready', () => {
-    renderWith({ ready: false, have: 12, total: 50 })
-    const cb = screen.getByLabelText(/Projected Ranking/i) as HTMLInputElement
-    expect(cb.disabled).toBe(true)
-    expect(screen.getByText(/12\/50/)).toBeTruthy()
+  it('renders a checkbox on every U15 board, disabled with progress when not ready', () => {
+    renderWith({ ready: false, have: 12, total: 250 })
+    const cbs = screen.getAllByLabelText(/Next Ranking/i) as HTMLInputElement[]
+    expect(cbs).toHaveLength(2)            // boys singles + boys doubles boards
+    expect(cbs.every(cb => cb.disabled)).toBe(true)
+    expect(screen.getAllByText(/12\/250/).length).toBeGreaterThan(0)
   })
 
   it('is enabled when ready', () => {
-    renderWith({ ready: true, have: 50, total: 50 })
-    const cb = screen.getByLabelText(/Projected Ranking/i) as HTMLInputElement
-    expect(cb.disabled).toBe(false)
+    renderWith({ ready: true, have: 250, total: 250 })
+    const cbs = screen.getAllByLabelText(/Next Ranking/i) as HTMLInputElement[]
+    expect(cbs.every(cb => !cb.disabled)).toBe(true)
   })
 
-  it('displays only the top 30 projected rows even when the API returns 50', async () => {
+  it('fetches the per-board event and shows only the top 30 rows', async () => {
     const entries = Array.from({ length: 50 }, (_, i) => ({
       slug: `p${i}`, name: `Player ${i}`,
       officialRank: i + 1, officialPoints: 5000 - i,
       projectedRank: i + 1, projectedPoints: 5000 - i, delta: 0,
     }))
     const fetchMock = jest.fn().mockResolvedValue({
-      json: async () => ({ ready: true, publishDate: '23/6/2569', entries }),
+      json: async () => ({ ready: true, publishDate: '23/6/2569', event: 'U15_MS', entries }),
     })
     ;(global as unknown as { fetch: jest.Mock }).fetch = fetchMock
 
-    renderWith({ ready: true, have: 50, total: 50 })
-    const cb = screen.getByLabelText(/Projected Ranking/i) as HTMLInputElement
+    renderWith({ ready: true, have: 250, total: 250 })
+    const cb = screen.getAllByLabelText(/Next Ranking/i)[0] as HTMLInputElement // boys singles
     await act(async () => { fireEvent.click(cb) })
 
-    // Player 0..29 render; Player 30..49 do not.
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('event=U15_MS'))
     expect(screen.getByText('Player 29')).toBeTruthy()
     expect(screen.queryByText('Player 30')).toBeNull()
     expect(screen.queryByText('Player 49')).toBeNull()

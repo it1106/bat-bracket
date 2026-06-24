@@ -18,7 +18,7 @@ const detail: RankingPlayerDetail = {
 
 describe('buildBaseRows', () => {
   it('keeps singles rows (credit = points), excludes doubles', () => {
-    const rows = buildBaseRows(detail)
+    const rows = buildBaseRows(detail, 'singles')
     expect(rows).toEqual([{ week: '2026-10', sourceEvent: 'BS U15', tournamentName: 'A', credit: 4194 }])
   })
 
@@ -31,8 +31,28 @@ describe('buildBaseRows', () => {
           result: '33/64', points: 2147, countsTowardRankings: [], countsTowardRankingsParsed: [] },
       ],
     }
-    const rows = buildBaseRows(withEleventh)
+    const rows = buildBaseRows(withEleventh, 'singles')
     expect(rows.find(r => r.tournamentName === 'OLD')).toMatchObject({ credit: 2147 })
+  })
+
+  it('selects by discipline — doubles board keeps only doubles rows', () => {
+    expect(buildBaseRows(detail, 'doubles')).toEqual([
+      { week: '2026-10', sourceEvent: 'BD U15', tournamentName: 'A', credit: 3000 },
+    ])
+  })
+
+  it('selects mixed rows for the mixed board', () => {
+    const withMixed: RankingPlayerDetail = {
+      ...detail,
+      tournaments: [
+        ...detail.tournaments,
+        { tournamentName: 'M', tournamentId: null, sourceEvent: 'XD U15', week: '2026-11',
+          result: '5/8', points: 2684, countsTowardRankings: [], countsTowardRankingsParsed: [] },
+      ],
+    }
+    expect(buildBaseRows(withMixed, 'mixed')).toEqual([
+      { week: '2026-11', sourceEvent: 'XD U15', tournamentName: 'M', credit: 2684 },
+    ])
   })
 })
 
@@ -51,7 +71,7 @@ describe('buildAddedRows', () => {
   })
 
   it('adds a singles result newer than the snapshot horizon', () => {
-    const rows = buildAddedRows([ev('YONEX', 'BS U15')], ctx, HORIZON)
+    const rows = buildAddedRows([ev('YONEX', 'BS U15')], ctx, HORIZON, 'singles')
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ week: '2026-25', sourceEvent: 'BS U15', tournamentName: 'YONEX-SINGHA-BAT-BTY 2026' })
     expect(rows[0].credit).toBeGreaterThan(0)
@@ -60,7 +80,7 @@ describe('buildAddedRows', () => {
   it('skips a tournament at or before the horizon (already in the official snapshot)', () => {
     // week 2026-17 <= horizon 2026-23 — this is the Toyota/Trang double-count bug:
     // the same tournament is in the official detail under a different name/week.
-    const rows = buildAddedRows([ev('OLD', 'BS U15')], ctx, HORIZON)
+    const rows = buildAddedRows([ev('OLD', 'BS U15')], ctx, HORIZON, 'singles')
     expect(rows).toEqual([])
   })
 
@@ -69,12 +89,12 @@ describe('buildAddedRows', () => {
     // though the tournament is post-horizon, nothing is added — this is why
     // ฐเดชา, who lost his opening YONEX match, gains no projected points.
     const noPoints = { ...ev('YONEX', 'BS U15'), bestFinish: 'R32' as const, wins: 0, lostByWalkover: true }
-    expect(buildAddedRows([noPoints], ctx, HORIZON)).toEqual([])
+    expect(buildAddedRows([noPoints], ctx, HORIZON, 'singles')).toEqual([])
   })
 
   it('excludes non-singles results (wrong board)', () => {
     const doubles = { ...ev('YONEX', 'BD U15'), discipline: 'doubles' as const }
-    expect(buildAddedRows([doubles], ctx, HORIZON)).toEqual([])
+    expect(buildAddedRows([doubles], ctx, HORIZON, 'singles')).toEqual([])
   })
 })
 
@@ -93,7 +113,7 @@ describe('assembleProjectedBoard', () => {
           result: 'y', points: 9000, countsTowardRankings: [TARGET], countsTowardRankingsParsed: [{ eventName: TARGET, credit: 9000 }] }] },
     }
     const board = await assembleProjectedBoard(cohort, {
-      publishDate: '23/6/2569',
+      publishDate: '23/6/2569', discipline: 'singles',
       detailOf: async g => details[g] ?? null,
       eventsOf: () => [],
       addCtx: { levelOf: () => undefined, nameOf: () => '', weekOf: () => null },
@@ -124,7 +144,7 @@ describe('assembleProjectedBoard', () => {
         { slug: 'b', globalPlayerId: 'gb', officialRank: 2, officialPoints: 4000, name: 'B' },
       ],
       {
-        publishDate: '23/6/2569',
+        publishDate: '23/6/2569', discipline: 'singles',
         detailOf: async g => details[g] ?? null,
         eventsOf: slug => events[slug] ?? [],
         addCtx: {
