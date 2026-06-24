@@ -3182,3 +3182,15 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 
 .pp-ev-chip-pts { color: var(--muted); font-variant-numeric: tabular-nums; }
 .pp-ev-chip-pts-superseded { text-decoration: line-through; opacity: 0.6; }
+
+/* Projected Ranking (beta) — BS U15 pilot: toggle + dual official|projected table. */
+.lb-projected-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 400; margin-left: 8px; cursor: pointer; }
+.lb-projected-toggle input { cursor: pointer; }
+.lb-projected-toggle input:disabled { cursor: default; }
+.lb-projected-progress { opacity: 0.65; }
+.lb-projected-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.lb-projected-table th, .lb-projected-table td { padding: 4px 8px; text-align: right; font-size: 13px; }
+.lb-projected-table th:first-child, .lb-projected-table td:first-child { text-align: left; }
+.lb-projected-table thead th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border, #ddd); }
+.lb-projected-table .lb-rk-delta-up   { color: var(--win-fg); font-weight: 700; }
+.lb-projected-table .lb-rk-delta-down { color: var(--red);    font-weight: 700; }

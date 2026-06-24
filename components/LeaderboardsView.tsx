@@ -25,6 +25,19 @@ function renderRankDelta(rank: number, previousRank: number | undefined): React.
   return <span className="lb-rk-delta-down">▼{rank - previousRank}</span>
 }
 
+// Projected Ranking (beta) — BS U15 pilot. Mirrors the /api/ranking/projected
+// payload (declared locally to keep this client component off server modules).
+interface ProjectedEntryRow {
+  slug: string; name: string;
+  officialRank: number; officialPoints: number;
+  projectedRank: number; projectedPoints: number; delta: number;
+}
+type ProjectedBoardResponse =
+  | { ready: true; publishDate: string; entries: ProjectedEntryRow[] }
+  | { ready: false; have: number; total: number };
+
+const U15_RANKING_BOARD_ID = 'ranking-u15_ms';
+
 interface Props {
   leaderboards: Leaderboards[];
   rankingPublishDates?: Partial<Record<ProviderTag, string>>;
@@ -84,6 +97,11 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
   // Per-board state (not global) so expanding "U23 Men's singles" doesn't
   // also blow open every other board.
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set())
+  // Projected Ranking (beta) — BS U15 pilot. Toggling on fetches the projected
+  // board once; the SSR `projectedReady` flag gates the checkbox's enabled state.
+  const [projectedOn, setProjectedOn] = useState(false)
+  const [projectedData, setProjectedData] = useState<ProjectedBoardResponse | null>(null)
+  const [projectedLoading, setProjectedLoading] = useState(false)
   const helpRef = useRef<HTMLSpanElement | null>(null)
   const didMountRef = useRef(false)
 
@@ -297,9 +315,70 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
                   </span>
                 )}
               </span>
+              {b.id === U15_RANKING_BOARD_ID && activeProvider === 'bat' && projectedReady && (
+                <label
+                  className="lb-projected-toggle"
+                  title="Projection of next week's publication. Top-50 only — Δ is movement within this group. In-progress tournaments count at their next-round floor and refresh within ~15 min. Excludes tournaments BAT counts but we haven't ingested. Right after a publish the projection nearly matches official and diverges through the week."
+                >
+                  <input
+                    type="checkbox"
+                    checked={projectedOn}
+                    disabled={!projectedReady.ready}
+                    onChange={async (e) => {
+                      const on = e.target.checked
+                      setProjectedOn(on)
+                      if (on && !projectedData) {
+                        setProjectedLoading(true)
+                        try {
+                          const r = await fetch('/api/ranking/projected?provider=bat')
+                          const j = (await r.json()) as ProjectedBoardResponse
+                          if (j.ready) setProjectedData(j)
+                        } finally {
+                          setProjectedLoading(false)
+                        }
+                      }
+                    }}
+                  />
+                  Projected Ranking (beta)
+                  {!projectedReady.ready && (
+                    <span className="lb-projected-progress">
+                      {' '}backfill in progress ({projectedReady.have}/{projectedReady.total})
+                    </span>
+                  )}
+                </label>
+              )}
               {b.qualifier && <span className="lb-card-qual">{t(b.qualifier as TKey)}</span>}
             </h3>
             {(() => {
+              if (b.id === U15_RANKING_BOARD_ID && projectedOn) {
+                if (!projectedData?.ready) {
+                  return <div className="lb-empty" style={{ padding: '12px 0' }}>{projectedLoading ? '…' : '—'}</div>
+                }
+                return (
+                  <table className="lb-projected-table">
+                    <thead>
+                      <tr><th></th><th colSpan={2}>Official</th><th colSpan={2}>Projected</th><th>Δ</th></tr>
+                      <tr><th>Player</th><th>Rank</th><th>Pts</th><th>Rank</th><th>Pts</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                      {projectedData.entries.map((e) => (
+                        <tr key={e.slug}>
+                          <td>{e.name}</td>
+                          <td>{e.officialRank}</td>
+                          <td>{e.officialPoints.toLocaleString()}</td>
+                          <td>{e.projectedRank}</td>
+                          <td>{e.projectedPoints.toLocaleString()}</td>
+                          <td>{e.delta === 0
+                            ? '—'
+                            : e.delta > 0
+                              ? <span className="lb-rk-delta-up">▲{e.delta}</span>
+                              : <span className="lb-rk-delta-down">▼{-e.delta}</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )
+              }
               if (b.entries.length === 0) {
                 return <div className="lb-empty" style={{ padding: '12px 0' }}>—</div>
               }

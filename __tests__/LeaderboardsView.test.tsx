@@ -156,3 +156,36 @@ describe('LeaderboardsView ranking delta badge', () => {
     expect(screen.queryByText(/▲|▼|NEW|—/)).toBeNull()
   })
 })
+
+describe('Projected Ranking (beta) checkbox', () => {
+  const u15LB: Leaderboards = {
+    version: 1, provider: 'bat', generatedAt: 'T', sourceVersion: 'v',
+    boards: [
+      { id: 'ranking-u15_ms', titleKey: 'U15 Boys singles', icon: '🏸', category: 'ranking',
+        entries: [{ rank: 1, slug: 'p0', name: 'P0', primaryClub: 'C', value: 1000, display: '1,000 pts', previousRank: 1 }] },
+    ],
+  }
+  const renderWith = (ready: { ready: boolean; have: number; total: number }) =>
+    render(
+      <LanguageProvider>
+        <LeaderboardsView
+          leaderboards={[u15LB]}
+          rankingPublishDates={{ bat: '23/6/2569' }}
+          projectedReady={ready}
+        />
+      </LanguageProvider>,
+    )
+
+  it('is disabled with progress text when not ready', () => {
+    renderWith({ ready: false, have: 12, total: 50 })
+    const cb = screen.getByLabelText(/Projected Ranking/i) as HTMLInputElement
+    expect(cb.disabled).toBe(true)
+    expect(screen.getByText(/12\/50/)).toBeTruthy()
+  })
+
+  it('is enabled when ready', () => {
+    renderWith({ ready: true, have: 50, total: 50 })
+    const cb = screen.getByLabelText(/Projected Ranking/i) as HTMLInputElement
+    expect(cb.disabled).toBe(false)
+  })
+})
