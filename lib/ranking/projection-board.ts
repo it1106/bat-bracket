@@ -114,10 +114,19 @@ export async function assembleProjectedBoard(
     return { p, projectedPoints: projectedTotal }
   })
   scored.sort((a, b) => b.projectedPoints - a.projectedPoints || a.p.officialRank - b.p.officialRank)
-  return scored.map((s, i) => ({
-    slug: s.p.slug, name: s.p.name,
-    officialRank: s.p.officialRank, officialPoints: s.p.officialPoints,
-    projectedRank: i + 1, projectedPoints: s.projectedPoints,
-    delta: s.p.officialRank - (i + 1),
-  }))
+  // Standard competition ranking ("1224"): equal points share a rank, and the
+  // next distinct score skips accordingly (A=10000→1, B=10000→1, C=9000→3).
+  let lastRank = 0
+  let lastPoints = Number.NaN
+  return scored.map((s, i) => {
+    const rank = s.projectedPoints === lastPoints ? lastRank : i + 1
+    lastRank = rank
+    lastPoints = s.projectedPoints
+    return {
+      slug: s.p.slug, name: s.p.name,
+      officialRank: s.p.officialRank, officialPoints: s.p.officialPoints,
+      projectedRank: rank, projectedPoints: s.projectedPoints,
+      delta: s.p.officialRank - rank,
+    }
+  })
 }

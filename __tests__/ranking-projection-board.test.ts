@@ -124,6 +124,35 @@ describe('assembleProjectedBoard', () => {
     expect(board[1]).toMatchObject({ slug: 'a', projectedRank: 2, delta: -1 }) // 1 -> 2
   })
 
+  it('gives tied scores the same rank and skips the next (competition ranking 1,1,3)', async () => {
+    const row = (gid: string, pts: number): RankingPlayerDetail => ({
+      globalPlayerId: gid, publishDate: '23/6/2569', scrapedAt: 'now',
+      tournaments: [{ tournamentName: gid, tournamentId: null, sourceEvent: 'BS U15', week: '2026-20',
+        result: 'x', points: pts, countsTowardRankings: [TARGET], countsTowardRankingsParsed: [{ eventName: TARGET, credit: pts }] }],
+    })
+    const details: Record<string, RankingPlayerDetail> = {
+      ga: row('ga', 10000), gb: row('gb', 10000), gc: row('gc', 9000), gd: row('gd', 9000), ge: row('ge', 8000),
+    }
+    const board = await assembleProjectedBoard(
+      [
+        { slug: 'a', globalPlayerId: 'ga', officialRank: 1, officialPoints: 10000, name: 'A' },
+        { slug: 'b', globalPlayerId: 'gb', officialRank: 2, officialPoints: 10000, name: 'B' },
+        { slug: 'c', globalPlayerId: 'gc', officialRank: 3, officialPoints: 9000, name: 'C' },
+        { slug: 'd', globalPlayerId: 'gd', officialRank: 4, officialPoints: 9000, name: 'D' },
+        { slug: 'e', globalPlayerId: 'ge', officialRank: 5, officialPoints: 8000, name: 'E' },
+      ],
+      {
+        publishDate: '23/6/2569', discipline: 'singles',
+        detailOf: async g => details[g] ?? null,
+        eventsOf: () => [],
+        addCtx: { levelOf: () => undefined, nameOf: () => '', weekOf: () => null },
+      },
+    )
+    expect(board.map(e => [e.slug, e.projectedRank])).toEqual([
+      ['a', 1], ['b', 1], ['c', 3], ['d', 3], ['e', 5],
+    ])
+  })
+
   it('adds a genuinely-new (post-horizon) result and leaves already-counted ones alone', async () => {
     // Both players have one official result at week 2026-10 -> horizon = 2026-10.
     const mk = (gid: string, pts: number): RankingPlayerDetail => ({
