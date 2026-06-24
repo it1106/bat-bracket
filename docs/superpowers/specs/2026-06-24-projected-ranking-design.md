@@ -88,10 +88,12 @@ the window, the **next-highest remaining** result is promoted into the top-10
 (this is why the detail's 11th+ rows must be retained — see §2.2).
 
 So, per player, for the target board `"U15 Boys singles"`:
-1. Take detail rows whose `countsTowardRankingsParsed` has a credit entry for
-   the target event, using that **credit** value.
+1. Take **every boys-singles detail row**, value = the row's own `points`. (The
+   `countsTowardRankingsParsed` array lists only *currently-counting* rows, so it
+   can't be the filter — see §4 step 1.)
 2. Apply Rule 1 (`dedupePerTournament`).
-3. Sum the top-10 by credit = the board total. (Validated → 31,336; see §2.2.)
+3. Sum the top-10 by points = the board total. (Validated → 31,336; and 7/8
+   sampled >10-result players reproduce exactly; see §2.2.)
 
 ---
 
@@ -104,10 +106,15 @@ no fetches.
 
 Algorithm, per player, for `"U15 Boys singles"`:
 
-1. **Base rows.** From detail, keep rows with a credit toward the target event;
-   value = that credit. (Detail rows already carry the cross-tier credit, so use
-   the stored `credit`, which may legitimately differ from raw `points` for
-   cross-tier cases.)
+1. **Base rows.** From detail, keep **every boys-singles row**, value = the
+   row's own `points`. Do **not** key on `countsTowardRankingsParsed` — that
+   array is populated only for *currently-counting* rows (verified on prod), so
+   keying on it would hide the 11th+ rows Rule 2 must promote on expiry, gutting
+   the expire side. For the U15 pilot every cohort member is U15-eligible, so
+   each of their singles results credits U15 at its own points. *Verified:*
+   include-all-singles + top-10-by-points reproduces the official `U15_MS` total
+   for 7/8 sampled >10-result players (one edge overcounts ~1k — acceptable for
+   beta, visible in the dual UI).
 2. **Expire (Rule 2 removal).** Drop rows whose `week` falls outside the
    **next-publish** window, using `expiringNextWeekCutoff(publishDate,
    'thai-be')` + `isExpiringNextWeek` from `player-view.ts` (the

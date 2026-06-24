@@ -721,9 +721,22 @@ const detail: RankingPlayerDetail = {
 }
 
 describe('buildBaseRows', () => {
-  it('keeps only rows crediting the target event, using the credit value', () => {
+  it('keeps singles rows (credit = points), excludes doubles', () => {
     const rows = buildBaseRows(detail, TARGET)
     expect(rows).toEqual([{ week: '2026-10', sourceEvent: 'BS U15', tournamentName: 'A', credit: 4194 }])
+  })
+
+  it('includes a NON-counting singles row (empty parsed credit) so Rule 2 can promote it', () => {
+    const withEleventh: RankingPlayerDetail = {
+      ...detail,
+      tournaments: [
+        ...detail.tournaments,
+        { tournamentName: 'OLD', tournamentId: null, sourceEvent: 'BS U15', week: '2025-50',
+          result: '33/64', points: 2147, countsTowardRankings: [], countsTowardRankingsParsed: [] },
+      ],
+    }
+    const rows = buildBaseRows(withEleventh, TARGET)
+    expect(rows.find(r => r.tournamentName === 'OLD')).toMatchObject({ credit: 2147 })
   })
 })
 
@@ -771,32 +784,34 @@ import type {
   RankingPlayerDetail, PlayerEventResult, RankingPlayerTournament,
 } from '@/lib/types'
 import { ProjectionRow, projectPlayer } from '@/lib/ranking/projection'
-import { weekSortKey } from '@/lib/ranking/player-view'
+import { weekSortKey, disciplineOf } from '@/lib/ranking/player-view'
 import { ageGroupFromEvent, pointsFor, pointsRoundFromResult } from '@/lib/points/bat-points'
 
 /** Normalized identity for "the same tournament-result toward a board":
- *  ISO-week + discipline-letter-class + age number. Robust to the differing
- *  event-name formats between the detail (sourceEvent "BS U15") and the index
+ *  ISO-week + discipline class + age number. Robust to the differing event-name
+ *  formats between the detail (sourceEvent "BS U15") and the index
  *  (eventName "Boys' Singles U15"). */
-function resultKey(week: string, discipline: string, age: string | null): string {
-  return `${weekSortKey(week)}::${discipline}::${age ?? '?'}`
+function resultKey(week: string, discipline: string | null, age: string | null): string {
+  return `${weekSortKey(week)}::${discipline ?? '?'}::${age ?? '?'}`
 }
 
-function disciplineLetterClass(sourceEvent: string): string {
-  const code = sourceEvent.trim().toUpperCase().split(/\s+/)[0]
-  if (code.includes('XD')) return 'mixed'
-  if (code.endsWith('D')) return 'doubles'
-  return 'singles'
-}
-
-/** Detail rows crediting `targetEvent`, mapped to ProjectionRows (credit = the
- *  per-board credit, which may differ from raw points for cross-tier cases). */
-export function buildBaseRows(detail: RankingPlayerDetail, targetEvent: string): ProjectionRow[] {
+/** Every boys-SINGLES detail row, credit = the row's own `points`. Do NOT key
+ *  on `countsTowardRankingsParsed` — that array is populated ONLY for currently-
+ *  counting rows (verified on prod), so keying on it hides the 11th+ rows that
+ *  Rule 2 must promote when a counting row expires, silently defeating the
+ *  expire side. For the U15 pilot every cohort member is U15-eligible, so each
+ *  of their singles results credits U15 at its own points. `targetEvent` is a
+ *  forward-looking hook; this body assumes "every singles row credits the
+ *  target", valid for the single-age-board pilot.
+ *
+ *  Verified: include-all-singles + top-10-by-points reproduces the official
+ *  U15_MS total for 7/8 sampled >10-result players (one edge overcounts ~1k —
+ *  acceptable for beta, surfaced in the dual UI). */
+export function buildBaseRows(detail: RankingPlayerDetail, _targetEvent: string): ProjectionRow[] {
   const out: ProjectionRow[] = []
   for (const t of detail.tournaments as RankingPlayerTournament[]) {
-    const credit = (t.countsTowardRankingsParsed ?? []).find(c => c.eventName === targetEvent)?.credit
-    if (credit == null) continue
-    out.push({ week: t.week, sourceEvent: t.sourceEvent, tournamentName: t.tournamentName, credit })
+    if (disciplineOf(t.sourceEvent) !== 'singles') continue
+    out.push({ week: t.week, sourceEvent: t.sourceEvent, tournamentName: t.tournamentName, credit: t.points })
   }
   return out
 }
@@ -815,7 +830,7 @@ export function buildAddedRows(
   baseRows: ProjectionRow[],
   ctx: AddCtx,
 ): ProjectionRow[] {
-  const seen = new Set(baseRows.map(r => resultKey(r.week, disciplineLetterClass(r.sourceEvent), ageGroupFromEvent(r.sourceEvent))))
+  const seen = new Set(baseRows.map(r => resultKey(r.week, disciplineOf(r.sourceEvent), ageGroupFromEvent(r.sourceEvent))))
   const out: ProjectionRow[] = []
   for (const e of events) {
     if (e.discipline !== 'singles') continue                 // U15 Boys *singles* board
