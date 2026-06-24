@@ -231,8 +231,7 @@ export async function register() {
       const { rankingFetch } = await import('./lib/ranking/fetch')
       const { parsePublishDate } = await import('./lib/ranking/scraper')
       const { readRankingCache } = await import('./lib/ranking/cache')
-      const { runU15Backfill } = await import('./lib/ranking/u15-backfill')
-      const { BackfillBusyError } = await import('./lib/ranking/detail-backfill')
+      const { selfHealU15Backfill } = await import('./lib/ranking/u15-backfill')
 
       const peekAndMaybeRefresh = async (provider: 'bat' | 'bwf') => {
         const cfg = PROVIDER_CONFIG[provider]
@@ -258,24 +257,29 @@ export async function register() {
           const refreshRes = await fetch(`${origin}/api/ranking/${provider}/refresh?force=true`, { method: 'POST' })
           const body = await refreshRes.text()
           console.log(`[ranking/${provider}/poll] refresh status=${refreshRes.status} body=${body.slice(0, 200)}`)
-          // After a successful BAT refresh, the new publication invalidates every
-          // cohort player's cached detail (publishDate moved on), so re-fill the
-          // top-50 U15 details against the new baseline. Paced/single-flight via
-          // runDetailBackfill; gap-fill skips any already fresh. Leader-only (we
-          // are inside the leader tick). This is what keeps the Projected Ranking
-          // checkbox live week-to-week without a manual run.
-          if (provider === 'bat' && refreshRes.ok) {
-            try {
-              const r = await runU15Backfill()
-              console.log(`[ranking/bat/poll] U15 detail backfill: ${JSON.stringify(r)}`)
-            } catch (e) {
-              if (e instanceof BackfillBusyError) console.log('[ranking/bat/poll] U15 backfill already running, skipped')
-              else console.warn(`[ranking/bat/poll] U15 backfill failed: ${e instanceof Error ? e.message : 'unknown'}`)
-            }
-          }
+          // The U15 projected cohort is filled by selfHealBat() below — it runs
+          // every tick (not only on a publishDate change), so a new publication,
+          // a deploy that lands after one, or a sweep cut short by a restart all
+          // converge back to 100% without a manual run.
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'unknown'
           console.warn(`[ranking/${provider}/poll] tick failed: ${msg}`)
+        }
+      }
+
+      // Keep the U15 projected-ranking cohort current. Readiness is publishDate-
+      // only, so this is a cheap no-op read whenever the cohort is already
+      // complete; it fetches (paced, single-flight, bounded back-off) only when
+      // a player's detail is missing or for an old publication. Leader-only.
+      const selfHealBat = async () => {
+        if (!amLeader) return
+        try {
+          const r = await selfHealU15Backfill()
+          if (!('skipped' in r && r.skipped === 'ready')) {
+            console.log(`[u15-backfill] self-heal: ${JSON.stringify(r)}`)
+          }
+        } catch (e) {
+          console.warn(`[u15-backfill] self-heal failed: ${e instanceof Error ? e.message : 'unknown'}`)
         }
       }
 
@@ -286,8 +290,11 @@ export async function register() {
           const cached = await readRankingCache(provider)
           const cacheAgeMs = cached ? Date.now() - new Date(cached.scrapedAt).getTime() : null
           const action = decideTick({ clock: getBangkokClock(), schedule: cfg.pollSchedule, cacheAgeMs })
-          if (action === 'skip') return
-          await peekAndMaybeRefresh(provider)
+          if (action !== 'skip') await peekAndMaybeRefresh(provider)
+          // Self-heal runs every tick regardless of the poll window — the cohort
+          // can fall behind mid-week (a new publication, a restart-killed sweep)
+          // outside the Tuesday poll window.
+          if (provider === 'bat') await selfHealBat()
         }
         setTimeout(async () => {
           if (!amLeader) return
@@ -299,6 +306,7 @@ export async function register() {
             console.log(`[ranking/${provider}/poll] boot kick (cacheAge=${ageHrs})`)
             await peekAndMaybeRefresh(provider)
           }
+          if (provider === 'bat') await selfHealBat()
         }, 45_000)
         setInterval(tick, 30 * 60 * 1000)
       }

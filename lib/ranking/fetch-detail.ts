@@ -8,16 +8,22 @@ import type { RankingPlayerDetail, ProviderTag } from '@/lib/types'
  *  request. Returns the parsed detail (also written to the per-player cache),
  *  or `{ notFound: true }` on a 404 — the caller persists the notFound marker
  *  if it wants to (preserving the API route's prior behavior). Throws on other
- *  non-OK responses so backoff/circuit-breaker logic can react. */
+ *  non-OK responses so backoff/circuit-breaker logic can react.
+ *
+ *  `kindLabel` tags the upstream call in [bat-fetch] logs. On-demand callers
+ *  leave the default ('player-detail'); the U15 cohort backfill passes
+ *  'player-detail-backfill' so its hits are countable separately from
+ *  user-driven player-page fetches (they otherwise share one URL shape). */
 export async function fetchAndCacheDetail(
   provider: ProviderTag,
   globalPlayerId: string,
   rankingId: string,
   publishDate: string,
+  kindLabel: string = 'player-detail',
 ): Promise<RankingPlayerDetail | { notFound: true }> {
   const cfg = getRankingConfig(provider)
   const url = cfg.playerUrl(rankingId, globalPlayerId)
-  const res = await rankingFetch(provider, 'player-detail', url)
+  const res = await rankingFetch(provider, kindLabel, url)
   if (res.status === 404) return { notFound: true }
   if (!res.ok) throw new Error(`upstream ${res.status}`)
   const html = await res.text()
