@@ -32,9 +32,13 @@ function statsPath(tournamentId: string): string {
 // v11 adds results[] (match-by-match) to each topPlayers row, powering the
 // W-L hover tooltip. v10 envelopes have no results, so the tooltip would be
 // empty until re-aggregated.
+// v12 credits walkover finals/semis as titles and medals — a walkover final
+// still crowns a champion (event winner + gold/silver) and a walkover semi
+// still earns the loser bronze. v11 envelopes show such finals as "pending"
+// with no medal credit, so they must be recomputed.
 // Bumping the version invalidates older envelopes so they get recomputed.
 export interface StatsCacheEnvelope {
-  version: 11
+  version: 12
   sourceVersion: string
   // Set to true only when every day in fullData.days had a disk-cache hit at
   // write time. Older envelopes (or those written with partial coverage) are
@@ -48,7 +52,7 @@ export async function readStatsCache(tournamentId: string): Promise<StatsCacheEn
   try {
     const buf = await fs.readFile(statsPath(tournamentId), 'utf8')
     const parsed = JSON.parse(buf) as StatsCacheEnvelope
-    if (parsed.version !== 11) return null
+    if (parsed.version !== 12) return null
     if (parsed.coverageComplete !== true) return null
     return parsed
   } catch {
@@ -65,7 +69,7 @@ export async function writeStatsCache(
   const tmp = `${file}.tmp`
   try {
     await fs.mkdir(path.dirname(file), { recursive: true })
-    const payload: StatsCacheEnvelope = { version: 11, ...envelope }
+    const payload: StatsCacheEnvelope = { version: 12, ...envelope }
     await fs.writeFile(tmp, JSON.stringify(payload), 'utf8')
     await fs.rename(tmp, file)
     console.log(`[stats-cache] wrote tournament=${tournamentId}`)

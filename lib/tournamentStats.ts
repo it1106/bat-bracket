@@ -286,7 +286,9 @@ function buildEvents(
     for (const p of [...match.team1, ...match.team2]) {
       if (p.playerId) a.players.add(p.playerId)
     }
-    if (match.winner !== null && !match.walkover && isFinal(match.round)) {
+    // A walkover final still crowns a champion — the play-derived stats above
+    // exclude walkovers, but the winner column must reflect the title holder.
+    if (match.winner !== null && isFinal(match.round)) {
       a.lastFinal = match
     }
     byEvent.set(key, a)
@@ -591,7 +593,9 @@ function buildClubMedalsAndMultiGold(
   const semiLosersByDraw = new Map<string, MatchEntry[]>()
 
   for (const { match } of ctxs) {
-    if (match.winner === null || match.walkover) continue
+    // Walkovers are kept here (unlike the play-derived stats): a walkover final
+    // still awards gold/silver, and a walkover semi still earns the loser bronze.
+    if (match.winner === null) continue
     if (!match.draw) continue
     if (isFinal(match.round)) {
       lastFinalByDraw.set(match.draw, match)
