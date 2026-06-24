@@ -25,7 +25,7 @@ function renderRankDelta(rank: number, previousRank: number | undefined): React.
   return <span className="lb-rk-delta-down">▼{rank - previousRank}</span>
 }
 
-// Projected Ranking (beta) — BS U15 pilot. Mirrors the /api/ranking/projected
+// Next Ranking (beta) — U15 boards pilot. Mirrors the /api/ranking/projected
 // payload (declared locally to keep this client component off server modules).
 interface ProjectedEntryRow {
   slug: string; name: string;
@@ -33,10 +33,18 @@ interface ProjectedEntryRow {
   projectedRank: number; projectedPoints: number; delta: number;
 }
 type ProjectedBoardResponse =
-  | { ready: true; publishDate: string; entries: ProjectedEntryRow[] }
+  | { ready: true; publishDate: string; event: string; entries: ProjectedEntryRow[] }
   | { ready: false; have: number; total: number };
 
-const U15_RANKING_BOARD_ID = 'ranking-u15_ms';
+// The five U15 ranking boards the projection covers, mapping each leaderboard
+// board id to its ranking event code (kept in sync with lib/ranking/u15-cohort).
+const U15_PROJECTED_BOARDS: Record<string, string> = {
+  'ranking-u15_ms': 'U15_MS',
+  'ranking-u15_ws': 'U15_WS',
+  'ranking-u15_md': 'U15_MD',
+  'ranking-u15_wd': 'U15_WD',
+  'ranking-u15_mxd': 'U15_MXD',
+};
 // Project over the full 50-player cohort (so a player ranked >30 who surges can
 // still appear), but display only the top 30 projected — matching the official
 // ranking board's depth.
@@ -101,11 +109,29 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
   // Per-board state (not global) so expanding "U23 Men's singles" doesn't
   // also blow open every other board.
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set())
-  // Projected Ranking (beta) — BS U15 pilot. Toggling on fetches the projected
-  // board once; the SSR `projectedReady` flag gates the checkbox's enabled state.
-  const [projectedOn, setProjectedOn] = useState(false)
-  const [projectedData, setProjectedData] = useState<ProjectedBoardResponse | null>(null)
-  const [projectedLoading, setProjectedLoading] = useState(false)
+  // Next Ranking (beta) — per U15 board. Each board toggles independently and
+  // fetches its own projection once; the shared SSR `projectedReady` flag gates
+  // every board's checkbox enabled state. Keyed by leaderboard board id.
+  const [projectedOn, setProjectedOn] = useState<Set<string>>(new Set())
+  const [projectedData, setProjectedData] = useState<Record<string, ProjectedBoardResponse>>({})
+  const [projectedLoading, setProjectedLoading] = useState<Set<string>>(new Set())
+  const toggleProjected = async (boardId: string, on: boolean) => {
+    setProjectedOn((prev) => {
+      const next = new Set(prev)
+      if (on) next.add(boardId); else next.delete(boardId)
+      return next
+    })
+    if (on && !projectedData[boardId]) {
+      setProjectedLoading((prev) => new Set(prev).add(boardId))
+      try {
+        const r = await fetch(`/api/ranking/projected?provider=bat&event=${U15_PROJECTED_BOARDS[boardId]}`)
+        const j = (await r.json()) as ProjectedBoardResponse
+        if (j.ready) setProjectedData((prev) => ({ ...prev, [boardId]: j }))
+      } finally {
+        setProjectedLoading((prev) => { const next = new Set(prev); next.delete(boardId); return next })
+      }
+    }
+  }
   const helpRef = useRef<HTMLSpanElement | null>(null)
   const didMountRef = useRef(false)
 
@@ -319,31 +345,18 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
                   </span>
                 )}
               </span>
-              {b.id === U15_RANKING_BOARD_ID && activeProvider === 'bat' && projectedReady && (
+              {U15_PROJECTED_BOARDS[b.id] && activeProvider === 'bat' && projectedReady && (
                 <label
                   className="lb-projected-toggle"
-                  title="Projection of next week's publication. Top-50 only — Δ is movement within this group. In-progress tournaments count at their next-round floor and refresh within ~15 min. Excludes tournaments BAT counts but we haven't ingested. Right after a publish the projection nearly matches official and diverges through the week."
+                  title="Projection of next week's publication. Top-50 cohort, top-30 shown — Δ is movement within this group. In-progress tournaments count at their next-round floor and refresh within ~15 min. Excludes tournaments BAT counts but we haven't ingested. Right after a publish the projection nearly matches official and diverges through the week."
                 >
                   <input
                     type="checkbox"
-                    checked={projectedOn}
+                    checked={projectedOn.has(b.id)}
                     disabled={!projectedReady.ready}
-                    onChange={async (e) => {
-                      const on = e.target.checked
-                      setProjectedOn(on)
-                      if (on && !projectedData) {
-                        setProjectedLoading(true)
-                        try {
-                          const r = await fetch('/api/ranking/projected?provider=bat')
-                          const j = (await r.json()) as ProjectedBoardResponse
-                          if (j.ready) setProjectedData(j)
-                        } finally {
-                          setProjectedLoading(false)
-                        }
-                      }
-                    }}
+                    onChange={(e) => toggleProjected(b.id, e.target.checked)}
                   />
-                  Projected Ranking (beta)
+                  Next Ranking (beta)
                   {!projectedReady.ready && (
                     <span className="lb-projected-progress">
                       {' '}backfill in progress ({projectedReady.have}/{projectedReady.total})
@@ -354,18 +367,19 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
               {b.qualifier && <span className="lb-card-qual">{t(b.qualifier as TKey)}</span>}
             </h3>
             {(() => {
-              if (b.id === U15_RANKING_BOARD_ID && projectedOn) {
-                if (!projectedData?.ready) {
-                  return <div className="lb-empty" style={{ padding: '12px 0' }}>{projectedLoading ? '…' : '—'}</div>
+              if (U15_PROJECTED_BOARDS[b.id] && projectedOn.has(b.id)) {
+                const data = projectedData[b.id]
+                if (!data?.ready) {
+                  return <div className="lb-empty" style={{ padding: '12px 0' }}>{projectedLoading.has(b.id) ? '…' : '—'}</div>
                 }
                 return (
                   <table className="lb-projected-table">
                     <thead>
-                      <tr><th></th><th colSpan={2}>Official</th><th colSpan={2}>Projected</th><th>Δ</th></tr>
+                      <tr><th></th><th colSpan={2}>Official</th><th colSpan={2}>Next</th><th>Δ</th></tr>
                       <tr><th>Player</th><th>Rank</th><th>Pts</th><th>Rank</th><th>Pts</th><th></th></tr>
                     </thead>
                     <tbody>
-                      {projectedData.entries.slice(0, PROJECTED_DISPLAY_LIMIT).map((e) => (
+                      {data.entries.slice(0, PROJECTED_DISPLAY_LIMIT).map((e) => (
                         <tr key={e.slug}>
                           <td>{e.name}</td>
                           <td>{e.officialRank}</td>

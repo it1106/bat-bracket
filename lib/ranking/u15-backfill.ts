@@ -1,5 +1,5 @@
 import type { RankingPlayerDetail } from '@/lib/types'
-import { loadCohort, isCohortPlayerReady } from '@/lib/ranking/u15-cohort'
+import { loadU15BackfillSet, isCohortPlayerReady } from '@/lib/ranking/u15-cohort'
 import { runDetailBackfill, type BackfillResult } from '@/lib/ranking/detail-backfill'
 import { fetchAndCacheDetail } from '@/lib/ranking/fetch-detail'
 import { writeRankingPlayerNotFound } from '@/lib/ranking/player-cache'
@@ -22,8 +22,9 @@ export interface RunU15BackfillOptions {
   jitterMs?: number
 }
 
-/** Gap-fill the top-50 U15 cohort's ranking details against the *current*
- *  publication. Shared by the manual route, the CLI script, and the scheduler
+/** Gap-fill the details for the union of all U15 boards' top-50 players against
+ *  the *current* publication (one fetch per unique player covers every
+ *  discipline). Shared by the manual route, the CLI script, and the scheduler
  *  hook so all three behave identically (paced, resumable, single-flight via
  *  runDetailBackfill). Returns the backfill result, or `{ error }` when no BAT
  *  ranking is cached yet. May throw BackfillBusyError if one is already running. */
@@ -31,12 +32,12 @@ export async function runU15Backfill(
   opts: RunU15BackfillOptions = {},
 ): Promise<BackfillResult | { error: string }> {
   const fetchDetail = opts.fetchDetail ?? realFetcher
-  const cohort = await loadCohort()
-  if (!cohort) return { error: 'no ranking cached' }
-  return runDetailBackfill(cohort.players.map(p => p.globalPlayerId), {
-    isReady: gid => isCohortPlayerReady(gid, cohort.publishDate),
-    fetchDetail: gid => fetchDetail(gid, cohort.rankingId, cohort.publishDate),
-    persistNotFound: gid => writeRankingPlayerNotFound('bat', gid, cohort.publishDate),
+  const set = await loadU15BackfillSet()
+  if (!set) return { error: 'no ranking cached' }
+  return runDetailBackfill(set.gids, {
+    isReady: gid => isCohortPlayerReady(gid, set.publishDate),
+    fetchDetail: gid => fetchDetail(gid, set.rankingId, set.publishDate),
+    persistNotFound: gid => writeRankingPlayerNotFound('bat', gid, set.publishDate),
     delayMs: opts.delayMs,
     jitterMs: opts.jitterMs,
   })

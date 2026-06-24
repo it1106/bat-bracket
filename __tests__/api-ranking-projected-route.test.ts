@@ -35,4 +35,17 @@ describe('GET /api/ranking/projected', () => {
     const res = await GET(new Request('http://x/api/ranking/projected?provider=bwf'))
     expect(res.status).toBe(400)
   })
+
+  it('rejects an unknown U15 board event', async () => {
+    const res = await GET(new Request('http://x/api/ranking/projected?provider=bat&event=U15_XX'))
+    expect(res.status).toBe(400)
+  })
+
+  it('accepts a valid U15 board event (e.g. doubles)', async () => {
+    const res = await GET(new Request('http://x/api/ranking/projected?provider=bat&event=U15_MD'))
+    const body = await res.json()
+    // Not ready (no details seeded) but the event is accepted, not a 400.
+    expect(res.status).toBe(200)
+    expect(body).toMatchObject({ ready: false })
+  })
 })
