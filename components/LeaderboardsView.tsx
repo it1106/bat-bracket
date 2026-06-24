@@ -32,6 +32,9 @@ interface Props {
   /** Provider tab to open on first render (from a `?provider=` deep link,
    *  e.g. the ranking-update alert). Ignored if that provider has no boards. */
   initialProvider?: ProviderTag;
+  /** SSR readiness of the BS U15 projection cohort (BAT only). Undefined when
+   *  not computed. */
+  projectedReady?: { ready: boolean; have: number; total: number };
 }
 
 // Tab order matters: first entry is the default active tab when none is
@@ -63,7 +66,7 @@ function rankingOverviewHref(provider: 'bat' | 'bwf', rankingId: string): string
   return `${base}?id=${rankingId}`
 }
 
-export default function LeaderboardsView({ leaderboards, rankingPublishDates, rankingIds, initialProvider }: Props) {
+export default function LeaderboardsView({ leaderboards, rankingPublishDates, rankingIds, initialProvider, projectedReady }: Props) {
   const { t } = useLanguage()
   const router = useRouter()
   const defaultProvider =
