@@ -822,6 +822,12 @@ export interface AddCtx {
   weekOf: (tournamentId: string) => string | null
 }
 
+// NOTE: live/in-progress tournaments need no special handling here. The index
+// already carries them as `active: true` events, and `pointsRoundFromResult`
+// (called below) applies the next-round floor for active events. The index
+// auto-rebuilds ~every 15 min during live play, so advancement is reflected
+// within that window — no live-bracket path required (decision: 2026-06-24).
+
 /** Recent singles results from the index, pointed via the engine, excluding
  *  any already represented among `baseRows` (the official detail). Caller has
  *  already restricted `events` to one player. */

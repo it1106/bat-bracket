@@ -125,6 +125,15 @@ Algorithm, per player, for `"U15 Boys singles"`:
    `pointsFor` at the result's **source-event age group** — verified: credit =
    points computed at the source event, credited to all eligible boards), and
    include the resulting credit.
+   - **Live / in-progress tournaments are included automatically.** The index
+     already ingests active tournaments as `active: true` events with the
+     **next-round-floor** points (the shipped "still-in-draw" feature: a player
+     who wins their QF immediately floors at SF points), and the auto-rebuild
+     tick (`instrumentation.ts`) re-runs whenever an active tournament has new
+     resolved matches. So a player advancing mid-tournament is reflected in the
+     projection **within ~15 min** (the discovery cadence; paused 00:00–08:00
+     Bangkok) — not only after the tournament ends. No extra live-data path:
+     the projection reads the on-disk index, which carries this already.
    - **Dedup against detail (add-side):** a result is "already counted" — and
      therefore skipped — if a detail row matches on **`(weekSortKey(week),
      sourceEvent, trimmed tournamentName)`**. `tournamentId` is unusable
@@ -257,7 +266,10 @@ All-or-nothing per board — never a half-projected payload.
   publish the 24h detail TTL makes the cohort stale, so the checkbox is dark for
   the ~2 min re-backfill (relevant once the weekly hook lands; for the manual
   pilot, the operator re-runs the route); (e) **top-50 only** — Δ is movement
-  within the pilot cohort, not absolute board position.
+  within the pilot cohort, not absolute board position; (f) **live updates** —
+  in-progress tournaments count at their next-round floor and refresh within
+  ~15 min of a result, so the projection moves during play, not only after a
+  tournament ends.
 - **BAT only** (BWF never shows this).
 
 ---
