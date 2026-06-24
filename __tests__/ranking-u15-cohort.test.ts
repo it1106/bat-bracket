@@ -58,7 +58,7 @@ describe('u15-cohort (all U15 boards)', () => {
     expect(new Set(set!.gids).size).toBe(250)
   })
 
-  it('readiness is false until every union player is fresh, then true', async () => {
+  it('readiness is false until every union player is present, then true', async () => {
     const before = await cohortReadiness()
     expect(before).toMatchObject({ ready: false, have: 0, total: 250 })
 
@@ -70,5 +70,29 @@ describe('u15-cohort (all U15 boards)', () => {
       })
     }
     expect(await cohortReadiness()).toMatchObject({ ready: true, have: 250, total: 250 })
+  })
+
+  it('keys readiness on publishDate ONLY — a stale-but-current scrape stays ready', async () => {
+    // An ancient scrapedAt would fail the 24h freshness TTL; readiness must
+    // ignore that and gate on publishDate so the checkbox doesn't flap daily.
+    const set = await loadU15BackfillSet()
+    for (const gid of set!.gids) {
+      await writeRankingPlayerDetail('bat', {
+        globalPlayerId: gid, publishDate: '23/6/2569',
+        scrapedAt: '2000-01-01T00:00:00.000Z', tournaments: [],
+      })
+    }
+    expect(await cohortReadiness()).toMatchObject({ ready: true, have: 250, total: 250 })
+  })
+
+  it('readiness is false when cached details are for a previous publication', async () => {
+    const set = await loadU15BackfillSet()
+    for (const gid of set!.gids) {
+      await writeRankingPlayerDetail('bat', {
+        globalPlayerId: gid, publishDate: '16/6/2569', // last week
+        scrapedAt: new Date().toISOString(), tournaments: [],
+      })
+    }
+    expect(await cohortReadiness()).toMatchObject({ ready: false, have: 0, total: 250 })
   })
 })

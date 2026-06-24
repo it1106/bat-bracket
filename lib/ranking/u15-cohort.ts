@@ -1,5 +1,5 @@
 import { readRankingCache } from '@/lib/ranking/cache'
-import { readRankingPlayerDetail, isDetailScrapeFresh } from '@/lib/ranking/player-cache'
+import { readRankingPlayerDetail } from '@/lib/ranking/player-cache'
 import type { Discipline } from '@/lib/ranking/player-view'
 
 export const COHORT_SIZE = 50
@@ -77,17 +77,22 @@ export async function loadU15BackfillSet(): Promise<
   return { rankingId: ranking.rankingId, publishDate: ranking.publishDate, gids: Array.from(gids) }
 }
 
-/** A cohort player is ready when their cached detail (or notFound marker)
- *  matches the current publishDate and the scrape is within the revision TTL. */
+/** A cohort player is ready when their cached detail (or notFound marker) is
+ *  for the current publication. Readiness is keyed on `publishDate` ALONE — not
+ *  the 24h scrape-freshness TTL that gates on-demand player pages. A cohort
+ *  detail only feeds the projection's *published base rows*, which change just
+ *  once a week when publishDate moves; the live/new-tournament portion comes
+ *  from the index (rebuilt ~15 min), not this cache. Tying readiness to the 24h
+ *  TTL made the whole cohort decay below 100% the day after each weekly sweep —
+ *  flapping the "Next Ranking" checkbox off for no benefit. publishDate-only
+ *  readiness stays green all week; the weekly publication + self-heal backfill
+ *  keep the data current. (Trade-off: a rare mid-week in-place revision isn't
+ *  reflected until the next publication — acceptable for the beta.) */
 export async function isCohortPlayerReady(gid: string, publishDate: string): Promise<boolean> {
   const cache = await readRankingPlayerDetail('bat', gid)
   if (!cache) return false
-  if (cache.detail) {
-    return cache.detail.publishDate === publishDate && isDetailScrapeFresh(cache.detail.scrapedAt)
-  }
-  if (cache.notFound) {
-    return cache.notFound.publishDate === publishDate && isDetailScrapeFresh(cache.notFound.scrapedAt)
-  }
+  if (cache.detail) return cache.detail.publishDate === publishDate
+  if (cache.notFound) return cache.notFound.publishDate === publishDate
   return false
 }
 
