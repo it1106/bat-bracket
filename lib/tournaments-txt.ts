@@ -7,6 +7,10 @@ export interface ParsedTxt {
   denySet: Set<string>
   /** Case-folded substrings; an entry is denied if its name contains any of them. */
   denyNamePatterns: string[]
+  /** Manual BAT tournament level overrides keyed by uppercased GUID. Used for
+   *  tournaments whose regulations page omits a parseable level. Takes
+   *  precedence over the auto-parsed level. */
+  levelOverrides: Map<string, number>
 }
 
 export interface ParseDeps {
@@ -15,6 +19,11 @@ export interface ParseDeps {
 }
 
 const DENY_RE = /^#\s*deny\s+([A-Fa-f0-9-]{36})/
+// `# level <GUID> <n>` — manual level override (n = 1..6) for tournaments whose
+// regulations page has no parseable level. Mirrors the `# deny` directive. An
+// optional trailing `# comment` (e.g. the tournament name) is allowed after the
+// level; the (?:\s|$) guard keeps multi-digit values like "19" from matching.
+const LEVEL_RE = /^#\s*level\s+([A-Fa-f0-9-]{36})\s+([1-6])(?:\s|$)/
 // `# deny-name <substring>` — case-insensitive substring match against the
 // tournament name. Useful for recurring series whose GUID changes every year
 // (e.g. กีฬาบุคคล, กีฬาอาวุโสแห่งชาติ).
@@ -27,9 +36,12 @@ export function parseTournamentsTxt(content: string, deps: ParseDeps = {}): Pars
   const lines = content.split('\n').map((l) => l.trim()).filter((l) => l.length > 0)
   const denySet = new Set<string>()
   const denyNamePatterns: string[] = []
+  const levelOverrides = new Map<string, number>()
   const manualEntries: TournamentInfo[] = []
 
   for (const l of lines) {
+    const levelMatch = LEVEL_RE.exec(l)
+    if (levelMatch) { levelOverrides.set(levelMatch[1].toUpperCase(), Number(levelMatch[2])); continue }
     const denyMatch = DENY_RE.exec(l)
     if (denyMatch) { denySet.add(denyMatch[1].toUpperCase()); continue }
     const denyNameMatch = DENY_NAME_RE.exec(l)
@@ -63,5 +75,5 @@ export function parseTournamentsTxt(content: string, deps: ParseDeps = {}): Pars
     const name = manualDone ? rest.slice(0, -6).trim() : rest
     manualEntries.push({ id, name, ...(manualDone && { done: true }) })
   }
-  return { manualEntries, denySet, denyNamePatterns }
+  return { manualEntries, denySet, denyNamePatterns, levelOverrides }
 }

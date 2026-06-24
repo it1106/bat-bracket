@@ -25,6 +25,26 @@ describe('parseTournamentsTxt', () => {
     expect(Array.from(denySet)).toEqual(['11111111-2222-3333-4444-555555555555'])
   })
 
+  it('parses "# level <GUID> <n>" directives into an uppercased override map', () => {
+    const input = [
+      '# level a2812d92-b33f-4f37-ac72-3310bb1be0f1 1',
+      '#level 66F4AF24-4FC2-4D05-9ACB-986F157A1978 1',
+      '# level D5DF6DCC-DBCE-4E78-8B43-E4681BEFE8CC 2',
+      '# level not-a-guid 3',
+      '# level 11111111-2222-3333-4444-555555555555 9',
+      '# level aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee 1   # with trailing comment',
+    ].join('\n')
+    const { levelOverrides } = parseTournamentsTxt(input)
+    expect(levelOverrides.get('A2812D92-B33F-4F37-AC72-3310BB1BE0F1')).toBe(1)
+    expect(levelOverrides.get('66F4AF24-4FC2-4D05-9ACB-986F157A1978')).toBe(1)
+    expect(levelOverrides.get('D5DF6DCC-DBCE-4E78-8B43-E4681BEFE8CC')).toBe(2)
+    // Trailing inline comment after the level is allowed.
+    expect(levelOverrides.get('AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE')).toBe(1)
+    // Non-GUID and out-of-range (1-6) levels are ignored.
+    expect(levelOverrides.has('NOT-A-GUID')).toBe(false)
+    expect(levelOverrides.get('11111111-2222-3333-4444-555555555555')).toBeUndefined()
+  })
+
   it('emits @bwf entries with provider=bwf when sidecar has entry', () => {
     const { manualEntries } = parseTournamentsTxt(MIXED_INPUT, {
       lookupByUrl: (url) => {
