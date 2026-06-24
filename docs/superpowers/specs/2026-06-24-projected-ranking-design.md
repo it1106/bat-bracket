@@ -193,15 +193,29 @@ standalone unit keeps the later `publishDateChanged` hook a small change.
 
 ---
 
-## 7. API projected mode — extend `/api/leaderboards`
+## 7. API projected mode — dedicated route
 
-For `event=U15_MS` + `projected=1`:
+> **Correction (2026-06-24):** the ranking tab is **not** served by
+> `/api/leaderboards` (that route serves the precomputed leaderboards cache,
+> which has no ranking-category boards). The ranking boards are built **SSR in
+> `app/leaderboards/page.tsx`** from `ranking-bat.json` (`rankingEventToBoard`,
+> board id `ranking-u15_ms`). So projection gets its **own route**, fetched by
+> the client when the checkbox is toggled — `/api/leaderboards` is untouched.
+
+**Readiness flag (SSR, cheap):** `page.tsx` runs a stat+freshness check on the
+50 cohort detail files and passes `projectedReady = { ready, have, total }` to
+the view, so the checkbox can render disabled (`N/50`) without any fetch.
+
+**Projected route** `app/api/ranking/projected/route.ts`, `GET ?provider=bat`
+(pilot is U15-only; the event is implicit):
 1. **Readiness gate:** confirm all 50 cohort players have detail fresh for the
    current `publishDate`. If not → `{ ready: false, have, total }` (no
    projection computed).
-2. If ready → run the projection engine across the 50, return both official and
+2. If ready → run the projection across the 50, return both official and
    projected entries: `{ ready: true, publishDate, entries: [{ slug, name,
    officialRank, officialPoints, projectedRank, projectedPoints, delta }] }`.
+   These 50 rows carry their own official+projected ranks, **independent of the
+   30-cap official board** — the UI renders them directly in projected mode.
 
 All-or-nothing per board — never a half-projected payload.
 
@@ -212,8 +226,10 @@ All-or-nothing per board — never a half-projected payload.
 - **Checkbox** "Projected Ranking (beta)" next to the "Published x (week)"
   label, **rendered only for the `U15_MS` board** during the pilot. When checked
   the board is limited to the **top-50 cohort** (see §4).
-- **Disabled until ready:** while `ready: false`, the checkbox is disabled with
-  `backfill in progress (N/50)`. Enabled once 50/50.
+- **Disabled until ready:** the SSR `projectedReady` flag (§7) renders the
+  checkbox disabled with `backfill in progress (N/50)` until 50/50 — no fetch
+  needed for the disabled state. Toggling on (when ready) fetches the projected
+  route and swaps in the dual columns.
 - **Dual side-by-side render** when checked (chosen layout):
 
   ```
