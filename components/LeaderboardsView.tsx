@@ -37,6 +37,10 @@ type ProjectedBoardResponse =
   | { ready: false; have: number; total: number };
 
 const U15_RANKING_BOARD_ID = 'ranking-u15_ms';
+// Project over the full 50-player cohort (so a player ranked >30 who surges can
+// still appear), but display only the top 30 projected — matching the official
+// ranking board's depth.
+const PROJECTED_DISPLAY_LIMIT = 30;
 
 interface Props {
   leaderboards: Leaderboards[];
@@ -361,7 +365,7 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
                       <tr><th>Player</th><th>Rank</th><th>Pts</th><th>Rank</th><th>Pts</th><th></th></tr>
                     </thead>
                     <tbody>
-                      {projectedData.entries.map((e) => (
+                      {projectedData.entries.slice(0, PROJECTED_DISPLAY_LIMIT).map((e) => (
                         <tr key={e.slug}>
                           <td>{e.name}</td>
                           <td>{e.officialRank}</td>
