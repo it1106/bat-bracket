@@ -16,8 +16,9 @@ ranking, **removes** points expiring out of the rolling 52-week window,
 re-ranks, and shows up/down movement vs. the official ranks.
 
 **Pilot scope (locked):** the mechanism is complete (add + expire), but the
-pilot renders and backfills **only the BS U15 board** (`U15_MS`, 500 players).
-Whole-board rollout is a later flag flip — out of scope for this spec.
+pilot renders and backfills only the **top 50 players (by official rank) of the
+BS U15 board** (`U15_MS`). Widening to the full 500, then to all boards, is a
+later flag flip — out of scope for this spec.
 
 ---
 
@@ -59,21 +60,38 @@ shipped points engine. (Auto-rebuilds when tournaments complete.)
 
 ---
 
-## 3. The ranking rule (corrected)
+## 3. The ranking rule (two rules, both verified)
 
-A board's ranking is **top-10 credits toward that specific event, summed** —
-**not** a per-discipline "highest-entry-counts" dedup (that rule is for the
-profile points *display* and does **not** apply here). The only collapse that
-applies is `dedupePerTournament` (same `(week, tournamentName)` → keep the
-marked / higher-points / older-age row), which is already encoded in
-`lib/ranking/player-view.ts`.
+A board's ranking is **the sum of a player's top-10 credits toward that
+specific event** — after collapsing same-tournament duplicates. Two collapse
+rules apply; the broader "highest-entry-counts per discipline" rule from the
+profile points *display* (e.g. keep BS U15 over BS U13 across the whole
+history) does **not** apply to an event ranking.
+
+**Rule 1 — same tournament, same discipline, different age group → keep only
+the highest-points entry.** If a player enters one tournament in two singles
+draws (e.g. plays up: BS U15 *and* BS U17), only the higher-points result
+counts toward the board; the other is dropped. This is `dedupePerTournament`
+(`lib/ranking/player-view.ts`), keyed on `(weekSortKey(week),
+trimmed tournamentName)` within a single discipline, keeping the
+marked / higher-points entry (the equal-points tiebreak direction is immaterial
+to the total).
+
+*Verified on prod:* across the 333 cached details there are **597**
+same-tournament/same-discipline cross-age singles pairs, and in every one
+**exactly the higher-points row is marked as counting** (e.g. gid 2458856,
+นครสวรรค์ 2025: BS U17 8192 counts, BS U19 5243 dropped).
+
+**Rule 2 — top-10 by credit, with promotion on expiry.** Only the best 10
+(post-Rule-1) credits sum to the total. When a counting result expires out of
+the window, the **next-highest remaining** result is promoted into the top-10
+(this is why the detail's 11th+ rows must be retained — see §2.2).
 
 So, per player, for the target board `"U15 Boys singles"`:
 1. Take detail rows whose `countsTowardRankingsParsed` has a credit entry for
-   the target event (equivalently: that player's singles results eligible for
-   this board), using that **credit** value.
-2. `dedupePerTournament`.
-3. Top-10 by credit, summed = the board total. (Validated; see §2.2.)
+   the target event, using that **credit** value.
+2. Apply Rule 1 (`dedupePerTournament`).
+3. Sum the top-10 by credit = the board total. (Validated → 31,336; see §2.2.)
 
 ---
 
@@ -90,10 +108,11 @@ Algorithm, per player, for `"U15 Boys singles"`:
    value = that credit. (Detail rows already carry the cross-tier credit, so use
    the stored `credit`, which may legitimately differ from raw `points` for
    cross-tier cases.)
-2. **Expire.** Drop rows whose `week` falls outside the **next-publish** window,
-   using `expiringNextWeekCutoff(publishDate, 'thai-be')` +
-   `isExpiringNextWeek` from `player-view.ts` (the `53 - weeksOut` cutoff,
-   `weeksOut = 1`).
+2. **Expire (Rule 2 removal).** Drop rows whose `week` falls outside the
+   **next-publish** window, using `expiringNextWeekCutoff(publishDate,
+   'thai-be')` + `isExpiringNextWeek` from `player-view.ts` (the
+   `53 - weeksOut` cutoff, `weeksOut = 1`). These rows leave the candidate set,
+   freeing top-10 slots for promotion in step 5.
 3. **Add.** From the index, take this player's un-counted target-eligible
    results, point each via the shipped engine (`pointsRoundFromResult` +
    `pointsFor` at the result's **source-event age group** — verified: credit =
@@ -102,24 +121,33 @@ Algorithm, per player, for `"U15 Boys singles"`:
    - **Dedup against detail (add-side):** a result is "already counted" — and
      therefore skipped — if a detail row matches on **`(weekSortKey(week),
      sourceEvent, trimmed tournamentName)`**. `tournamentId` is unusable
-     (null), so it is **not** part of the key.
-4. **Merge + dedup.** Concatenate base (post-expire) + added; run
-   `dedupePerTournament`.
-5. **Top-10 by credit, sum** → projected board total.
+     (null), so it is **not** part of the key. (Note: this is keyed on
+     `sourceEvent` so a genuinely new played-up draw at an already-present
+     tournament is *not* falsely skipped — Rule 1 then resolves it in step 4.)
+4. **Merge + dedup (Rule 1).** Concatenate base (post-expire) + added; run
+   `dedupePerTournament` so same-tournament/cross-age entries collapse to the
+   single highest.
+5. **Top-10 by credit, sum → projected board total (Rule 2 promotion).** With
+   expired rows gone (step 2), any previously-11th result now within the best
+   10 is automatically promoted by this re-pick.
 
 Reuse from `player-view.ts`: `weekSortKey`, `dedupePerTournament`,
 `expiringNextWeekCutoff`, `isExpiringNextWeek`, `TOP_N`. Do **not** reuse
 `topRowsForTab` — it selects by discipline+`points`, whereas the projection
 selects by per-event `credit`.
 
-Board assembly: run the per-player projection across the existing 500 entries,
-re-sort by projected total → projected rank, compute Δ vs official rank.
+Board assembly: run the per-player projection across the **top 50 official
+entries**, re-sort by projected total → projected rank, compute Δ vs official
+rank (within those 50).
 
-**New entrants (locked):** the pilot projects **only the existing 500** ranked
-players. A player who appears only in the index (never officially ranked) is
-**not** added to the projected board. Rationale: the backfill set and the
-"500/500 ready" gate are keyed to the official 500; admitting new entrants is a
-whole-board-rollout concern.
+**Fixed cohort (locked):** the pilot projects **only the top-50-by-official-
+rank cohort** and re-ranks them among themselves. Two consequences, both
+accepted for the pilot and surfaced in the beta caveat:
+- A player outside the top 50 (official rank ≥ 51) who would project into the
+  top 50 **cannot** appear — we don't backfill or evaluate them. So Δ is
+  "movement within the top 50," not absolute board position.
+- A player who appears only in the index (never officially ranked) is likewise
+  **not** added. Admitting outside/new players is a rollout concern.
 
 ---
 
@@ -132,7 +160,8 @@ Orchestrator that gap-fills missing/stale details for a given id list.
   existing `fetchAndCache` from `app/api/players/ranking-detail/route.ts`
   (**exactly 1 upstream request/player**, since every id is known).
 - **Pacing:** serial (concurrency 1), ~1 request / 2 s with ±0.5 s jitter
-  (~17 min for 500). Backoff + circuit-breaker on 429/5xx/timeouts.
+  (~2 min for 50; the pace scales unchanged if widened to 500 ≈ 17 min).
+  Backoff + circuit-breaker on 429/5xx/timeouts.
 - **Single-flight:** a simple in-process lock (pilot is manually triggered; no
   cross-process lease needed yet).
 - **Resumable / gap-fill:** the per-publication disk cache is the ledger; a
@@ -141,10 +170,10 @@ Orchestrator that gap-fills missing/stale details for a given id list.
 - **Returns:** `{ total, have, fetched, failed: gid[] }`. Per-player failures
   are collected, not fatal.
 
-**Cost (verified for `U15_MS`):** 500 unique players, all with `globalPlayerId`
-→ **~430–500 one-time fetches** (500 minus whatever slice of the already-cached
-333 fall in this board) and **~500 per weekly publication** to reset the
-baseline.
+**Cost (pilot):** the top 50 `U15_MS` players, all with `globalPlayerId`
+→ **≤ 50 one-time fetches** (fewer if some already cached) and **≤ 50 per
+weekly publication** to reset the baseline (~2 min). The full `U15_MS` board
+would be ~430–500; the whole board ~1,945 — both out of scope here.
 
 ---
 
@@ -152,8 +181,9 @@ baseline.
 
 `app/api/ranking/backfill-u15/route.ts`, token-gated
 (`PLAYERS_REBUILD_TOKEN`-style):
-- Reads `U15_MS` entries from `ranking-bat.json`, hands their 500 ids +
-  `publishDate` to the backfill job.
+- Reads the **top 50** `U15_MS` entries (by `rank`) from `ranking-bat.json`,
+  hands their ids + `publishDate` to the backfill job. (Cohort size is a single
+  constant — bump it to widen the pilot.)
 - Idempotent: re-running fetches only the gaps.
 - Returns `{ ready: have === total, have, total, fetched, failed }`.
 - Thin `scripts/backfill-u15.ts` wrapper for CLI use.
@@ -166,11 +196,11 @@ standalone unit keeps the later `publishDateChanged` hook a small change.
 ## 7. API projected mode — extend `/api/leaderboards`
 
 For `event=U15_MS` + `projected=1`:
-1. **Readiness gate:** confirm all 500 `U15_MS` players have detail fresh for
-   the current `publishDate`. If not → `{ ready: false, have, total }` (no
+1. **Readiness gate:** confirm all 50 cohort players have detail fresh for the
+   current `publishDate`. If not → `{ ready: false, have, total }` (no
    projection computed).
-2. If ready → run the projection engine across the 500, return both official
-   and projected entries: `{ ready: true, publishDate, entries: [{ slug, name,
+2. If ready → run the projection engine across the 50, return both official and
+   projected entries: `{ ready: true, publishDate, entries: [{ slug, name,
    officialRank, officialPoints, projectedRank, projectedPoints, delta }] }`.
 
 All-or-nothing per board — never a half-projected payload.
@@ -180,9 +210,10 @@ All-or-nothing per board — never a half-projected payload.
 ## 8. UI — `components/LeaderboardsView.tsx`
 
 - **Checkbox** "Projected Ranking (beta)" next to the "Published x (week)"
-  label, **rendered only for the `U15_MS` board** during the pilot.
+  label, **rendered only for the `U15_MS` board** during the pilot. When checked
+  the board is limited to the **top-50 cohort** (see §4).
 - **Disabled until ready:** while `ready: false`, the checkbox is disabled with
-  `backfill in progress (N/500)`. Enabled once 500/500.
+  `backfill in progress (N/50)`. Enabled once 50/50.
 - **Dual side-by-side render** when checked (chosen layout):
 
   ```
@@ -200,9 +231,10 @@ All-or-nothing per board — never a half-projected payload.
   (b) cross-tier crediting nuances; (c) **post-publish convergence** — right
   after a Tuesday publish the projection ≈ official (nothing has expired yet,
   few un-counted events), diverging as the week progresses; (d) after each
-  publish the 24h detail TTL makes all 500 stale, so the checkbox is dark for
-  the ~17 min re-backfill (relevant once the weekly hook lands; for the manual
-  pilot, the operator re-runs the route).
+  publish the 24h detail TTL makes the cohort stale, so the checkbox is dark for
+  the ~2 min re-backfill (relevant once the weekly hook lands; for the manual
+  pilot, the operator re-runs the route); (e) **top-50 only** — Δ is movement
+  within the pilot cohort, not absolute board position.
 - **BAT only** (BWF never shows this).
 
 ---
@@ -221,20 +253,24 @@ All-or-nothing per board — never a half-projected payload.
 
 ## 10. Testing
 
-- **Engine (heaviest):** add-only, expire-only, add+expire, top-10 re-pick with
-  promotion of an 11th row when a counting row expires, `dedupePerTournament`
-  collapse, add-side dedup by `(week, sourceEvent, tournamentName)`, cross-tier
-  credit ≠ points, the §2.2 reconstruction (top-10 credits → 31,336) as a
-  golden test against a captured `gid 4200007` fixture.
+- **Engine (heaviest):** add-only, expire-only, add+expire; **Rule 1** —
+  same-tournament/same-discipline cross-age collapse keeps the higher-points
+  entry; **Rule 2** — expiring a counting row promotes the next-highest 11th row
+  into the top-10; add-side dedup by `(week, sourceEvent, tournamentName)`
+  (and that a genuinely new played-up draw at an already-present tournament is
+  *not* skipped, then Rule 1 resolves it); cross-tier credit ≠ points; the §2.2
+  reconstruction (top-10 credits → 31,336) as a golden test against a captured
+  `gid 4200007` fixture.
 - **Backfill job:** mocked fetcher — gap-fill, resume, failure collection,
   single-flight, pacing/backoff invoked.
-- **API:** contract test for the `ready: false` gate (one missing detail →
-  no projection) and the ready payload shape.
+- **API:** the cohort is exactly the top-50 by official rank; `ready: false`
+  gate (one missing detail → no projection); ready payload shape.
 
 ---
 
 ## 11. Out of scope (later rollout)
 
-Whole-board (all 35 events / 2,269 players) projection; scheduler/lease-driven
-auto-backfill hooked to `publishDateChanged` + the 24h `DETAIL_REVISION_TTL_MS`;
-new-entrant admission; weekly off-peak throttle tuning.
+Widening the U15 pilot from top-50 to the full 500; whole-board (all 35 events
+/ 2,269 players) projection; scheduler/lease-driven auto-backfill hooked to
+`publishDateChanged` + the 24h `DETAIL_REVISION_TTL_MS`; admitting players from
+outside the cohort and brand-new entrants; weekly off-peak throttle tuning.
