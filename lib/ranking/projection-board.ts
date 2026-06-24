@@ -1,18 +1,10 @@
 import type {
   RankingPlayerDetail, PlayerEventResult, RankingPlayerTournament,
 } from '@/lib/types'
-import { ProjectionRow, projectPlayer } from '@/lib/ranking/projection'
-import { weekSortKey, disciplineOf } from '@/lib/ranking/player-view'
+import { ProjectionRow, projectPlayer, tournamentKey } from '@/lib/ranking/projection'
+import { disciplineOf } from '@/lib/ranking/player-view'
 import { ageGroupFromEvent, pointsFor, pointsRoundFromResult } from '@/lib/points/bat-points'
 import type { CohortPlayer } from '@/lib/ranking/u15-cohort'
-
-/** Normalized identity for "the same tournament-result toward a board":
- *  ISO-week + discipline class + age number. Robust to the differing event-name
- *  formats between the detail (sourceEvent "BS U15") and the index
- *  (eventName "Boys' Singles U15"). */
-function resultKey(week: string, discipline: string | null, age: string | null): string {
-  return `${weekSortKey(week)}::${discipline ?? '?'}::${age ?? '?'}`
-}
 
 /** Every boys-SINGLES detail row, credit = the row's own `points`. Do NOT key
  *  on `countsTowardRankingsParsed` — that array is populated ONLY for currently-
@@ -49,20 +41,23 @@ export function buildAddedRows(
   baseRows: ProjectionRow[],
   ctx: AddCtx,
 ): ProjectionRow[] {
-  const seen = new Set(baseRows.map(r => resultKey(r.week, disciplineOf(r.sourceEvent), ageGroupFromEvent(r.sourceEvent))))
+  // Identify already-counted tournaments by name+discipline (NOT week — the
+  // index and the official detail can label the same tournament with different
+  // ISO weeks, which previously caused double-counting).
+  const seen = new Set(baseRows.map(r => tournamentKey(r.tournamentName, r.sourceEvent)))
   const out: ProjectionRow[] = []
   for (const e of events) {
     if (e.discipline !== 'singles') continue                 // U15 Boys *singles* board
     const week = ctx.weekOf(e.tournamentId)
     if (!week) continue
     const age = ageGroupFromEvent(e.eventName)
-    const key = resultKey(week, 'singles', age)
-    if (seen.has(key)) continue                              // already counted officially
+    const name = ctx.nameOf(e.tournamentId)
+    if (seen.has(tournamentKey(name, e.eventName))) continue // already counted officially
     const level = ctx.levelOf(e.tournamentId)
     const round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize, e.lostByWalkover, e.active)
     const credit = level && age && round ? pointsFor(level, age, round) : null
     if (!credit) continue
-    out.push({ week, sourceEvent: e.eventName, tournamentName: ctx.nameOf(e.tournamentId), credit })
+    out.push({ week, sourceEvent: e.eventName, tournamentName: name, credit })
   }
   return out
 }

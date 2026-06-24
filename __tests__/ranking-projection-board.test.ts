@@ -60,6 +60,30 @@ describe('buildAddedRows', () => {
     expect(rows).toEqual([])
   })
 
+  it('skips an already-counted tournament even when index/detail weeks disagree', () => {
+    // Real bug: BAT detail labels Trang week 2026-17; our index computes 2026-16
+    // for the same tournament. Match must be by tournament name, not week.
+    const trangBase = [{ week: '2026-17', sourceEvent: 'BS U15', tournamentName: 'Trang Yonex Open 2026', credit: 6554 }]
+    const ctx2 = {
+      levelOf: () => 2,
+      nameOf: () => 'Trang Yonex Open 2026',
+      weekOf: () => '2026-16',
+    }
+    const rows = buildAddedRows([ev('Ttrang', 'BS U15')], trangBase, ctx2)
+    expect(rows).toEqual([])
+  })
+
+  it('matches names that differ only in internal whitespace', () => {
+    const sprcBase = [{ week: '2026-19', sourceEvent: 'BS U17', tournamentName: 'SPRC - CALTEX  CHAMPIONSHIP 2026', credit: 2684 }]
+    const ctx3 = {
+      levelOf: () => 2,
+      nameOf: () => 'SPRC - CALTEX CHAMPIONSHIP 2026', // single space
+      weekOf: () => '2026-18',
+    }
+    const rows = buildAddedRows([ev('Tsprc', 'BS U17')], sprcBase, ctx3)
+    expect(rows).toEqual([])
+  })
+
   it('excludes non-singles results (wrong board)', () => {
     const doubles = { ...ev('T9', 'BD U15'), discipline: 'doubles' as const }
     expect(buildAddedRows([doubles], base, ctx)).toEqual([])

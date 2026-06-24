@@ -1,6 +1,16 @@
 import {
-  weekSortKey, expiringNextWeekCutoff, isExpiringNextWeek,
+  weekSortKey, expiringNextWeekCutoff, isExpiringNextWeek, disciplineOf,
 } from '@/lib/ranking/player-view'
+
+/** Tournament identity key: normalized name + discipline. NOT week — the same
+ *  tournament can carry different ISO weeks across our two data sources (BAT's
+ *  official detail vs. our index's start-date-derived week), so keying on week
+ *  would fail to collapse them and double-count. Names match across sources
+ *  after whitespace/case normalization. */
+export function tournamentKey(tournamentName: string, sourceEvent: string): string {
+  const name = tournamentName.trim().replace(/\s+/g, ' ').toLowerCase()
+  return `${name}::${disciplineOf(sourceEvent) ?? '?'}`
+}
 
 export interface ProjectionRow {
   week: string            // "YYYY-WW"
@@ -20,13 +30,15 @@ function ageOf(sourceEvent: string): number {
   return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY
 }
 
-/** Rule 1: collapse rows sharing (week, tournamentName) to a single entry,
- *  keeping the highest credit. Ties keep the older age group (immaterial to
- *  the total — mirrors upstream). */
+/** Rule 1: collapse rows sharing the same tournament (by name + discipline) to
+ *  a single entry, keeping the highest credit. Ties keep the older age group
+ *  (immaterial to the total — mirrors upstream). Keying on name (not week) is
+ *  what makes a tournament present in both the official detail and our index
+ *  count once. */
 function dedupeByTournament(rows: ProjectionRow[]): ProjectionRow[] {
   const byKey = new Map<string, ProjectionRow>()
   for (const r of rows) {
-    const key = `${weekSortKey(r.week)}::${r.tournamentName.trim()}`
+    const key = tournamentKey(r.tournamentName, r.sourceEvent)
     const cur = byKey.get(key)
     if (!cur) { byKey.set(key, r); continue }
     let wins: boolean
