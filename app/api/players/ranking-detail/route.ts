@@ -3,7 +3,6 @@ import { batFetch } from '@/lib/bat-fetch'
 import { readRankingCache } from '@/lib/ranking/cache'
 import {
   readRankingPlayerDetail,
-  writeRankingPlayerDetail,
   writeRankingPlayerNotFound,
   isDetailScrapeFresh,
 } from '@/lib/ranking/player-cache'
@@ -15,9 +14,7 @@ import {
 import { readIndexCache } from '@/lib/player-index-cache'
 import { rankingSlugAlias } from '@/lib/ranking/aliases'
 import { extractProfileUrl } from '@/lib/scraper'
-import { parseRankingPlayerPage } from '@/lib/ranking/player-scraper'
-import { rankingFetch } from '@/lib/ranking/fetch'
-import { getRankingConfig } from '@/lib/ranking/config'
+import { fetchAndCacheDetail } from '@/lib/ranking/fetch-detail'
 import type { RankingPlayerDetail, ProviderTag } from '@/lib/types'
 
 export const maxDuration = 30
@@ -81,26 +78,6 @@ async function lookupBwfGlobalPlayerId(slug: string): Promise<string | null> {
   return null
 }
 
-async function fetchAndCache(
-  provider: ProviderTag,
-  globalPlayerId: string,
-  rankingId: string,
-  publishDate: string,
-): Promise<RankingPlayerDetail | { notFound: true }> {
-  const cfg = getRankingConfig(provider)
-  const url = cfg.playerUrl(rankingId, globalPlayerId)
-  const res = await rankingFetch(provider, 'player-detail', url)
-  if (res.status === 404) return { notFound: true }
-  if (!res.ok) throw new Error(`upstream ${res.status}`)
-  const html = await res.text()
-  const { tournaments } = parseRankingPlayerPage(html)
-  const detail: RankingPlayerDetail = {
-    globalPlayerId, publishDate, scrapedAt: new Date().toISOString(), tournaments,
-  }
-  await writeRankingPlayerDetail(provider, detail)
-  return detail
-}
-
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const slug = url.searchParams.get('slug')
@@ -145,7 +122,7 @@ export async function GET(req: Request) {
   if (!p) {
     p = (async () => {
       try {
-        return await fetchAndCache(providerParam, globalPlayerId, current.rankingId, current.publishDate)
+        return await fetchAndCacheDetail(providerParam, globalPlayerId, current.rankingId, current.publishDate)
       } finally {
         inflight.delete(dedupKey)
       }

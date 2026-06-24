@@ -85,7 +85,7 @@ function parsePublishDateString(s: string, format: DateFormat): Date | null {
 }
 
 /** ISO 8601 week of a UTC Date as "YYYY-W" (no zero-padding). */
-function isoWeekString(d: Date): string {
+export function isoWeekString(d: Date): string {
   const t = new Date(d.getTime())
   const day = t.getUTCDay() || 7
   t.setUTCDate(t.getUTCDate() + 4 - day)

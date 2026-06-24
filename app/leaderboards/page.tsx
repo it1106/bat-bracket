@@ -1,5 +1,6 @@
 import { readLeaderboardsCache } from '@/lib/player-index-cache'
 import { readRankingCache } from '@/lib/ranking/cache'
+import { cohortReadiness } from '@/lib/ranking/u15-cohort'
 import LeaderboardsView from '@/components/LeaderboardsView'
 import type {
   Leaderboards, Ranking, RankingEvent, LeaderboardEntry, LeaderboardBoard, ProviderTag,
@@ -53,11 +54,12 @@ export default async function LeaderboardsPage(
   const requested = searchParams?.provider
   const initialProvider: ProviderTag | undefined =
     requested === 'bat' || requested === 'bwf' ? requested : undefined
-  const [bat, bwf, batRanking, bwfRanking] = await Promise.all([
+  const [bat, bwf, batRanking, bwfRanking, projectedReady] = await Promise.all([
     readLeaderboardsCache('bat'),
     readLeaderboardsCache('bwf'),
     readRankingCache('bat'),
     readRankingCache('bwf'),
+    cohortReadiness(),
   ])
 
   const providers: Leaderboards[] = []
@@ -80,6 +82,7 @@ export default async function LeaderboardsPage(
       rankingPublishDates={rankingPublishDates}
       rankingIds={rankingIds}
       initialProvider={initialProvider}
+      projectedReady={projectedReady}
     />
   )
 }
