@@ -18,7 +18,7 @@ const detail: RankingPlayerDetail = {
 
 describe('buildBaseRows', () => {
   it('keeps singles rows (credit = points), excludes doubles', () => {
-    const rows = buildBaseRows(detail, TARGET)
+    const rows = buildBaseRows(detail)
     expect(rows).toEqual([{ week: '2026-10', sourceEvent: 'BS U15', tournamentName: 'A', credit: 4194 }])
   })
 
@@ -31,13 +31,13 @@ describe('buildBaseRows', () => {
           result: '33/64', points: 2147, countsTowardRankings: [], countsTowardRankingsParsed: [] },
       ],
     }
-    const rows = buildBaseRows(withEleventh, TARGET)
+    const rows = buildBaseRows(withEleventh)
     expect(rows.find(r => r.tournamentName === 'OLD')).toMatchObject({ credit: 2147 })
   })
 })
 
 describe('buildAddedRows', () => {
-  const base = buildBaseRows(detail, TARGET)
+  const base = buildBaseRows(detail)
   const ctx = {
     levelOf: () => 2,
     nameOf: (id: string) => (id === 'T9' ? 'NEW EVENT' : 'A'),
@@ -81,7 +81,7 @@ describe('assembleProjectedBoard', () => {
           result: 'y', points: 9000, countsTowardRankings: [TARGET], countsTowardRankingsParsed: [{ eventName: TARGET, credit: 9000 }] }] },
     }
     const board = await assembleProjectedBoard(cohort, {
-      publishDate: '23/6/2569', targetEvent: TARGET,
+      publishDate: '23/6/2569',
       detailOf: async g => details[g] ?? null,
       eventsOf: () => [],
       addCtx: { levelOf: () => undefined, nameOf: () => '', weekOf: () => null },

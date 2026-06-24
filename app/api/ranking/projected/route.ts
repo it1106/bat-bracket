@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { loadCohort, cohortReadiness, TARGET_EVENT_NAME } from '@/lib/ranking/u15-cohort'
+import { loadCohort, cohortReadiness } from '@/lib/ranking/u15-cohort'
 import { assembleProjectedBoard } from '@/lib/ranking/projection-board'
 import { buildProjectionContext } from '@/lib/ranking/projection-context'
 import { readRankingPlayerDetail } from '@/lib/ranking/player-cache'
@@ -20,7 +20,6 @@ export async function GET(req: Request) {
   const { eventsOf, addCtx } = await buildProjectionContext(cohort.players.map(p => p.slug))
   const entries = await assembleProjectedBoard(cohort.players, {
     publishDate: cohort.publishDate,
-    targetEvent: TARGET_EVENT_NAME,
     detailOf: async gid => (await readRankingPlayerDetail('bat', gid))?.detail ?? null,
     eventsOf, addCtx,
   })

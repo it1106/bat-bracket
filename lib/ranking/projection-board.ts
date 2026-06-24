@@ -18,10 +18,9 @@ function resultKey(week: string, discipline: string | null, age: string | null):
  *  on `countsTowardRankingsParsed` — that array is populated ONLY for currently-
  *  counting rows, so keying on it hides the 11th+ rows Rule 2 must promote on
  *  expiry. For the U15 pilot every cohort member is U15-eligible, so each of
- *  their singles results credits U15 at its own points. `targetEvent` is a
- *  forward-looking hook; this body assumes "every singles row credits the
- *  target", valid for the single-age-board pilot. */
-export function buildBaseRows(detail: RankingPlayerDetail, _targetEvent: string): ProjectionRow[] {
+ *  their singles results credits U15 at its own points. (When the pilot widens
+ *  to other boards this will need a per-event credit model + a target param.) */
+export function buildBaseRows(detail: RankingPlayerDetail): ProjectionRow[] {
   const out: ProjectionRow[] = []
   for (const t of detail.tournaments as RankingPlayerTournament[]) {
     if (disciplineOf(t.sourceEvent) !== 'singles') continue
@@ -83,7 +82,6 @@ export interface AssembleDeps {
   detailOf: (gid: string) => Promise<RankingPlayerDetail | null>
   eventsOf: (slug: string) => PlayerEventResult[]
   addCtx: AddCtx
-  targetEvent: string
 }
 
 /** Project every cohort player, re-rank by projected total, compute Δ. */
@@ -93,7 +91,7 @@ export async function assembleProjectedBoard(
 ): Promise<ProjectedEntry[]> {
   const scored = await Promise.all(cohort.map(async p => {
     const detail = await deps.detailOf(p.globalPlayerId)
-    const base = detail ? buildBaseRows(detail, deps.targetEvent) : []
+    const base = detail ? buildBaseRows(detail) : []
     const added = buildAddedRows(deps.eventsOf(p.slug), base, deps.addCtx)
     const { projectedTotal } = projectPlayer(base, added, deps.publishDate)
     return { p, projectedPoints: projectedTotal }
