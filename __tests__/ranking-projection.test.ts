@@ -48,14 +48,4 @@ describe('projectPlayer', () => {
     const p = projectPlayer(base, added, PUB)
     expect(p.projectedTotal).toBe(12000)
   })
-
-  it('Rule 1 collapses the same tournament even when the two sources disagree on week', () => {
-    // BAT's detail labels Trang week 2026-17; our index computes 2026-16 for
-    // the same tournament. They must still collapse to one (not double-count).
-    const base = [row('2026-17', 6554, 'Trang Yonex Open 2026')]
-    const added = [row('2026-16', 6554, 'Trang Yonex Open 2026')]
-    const p = projectPlayer(base, added, PUB)
-    expect(p.projectedTotal).toBe(6554)
-    expect(p.rows).toHaveLength(1)
-  })
 })

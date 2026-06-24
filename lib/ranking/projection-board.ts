@@ -1,8 +1,8 @@
 import type {
   RankingPlayerDetail, PlayerEventResult, RankingPlayerTournament,
 } from '@/lib/types'
-import { ProjectionRow, projectPlayer, tournamentKey } from '@/lib/ranking/projection'
-import { disciplineOf } from '@/lib/ranking/player-view'
+import { ProjectionRow, projectPlayer } from '@/lib/ranking/projection'
+import { disciplineOf, weekSortKey } from '@/lib/ranking/player-view'
 import { ageGroupFromEvent, pointsFor, pointsRoundFromResult } from '@/lib/points/bat-points'
 import type { CohortPlayer } from '@/lib/ranking/u15-cohort'
 
@@ -33,31 +33,31 @@ export interface AddCtx {
 // auto-rebuilds ~every 15 min during live play, so advancement is reflected
 // within that window — no live-bracket path required (decision: 2026-06-24).
 
-/** Recent singles results from the index, pointed via the engine, excluding
- *  any already represented among `baseRows` (the official detail). Caller has
- *  already restricted `events` to one player. */
+/** Recent singles results from the index, pointed via the engine, restricted to
+ *  tournaments NEWER than the official snapshot horizon (`horizonWeek` = the
+ *  most recent week present in any cohort player's official detail). A
+ *  tournament at or before the horizon is already in the published ranking, so
+ *  re-adding it would double-count — and because our index and BAT's detail
+ *  disagree on both tournament name (sponsor prefixes) and ISO week for the
+ *  same event, the temporal horizon is the only reliable "already counted"
+ *  signal. Caller has already restricted `events` to one player. */
 export function buildAddedRows(
   events: PlayerEventResult[],
-  baseRows: ProjectionRow[],
   ctx: AddCtx,
+  horizonWeek: string,
 ): ProjectionRow[] {
-  // Identify already-counted tournaments by name+discipline (NOT week — the
-  // index and the official detail can label the same tournament with different
-  // ISO weeks, which previously caused double-counting).
-  const seen = new Set(baseRows.map(r => tournamentKey(r.tournamentName, r.sourceEvent)))
   const out: ProjectionRow[] = []
   for (const e of events) {
     if (e.discipline !== 'singles') continue                 // U15 Boys *singles* board
     const week = ctx.weekOf(e.tournamentId)
     if (!week) continue
+    if (weekSortKey(week) <= weekSortKey(horizonWeek)) continue // already in the snapshot
     const age = ageGroupFromEvent(e.eventName)
-    const name = ctx.nameOf(e.tournamentId)
-    if (seen.has(tournamentKey(name, e.eventName))) continue // already counted officially
     const level = ctx.levelOf(e.tournamentId)
     const round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize, e.lostByWalkover, e.active)
     const credit = level && age && round ? pointsFor(level, age, round) : null
     if (!credit) continue
-    out.push({ week, sourceEvent: e.eventName, tournamentName: name, credit })
+    out.push({ week, sourceEvent: e.eventName, tournamentName: ctx.nameOf(e.tournamentId), credit })
   }
   return out
 }
@@ -79,18 +79,37 @@ export interface AssembleDeps {
   addCtx: AddCtx
 }
 
+/** Most recent ISO week present across every player's official base rows — the
+ *  snapshot horizon. Tournaments newer than this are the genuinely un-counted
+ *  ones the projection adds. */
+export function snapshotHorizonWeek(allBaseRows: ProjectionRow[][]): string {
+  let horizon = ''
+  for (const rows of allBaseRows) {
+    for (const r of rows) {
+      if (weekSortKey(r.week) > weekSortKey(horizon || '0000-00')) horizon = r.week
+    }
+  }
+  return horizon
+}
+
 /** Project every cohort player, re-rank by projected total, compute Δ. */
 export async function assembleProjectedBoard(
   cohort: CohortPlayer[],
   deps: AssembleDeps,
 ): Promise<ProjectedEntry[]> {
-  const scored = await Promise.all(cohort.map(async p => {
+  // First pass: load every player's official base rows (one detail read each)
+  // and derive the global snapshot horizon from them.
+  const loaded = await Promise.all(cohort.map(async p => {
     const detail = await deps.detailOf(p.globalPlayerId)
-    const base = detail ? buildBaseRows(detail) : []
-    const added = buildAddedRows(deps.eventsOf(p.slug), base, deps.addCtx)
+    return { p, base: detail ? buildBaseRows(detail) : [] }
+  }))
+  const horizon = snapshotHorizonWeek(loaded.map(l => l.base))
+
+  const scored = loaded.map(({ p, base }) => {
+    const added = buildAddedRows(deps.eventsOf(p.slug), deps.addCtx, horizon)
     const { projectedTotal } = projectPlayer(base, added, deps.publishDate)
     return { p, projectedPoints: projectedTotal }
-  }))
+  })
   scored.sort((a, b) => b.projectedPoints - a.projectedPoints || a.p.officialRank - b.p.officialRank)
   return scored.map((s, i) => ({
     slug: s.p.slug, name: s.p.name,

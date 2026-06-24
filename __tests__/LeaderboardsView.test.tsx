@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import LeaderboardsView from '@/components/LeaderboardsView'
 import { LanguageProvider } from '@/lib/LanguageContext'
 import type { Leaderboards } from '@/lib/types'
@@ -187,5 +187,26 @@ describe('Projected Ranking (beta) checkbox', () => {
     renderWith({ ready: true, have: 50, total: 50 })
     const cb = screen.getByLabelText(/Projected Ranking/i) as HTMLInputElement
     expect(cb.disabled).toBe(false)
+  })
+
+  it('displays only the top 30 projected rows even when the API returns 50', async () => {
+    const entries = Array.from({ length: 50 }, (_, i) => ({
+      slug: `p${i}`, name: `Player ${i}`,
+      officialRank: i + 1, officialPoints: 5000 - i,
+      projectedRank: i + 1, projectedPoints: 5000 - i, delta: 0,
+    }))
+    const fetchMock = jest.fn().mockResolvedValue({
+      json: async () => ({ ready: true, publishDate: '23/6/2569', entries }),
+    })
+    ;(global as unknown as { fetch: jest.Mock }).fetch = fetchMock
+
+    renderWith({ ready: true, have: 50, total: 50 })
+    const cb = screen.getByLabelText(/Projected Ranking/i) as HTMLInputElement
+    await act(async () => { fireEvent.click(cb) })
+
+    // Player 0..29 render; Player 30..49 do not.
+    expect(screen.getByText('Player 29')).toBeTruthy()
+    expect(screen.queryByText('Player 30')).toBeNull()
+    expect(screen.queryByText('Player 49')).toBeNull()
   })
 })
