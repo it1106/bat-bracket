@@ -3,6 +3,20 @@
 The app runs on `ezebat.lan` as PM2 process `bat-bracket` (1-worker cluster, port 3000).
 Code lives at `/root/app`, pulled from `https://github.com/it1106/bat-bracket`.
 
+## URLs (don't confuse these)
+
+- **Public site (what users hit): https://batmatch.app** — Cloudflare-proxied.
+  Cloudflare reaches the origin through a **Cloudflare Tunnel connector that
+  runs off this box** (router/another LAN device), so tunnel hiccups (e.g. after
+  a reboot) show up as slow/erratic public latency even when the app is fine.
+- **`ezebat.lan`** — the LAN host for SSH/admin and the app origin itself. Not
+  the public URL. mDNS name, so it can fail to resolve transiently. Direct:
+  `http://172.16.88.198:3000/` (fast LAN bypass of Cloudflare).
+
+Triage: if `batmatch.app` is slow but `http://172.16.88.198:3000/` is fast, the
+app is healthy and the problem is the Cloudflare tunnel path — restart the
+`cloudflared` connector (off-box), don't touch the app.
+
 ## Standard deploy
 
 `pm2 reload` is zero-downtime: it spawns a new worker, waits for it to listen on
