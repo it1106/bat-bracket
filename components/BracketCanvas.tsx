@@ -25,7 +25,7 @@ export default function BracketCanvas({
   onPlayerClick,
   playerClubMap,
 }: BracketCanvasProps) {
-  const { lang } = useLanguage()
+  const { lang, t } = useLanguage()
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
   const scaleRef = useRef(1)
@@ -39,9 +39,11 @@ export default function BracketCanvas({
   useEffect(() => { scaleRef.current = scale }, [scale])
 
   // Pre-compute HTML with tracked/highlighted classes embedded so all elements
-  // (including off-screen) are styled correctly from initial render.
-  const displayHtml = useMemo(() => {
-    if (!bracketHtml || typeof document === 'undefined') return bracketHtml
+  // (including off-screen) are styled correctly from initial render. Also tally
+  // how many matches (bk-match-box) contain a highlighted row, so the search
+  // can surface a match count without leaving the bracket view.
+  const { html: displayHtml, matchCount } = useMemo(() => {
+    if (!bracketHtml || typeof document === 'undefined') return { html: bracketHtml, matchCount: 0 }
     const wrapper = document.createElement('div')
     wrapper.innerHTML = bracketHtml
 
@@ -51,6 +53,13 @@ export default function BracketCanvas({
     })
 
     applyPlayerHighlight(wrapper, playerQuery, playerClubMap)
+
+    // A bracket match is one .bk-match-box; it's "matched" if either team row
+    // got the .tracked class from the search above.
+    let matchCount = 0
+    wrapper.querySelectorAll<HTMLElement>('.bk-match-box').forEach((box) => {
+      if (box.querySelector('.bk-row.tracked')) matchCount++
+    })
 
     // Gold/silver/bronze medals: final round awards 🥇/🥈,
     // semi-final awards 🥉 to each losing team.
@@ -82,7 +91,7 @@ export default function BracketCanvas({
       })
     }
 
-    return wrapper.innerHTML
+    return { html: wrapper.innerHTML, matchCount }
   }, [bracketHtml, playerQuery, playerClubMap, lang])
 
   // Pulse the 2nd round header on every fresh bracket load to advertise the
@@ -172,8 +181,18 @@ export default function BracketCanvas({
 
   if (!bracketHtml) return null
 
+  const showMatchCount = playerQuery.trim() !== ''
+
   return (
     <div className="relative w-full h-full">
+      {/* Match count for the current search — floats over the canvas like the
+          zoom controls, so the bracket view keeps highlighting in place while
+          still reporting how many matches the searched player appears in. */}
+      {showMatchCount && (
+        <div className="absolute top-4 left-4 z-50 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-xs font-semibold text-[var(--fg)] shadow-sm">
+          {t('filterMatchCount').replace('{n}', String(matchCount)).replace('{s}', matchCount === 1 ? '' : 'es')}
+        </div>
+      )}
       {/* Zoom controls */}
       <div className="absolute top-4 right-4 z-50 flex flex-col gap-1">
         <button

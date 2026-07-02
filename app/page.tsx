@@ -1203,29 +1203,6 @@ export default function Home() {
       {/* Bracket view */}
       {viewMode === 'bracket' && (
         <>
-          {/* When searching, surface the matching matches above the bracket —
-              same rendering as Match Schedule, minus the won/loss/undecided
-              summary line. Works for both normal and playoff-bundle brackets. */}
-          {playerQuery.trim() !== '' && (
-            <MatchSchedule
-              groups={matchGroups}
-              days={matchDays}
-              selectedDay={selectedDay}
-              onDayChange={handleDayChange}
-              loading={loadingMatches}
-              playerQuery={playerQuery}
-              excludeCompleted={excludeCompleted}
-              showResultSummary={false}
-              onEventClick={handleOpenBracketAtRound}
-              eventToPlayoffDrawNum={eventToPlayoffDrawNum}
-              playerClubMap={playerClubMap}
-              onPlayerClick={playerClickHandler}
-              onH2HClick={handleH2HClick}
-              liveByCourt={liveByCourt}
-              tournamentId={selectedTournament}
-              tournamentName={tournamentName}
-            />
-          )}
           {!bracketHtml && !eventBundle && !loading && !error && (
             <div className="p-10 text-center text-[var(--muted)] text-sm">
               {!selectedTournament
