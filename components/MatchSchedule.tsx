@@ -23,6 +23,7 @@ interface Props {
   playerQuery: string
   excludeCompleted?: boolean
   highlightMatches?: boolean
+  showResultSummary?: boolean
   showJumpToNext?: boolean
   onEventClick?: (drawNum: string, round: string) => void
   eventToPlayoffDrawNum?: Record<string, string>
@@ -145,7 +146,7 @@ function playerMatchesQuery(
   })
 }
 
-export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, highlightMatches = true, showJumpToNext = true, onEventClick, eventToPlayoffDrawNum, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId, tournamentName }: Props) {
+export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, highlightMatches = true, showResultSummary = true, showJumpToNext = true, onEventClick, eventToPlayoffDrawNum, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId, tournamentName }: Props) {
   const { t, longRound } = useLanguage()
   const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
     useFirstUnplayed(groups, playerQuery, playerClubMap)
@@ -565,7 +566,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           // Win/loss only makes sense for an actual search, and only when
           // completed matches aren't hidden (otherwise "won 0, loss 0" misleads).
           const summary =
-            playerQuery.trim() !== '' && !excludeCompleted
+            showResultSummary && playerQuery.trim() !== '' && !excludeCompleted
               ? summarizeSearchResults(allFiltered, playerQuery, playerClubMap)
               : null
           return (
