@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       if (key.startsWith(prefix)) clubMap[key.slice(prefix.length)] = club
     })
 
-    const profile = parsePlayerProfile(tournamentHtml, clubMap)
+    const profile = parsePlayerProfile(tournamentHtml, clubMap, playerId)
 
     // Fetch global profile for club name and YOB
     const globalPath = extractProfileUrl(tournamentHtml)

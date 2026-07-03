@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { parseTournaments, parseEvents, parseBracket, parseBracketEntries, extractProfileUrl, parseMatchesPartial, orderScheduleGroups, extractMatchTeams, extractFlatPlayerIds } from '@/lib/scraper'
+import { parseTournaments, parseEvents, parseBracket, parseBracketEntries, extractProfileUrl, parseMatchesPartial, orderScheduleGroups, extractMatchTeams, extractFlatPlayerIds, parsePlayerProfile } from '@/lib/scraper'
 import * as cheerio from 'cheerio'
 import type { MatchScheduleGroup, MatchEntry } from '@/lib/types'
 
@@ -141,6 +141,44 @@ describe('extractMatchTeams', () => {
       [{ name: 'A1', playerId: '11' }, { name: 'A2', playerId: '12' }],
       [{ name: 'B1', playerId: '21' }, { name: 'B2', playerId: '22' }],
     ])
+  })
+})
+
+describe('parsePlayerProfile — profile player id', () => {
+  // Profile page where the requested player (501) appears on team2 of their
+  // first match, so the FIRST a[data-player-id] in the DOM belongs to the
+  // opponent (412). The win/loss dot in the modal keys off profile.playerId,
+  // so a mis-derived id put the dot on the opponent instead of the player.
+  const html = `
+    <div class="match-group">
+      <div class="match-group__item">
+        <div class="match">
+          <div class="match__header-title">
+            <div class="match__header-title-item"><span class="nav-link__value">R32</span></div>
+            <div class="match__header-title-item"><a href="?draw=5"><span class="nav-link__value">XD U15</span></a></div>
+          </div>
+          <div class="match__row has-won">
+            <div class="match__row-title-value"><a href="?player=412" data-player-id="412"><span class="nav-link__value">Opponent</span></a></div>
+          </div>
+          <div class="match__row">
+            <div class="match__row-title-value"><a href="?player=501" data-player-id="501"><span class="nav-link__value">Mathias</span></a></div>
+          </div>
+        </div>
+      </div>
+    </div>`
+
+  it('uses the known (requested) player id, not the first link in the DOM', () => {
+    const profile = parsePlayerProfile(html, {}, '501')
+    expect(profile.playerId).toBe('501')
+    // The match itself still parses correctly: opponent won (team1 has-won).
+    expect(profile.matches[0].winner).toBe(1)
+    expect(profile.matches[0].team1[0].playerId).toBe('412')
+    expect(profile.matches[0].team2[0].playerId).toBe('501')
+  })
+
+  it('looks up the club by the known player id', () => {
+    const profile = parsePlayerProfile(html, { '501': 'Team DEN' }, '501')
+    expect(profile.club).toBe('Team DEN')
   })
 })
 

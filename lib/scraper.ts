@@ -894,7 +894,11 @@ export function extractProfileUrl(html: string): string {
   )
 }
 
-export function parsePlayerProfile(html: string, playerClubMap?: Record<string, string>): import('./types').PlayerProfile {
+export function parsePlayerProfile(
+  html: string,
+  playerClubMap?: Record<string, string>,
+  knownPlayerId?: string,
+): import('./types').PlayerProfile {
   const $ = cheerio.load(html)
 
   const name = $('.media__link.text--link-white.text--link .nav-link__value').first().text().trim()
@@ -906,8 +910,12 @@ export function parsePlayerProfile(html: string, playerClubMap?: Record<string, 
     if (m) events.push({ eventId: m[1], name: $(el).find('.nav-link__value').text().trim() })
   })
 
-  // Find this player's own ID to look up club
-  const playerId = $('.match__row a[data-player-id]').first().attr('data-player-id') ?? ''
+  // The profile player's own ID. Prefer the id the caller requested this page
+  // for (the `player=` query param); it's authoritative. Falling back to the
+  // first `a[data-player-id]` in the DOM is unreliable — when the player is on
+  // team2 of their first match, that first link is the OPPONENT, which put the
+  // win/loss dot on the wrong name in the modal (and looked up the wrong club).
+  const playerId = knownPlayerId || ($('.match__row a[data-player-id]').first().attr('data-player-id') ?? '')
   const club = (playerClubMap && playerId) ? (playerClubMap[playerId] ?? '') : ''
 
   // Parse matches from .match-group (profile page uses different wrapper than schedule)
