@@ -17,7 +17,7 @@ interface AgeInfo { age: number | null; dob: string | null }
 // in. Opened from the Country section of the BWF stats tab. Mirrors the
 // pm-overlay/pm-modal shell used by the other modals (Escape + click-outside).
 export default function CountryRosterModal({ roster, onClose }: Props) {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [ages, setAges] = useState<Record<string, AgeInfo>>({})
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function CountryRosterModal({ roster, onClose }: Props) {
           <ul className="country-roster-list">
             {rows.map((r, i) => {
               const info = r.playerId ? ages[r.playerId] : undefined
-              const dobTip = info?.dob ? formatDob(info.dob) : ''
+              const dobTip = info?.dob ? formatDob(info.dob, lang) : ''
               return (
               <li className="country-roster-row" key={`${i}-${r.name}`}>
                 <span className="country-roster-name" title={dobTip || undefined}>

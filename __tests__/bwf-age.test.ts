@@ -34,6 +34,9 @@ describe('formatDob', () => {
     expect(formatDob('2008-04-30 00:00:00')).toBe('30 Apr 2008')
     expect(formatDob(null)).toBe('')
   })
+  it('localizes the month for Thai', () => {
+    expect(formatDob('2013-06-06', 'th')).toBe('6 มิ.ย. 2013')
+  })
 })
 
 describe('parsePlayerDob', () => {

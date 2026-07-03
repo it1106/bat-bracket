@@ -18,15 +18,19 @@ export function ageFromDob(dobIso: string | null | undefined, asOf: Date = new D
   return age < 0 ? null : age
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTHS = {
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  th: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'],
+}
 
-// Human-readable DOB for the hover tooltip: "2013-06-06" → "6 Jun 2013".
-export function formatDob(dobIso: string | null | undefined): string {
+// Human-readable DOB for the hover tooltip: "2013-06-06" → "6 Jun 2013"
+// (en) / "6 มิ.ย. 2013" (th). Year stays Gregorian (BWF supplies it that way).
+export function formatDob(dobIso: string | null | undefined, lang: 'en' | 'th' = 'en'): string {
   if (!dobIso) return ''
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dobIso)
   if (!m) return ''
   const [, y, mo, d] = m
-  const mon = MONTHS[Number(mo) - 1]
+  const mon = (MONTHS[lang] ?? MONTHS.en)[Number(mo) - 1]
   if (!mon) return ''
   return `${Number(d)} ${mon} ${y}`
 }

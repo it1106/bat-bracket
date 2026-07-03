@@ -1,5 +1,5 @@
 /** @jest-environment jsdom */
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import TournamentStatsPanel from '../components/TournamentStatsPanel'
 
 jest.mock('../lib/LanguageContext', () => ({
@@ -156,5 +156,47 @@ describe('TournamentStatsPanel — top players W-L tooltip', () => {
       expect(screen.getByText('Alpha')).toBeInTheDocument()
     })
     expect(document.querySelector('.stats-wl-tip')).toBeNull()
+  })
+})
+
+// Integration: the full seam from the Country section button through the modal
+// and its lazy age fetch — the behavior the user asked for.
+describe('TournamentStatsPanel — country roster modal + ages', () => {
+  const countryPayload = {
+    ...minimalLegacyPayload,
+    countryRosters: [
+      {
+        country: 'THA',
+        players: 1,
+        members: ['Ravin CHUCHAISRI'],
+        roster: [{ name: 'Ravin CHUCHAISRI', playerId: '86870', events: ['BS U15', 'BD U15'] }],
+      },
+    ],
+  }
+
+  test('clicking a country opens the modal and shows age + DOB tooltip', async () => {
+    global.fetch = jest.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/bwf/player-ages')) {
+        return Promise.resolve({ ok: true, json: async () => ({ '86870': { age: 13, dob: '2013-06-06' } }) })
+      }
+      return Promise.resolve({ ok: true, json: async () => countryPayload })
+    }) as unknown as typeof fetch
+
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    // Country cell (name (code) label) renders as a button.
+    const btn = await screen.findByRole('button', { name: /Thailand \(THA\)/ })
+    await act(async () => { fireEvent.click(btn) })
+
+    // Modal shows the player (in .country-roster-name), their age in parens,
+    // and the DOB tooltip. (The name also appears in the count-cell tooltip,
+    // so scope the assertion to the modal's row.)
+    await waitFor(() => expect(screen.getByText('(13)')).toBeInTheDocument())
+    const nameSpan = Array.from(document.querySelectorAll('.country-roster-name'))
+      .find((el) => el.textContent?.includes('Ravin')) as HTMLElement
+    expect(nameSpan).toBeTruthy()
+    expect(nameSpan.getAttribute('title')).toBe('6 Jun 2013')
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/bwf/player-ages?ids=86870'))
   })
 })
