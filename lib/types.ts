@@ -36,6 +36,12 @@ export interface TournamentInfo {
   provider?: ProviderTag
   /** BAT tournament level (1-6) parsed from the regulations page, when known. */
   level?: number
+  /**
+   * Link to this tournament's page on the official provider site
+   * (bat.tournamentsoftware.com for BAT, bwfbadminton.com for BWF). Absent for
+   * BWF tournaments not yet resolved in the sidecar, so the UI must null-check.
+   */
+  officialUrl?: string
 }
 
 export interface BracketData {

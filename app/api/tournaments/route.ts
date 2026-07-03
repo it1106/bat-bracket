@@ -9,7 +9,16 @@ import { loadDiscovered } from '@/lib/discovery-store'
 import { mergeForApi, sortTournamentsForDropdown } from '@/lib/tournaments-merge'
 import { parseTournamentsTxt as parseFromTxt, type ParsedTxt } from '@/lib/tournaments-txt'
 import { resolveBwfUrl } from '@/lib/providers/bwf/url-resolver-runtime'
+import { lookupUrlByGuid } from '@/lib/providers/bwf/sidecar'
 import type { TournamentInfo } from '@/lib/types'
+
+// Link to a tournament's page on the official provider site. BAT ids are the
+// tournamentsoftware GUID, so the URL is derivable directly; BWF ids resolve to
+// the bwfbadminton.com page URL via the sidecar (null until first resolved).
+function officialUrlFor(e: TournamentInfo): string | undefined {
+  if (e.provider === 'bwf') return lookupUrlByGuid(e.id) ?? undefined
+  return `https://bat.tournamentsoftware.com/tournament/${e.id}`
+}
 
 // Force dynamic so auto-done flips and newly-discovered entries are reflected
 // on the very next request. Cost is a few file stats per call, trivially cheap.
@@ -49,11 +58,13 @@ async function annotateEntries(
     const isBat = !e.provider || e.provider === 'bat'
     if (isBat && override == null && !meta?.levelChecked) void resolveBatLevel(e.id)
     const level = override ?? meta?.level
+    const officialUrl = officialUrlFor(e)
     out.push({
       ...e,
       ...(done && { done: true }),
       ...(startDateIso && { startDateIso }),
       ...(level != null && { level }),
+      ...(officialUrl && { officialUrl }),
     })
   }
   return out

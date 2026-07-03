@@ -63,6 +63,18 @@ export function lookupByGuid(guid: string): SidecarEntry | null {
   return byGuid.get(guid.toUpperCase()) ?? null
 }
 
+// The sidecar is keyed by the official bwfbadminton.com tournament page URL, so
+// that key is the tournament's public page. Reverse-lookup it by GUID for the
+// "official page" link. Returns null when the GUID hasn't been resolved yet.
+export function lookupUrlByGuid(guid: string): string | null {
+  const sidecar = loadSidecar()
+  const target = guid.toUpperCase()
+  for (const [url, entry] of Object.entries(sidecar)) {
+    if (entry.tournamentCode.toUpperCase() === target) return url
+  }
+  return null
+}
+
 export function listAllSidecar(): SidecarEntry[] {
   return Object.values(loadSidecar())
 }

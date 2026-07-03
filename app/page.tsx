@@ -830,6 +830,11 @@ export default function Home() {
     (tn) => tn.done && (!tn.startDateIso || tn.startDateIso >= pastCutoffIso),
   )
 
+  // Selected tournament's entry, for the "official page" link next to the
+  // selector. officialUrl is absent for BWF events not yet resolved in the
+  // sidecar, so the link only renders when a URL is actually known.
+  const selectedTournamentInfo = tournaments.find((tn) => tn.id === selectedTournament)
+
   return (
     <>
       {/* Top bar */}
@@ -851,6 +856,17 @@ export default function Home() {
               <label className="text-[14px] font-semibold uppercase tracking-wide" style={{ color: 'var(--red)' }}>
                 {t('tournament')}
               </label>
+              {selectedTournamentInfo?.officialUrl && (
+                <a
+                  href={selectedTournamentInfo.officialUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={t('officialPage')}
+                  className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-[var(--brand-fg)] hover:underline whitespace-nowrap"
+                >
+                  {selectedTournamentInfo.provider === 'bwf' ? 'BWF' : 'BAT'} ↗
+                </a>
+              )}
             </div>
             <select
               value={selectedTournament}

@@ -71,6 +71,7 @@ export type TKey =
   | 'appTitle3'
   | 'appSubtitle'
   | 'tournament'
+  | 'officialPage'
   | 'draw'
   | 'trackLabel'
   | 'searchPlaceholder'
@@ -271,6 +272,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     appTitle3: 'Scoreboard',
     appSubtitle: 'Check BAT official website for accuracy',
     tournament: 'Tournament',
+    officialPage: 'Official page',
     draw: 'Draw',
     trackLabel: 'Search',
     searchPlaceholder: 'Player, club, or event',
@@ -503,6 +505,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     appTitle3: 'Scoreboard',
     appSubtitle: 'กรุณาตรวจสอบความถูกต้องจากเว็บไซต์ BAT อีกครั้ง',
     tournament: 'รายการแข่งขัน',
+    officialPage: 'หน้าเว็บอย่างเป็นทางการ',
     draw: 'ตารางแข่ง',
     trackLabel: 'ค้นหา',
     searchPlaceholder: 'ชื่อนักกีฬา ทีม หรือประเภท',
