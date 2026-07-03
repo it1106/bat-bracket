@@ -317,10 +317,20 @@ export interface StatsClubRoster {
   members: string[]
 }
 
+// One player in a country's roster, with the event(s) they're entered in.
+export interface StatsCountryMember {
+  name: string
+  events: string[]
+}
+
 export interface StatsCountryRoster {
   country: string
   players: number
   members: string[]
+  // Per-player breakdown (name + events) powering the country modal. Optional
+  // so stats blobs cached before this field existed still parse; the UI falls
+  // back to `members` (names only) until the blob regenerates.
+  roster?: StatsCountryMember[]
 }
 
 export interface StatsIntegrityWalkover {

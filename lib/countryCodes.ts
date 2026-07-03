@@ -115,6 +115,13 @@ const COUNTRY_ALIASES: Record<string, string> = {
 
 const MIN_COUNTRY_PREFIX = 3
 
+// Display name for a BWF/IOC country code: "THA" → "Thailand". Falls back to
+// the code itself (uppercased) for codes not in the map.
+export function countryDisplayName(code: string | null | undefined): string {
+  if (!code) return ''
+  return COUNTRY_NAMES[code.toLowerCase()] ?? code.toUpperCase()
+}
+
 // Resolve a typed search term to the country code(s) it implies:
 //   "tha" → ["tha"]            (exact code)
 //   "thai" / "thailand" → ["tha"]  (name prefix, ≥3 chars)

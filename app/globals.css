@@ -2305,6 +2305,55 @@ html.dark .ms-match--next-opp {
 }
 .stats-share-capture .stats-roster-tip { display: none !important; }
 
+/* Country name → opens the roster modal (BWF stats tab). */
+.stats-country-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--brand);
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.stats-country-link:hover { text-decoration: underline; }
+
+/* Country roster modal: one row per player + their event chips. */
+.country-roster-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.country-roster-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.country-roster-row:last-child { border-bottom: none; }
+.country-roster-name { font-size: 13px; color: var(--fg); }
+.country-roster-events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.country-roster-chip {
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.country-roster-empty { font-size: 11px; color: var(--muted); font-style: italic; }
+
 .stats-wl-cell {
   position: relative;
   display: inline-block;

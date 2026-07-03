@@ -6,7 +6,9 @@ import { track } from '@/lib/analytics'
 import { useLongPress } from '@/lib/useLongPress'
 import { buildFilename, captureStatsImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
 import { abbrevRoundL } from '@/lib/i18n'
-import type { StatsClubMedalist, StatsPlayerResult, TournamentStats } from '@/lib/types'
+import { countryDisplayName } from '@/lib/countryCodes'
+import CountryRosterModal from '@/components/CountryRosterModal'
+import type { StatsClubMedalist, StatsCountryRoster, StatsPlayerResult, TournamentStats } from '@/lib/types'
 
 interface Props {
   tournamentId: string
@@ -41,6 +43,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   const [loading, setLoading] = useState(true)
   const [clubRostersExpanded, setClubRostersExpanded] = useState(false)
   const [clubMedalsExpanded, setClubMedalsExpanded] = useState(false)
+  const [selectedCountry, setSelectedCountry] = useState<StatsCountryRoster | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const preparedFileRef = useRef<File | null>(null)
 
@@ -423,13 +426,23 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               <th className="stats-num">{t('statsColPlayers')}</th>
             </tr></thead>
             <tbody>
-              {(stats.countryRosters ?? []).map((c, i) => (
-                <tr key={c.country}>
-                  <td className="stats-rank">{i + 1}</td>
-                  <td>{c.country}</td>
-                  <td className="stats-num"><RosterCell count={c.players} members={c.members} /></td>
-                </tr>
-              ))}
+              {(stats.countryRosters ?? []).map((c, i) => {
+                const display = countryDisplayName(c.country)
+                const label = display && display.toLowerCase() !== c.country.toLowerCase()
+                  ? `${display} (${c.country})`
+                  : c.country
+                return (
+                  <tr key={c.country}>
+                    <td className="stats-rank">{i + 1}</td>
+                    <td>
+                      <button type="button" className="stats-country-link" onClick={() => setSelectedCountry(c)}>
+                        {label}
+                      </button>
+                    </td>
+                    <td className="stats-num"><RosterCell count={c.players} members={c.members} /></td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </section>
@@ -522,6 +535,8 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       {!hasDecided && (
         <div className="stats-prematch-footer">{t('statsPreMatchFooter')}</div>
       )}
+
+      <CountryRosterModal roster={selectedCountry} onClose={() => setSelectedCountry(null)} />
     </div>
   )
 }

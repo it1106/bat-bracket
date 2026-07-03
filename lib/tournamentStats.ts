@@ -11,6 +11,7 @@ import type {
   StatsPlayerResult,
   StatsClubRoster,
   StatsCountryRoster,
+  StatsCountryMember,
   StatsCourtTimePlayer,
   StatsDefendingChampion,
   StatsKpis,
@@ -732,34 +733,52 @@ function buildCountryRosters(
 ): StatsCountryRoster[] {
   // BWF carries country + name on each MatchPlayer. Walk every unique
   // playerId we know about (scheduled matches + draw rosters), keep the
-  // first (country, name) seen, then group by country.
-  const playerInfo = new Map<string, { country: string; name: string }>()
-  const consider = (pid: string, country: string | undefined, name: string | undefined) => {
+  // first (country, name) seen, collect the event(s) each is entered in
+  // (same event key used elsewhere: eventName collapses "<event> - Group X"),
+  // then group by country.
+  const playerInfo = new Map<string, { country: string; name: string; events: Set<string> }>()
+  const consider = (
+    pid: string,
+    country: string | undefined,
+    name: string | undefined,
+    eventKey: string | undefined,
+  ) => {
     if (!pid || !country) return
-    if (!playerInfo.has(pid)) playerInfo.set(pid, { country, name: name ?? `#${pid}` })
+    let info = playerInfo.get(pid)
+    if (!info) {
+      info = { country, name: name ?? `#${pid}`, events: new Set<string>() }
+      playerInfo.set(pid, info)
+    }
+    if (eventKey) info.events.add(eventKey)
   }
   for (const { match } of ctxs) {
-    for (const p of [...match.team1, ...match.team2]) consider(p.playerId, p.country, p.name)
+    const eventKey = match.eventName ?? match.draw
+    for (const p of [...match.team1, ...match.team2]) consider(p.playerId, p.country, p.name, eventKey)
   }
   if (rosterByDraw) {
-    for (const draw of Array.from(rosterByDraw.values())) {
+    for (const [drawName, draw] of Array.from(rosterByDraw)) {
+      const eventKey = draw.eventName ?? drawName
       for (const m of draw.entries) {
-        for (const p of [...m.team1, ...m.team2]) consider(p.playerId, p.country, p.name)
+        for (const p of [...m.team1, ...m.team2]) consider(p.playerId, p.country, p.name, eventKey)
       }
     }
   }
-  const membersByCountry = new Map<string, string[]>()
-  for (const { country, name } of Array.from(playerInfo.values())) {
-    const list = membersByCountry.get(country) ?? []
-    list.push(name)
-    membersByCountry.set(country, list)
+  const rosterByCountry = new Map<string, StatsCountryMember[]>()
+  for (const { country, name, events } of Array.from(playerInfo.values())) {
+    const list = rosterByCountry.get(country) ?? []
+    list.push({ name, events: Array.from(events).sort((a, b) => eventRank(a) - eventRank(b) || a.localeCompare(b)) })
+    rosterByCountry.set(country, list)
   }
-  return Array.from(membersByCountry.entries())
-    .map(([country, members]) => ({
-      country,
-      players: members.length,
-      members: members.sort((a, b) => a.localeCompare(b)),
-    }))
+  return Array.from(rosterByCountry.entries())
+    .map(([country, roster]) => {
+      const sorted = roster.sort((a, b) => a.name.localeCompare(b.name))
+      return {
+        country,
+        players: sorted.length,
+        members: sorted.map((m) => m.name),
+        roster: sorted,
+      }
+    })
     .sort((a, b) => b.players - a.players || a.country.localeCompare(b.country))
 }
 
