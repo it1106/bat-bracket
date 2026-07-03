@@ -106,12 +106,28 @@ export async function fetchDraws(id: string, timeoutMs = 45000): Promise<DrawInf
   return providerFor(ref).getDraws(ref)
 }
 
-export async function fetchAndCache(id: string): Promise<DrawInfo[]> {
-  const draws = detectGroupedDraws(await fetchDraws(id))
-  const done = isDone(id)
+// Cache a freshly-fetched draws list, guarding against empty results. An empty
+// list is almost always transient (an upstream 4xx/timeout — bwfProvider.getDraws
+// swallows errors and returns []) or a draw the source hasn't published yet.
+// Pinning empty with a fresh TTL would blank the bracket list for the full TTL
+// AND delay auto-populating once the draws publish. So on empty we (a) never let
+// it overwrite a known-good mem/disk copy, and (b) mark the entry immediately
+// stale (ts:0, no `done`) so the next request re-fetches instead of serving
+// stale-empty. Upstream load stays bounded by the provider-level draws memo.
+async function cacheFetchedDraws(id: string, draws: DrawInfo[], done: boolean): Promise<DrawInfo[]> {
+  const key = keyOf(id)
+  if (draws.length === 0) {
+    const existing = cache.get(key) ?? (await readDrawsDisk(id)) ?? undefined
+    if (existing && existing.draws.length > 0) {
+      cache.set(key, { draws: existing.draws, ts: existing.ts, ...(existing.done && { done: true }) })
+      return existing.draws
+    }
+    cache.set(key, { draws, ts: 0 })
+    return draws
+  }
   const ts = Date.now()
-  cache.set(keyOf(id), { draws, ts, ...(done && { done: true }) })
-  // Persist every successful fetch — for done tournaments this is the only
+  cache.set(key, { draws, ts, ...(done && { done: true }) })
+  // Persist every non-empty fetch — for done tournaments this is the only
   // path that survives pm2 reload; for active ones it's a graceful-degrade
   // floor so the next reload-then-BAT-down sequence still has something to
   // serve. fire-and-forget so the route doesn't pay the fs latency.
@@ -119,12 +135,14 @@ export async function fetchAndCache(id: string): Promise<DrawInfo[]> {
   return draws
 }
 
+export async function fetchAndCache(id: string): Promise<DrawInfo[]> {
+  const draws = detectGroupedDraws(await fetchDraws(id))
+  return cacheFetchedDraws(id, draws, isDone(id))
+}
+
 export async function fetchAndCacheWithTtl(id: string, done: boolean): Promise<DrawInfo[]> {
   const draws = detectGroupedDraws(await fetchDraws(id))
-  const ts = Date.now()
-  cache.set(keyOf(id), { draws, ts, ...(done && { done: true }) })
-  void writeDrawsDisk(id, { draws, ts, ...(done && { done: true }) })
-  return draws
+  return cacheFetchedDraws(id, draws, done)
 }
 
 export async function prewarmDrawsCache(): Promise<void> {

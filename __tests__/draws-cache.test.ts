@@ -26,7 +26,7 @@ describe('draws-cache', () => {
   beforeEach(() => {
     cache.clear()
     ;(providerFor as jest.Mock).mockReset()
-    ;(providerFor as jest.Mock).mockReturnValue({ getDraws: jest.fn().mockResolvedValue([]) })
+    ;(providerFor as jest.Mock).mockReturnValue({ getDraws: jest.fn().mockResolvedValue([{ drawNum: '1', name: 'MS' }]) })
     ;(listAllTournaments as jest.Mock).mockReset()
     ;(listAllTournaments as jest.Mock).mockReturnValue([])
   })
@@ -61,7 +61,7 @@ describe('draws-cache', () => {
     // performs on success means subsequent reloads hydrate from disk
     // without contacting BAT). See app/api/draws/route.ts comment.
     await cleanDisk('ACTIVE-1', 'DONE-PREWARM-1')
-    const getDraws = jest.fn().mockResolvedValue([])
+    const getDraws = jest.fn().mockResolvedValue([{ drawNum: '1', name: 'MS' }])
     ;(providerFor as jest.Mock).mockReturnValue({ getDraws })
     ;(listAllTournaments as jest.Mock).mockReturnValue([
       { id: 'ACTIVE-1', provider: 'bwf', done: false },
@@ -75,6 +75,38 @@ describe('draws-cache', () => {
     expect(getCached('done-prewarm-1')?.done).toBe(true)
     expect(getDraws).toHaveBeenCalledTimes(2)
     await cleanDisk('ACTIVE-1', 'DONE-PREWARM-1')
+  })
+
+  it('an empty fetch does not overwrite a known-good cached draws list', async () => {
+    // Regression guard for the BWF POST→405 outage: getDraws swallows upstream
+    // errors and returns []. If that empty result were pinned with a fresh TTL
+    // it would blank the bracket list for the whole TTL and mask the real draws.
+    await cleanDisk('EMPTY-GUARD-1')
+    const getDraws = jest.fn()
+      .mockResolvedValueOnce([{ drawNum: '1', name: 'MS' }, { drawNum: '2', name: 'WS' }])
+      .mockResolvedValueOnce([])
+    ;(providerFor as jest.Mock).mockReturnValue({ getDraws })
+
+    const first = await fetchAndCache('empty-guard-1')
+    expect(first).toHaveLength(2)
+    // Second fetch comes back empty (transient) — it must return/keep the good list.
+    const second = await fetchAndCache('empty-guard-1')
+    expect(second).toHaveLength(2)
+    expect(getCached('empty-guard-1')?.draws).toHaveLength(2)
+    await cleanDisk('EMPTY-GUARD-1')
+  })
+
+  it('an empty fetch with no prior data is cached stale so the next request re-fetches', async () => {
+    await cleanDisk('EMPTY-STALE-1')
+    ;(providerFor as jest.Mock).mockReturnValue({ getDraws: jest.fn().mockResolvedValue([]) })
+    await fetchAndCache('empty-stale-1')
+    const entry = getCached('empty-stale-1')
+    expect(entry?.draws).toHaveLength(0)
+    // ts:0 => Date.now() - ts is always past TTL, so the route re-fetches
+    // instead of serving stale-empty (lets the bracket auto-populate on publish).
+    expect(entry?.ts).toBe(0)
+    expect(entry?.done).toBeUndefined()
+    await cleanDisk('EMPTY-STALE-1')
   })
 
   it('prewarm hydrates done tournaments from disk when present (no upstream call)', async () => {
