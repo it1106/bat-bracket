@@ -200,3 +200,39 @@ describe('TournamentStatsPanel — country roster modal + ages', () => {
     expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/bwf/player-ages?ids=86870'))
   })
 })
+
+// Integration: clicking a club in the Club/Team section opens the club modal
+// with each player's events. No age fetch (BAT has no age source here).
+describe('TournamentStatsPanel — club roster modal', () => {
+  const clubPayload = {
+    ...minimalLegacyPayload,
+    clubRosters: [
+      {
+        club: 'KBA',
+        players: 2,
+        members: ['Anan', 'Somchai'],
+        roster: [
+          { name: 'Anan', playerId: '3', events: ['XD'] },
+          { name: 'Somchai', playerId: '1', events: ['MS', 'XD'] },
+        ],
+      },
+    ],
+  }
+
+  test('clicking a club opens the modal listing players + events', async () => {
+    fetchOnce(clubPayload)
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    const btn = await screen.findByRole('button', { name: 'KBA' })
+    await act(async () => { fireEvent.click(btn) })
+
+    await waitFor(() => {
+      const names = Array.from(document.querySelectorAll('.country-roster-name')).map((el) => el.textContent)
+      expect(names).toContain('Somchai')
+    })
+    expect(document.querySelector('.country-roster-chip')?.textContent).toBeTruthy()
+    // No age fetch for BAT clubs.
+    expect(global.fetch).not.toHaveBeenCalledWith(expect.stringContaining('/api/bwf/player-ages'))
+  })
+})

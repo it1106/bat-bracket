@@ -8,7 +8,8 @@ import { buildFilename, captureStatsImageFile, prewarmFontEmbedCSS, shareFile } 
 import { abbrevRoundL } from '@/lib/i18n'
 import { countryDisplayName } from '@/lib/countryCodes'
 import CountryRosterModal from '@/components/CountryRosterModal'
-import type { StatsClubMedalist, StatsCountryRoster, StatsPlayerResult, TournamentStats } from '@/lib/types'
+import ClubRosterModal from '@/components/ClubRosterModal'
+import type { StatsClubMedalist, StatsClubRoster, StatsCountryRoster, StatsPlayerResult, TournamentStats } from '@/lib/types'
 
 interface Props {
   tournamentId: string
@@ -44,6 +45,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   const [clubRostersExpanded, setClubRostersExpanded] = useState(false)
   const [clubMedalsExpanded, setClubMedalsExpanded] = useState(false)
   const [selectedCountry, setSelectedCountry] = useState<StatsCountryRoster | null>(null)
+  const [selectedClub, setSelectedClub] = useState<StatsClubRoster | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const preparedFileRef = useRef<File | null>(null)
 
@@ -395,7 +397,11 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               {(clubRostersExpanded ? (stats.clubRosters ?? []) : (stats.clubRosters ?? []).slice(0, 10)).map((c, i) => (
                 <tr key={c.club}>
                   <td className="stats-rank">{i + 1}</td>
-                  <td>{c.club}</td>
+                  <td>
+                    <button type="button" className="stats-country-link" onClick={() => setSelectedClub(c)}>
+                      {c.club}
+                    </button>
+                  </td>
                   <td className="stats-num"><RosterCell count={c.players} members={c.members} /></td>
                 </tr>
               ))}
@@ -537,6 +543,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       )}
 
       <CountryRosterModal roster={selectedCountry} onClose={() => setSelectedCountry(null)} />
+      <ClubRosterModal roster={selectedClub} onClose={() => setSelectedClub(null)} />
     </div>
   )
 }

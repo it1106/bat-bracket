@@ -311,10 +311,21 @@ export interface StatsMultiGoldPlayer {
   events: string[]
 }
 
+// One player in a club's roster, with the event(s) they're entered in.
+export interface StatsClubMember {
+  name: string
+  events: string[]
+  playerId?: string
+}
+
 export interface StatsClubRoster {
   club: string
   players: number
   members: string[]
+  // Per-player breakdown (name + events) powering the club modal. Optional so
+  // stats blobs cached before this field existed still parse; the UI falls back
+  // to `members` (names only) until the blob regenerates.
+  roster?: StatsClubMember[]
 }
 
 // One player in a country's roster, with the event(s) they're entered in.

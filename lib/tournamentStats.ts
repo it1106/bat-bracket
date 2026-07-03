@@ -12,6 +12,7 @@ import type {
   StatsClubRoster,
   StatsCountryRoster,
   StatsCountryMember,
+  StatsClubMember,
   StatsCourtTimePlayer,
   StatsDefendingChampion,
   StatsKpis,
@@ -703,27 +704,66 @@ function buildClubMedalsAndMultiGold(
   return { clubMedals, multiGoldPlayers }
 }
 
+// playerId -> the set of events they're entered in, collected from scheduled
+// matches plus draw rosters. Uses the same event key as everywhere else
+// (eventName collapses "<event> - Group X" into the parent event). Shared by the
+// club and country roster builders.
+function collectPlayerEvents(
+  ctxs: MatchCtx[],
+  rosterByDraw?: Map<string, RosterDraw>,
+): Map<string, string[]> {
+  const events = new Map<string, Set<string>>()
+  const add = (pid: string, eventKey: string | undefined) => {
+    if (!pid || !eventKey) return
+    const set = events.get(pid) ?? new Set<string>()
+    set.add(eventKey)
+    events.set(pid, set)
+  }
+  for (const { match } of ctxs) {
+    const eventKey = match.eventName ?? match.draw
+    for (const p of [...match.team1, ...match.team2]) add(p.playerId, eventKey)
+  }
+  if (rosterByDraw) {
+    for (const [drawName, draw] of Array.from(rosterByDraw)) {
+      const eventKey = draw.eventName ?? drawName
+      for (const m of draw.entries) {
+        for (const p of [...m.team1, ...m.team2]) add(p.playerId, eventKey)
+      }
+    }
+  }
+  const out = new Map<string, string[]>()
+  for (const [pid, set] of Array.from(events)) {
+    out.set(pid, Array.from(set).sort((a, b) => eventRank(a) - eventRank(b) || a.localeCompare(b)))
+  }
+  return out
+}
+
 function buildClubRosters(
   clubs: Record<string, string>,
   names: Record<string, string>,
+  eventsByPlayer: Map<string, string[]>,
 ): StatsClubRoster[] {
   // The clubs map is playerId -> club for every player registered in the
-  // tournament (built by walking brackets in /api/clubs). Pair each entry
-  // with the player's display name from the parallel names map so the
-  // tooltip on player count can list members.
-  const membersByClub = new Map<string, string[]>()
+  // tournament (built by walking brackets in /api/clubs). Pair each entry with
+  // the player's display name (parallel names map) and the event(s) they're
+  // entered in (eventsByPlayer) so the modal can list members with their events.
+  const membersByClub = new Map<string, StatsClubMember[]>()
   for (const [pid, club] of Object.entries(clubs)) {
     if (!club) continue
     const list = membersByClub.get(club) ?? []
-    list.push(names[pid] ?? `#${pid}`)
+    list.push({ name: names[pid] ?? `#${pid}`, playerId: pid, events: eventsByPlayer.get(pid) ?? [] })
     membersByClub.set(club, list)
   }
   return Array.from(membersByClub.entries())
-    .map(([club, members]) => ({
-      club,
-      players: members.length,
-      members: members.sort((a, b) => a.localeCompare(b)),
-    }))
+    .map(([club, roster]) => {
+      const sorted = roster.sort((a, b) => a.name.localeCompare(b.name))
+      return {
+        club,
+        players: sorted.length,
+        members: sorted.map((m) => m.name),
+        roster: sorted,
+      }
+    })
     .sort((a, b) => b.players - a.players || a.club.localeCompare(b.club))
 }
 
@@ -859,12 +899,13 @@ export function aggregate(
 ): ComputedStats {
   const ctxs: MatchCtx[] = Array.from(iterateMatches(data, dayGroupsByDate))
   const rosterSize = rosterByDraw ? rosterByDraw.size : 0
+  const eventsByPlayer = collectPlayerEvents(ctxs, rosterByDraw)
   // clubRosters is derived purely from the clubs map (playerId -> club), so
   // it's meaningful even before any match is scheduled — register-then-show.
   if (ctxs.length === 0 && rosterSize === 0) {
     const base: ComputedStats = {
       ...EMPTY,
-      clubRosters: buildClubRosters(clubs, names),
+      clubRosters: buildClubRosters(clubs, names, eventsByPlayer),
       countryRosters: buildCountryRosters(ctxs, rosterByDraw),
     }
     return decorateOptional(base, extras, data, dayGroupsByDate)
@@ -879,7 +920,7 @@ export function aggregate(
     courtUtilization: buildCourtUtilization(ctxs),
     clubMedals,
     multiGoldPlayers,
-    clubRosters: buildClubRosters(clubs, names),
+    clubRosters: buildClubRosters(clubs, names, eventsByPlayer),
     countryRosters: buildCountryRosters(ctxs, rosterByDraw),
     integrity: buildIntegrity(ctxs),
   }
