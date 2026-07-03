@@ -43,6 +43,7 @@ describe('buildCountryRosters — per-player events', () => {
 
     const somchai = tha.roster!.find((m) => m.name === 'Somchai')!
     expect(somchai.events.sort()).toEqual(['MS', 'XD'])
+    expect(somchai.playerId).toBe('1')
     const anan = tha.roster!.find((m) => m.name === 'Anan')!
     expect(anan.events).toEqual(['XD'])
     expect(ina.roster!.find((m) => m.name === 'Budi')!.events).toEqual(['MS'])

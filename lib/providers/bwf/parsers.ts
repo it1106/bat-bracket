@@ -33,6 +33,20 @@ export function parseTournamentDetail(json: unknown): TournamentInfo | null {
   }
 }
 
+interface BwfPlayerSummaryResponse {
+  results?: { date_of_birth?: string | null } | null
+}
+
+// Extract a player's date of birth from vue-player-summary as an ISO date
+// ("YYYY-MM-DD"), or null when BWF has none on file. The raw value looks like
+// "2013-06-06 00:00:00".
+export function parsePlayerDob(json: unknown): string | null {
+  const raw = (json as BwfPlayerSummaryResponse).results?.date_of_birth
+  if (!raw) return null
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(raw.trim())
+  return m ? m[1] : null
+}
+
 export function parseDraws(json: unknown): DrawInfo[] {
   const r = (json as BwfDrawListResponse).results
   if (!Array.isArray(r)) return []

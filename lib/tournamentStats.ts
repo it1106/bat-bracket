@@ -764,9 +764,13 @@ function buildCountryRosters(
     }
   }
   const rosterByCountry = new Map<string, StatsCountryMember[]>()
-  for (const { country, name, events } of Array.from(playerInfo.values())) {
+  for (const [playerId, { country, name, events }] of Array.from(playerInfo.entries())) {
     const list = rosterByCountry.get(country) ?? []
-    list.push({ name, events: Array.from(events).sort((a, b) => eventRank(a) - eventRank(b) || a.localeCompare(b)) })
+    list.push({
+      name,
+      playerId,
+      events: Array.from(events).sort((a, b) => eventRank(a) - eventRank(b) || a.localeCompare(b)),
+    })
     rosterByCountry.set(country, list)
   }
   return Array.from(rosterByCountry.entries())

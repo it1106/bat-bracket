@@ -34,6 +34,15 @@ export async function fetchTournamentDrawData(p: TournamentDrawDataParams): Prom
   return request('GET', `/api/vue-tournament-draw-data?${qs}`)
 }
 
+export interface PlayerSummaryParams { playerId: string | number }
+
+// vue-player-summary carries the player's date_of_birth (+ identity/nationality).
+// GET, keyed by playerId (the id/playerCode/memberId variants are ignored by BWF).
+export async function fetchPlayerSummary(p: PlayerSummaryParams): Promise<unknown> {
+  const qs = new URLSearchParams({ playerId: String(p.playerId) })
+  return request('GET', `/api/vue-player-summary?${qs}`)
+}
+
 export async function fetchDayMatches(p: DayMatchesParams): Promise<unknown> {
   const params = new URLSearchParams({
     tournamentCode: p.tournamentCode,

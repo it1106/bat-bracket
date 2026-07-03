@@ -321,6 +321,8 @@ export interface StatsClubRoster {
 export interface StatsCountryMember {
   name: string
   events: string[]
+  // BWF playerId, used to look up date-of-birth/age for the country modal.
+  playerId?: string
 }
 
 export interface StatsCountryRoster {

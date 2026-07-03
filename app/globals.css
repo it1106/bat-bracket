@@ -2335,7 +2335,8 @@ html.dark .ms-match--next-opp {
   border-bottom: 1px solid var(--border);
 }
 .country-roster-row:last-child { border-bottom: none; }
-.country-roster-name { font-size: 13px; color: var(--fg); }
+.country-roster-name { font-size: 13px; color: var(--fg); cursor: default; }
+.country-roster-age { color: var(--muted); }
 .country-roster-events {
   display: flex;
   flex-wrap: wrap;
