@@ -2317,6 +2317,19 @@ html.dark .ms-match--next-opp {
 }
 .stats-country-link:hover { text-decoration: underline; }
 
+/* Roster modal (club + country): name/event filter box. */
+.roster-filter-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+}
+.roster-filter-input:focus { border-color: var(--brand); }
+
 /* Country roster modal: one row per player + their event chips. */
 .country-roster-list {
   display: flex;

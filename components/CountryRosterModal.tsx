@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import { countryDisplayName } from '@/lib/countryCodes'
 import { formatDob } from '@/lib/age'
+import RosterModal, { type RosterRow } from '@/components/RosterModal'
 import type { StatsCountryRoster } from '@/lib/types'
 
 interface Props {
@@ -14,18 +15,11 @@ interface Props {
 interface AgeInfo { age: number | null; dob: string | null }
 
 // Lists the players that represent a country and the event(s) each is entered
-// in. Opened from the Country section of the BWF stats tab. Mirrors the
-// pm-overlay/pm-modal shell used by the other modals (Escape + click-outside).
+// in, with age + a date-of-birth hover tooltip. Opened from the Country section
+// of the BWF stats tab. Ages are fetched lazily from BWF when the modal opens.
 export default function CountryRosterModal({ roster, onClose }: Props) {
-  const { t, lang } = useLanguage()
+  const { lang } = useLanguage()
   const [ages, setAges] = useState<Record<string, AgeInfo>>({})
-
-  useEffect(() => {
-    if (!roster) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [roster, onClose])
 
   // Lazily fetch ages (date-of-birth) for this country's players when the modal
   // opens. Cached server-side forever, so repeat opens resolve instantly.
@@ -46,46 +40,29 @@ export default function CountryRosterModal({ roster, onClose }: Props) {
 
   // Prefer the rich per-player roster; fall back to bare names for stats blobs
   // cached before the `roster` field existed (they still have `members`).
-  const rows = roster.roster ?? roster.members.map((name) => ({ name, events: [] as string[], playerId: undefined }))
+  const rows: RosterRow[] = roster.roster ?? roster.members.map((name) => ({ name, events: [] }))
   const name = countryDisplayName(roster.country)
   const title = name && name.toLowerCase() !== roster.country.toLowerCase()
     ? `${name} (${roster.country})`
     : roster.country
 
-  return (
-    <div className="pm-overlay" onClick={onClose}>
-      <div className="pm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
-        <button className="pm-close" onClick={onClose} aria-label={t('close')}>✕</button>
-        <div className="pm-header">
-          <div className="pm-section-title">
-            {title} · {roster.players} {t('statsColPlayers')}
-          </div>
-        </div>
+  const ageOf = (r: RosterRow) => (r.playerId ? ages[r.playerId] : undefined)
 
-        <div className="pm-section" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-          <ul className="country-roster-list">
-            {rows.map((r, i) => {
-              const info = r.playerId ? ages[r.playerId] : undefined
-              const dobTip = info?.dob ? formatDob(info.dob, lang) : ''
-              return (
-              <li className="country-roster-row" key={`${i}-${r.name}`}>
-                <span className="country-roster-name" title={dobTip || undefined}>
-                  {r.name}
-                  {info?.age != null && <span className="country-roster-age"> ({info.age})</span>}
-                </span>
-                <span className="country-roster-events">
-                  {r.events.length > 0
-                    ? r.events.map((e) => (
-                        <span className="country-roster-chip" key={e}>{e}</span>
-                      ))
-                    : <span className="country-roster-empty">{t('statsCountryNoEvents')}</span>}
-                </span>
-              </li>
-              )
-            })}
-          </ul>
-        </div>
-      </div>
-    </div>
+  return (
+    <RosterModal
+      open
+      title={title}
+      count={roster.players}
+      rows={rows}
+      onClose={onClose}
+      nameSuffix={(r) => {
+        const info = ageOf(r)
+        return info?.age != null ? <span className="country-roster-age"> ({info.age})</span> : null
+      }}
+      nameTitle={(r) => {
+        const info = ageOf(r)
+        return info?.dob ? formatDob(info.dob, lang) : undefined
+      }}
+    />
   )
 }
