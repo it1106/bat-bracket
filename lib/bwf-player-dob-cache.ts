@@ -15,8 +15,17 @@ const FILE = () => path.join(root, 'bwf-player-dob.json')
 export function __setDobRootForTesting(dir: string): void { root = dir; loaded = false; mem.clear() }
 
 const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000 // re-check "no DOB" players weekly
-const FETCH_CONCURRENCY = 6
+// Fetches MUST be serial. The BWF transport (cf-context) routes every request
+// through a single shared Chromium page; when any request triggers a
+// token-refresh or re-prime it navigates that page, which aborts every other
+// in-flight fetch on it ("TypeError: Failed to fetch"). A concurrent burst
+// therefore self-sabotages (~half the requests died at concurrency 6). One at a
+// time is both correct and polite — a small gap between requests keeps the
+// upstream rate gentle so we don't trip Cloudflare / IP blocks.
+const FETCH_GAP_MS = 150
 const MAX_IDS_PER_REQUEST = 400
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 interface DobEntry { dob: string | null; ts: number }
 
@@ -53,17 +62,6 @@ function isFresh(e: DobEntry): boolean {
   return Date.now() - e.ts < MISS_TTL_MS
 }
 
-// Run tasks with a bounded concurrency pool.
-async function pool<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
-  let i = 0
-  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (i < items.length) {
-      const item = items[i++]
-      await worker(item)
-    }
-  })
-  await Promise.all(runners)
-}
 
 // Resolve date-of-birth for a set of BWF playerIds. Serves cached values and
 // fetches only the misses (bounded concurrency), persisting new results. The
@@ -77,16 +75,18 @@ export async function getPlayerDobs(ids: string[]): Promise<Record<string, strin
   })
 
   let fetched = 0
-  await pool(toFetch, FETCH_CONCURRENCY, async (id) => {
+  for (let i = 0; i < toFetch.length; i++) {
+    const id = toFetch[i]
     try {
       const dob = parsePlayerDob(await fetchPlayerSummary({ playerId: id }))
       mem.set(id, { dob, ts: Date.now() })
       fetched++
     } catch (err) {
-      // Leave uncached on transient failure so the next open retries.
+      // Leave uncached on transient failure so a later request retries.
       console.warn(`[bwf-player-dob-cache] fetch failed player=${id}:`, err instanceof Error ? err.message : err)
     }
-  })
+    if (i < toFetch.length - 1) await sleep(FETCH_GAP_MS)
+  }
   if (fetched > 0) await persist()
 
   const out: Record<string, string | null> = {}
