@@ -1,6 +1,7 @@
 'use client'
 import { useEffect } from 'react'
 import { expandSearchQuery } from './searchAliases'
+import { countryCodesForTerm } from './countryCodes'
 
 export function applyPlayerHighlight(
   root: HTMLElement,
@@ -27,13 +28,21 @@ export function applyPlayerHighlight(
     const club = (playerClubMap[pid] ?? '').toLowerCase()
     return !!club && queries.some((q) => club.includes(q))
   }
+  // BWF bracket spans carry data-country (e.g. "tha"). Resolve each typed term
+  // to the country code(s) it names ("thailand"/"thai"/"tha" → "tha") and match
+  // that against the code exactly — kept separate from name/club text matching
+  // so a country search never lights up a player merely named "Nattha".
+  const queryCountryCodes = new Set(queries.flatMap((q) => countryCodesForTerm(q)))
+  const countryMatches = (code: string | null) =>
+    !!code && queryCountryCodes.has(code.toLowerCase())
 
   // Bracket rendered HTML (single-elim parser output)
   root.querySelectorAll<HTMLElement>('.bk-row').forEach((row) => {
     const spans = row.querySelectorAll<HTMLElement>('.bk-player, span')
     const matches = Array.from(spans).some((s) =>
       textMatches(s.textContent) ||
-      clubMatches(s.getAttribute('data-player-id'))
+      clubMatches(s.getAttribute('data-player-id')) ||
+      countryMatches(s.getAttribute('data-country'))
     )
     row.classList.toggle('tracked', matches)
   })

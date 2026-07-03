@@ -37,6 +37,11 @@ describe('buildBracketHtml', () => {
     expect(html).toContain('https://example/tha.svg')
   })
 
+  it('stamps each player span with a lowercase data-country for search', () => {
+    const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
+    expect(html).toContain('data-country="tha"')
+  })
+
   it('formats the footer time as DD/MM/YY HH:MM', () => {
     // M2 in the fixture is unplayed (winner=0) with matchTime 2026-05-19T11:00:00Z
     const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')

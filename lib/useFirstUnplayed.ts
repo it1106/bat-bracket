@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { MatchScheduleGroup, MatchEntry, MatchPlayer } from './types'
 import { parseSearchQuery } from './searchAliases'
+import { queryMatchesCountry } from './countryCodes'
 
 function playerMatches(p: MatchPlayer, queries: string[], clubMap?: Record<string, string>): boolean {
   return queries.some((q) => {
     if (p.name.toLowerCase().includes(q)) return true
     if (clubMap && p.playerId && (clubMap[p.playerId] ?? '').toLowerCase().includes(q)) return true
     return false
-  })
+  }) || queryMatchesCountry(queries, p.country)
 }
 
 function entryMatchesGroup(entry: MatchEntry, group: string[], clubMap?: Record<string, string>): boolean {

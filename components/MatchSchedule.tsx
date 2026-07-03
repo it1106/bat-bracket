@@ -7,6 +7,7 @@ import { useLanguage } from '@/lib/LanguageContext'
 import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
 import { computePlayingOrder } from '@/lib/playingOrder'
 import { expandSearchQuery, parseSearchQuery } from '@/lib/searchAliases'
+import { queryMatchesCountry } from '@/lib/countryCodes'
 import { track } from '@/lib/analytics'
 import { buildNextOppMap } from '@/lib/nextOpp'
 import { useLongPress } from '@/lib/useLongPress'
@@ -137,12 +138,15 @@ function playerMatchesQuery(
   clubMap?: Record<string, string>,
 ): boolean {
   if (queries.length === 0) return false
-  return queries.some((q) => {
+  const nameOrClub = queries.some((q) => {
     if (p.name.toLowerCase().includes(q)) return true
     if (clubMap && p.playerId && (clubMap[p.playerId] ?? '').toLowerCase().includes(q)) return true
-    if (p.country && p.country.toLowerCase().includes(q)) return true
     return false
   })
+  // Country match is resolved (name/code → code) and compared to the country
+  // field exactly, so "Thailand"/"THA" match Thai players without "tha" also
+  // catching a player named "Nattha".
+  return nameOrClub || queryMatchesCountry(queries, p.country)
 }
 
 export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, highlightMatches = true, showJumpToNext = true, onEventClick, eventToPlayoffDrawNum, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId, tournamentName }: Props) {

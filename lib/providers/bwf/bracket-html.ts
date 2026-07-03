@@ -49,8 +49,8 @@ function buildSvgConnector(groupCount: number, topBase: number, slotPitch: numbe
   return `<svg width="24" height="${totalH}" style="position:absolute;top:0;left:0;overflow:visible"><path d="${pathParts.join(' ')}" fill="none" stroke="#696969" stroke-width="1.4" stroke-linecap="round"></path></svg>`
 }
 
-interface BwfPlayer { id?: string | number; nameDisplay?: string; countryFlagUrl?: string | null }
-interface BwfTeam { players?: BwfPlayer[]; countryFlagUrl?: string | null }
+interface BwfPlayer { id?: string | number; nameDisplay?: string; countryCode?: string | null; countryFlagUrl?: string | null }
+interface BwfTeam { players?: BwfPlayer[]; countryCode?: string | null; countryFlagUrl?: string | null }
 interface BwfMatch {
   team1?: BwfTeam; team2?: BwfTeam
   team1seed?: number | null; team2seed?: number | null
@@ -85,7 +85,12 @@ function teamRowHtml(
         const flagUrl = p.countryFlagUrl ?? (i === 0 ? team?.countryFlagUrl ?? '' : '')
         const flagHtml = flagUrl ? `<img class="bk-flag" src="${esc(flagUrl)}" alt="">` : ''
         const seedSuffix = i === 0 ? seedHtml : ''
-        return `<span class="bk-player">${flagHtml}${esc(p.nameDisplay ?? '')}${seedSuffix}</span>`
+        // Stamp the country code (player-level, else the team's) so the player
+        // search can match a nation by code/name — it's otherwise absent from
+        // the bracket text (only encoded in the flag image URL).
+        const country = p.countryCode ?? team?.countryCode ?? ''
+        const countryAttr = country ? ` data-country="${esc(country.toLowerCase())}"` : ''
+        return `<span class="bk-player"${countryAttr}>${flagHtml}${esc(p.nameDisplay ?? '')}${seedSuffix}</span>`
       }).join('')
     : '<span class="bk-player"></span>'
 
