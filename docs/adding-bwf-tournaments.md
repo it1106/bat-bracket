@@ -128,7 +128,18 @@ unnecessary. Risks and why it's deferred:
 - Validation so far is only ~a handful of requests; do a server-side canary
   before committing.
 
-Also noticed during investigation: `vue-tournament-detail` now answers
-**"POST not supported … Supported methods: GET, HEAD"** — the app
-(`lib/providers/bwf/api-client.ts`) still POSTs it. Worth a separate look; the
-detail fetch may be silently failing.
+## Fixed 03-Jul-2026: vue-tournament-* endpoints moved POST → GET
+
+BWF migrated the `vue-tournament-detail` / `vue-tournament-draws` /
+`vue-tournament-draw-data` endpoints to **GET-only**; a POST now returns
+**405 Method Not Allowed**. Because `bwfProvider.getDraws`/`getBracket`/
+`getMatchesFull` catch and `return []`, every BWF bracket silently went blank
+(the tournament still resolved and appeared in the list — only the draw/bracket
+was empty). Symptom in the logs: `[bwf] getDraws failed: Error: BWF API 405 for
+/api/vue-tournament-draws`.
+
+Fix: `lib/providers/bwf/api-client.ts` now issues `GET` with the params in the
+query string. The response envelope (`{ results: … }`) is unchanged, so the
+parsers were untouched. Regression-guarded by `__tests__/bwf-api-client.test.ts`
+(asserts GET + query string so a revert to POST fails CI). Verified on prod:
+POST → 405, GET → 200 with real draw data.
