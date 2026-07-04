@@ -201,6 +201,55 @@ export type TKey =
   | 'statsCountryNoEvents'
   | 'rosterFilterPlaceholder'
   | 'rosterNoMatches'
+  | 'ppBack'
+  | 'ppStatTournaments'
+  | 'ppMatchesWord'
+  | 'ppRankMostTitles'
+  | 'ppRankMostWins'
+  | 'ppRankHighestWinPct'
+  | 'ppRankMostCourtTime'
+  | 'ppRankComebackWins'
+  | 'ppRankThreeSetterWins'
+  | 'ppBatRecord'
+  | 'ppCareerThisYear'
+  | 'ppTotal'
+  | 'ppSingles'
+  | 'ppDoubles'
+  | 'ppMixed'
+  | 'ppRankingBwf'
+  | 'ppRankingCurrent'
+  | 'ppAsOf'
+  | 'ppTnAbbr'
+  | 'ppPts'
+  | 'ppKpiWins'
+  | 'ppKpiLosses'
+  | 'ppKpiWinRate'
+  | 'ppKpiTitles'
+  | 'ppByEventType'
+  | 'ppWinRateSuffix'
+  | 'ppTitleWord'
+  | 'ppTitlesWord'
+  | 'ppTournamentHistory'
+  | 'ppTipSuperseded'
+  | 'ppTipGuaranteed'
+  | 'ppTipProjected'
+  | 'ppDef'
+  | 'ppLostTo'
+  | 'ppWith'
+  | 'ppRecentForm'
+  | 'ppMatchCharacter'
+  | 'ppCourtTime'
+  | 'ppAvg'
+  | 'ppLongest'
+  | 'ppThreeSetterRate'
+  | 'ppOf'
+  | 'ppComebackWinsLabel'
+  | 'ppComebackSub'
+  | 'ppThreeSetterWinsLabel'
+  | 'ppThreeSetterSub'
+  | 'ppMeetings'
+  | 'ppLast'
+  | 'ppFrequentPartners'
   | 'statsColWL'
   | 'statsEmptyState'
   | 'statsLoadFailed'
@@ -391,6 +440,55 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsCountryNoEvents: 'No events listed',
     rosterFilterPlaceholder: 'Filter by name or event',
     rosterNoMatches: 'No matches',
+    ppBack: 'Back',
+    ppStatTournaments: 'tournaments',
+    ppMatchesWord: 'matches',
+    ppRankMostTitles: 'Most Titles',
+    ppRankMostWins: 'Most Wins',
+    ppRankHighestWinPct: 'Highest Win %',
+    ppRankMostCourtTime: 'Most Court Time',
+    ppRankComebackWins: 'Comeback Wins',
+    ppRankThreeSetterWins: 'Three-setter Wins',
+    ppBatRecord: 'BAT record',
+    ppCareerThisYear: 'career (this year)',
+    ppTotal: 'Total',
+    ppSingles: 'singles',
+    ppDoubles: 'doubles',
+    ppMixed: 'mixed',
+    ppRankingBwf: 'BWF Badminton Asia Ranking',
+    ppRankingCurrent: 'Current Ranking',
+    ppAsOf: 'as of',
+    ppTnAbbr: 'tn',
+    ppPts: 'pts',
+    ppKpiWins: 'Wins',
+    ppKpiLosses: 'Losses',
+    ppKpiWinRate: 'Win Rate',
+    ppKpiTitles: 'Titles',
+    ppByEventType: 'By Event Type',
+    ppWinRateSuffix: 'win rate',
+    ppTitleWord: 'title',
+    ppTitlesWord: 'titles',
+    ppTournamentHistory: 'Tournament history',
+    ppTipSuperseded: 'Superseded — a higher-scoring result in this discipline counts toward ranking',
+    ppTipGuaranteed: 'Guaranteed minimum — still active in this event',
+    ppTipProjected: 'Projected ranking points (from tournament level)',
+    ppDef: 'def.',
+    ppLostTo: 'lost to',
+    ppWith: 'w/',
+    ppRecentForm: 'Recent form',
+    ppMatchCharacter: 'Match character',
+    ppCourtTime: 'Court time',
+    ppAvg: 'avg',
+    ppLongest: 'longest',
+    ppThreeSetterRate: 'Three-setter rate',
+    ppOf: 'of',
+    ppComebackWinsLabel: 'Comeback wins',
+    ppComebackSub: 'won {n} of {m} after dropping game 1',
+    ppThreeSetterWinsLabel: 'Three-setter wins',
+    ppThreeSetterSub: 'of {n} three-setters played',
+    ppMeetings: 'meetings',
+    ppLast: 'last:',
+    ppFrequentPartners: 'Frequent partners (doubles)',
     statsSectionMultiGold: 'Players with multiple gold medals',
     statsSectionIntegrity: 'Other stats',
     statsMarathonBadge: 'Marathon',
@@ -627,6 +725,55 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsCountryNoEvents: 'ไม่มีข้อมูลประเภท',
     rosterFilterPlaceholder: 'ค้นหาชื่อหรือประเภท',
     rosterNoMatches: 'ไม่พบรายชื่อ',
+    ppBack: 'ย้อนกลับ',
+    ppStatTournaments: 'รายการ',
+    ppMatchesWord: 'แมตช์',
+    ppRankMostTitles: 'แชมป์มากสุด',
+    ppRankMostWins: 'ชนะมากสุด',
+    ppRankHighestWinPct: 'อัตราชนะสูงสุด',
+    ppRankMostCourtTime: 'เวลาในสนามมากสุด',
+    ppRankComebackWins: 'ชนะพลิกกลับมากสุด',
+    ppRankThreeSetterWins: 'ชนะ 3 เกมมากสุด',
+    ppBatRecord: 'สถิติ BAT',
+    ppCareerThisYear: 'ตลอดอาชีพ (ปีนี้)',
+    ppTotal: 'รวม',
+    ppSingles: 'เดี่ยว',
+    ppDoubles: 'คู่',
+    ppMixed: 'คู่ผสม',
+    ppRankingBwf: 'อันดับ BWF Badminton Asia',
+    ppRankingCurrent: 'อันดับปัจจุบัน',
+    ppAsOf: 'ณ วันที่',
+    ppTnAbbr: 'รายการ',
+    ppPts: 'คะแนน',
+    ppKpiWins: 'ชนะ',
+    ppKpiLosses: 'แพ้',
+    ppKpiWinRate: 'อัตราชนะ',
+    ppKpiTitles: 'แชมป์',
+    ppByEventType: 'แยกตามประเภท',
+    ppWinRateSuffix: 'อัตราชนะ',
+    ppTitleWord: 'แชมป์',
+    ppTitlesWord: 'แชมป์',
+    ppTournamentHistory: 'ประวัติการแข่ง',
+    ppTipSuperseded: 'ถูกแทนที่ — ผลที่คะแนนสูงกว่าในประเภทนี้จะถูกนับสำหรับอันดับ',
+    ppTipGuaranteed: 'ขั้นต่ำที่การันตี — ยังแข่งอยู่ในประเภทนี้',
+    ppTipProjected: 'คะแนนอันดับโดยประมาณ (จากระดับรายการ)',
+    ppDef: 'ชนะ',
+    ppLostTo: 'แพ้',
+    ppWith: 'คู่กับ',
+    ppRecentForm: 'ฟอร์มล่าสุด',
+    ppMatchCharacter: 'ลักษณะการเล่น',
+    ppCourtTime: 'เวลาในสนาม',
+    ppAvg: 'เฉลี่ย',
+    ppLongest: 'นานสุด',
+    ppThreeSetterRate: 'อัตราแมตช์ 3 เกม',
+    ppOf: 'จาก',
+    ppComebackWinsLabel: 'ชนะพลิกกลับ',
+    ppComebackSub: 'ชนะ {n} จาก {m} หลังเสียเกมแรก',
+    ppThreeSetterWinsLabel: 'ชนะแมตช์ 3 เกม',
+    ppThreeSetterSub: 'จาก {n} แมตช์ 3 เกมที่เล่น',
+    ppMeetings: 'ครั้งที่เจอ',
+    ppLast: 'ล่าสุด:',
+    ppFrequentPartners: 'คู่ที่เล่นด้วยบ่อย (ประเภทคู่)',
     statsSectionMultiGold: 'นักกีฬาที่ได้เหรียญทองมากกว่า 1 เหรียญ',
     statsSectionIntegrity: 'สถิติอื่น ๆ',
     statsMarathonBadge: 'แมตช์มาราธอน',

@@ -41,13 +41,13 @@ function wlPct(r: WLRecord): number | null {
 }
 function wl(r: WLRecord): string { return `${r.wins}–${r.losses}` }
 
-const RANK_LABELS: Array<[keyof PlayerRanks, string, string]> = [
-  ['titles', '🏆', 'Most Titles'],
-  ['wins', '🥇', 'Most Wins'],
-  ['winPct', '📊', 'Highest Win %'],
-  ['courtTime', '⏱', 'Most Court Time'],
-  ['comebackWins', '🔁', 'Comeback Wins'],
-  ['threeSetterWins', '🔥', 'Three-setter Wins'],
+const RANK_LABELS: Array<[keyof PlayerRanks, string, import('@/lib/i18n').TKey]> = [
+  ['titles', '🏆', 'ppRankMostTitles'],
+  ['wins', '🥇', 'ppRankMostWins'],
+  ['winPct', '📊', 'ppRankHighestWinPct'],
+  ['courtTime', '⏱', 'ppRankMostCourtTime'],
+  ['comebackWins', '🔁', 'ppRankComebackWins'],
+  ['threeSetterWins', '🔥', 'ppRankThreeSetterWins'],
 ]
 
 const OPPONENT_WINDOWS: Array<{ key: OpponentTimeWindow; labelKey:
@@ -62,6 +62,8 @@ const OPPONENT_WINDOWS: Array<{ key: OpponentTimeWindow; labelKey:
 export default function PlayerProfileView({ record, playerRankings, rankingPublishDate, initialDetail, currentRanking, countryFlagUrl, tournamentLevels }: Props) {
   const router = useRouter()
   const { t } = useLanguage()
+  const discLabel = (d: 'singles' | 'doubles' | 'mixed') =>
+    t(d === 'singles' ? 'ppSingles' : d === 'doubles' ? 'ppDoubles' : 'ppMixed')
   const [oppTab, setOppTab] = useState<OpponentTimeWindow>('all')
   const [oppExpanded, setOppExpanded] = useState(false)
   const OPP_COLLAPSED_LIMIT = 10
@@ -126,7 +128,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
 
   return (
     <div className="pp-page">
-      <a href="/leaderboards" className="pp-back" onClick={goBack}>← Back</a>
+      <a href="/leaderboards" className="pp-back" onClick={goBack}>← {t('ppBack')}</a>
       <div className="pp-hdr">
         <h1>{record.displayName}</h1>
         <div className="pp-meta">
@@ -140,7 +142,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
               <strong>{record.country}</strong>
             </span>
           )}
-          <span>🏸 <strong>{record.tournaments.length}</strong> tournaments · {record.totals.matches} matches</span>
+          <span>🏸 <strong>{record.tournaments.length}</strong> {t('ppStatTournaments')} · {record.totals.matches} {t('ppMatchesWord')}</span>
         </div>
         <div className="pp-badges">
           {RANK_LABELS.map(([k, icon, label]) => {
@@ -148,7 +150,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
             if (rank === undefined) return null
             return (
               <Link key={String(k)} href={`/leaderboards#${String(k)}`} className="pp-rank-badge">
-                <span className="pp-rk">#{rank}</span>{icon} {label}
+                <span className="pp-rk">#{rank}</span>{icon} {t(label)}
               </Link>
             )
           })}
@@ -157,9 +159,9 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
 
       {extra?.stats && (
         <div className="pp-section">
-          <h2>BAT record <span className="pp-stats-note">career (this year)</span></h2>
+          <h2>{t('ppBatRecord')} <span className="pp-stats-note">{t('ppCareerThisYear')}</span></h2>
           <div className="pp-stats-banner">
-            <div className="pp-stats-banner-label">Total</div>
+            <div className="pp-stats-banner-label">{t('ppTotal')}</div>
             <div className="pp-stats-banner-value">
               <span className="pp-stats-career">{wl(extra.stats.total.career)}</span>
               <span className="pp-stats-ytd">({wl(extra.stats.total.ytd)})</span>
@@ -176,7 +178,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
               const p = wlPct(extra.stats[k].career)
               return (
                 <div key={k} className="pp-stats-cell">
-                  <div className="pp-stats-cell-label">{k}</div>
+                  <div className="pp-stats-cell-label">{discLabel(k)}</div>
                   <div className="pp-stats-cell-value">{wl(extra.stats[k].career)}</div>
                   <div className="pp-stats-cell-ytd">({wl(extra.stats[k].ytd)})</div>
                   {p !== null && <div className="pp-stats-cell-pct">{p}%</div>}
@@ -189,16 +191,16 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
 
       {playerRankings && playerRankings.length > 0 && (
         <div className="pp-section pp-ranking-section">
-          <h2>{record.key.provider === 'bwf' ? 'BWF Badminton Asia Ranking' : 'Current Ranking'}{rankingPublishDate && (
-            <span className="pp-stats-note">as of {rankingPublishDate}{rankingWeekKey && ` (${rankingWeekKey})`}</span>
+          <h2>{record.key.provider === 'bwf' ? t('ppRankingBwf') : t('ppRankingCurrent')}{rankingPublishDate && (
+            <span className="pp-stats-note">{t('ppAsOf')} {rankingPublishDate}{rankingWeekKey && ` (${rankingWeekKey})`}</span>
           )}</h2>
           <div className="pp-ranking-list">
             {playerRankings.map(r => (
               <div key={r.eventName} className="pp-ranking-row">
                 <span className="pp-ranking-event">{r.eventName}</span>
                 <span className="pp-ranking-pos">#{r.rank}</span>
-                {r.tournaments > 0 && <span className="pp-ranking-tn">{r.tournaments} tn</span>}
-                <span className="pp-ranking-pts">{r.points.toLocaleString()} pts</span>
+                {r.tournaments > 0 && <span className="pp-ranking-tn">{r.tournaments} {t('ppTnAbbr')}</span>}
+                <span className="pp-ranking-pts">{r.points.toLocaleString()} {t('ppPts')}</span>
               </div>
             ))}
           </div>
@@ -215,23 +217,23 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
         />
       )}
       <div className="pp-kpi-row">
-        <div className="pp-kpi"><div className="pp-kpi-num">{record.totals.wins}</div><div className="pp-kpi-lbl">Wins</div></div>
-        <div className="pp-kpi"><div className="pp-kpi-num">{record.totals.losses}</div><div className="pp-kpi-lbl">Losses</div></div>
-        <div className="pp-kpi"><div className="pp-kpi-num">{winPct}%</div><div className="pp-kpi-lbl">Win Rate</div></div>
-        <div className="pp-kpi"><div className="pp-kpi-num">{record.titles.length}</div><div className="pp-kpi-lbl">Titles</div></div>
+        <div className="pp-kpi"><div className="pp-kpi-num">{record.totals.wins}</div><div className="pp-kpi-lbl">{t('ppKpiWins')}</div></div>
+        <div className="pp-kpi"><div className="pp-kpi-num">{record.totals.losses}</div><div className="pp-kpi-lbl">{t('ppKpiLosses')}</div></div>
+        <div className="pp-kpi"><div className="pp-kpi-num">{winPct}%</div><div className="pp-kpi-lbl">{t('ppKpiWinRate')}</div></div>
+        <div className="pp-kpi"><div className="pp-kpi-num">{record.titles.length}</div><div className="pp-kpi-lbl">{t('ppKpiTitles')}</div></div>
       </div>
 
       <div className="pp-section">
-        <h2>By Event Type</h2>
+        <h2>{t('ppByEventType')}</h2>
         <div className="pp-disc-grid">
           {(['singles', 'doubles', 'mixed'] as const).map(d => {
             const s = record.byDiscipline[d]
             return (
               <div key={d} className="pp-disc">
-                <div className="pp-disc-name">{d}</div>
+                <div className="pp-disc-name">{discLabel(d)}</div>
                 <div className="pp-disc-wl">{s.wins}–{s.losses}</div>
-                <div className="pp-disc-pct">{disciplinePct(s)} win rate</div>
-                <div className="pp-disc-ttl">{s.titles} title{s.titles === 1 ? '' : 's'} · {s.semis} SF</div>
+                <div className="pp-disc-pct">{disciplinePct(s)} {t('ppWinRateSuffix')}</div>
+                <div className="pp-disc-ttl">{s.titles} {s.titles === 1 ? t('ppTitleWord') : t('ppTitlesWord')} · {s.semis} SF</div>
               </div>
             )
           })}
@@ -240,17 +242,17 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
 
       {record.tournaments.length > 0 && (
         <div className="pp-section" ref={tourSectionRef}>
-          <h2>Tournament history</h2>
+          <h2>{t('ppTournamentHistory')}</h2>
           {[...record.tournaments]
             .sort((a, b) => (b.tournamentDateIso ?? '').localeCompare(a.tournamentDateIso ?? ''))
-            .map(t => {
+            .map(tour => {
             // Points per event, then per discipline the max-points event is the
             // one that counts toward ranking (others are superseded). Ties break
             // to the older age group (lower AGE_GROUPS index).
-            const lvl = tournamentLevels?.[t.tournamentId]
+            const lvl = tournamentLevels?.[tour.tournamentId]
             const evPts = new Map<string, number | null>()
             const bestByDisc = new Map<string, { key: string; pts: number; ageRank: number }>()
-            for (const e of t.events) {
+            for (const e of tour.events) {
               const key = e.eventId + e.eventName
               const ageG = ageGroupFromEvent(e.eventName)
               const round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize, e.lostByWalkover, e.active)
@@ -265,13 +267,13 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
               }
             }
             return (
-            <div className="pp-tour" key={t.tournamentId}>
+            <div className="pp-tour" key={tour.tournamentId}>
               <div className="pp-tour-name-row">
-                <div className="pp-tour-name">{t.tournamentName}</div>
-                <div className="pp-tour-date">{t.tournamentDateIso}</div>
+                <div className="pp-tour-name">{tour.tournamentName}</div>
+                <div className="pp-tour-date">{tour.tournamentDateIso}</div>
               </div>
               <div className="pp-events">
-                {t.events.map(e => {
+                {tour.events.map(e => {
                   // Podium tint: Champion (won the Final) → gold, F (reached
                   // the Final, lost) → silver, SF (reached the SF, lost) →
                   // bronze. Badminton awards both losing semifinalists 3rd.
@@ -287,19 +289,19 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
                   const evKey = e.eventId + e.eventName
                   const evPoints = evPts.get(evKey) ?? null
                   const counts = bestByDisc.get(e.discipline)?.key === evKey
-                  const tipKey = `${t.tournamentId}:${e.eventId}`
+                  const tipKey = `${tour.tournamentId}:${e.eventId}`
                   const matches = record.tournamentMatches?.[tipKey] ?? []
                   // Mirror the recentForm tip format: one line per match with
                   // round, verb prefix, opponents, optional partner suffix,
                   // and the comma-joined scores (or walkover/retired tag).
                   const tip = matches.length === 0 ? '' : matches.map(m => {
                     const won = m.outcome === 'W' || m.outcome === 'WO-W' || m.outcome === 'RET-W'
-                    const verb = won ? 'def.' : 'lost to'
+                    const verb = won ? t('ppDef') : t('ppLostTo')
                     const opp = m.opponents.length > 0 ? m.opponents.join(' / ') : '—'
-                    const partnerLine = m.partners.length > 0 ? ` (w/ ${m.partners.join(' / ')})` : ''
+                    const partnerLine = m.partners.length > 0 ? ` (${t('ppWith')} ${m.partners.join(' / ')})` : ''
                     const scoreLine = m.scores.length > 0
                       ? m.scores.map(s => `${s.t1}-${s.t2}`).join(', ')
-                      : (m.outcome.startsWith('WO') ? 'walkover' : m.outcome.startsWith('RET') ? 'retired' : '')
+                      : (m.outcome.startsWith('WO') ? t('walkover') : m.outcome.startsWith('RET') ? t('retired') : '')
                     return `${m.round}: ${verb} ${opp}${partnerLine}\n  ${scoreLine}`
                   }).join('\n')
                   const isOpen = openTour === tipKey
@@ -317,11 +319,11 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
                         <> · <span
                           className={`pp-ev-chip-pts ${counts ? '' : 'pp-ev-chip-pts-superseded'}`}
                           title={!counts
-                            ? 'Superseded — a higher-scoring result in this discipline counts toward ranking'
+                            ? t('ppTipSuperseded')
                             : e.active
-                              ? 'Guaranteed minimum — still active in this event'
-                              : 'Projected ranking points (from tournament level)'}
-                        >≈{evPoints.toLocaleString('en-US')} pts</span></>
+                              ? t('ppTipGuaranteed')
+                              : t('ppTipProjected')}
+                        >≈{evPoints.toLocaleString('en-US')} {t('ppPts')}</span></>
                       )}
                       {hasTip && <span className="pp-ev-tip" role="tooltip">{tip}</span>}
                     </span>
@@ -335,7 +337,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
 
       {record.recentForm.length > 0 && (
         <div className="pp-section">
-          <h2>Recent form</h2>
+          <h2>{t('ppRecentForm')}</h2>
           <div className="pp-form-strip" ref={formStripRef}>
             {record.recentForm.map((r, i) => {
               const won = r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W'
@@ -344,12 +346,12 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
                 : r.outcome === 'RET-L' ? 'RT'
                 : 'L'
               const cls = won ? 'pp-w' : (label === 'WO' || label === 'RT' ? 'pp-wo' : 'pp-l')
-              const verbPrefix = won ? 'def.' : 'lost to'
+              const verbPrefix = won ? t('ppDef') : t('ppLostTo')
               const opp = r.opponents.length > 0 ? r.opponents.join(' / ') : '—'
               const scoreLine = r.scores.length > 0
                 ? r.scores.map(s => `${s.t1}-${s.t2}`).join(', ')
-                : (r.outcome.startsWith('WO') ? 'walkover' : r.outcome.startsWith('RET') ? 'retired' : '')
-              const partnerLine = r.partners.length > 0 ? ` (w/ ${r.partners.join(' / ')})` : ''
+                : (r.outcome.startsWith('WO') ? t('walkover') : r.outcome.startsWith('RET') ? t('retired') : '')
+              const partnerLine = r.partners.length > 0 ? ` (${t('ppWith')} ${r.partners.join(' / ')})` : ''
               const dateLine = r.scheduledDateIso
                 ? `${r.tournamentName} · ${r.scheduledDateIso.slice(0, 10)}`
                 : r.tournamentName
@@ -371,37 +373,37 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
       )}
 
       <div className="pp-section">
-        <h2>Match character</h2>
+        <h2>{t('ppMatchCharacter')}</h2>
         <div className="pp-char-grid">
           <div className="pp-char-card">
-            <div className="pp-char-label">Court time</div>
+            <div className="pp-char-label">{t('ppCourtTime')}</div>
             <div className="pp-char-value">{fmtHM(record.matchCharacter.courtMinutes)}</div>
-            <div className="pp-char-sub">avg {record.matchCharacter.avgMatchMinutes}m · longest {fmtHM(record.matchCharacter.longestMatchMinutes)}</div>
+            <div className="pp-char-sub">{t('ppAvg')} {record.matchCharacter.avgMatchMinutes}m · {t('ppLongest')} {fmtHM(record.matchCharacter.longestMatchMinutes)}</div>
           </div>
           <div className="pp-char-card">
-            <div className="pp-char-label">Three-setter rate</div>
+            <div className="pp-char-label">{t('ppThreeSetterRate')}</div>
             <div className="pp-char-value">{fmtPct(record.matchCharacter.threeSetterRate)}</div>
-            <div className="pp-char-sub">{record.matchCharacter.threeSetterCount} of {record.totals.matches} matches</div>
+            <div className="pp-char-sub">{record.matchCharacter.threeSetterCount} {t('ppOf')} {record.totals.matches} {t('ppMatchesWord')}</div>
           </div>
           <div className="pp-char-card">
-            <div className="pp-char-label">Comeback wins</div>
+            <div className="pp-char-label">{t('ppComebackWinsLabel')}</div>
             <div className="pp-char-value">
               {record.matchCharacter.comebackWins}
               {record.matchCharacter.firstGameLost > 0 && (
                 <span className="pp-char-pct"> · {Math.round((record.matchCharacter.comebackWins / record.matchCharacter.firstGameLost) * 100)}%</span>
               )}
             </div>
-            <div className="pp-char-sub">won {record.matchCharacter.comebackWins} of {record.matchCharacter.firstGameLost} after dropping game 1</div>
+            <div className="pp-char-sub">{t('ppComebackSub').replace('{n}', String(record.matchCharacter.comebackWins)).replace('{m}', String(record.matchCharacter.firstGameLost))}</div>
           </div>
           <div className="pp-char-card">
-            <div className="pp-char-label">Three-setter wins</div>
+            <div className="pp-char-label">{t('ppThreeSetterWinsLabel')}</div>
             <div className="pp-char-value">
               {record.matchCharacter.threeSetterWins}
               {record.matchCharacter.threeSetterCount > 0 && (
                 <span className="pp-char-pct"> · {Math.round((record.matchCharacter.threeSetterWins / record.matchCharacter.threeSetterCount) * 100)}%</span>
               )}
             </div>
-            <div className="pp-char-sub">of {record.matchCharacter.threeSetterCount} three-setters played</div>
+            <div className="pp-char-sub">{t('ppThreeSetterSub').replace('{n}', String(record.matchCharacter.threeSetterCount))}</div>
           </div>
         </div>
       </div>
@@ -439,10 +441,10 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
                     <Link key={o.slug} href={`/player/${record.key.provider}/${o.slug}`} className="pp-ppl-row">
                       <div>
                         <div className="pp-ppl-name">{o.name}</div>
-                        <div className="pp-ppl-met">{o.meetings} meetings</div>
+                        <div className="pp-ppl-met">{o.meetings} {t('ppMeetings')}</div>
                       </div>
                       <div className="pp-ppl-wl"><span className="pp-w">{o.wins}W</span> · <span className="pp-l">{o.losses}L</span></div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>last: {o.lastRound} · {o.lastEvent}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{t('ppLast')} {o.lastRound} · {o.lastEvent}</div>
                     </Link>
                   ))}
                 </div>
@@ -463,13 +465,13 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
 
       {record.partners.length > 0 && (
         <div className="pp-section">
-          <h2>Frequent partners (doubles)</h2>
+          <h2>{t('ppFrequentPartners')}</h2>
           <div className="pp-ppl-list">
             {record.partners.map(p => (
               <Link key={p.slug} href={`/player/${record.key.provider}/${p.slug}`} className="pp-ppl-row">
                 <div>
                   <div className="pp-ppl-name">{p.name}</div>
-                  <div className="pp-ppl-met">{p.matchesTogether} matches · {p.primaryEvent}</div>
+                  <div className="pp-ppl-met">{p.matchesTogether} {t('ppMatchesWord')} · {p.primaryEvent}</div>
                 </div>
                 <div className="pp-ppl-wl"><span className="pp-w">{p.wins}W</span> · <span className="pp-l">{p.losses}L</span></div>
                 <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>{disciplinePct({ wins: p.wins, losses: p.losses })}</div>

@@ -69,6 +69,20 @@ describe('PlayerProfileView', () => {
     expect(screen.getByText(/#34/)).toBeTruthy()
   })
 
+  it('localizes section headings to Thai when lang=th', () => {
+    localStorage.setItem('batbracket.lang', 'th')
+    try {
+      renderProfile(sample)
+      // Section headings render from i18n, so they should be Thai, not English.
+      expect(screen.getByText('แยกตามประเภท')).toBeTruthy()      // By Event Type
+      expect(screen.getByText('ลักษณะการเล่น')).toBeTruthy()     // Match character
+      expect(screen.getByText('ประวัติการแข่ง')).toBeTruthy()    // Tournament history
+      expect(screen.queryByText('By Event Type')).toBeNull()
+    } finally {
+      localStorage.removeItem('batbracket.lang')
+    }
+  })
+
   function withOpponents(extra: Partial<PlayerRecord> = {}): PlayerRecord {
     const lifetime = [
       { slug: 'lifetime-foe', name: 'Lifetime Foe', meetings: 5, wins: 3, losses: 2, lastRound: 'F', lastEvent: 'BS' },
