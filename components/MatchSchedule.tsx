@@ -401,7 +401,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           )
         })()}
         <span className="ms-round">{longRound(m.round)}</span>
-        {courtLabel && <span className={`ms-court ms-d${sortMode === 'matchNum' ? ' ms-court--accent' : ''}`}>{courtLabel}</span>}
+        {courtLabel && <span className={`ms-court${sortMode === 'matchNum' ? ' ms-court--accent' : ' ms-d'}`}>{courtLabel}</span>}
         {durationLabel && <span className="ms-duration ms-d">{durationLabel}</span>}
         {sortMode === 'matchNum'
           ? (() => {
@@ -533,12 +533,19 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         </div>
       </div>
 
-      {(courtLabel || durationLabel) && (
-        <div className="ms-footer ms-m">
-          {courtLabel && <span className="ms-court">{courtLabel}</span>}
-          {durationLabel && <span className="ms-duration">{durationLabel}</span>}
-        </div>
-      )}
+      {(() => {
+        // In "by match #" mode the court moves into the meta row (red, before
+        // the estimated time), so drop it from the mobile footer to avoid
+        // showing it twice.
+        const footerCourt = sortMode === 'matchNum' ? '' : courtLabel
+        if (!footerCourt && !durationLabel) return null
+        return (
+          <div className="ms-footer ms-m">
+            {footerCourt && <span className="ms-court">{footerCourt}</span>}
+            {durationLabel && <span className="ms-duration">{durationLabel}</span>}
+          </div>
+        )
+      })()}
     </div>
     )
   }
