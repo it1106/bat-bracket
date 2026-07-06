@@ -1431,6 +1431,11 @@ html[lang="th"] .pm-section-title {
   color: var(--win-fg);
 }
 
+.ms-seq--est {
+  color: var(--muted);
+  font-weight: 500;
+}
+
 /* ── Match rows ── */
 .ms-list {
   background: var(--surface);
@@ -1525,6 +1530,11 @@ html[lang="th"] .pm-section-title {
   color: var(--muted);
   font-size: 12px;
   white-space: nowrap;
+}
+
+.ms-court--accent {
+  color: #dc2626;
+  font-weight: 700;
 }
 
 .ms-duration {

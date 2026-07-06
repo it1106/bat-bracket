@@ -401,21 +401,29 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           )
         })()}
         <span className="ms-round">{longRound(m.round)}</span>
-        {courtLabel && <span className="ms-court ms-d">{courtLabel}</span>}
+        {courtLabel && <span className={`ms-court ms-d${sortMode === 'matchNum' ? ' ms-court--accent' : ''}`}>{courtLabel}</span>}
         {durationLabel && <span className="ms-duration ms-d">{durationLabel}</span>}
-        {m.sequenceLabel && (() => {
-          // BAT court-schedule rows start with a match number ("N. ..."): prefix
-          // "Match ". For "Followed by" rows, also append the source's estimated
-          // start time as "(~HH:MM)" when present.
-          let label = m.sequenceLabel
-          if (/^\d+\.\s/.test(label)) {
-            const hhmm = /\bfollowed by\b/i.test(label)
-              ? m.scheduledTime?.match(/(\d{1,2}:\d{2})/)
-              : null
-            label = `Match ${label}${hhmm ? ` (~${hhmm[1]})` : ''}`
-          }
-          return <span className="ms-seq">{label}</span>
-        })()}
+        {sortMode === 'matchNum'
+          ? (() => {
+              // "By match #" mode: the group header already reads "Match N", so
+              // drop the redundant "Match N. Followed by" label and surface just
+              // the estimated start time as "Est. HH:MM".
+              const hhmm = m.scheduledTime?.match(/(\d{1,2}:\d{2})/)
+              return hhmm ? <span className="ms-seq ms-seq--est">Est. {hhmm[1]}</span> : null
+            })()
+          : m.sequenceLabel && (() => {
+              // BAT court-schedule rows start with a match number ("N. ..."):
+              // prefix "Match ". For "Followed by" rows, also append the source's
+              // estimated start time as "(~HH:MM)" when present.
+              let label = m.sequenceLabel
+              if (/^\d+\.\s/.test(label)) {
+                const hhmm = /\bfollowed by\b/i.test(label)
+                  ? m.scheduledTime?.match(/(\d{1,2}:\d{2})/)
+                  : null
+                label = `Match ${label}${hhmm ? ` (~${hhmm[1]})` : ''}`
+              }
+              return <span className="ms-seq">{label}</span>
+            })()}
         {m.nowPlaying && !isLive && <span className="ms-now-playing" title={t('nowPlaying')} />}
         {m.h2hUrl && onH2HClick && m.team1.length > 0 && m.team2.length > 0 && (
           <button
