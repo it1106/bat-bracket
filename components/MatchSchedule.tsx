@@ -360,7 +360,16 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         <span className="ms-round">{longRound(m.round)}</span>
         {courtLabel && <span className="ms-court ms-d">{courtLabel}</span>}
         {durationLabel && <span className="ms-duration ms-d">{durationLabel}</span>}
-        {m.sequenceLabel && <span className="ms-seq">{m.sequenceLabel}</span>}
+        {m.sequenceLabel && (() => {
+          // BAT court-schedule "N. Followed by" rows: prefix "Match " and, when
+          // the source carried an estimated start time, append it as "(~HH:MM)".
+          let label = m.sequenceLabel
+          if (/\bfollowed by\b/i.test(label)) {
+            const hhmm = m.scheduledTime?.match(/(\d{1,2}:\d{2})/)
+            label = `Match ${label}${hhmm ? ` (~${hhmm[1]})` : ''}`
+          }
+          return <span className="ms-seq">{label}</span>
+        })()}
         {m.nowPlaying && !isLive && <span className="ms-now-playing" title={t('nowPlaying')} />}
         {m.h2hUrl && onH2HClick && m.team1.length > 0 && m.team2.length > 0 && (
           <button
