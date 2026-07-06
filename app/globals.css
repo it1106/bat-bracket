@@ -1394,6 +1394,12 @@ html[lang="th"] .pm-section-title {
 }
 
 
+.ms-sort-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
 .match-schedule__time-group {
   margin-bottom: 20px;
 }

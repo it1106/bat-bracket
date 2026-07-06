@@ -125,6 +125,8 @@ export type TKey =
   | 'clearSearch'
   | 'highlight'
   | 'excludeCompleted'
+  | 'sortByCourt'
+  | 'sortByMatchNum'
   | 'darkMode'
   | 'lightMode'
   | 'close'
@@ -378,6 +380,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     clearSearch: 'Clear search',
     highlight: 'Highlight',
     excludeCompleted: 'Excl. Completed Matches',
+    sortByCourt: 'By court',
+    sortByMatchNum: 'By match #',
     darkMode: 'Dark mode',
     lightMode: 'Light mode',
     close: 'Close',
@@ -663,6 +667,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     clearSearch: 'ล้างคำค้น',
     highlight: 'ไฮไลท์',
     excludeCompleted: 'ไม่รวมคู่ที่จบแล้ว',
+    sortByCourt: 'ตามคอร์ท',
+    sortByMatchNum: 'ตามลำดับแมตช์',
     darkMode: 'โหมดมืด',
     lightMode: 'โหมดสว่าง',
     close: 'ปิด',

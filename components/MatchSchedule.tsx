@@ -89,6 +89,14 @@ function entryMatchesGroup(entry: MatchEntry, group: string[], clubMap?: Record<
   return sideMatchesGroup([...entry.team1, ...entry.team2], entry, group, clubMap)
 }
 
+// Court-schedule ("Followed by") rows carry a leading order-of-play number in
+// their sequenceLabel ("2. Followed by"). Returns that number, or null when the
+// row isn't part of a numbered court schedule.
+function matchNumberOf(m: MatchEntry): number | null {
+  const mm = m.sequenceLabel?.match(/^\s*(\d+)\./)
+  return mm ? parseInt(mm[1], 10) : null
+}
+
 // Tally the searched player/club's record over a set of already-filtered
 // matches: a decided match counts as a win/loss for whichever searched side
 // won/lost (a club-derby where both sides match adds one of each), and any
@@ -151,15 +159,50 @@ function playerMatchesQuery(
 
 export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, highlightMatches = true, showJumpToNext = true, onEventClick, eventToPlayoffDrawNum, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId, tournamentName }: Props) {
   const { t, longRound } = useLanguage()
+
+  // Court-based "Followed by" schedules can be re-sorted by match number: the
+  // toggle only appears when the day is court-grouped and rows carry a match
+  // number (time-grid days are already time-ordered and have neither).
+  const [sortMode, setSortMode] = useState<'court' | 'matchNum'>('court')
+  const hasCourtSchedule = useMemo(
+    () =>
+      groups.some((g) => g.type === 'court') &&
+      groups.some((g) => g.matches.some((m) => matchNumberOf(m) !== null)),
+    [groups],
+  )
+  // In "by match #" mode, flatten every court group and re-group by the match
+  // number so "Match 1" lists the first match on each court, "Match 2" the
+  // second, etc. Rows without a number sink to a trailing group. Any other case
+  // (default, or non-court days) renders the groups untouched.
+  const displayGroups = useMemo<MatchScheduleGroup[]>(() => {
+    if (sortMode !== 'matchNum' || !hasCourtSchedule) return groups
+    const byNum = new Map<number, MatchEntry[]>()
+    const noNum: MatchEntry[] = []
+    for (const g of groups) {
+      for (const m of g.matches) {
+        const n = matchNumberOf(m)
+        if (n === null) { noNum.push(m); continue }
+        const arr = byNum.get(n)
+        if (arr) arr.push(m)
+        else byNum.set(n, [m])
+      }
+    }
+    const out: MatchScheduleGroup[] = Array.from(byNum.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([n, ms]) => ({ type: 'time', time: `Match ${n}`, matches: ms }))
+    if (noNum.length) out.push({ type: 'time', time: '—', matches: noNum })
+    return out
+  }, [groups, sortMode, hasCourtSchedule])
+
   const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
-    useFirstUnplayed(groups, playerQuery, playerClubMap)
+    useFirstUnplayed(displayGroups, playerQuery, playerClubMap)
   const playingOrder = useMemo(
     () => computePlayingOrder({ groups, liveByCourt: liveByCourt ?? null }),
     [groups, liveByCourt],
   )
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const seenMatchIds = useRef<Set<string>>(new Set())
-  const nextOppMap = useMemo(() => buildNextOppMap(groups), [groups])
+  const nextOppMap = useMemo(() => buildNextOppMap(displayGroups), [displayGroups])
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
   const [lockedKey, setLockedKey] = useState<string | null>(null)
 
@@ -540,11 +583,30 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         <div className="p-8 text-center text-gray-400 text-sm">{t('noMatchesScheduled')}</div>
       )}
 
+      {selectedDay !== 'stats' && !loading && groups.length > 0 && hasCourtSchedule && (
+        <div className="ms-sort-toggle" role="group" aria-label={t('sortByCourt')}>
+          <button
+            className={`match-schedule__day-tab${sortMode === 'court' ? ' active' : ''}`}
+            aria-pressed={sortMode === 'court'}
+            onClick={() => setSortMode('court')}
+          >
+            {t('sortByCourt')}
+          </button>
+          <button
+            className={`match-schedule__day-tab${sortMode === 'matchNum' ? ' active' : ''}`}
+            aria-pressed={sortMode === 'matchNum'}
+            onClick={() => setSortMode('matchNum')}
+          >
+            {t('sortByMatchNum')}
+          </button>
+        </div>
+      )}
+
       {selectedDay !== 'stats' && !loading && (() => {
         const filterActive = playerQuery.trim() !== '' || excludeCompleted
         let total = 0
         const allFiltered: MatchEntry[] = []
-        const rendered = groups.map((group, gi) => {
+        const rendered = displayGroups.map((group, gi) => {
           const queryFiltered = playerQuery
             ? group.matches.filter((m) => matchesQuery(m, playerQuery, playerClubMap))
             : group.matches
