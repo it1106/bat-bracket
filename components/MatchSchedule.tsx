@@ -164,6 +164,16 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   // toggle only appears when the day is court-grouped and rows carry a match
   // number (time-grid days are already time-ordered and have neither).
   const [sortMode, setSortMode] = useState<'court' | 'matchNum'>('court')
+  // Collapsed schedule groups, keyed by header text (court name / "Match N" /
+  // time). Keying by label means each sort mode keeps its own collapse state.
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const toggleGroup = (key: string) =>
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   const hasCourtSchedule = useMemo(
     () =>
       groups.some((g) => g.type === 'court') &&
@@ -633,16 +643,28 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           allFiltered.push(...filtered)
 
           const headerText = group.type === 'court' ? group.court : group.time
+          const isCollapsed = collapsedGroups.has(headerText)
 
           return (
             <div key={gi} className="match-schedule__time-group">
-              <div className="match-schedule__time-header">{headerText}</div>
-              <div className="ms-list">
-                {filtered.map((m) => {
-                  const absMi = group.matches.indexOf(m)
-                  return renderMatch(m, gi, absMi, group.type === 'time')
-                })}
-              </div>
+              <button
+                type="button"
+                className={`match-schedule__time-header match-schedule__time-header--toggle${isCollapsed ? ' is-collapsed' : ''}`}
+                aria-expanded={!isCollapsed}
+                onClick={() => toggleGroup(headerText)}
+              >
+                <span className="ms-group-chevron" aria-hidden="true">▾</span>
+                <span>{headerText}</span>
+                <span className="ms-group-count">{filtered.length}</span>
+              </button>
+              {!isCollapsed && (
+                <div className="ms-list">
+                  {filtered.map((m) => {
+                    const absMi = group.matches.indexOf(m)
+                    return renderMatch(m, gi, absMi, group.type === 'time')
+                  })}
+                </div>
+              )}
             </div>
           )
         })

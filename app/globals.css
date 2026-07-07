@@ -1415,6 +1415,50 @@ html[lang="th"] .pm-section-title {
   letter-spacing: 0.3px;
 }
 
+.match-schedule__time-header--toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  text-align: left;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.match-schedule__time-header--toggle:hover {
+  background: var(--bg);
+}
+
+.match-schedule__time-header--toggle.is-collapsed {
+  border-radius: 6px;
+  border-bottom-color: transparent;
+}
+
+.ms-group-chevron {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--muted);
+  transition: transform 0.15s ease;
+}
+
+.match-schedule__time-header--toggle.is-collapsed .ms-group-chevron {
+  transform: rotate(-90deg);
+}
+
+.ms-group-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--bg);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
 .match-schedule__filter-count {
   font-size: 12px;
   font-weight: 600;
