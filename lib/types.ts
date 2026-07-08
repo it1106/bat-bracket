@@ -311,11 +311,18 @@ export interface StatsMultiGoldPlayer {
   events: string[]
 }
 
+// Live tournament result of one player in one event, used to color roster chips.
+export type ChipStatus = 'gold' | 'silver' | 'bronze' | 'out' | 'in'
+
 // One player in a club's roster, with the event(s) they're entered in.
 export interface StatsClubMember {
   name: string
   events: string[]
   playerId?: string
+  // Per-event live result (champion/runner-up/semifinal/eliminated/still-in),
+  // keyed by the same collapsed event string used in `events`. Optional so
+  // stats blobs cached before this field existed still parse (missing ⇒ 'in').
+  statusByEvent?: Record<string, ChipStatus>
 }
 
 export interface StatsClubRoster {
@@ -334,6 +341,10 @@ export interface StatsCountryMember {
   events: string[]
   // BWF playerId, used to look up date-of-birth/age for the country modal.
   playerId?: string
+  // Per-event live result (champion/runner-up/semifinal/eliminated/still-in),
+  // keyed by the same collapsed event string used in `events`. Optional so
+  // stats blobs cached before this field existed still parse (missing ⇒ 'in').
+  statusByEvent?: Record<string, ChipStatus>
 }
 
 export interface StatsCountryRoster {
