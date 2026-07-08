@@ -204,10 +204,7 @@ export type TKey =
   | 'rosterFilterPlaceholder'
   | 'rosterNoMatches'
   | 'rosterFilterActive'
-  | 'rosterLegendChampion'
-  | 'rosterLegendRunnerUp'
-  | 'rosterLegendSemifinal'
-  | 'rosterLegendOut'
+  | 'rosterFilterEliminated'
   | 'ppBack'
   | 'ppStatTournaments'
   | 'ppMatchesWord'
@@ -450,10 +447,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     rosterFilterPlaceholder: 'Filter by name or event',
     rosterNoMatches: 'No matches',
     rosterFilterActive: 'Active',
-    rosterLegendChampion: 'Champion',
-    rosterLegendRunnerUp: 'Runner-up',
-    rosterLegendSemifinal: 'Semifinal',
-    rosterLegendOut: 'Out',
+    rosterFilterEliminated: 'Eliminated',
     ppBack: 'Back',
     ppStatTournaments: 'tournaments',
     ppMatchesWord: 'matches',
@@ -742,10 +736,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     rosterFilterPlaceholder: 'ค้นหาชื่อหรือประเภท',
     rosterNoMatches: 'ไม่พบรายชื่อ',
     rosterFilterActive: 'ยังแข่งอยู่',
-    rosterLegendChampion: 'แชมป์',
-    rosterLegendRunnerUp: 'รองแชมป์',
-    rosterLegendSemifinal: 'รอบรองฯ',
-    rosterLegendOut: 'ตกรอบ',
+    rosterFilterEliminated: 'ตกรอบ',
     ppBack: 'ย้อนกลับ',
     ppStatTournaments: 'รายการ',
     ppMatchesWord: 'แมตช์',

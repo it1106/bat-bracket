@@ -31,9 +31,10 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
   const { t } = useLanguage()
   const [query, setQuery] = useState('')
   const [activeOnly, setActiveOnly] = useState(false)
+  const [eliminatedOnly, setEliminatedOnly] = useState(false)
 
   // Reset the filters whenever the modal is (re)opened.
-  useEffect(() => { if (open) { setQuery(''); setActiveOnly(false) } }, [open])
+  useEffect(() => { if (open) { setQuery(''); setActiveOnly(false); setEliminatedOnly(false) } }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -48,19 +49,27 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
   const isFullyEliminated = (r: RosterRow) =>
     r.events.length > 0 && r.events.every((e) => r.statusByEvent?.[e] === 'out')
 
+  // Active and Eliminated are opposite one-sided filters. Exactly one checked
+  // narrows to that group; both (or neither) checked shows everyone.
+  const statusFilter: 'active' | 'eliminated' | null =
+    activeOnly === eliminatedOnly ? null : activeOnly ? 'active' : 'eliminated'
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return rows.filter((r) => {
-      if (activeOnly && isFullyEliminated(r)) return false
+      if (statusFilter === 'active' && isFullyEliminated(r)) return false
+      if (statusFilter === 'eliminated' && !isFullyEliminated(r)) return false
       if (!q) return true
       return r.name.toLowerCase().includes(q) || r.events.some((e) => e.toLowerCase().includes(q))
     })
-  }, [rows, query, activeOnly])
+  }, [rows, query, statusFilter])
 
-  // Headline count reflects the Active toggle (total when off, active-player
-  // count when on) but not the text search, which is a lookup, not a filter.
+  // Headline count reflects the status toggles (total when off/both, else the
+  // matching group's size) but not the text search, which is a lookup.
   const activeCount = useMemo(() => rows.filter((r) => !isFullyEliminated(r)).length, [rows])
-  const displayedCount = activeOnly ? activeCount : count
+  const eliminatedCount = useMemo(() => rows.filter((r) => isFullyEliminated(r)).length, [rows])
+  const displayedCount =
+    statusFilter === 'active' ? activeCount : statusFilter === 'eliminated' ? eliminatedCount : count
 
   if (!open) return null
 
@@ -85,18 +94,22 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
           />
         </div>
 
-        <div className="pm-section roster-legend">
-          <span className="roster-legend-item"><span className="roster-legend-swatch roster-legend-swatch--gold" />{t('rosterLegendChampion')}</span>
-          <span className="roster-legend-item"><span className="roster-legend-swatch roster-legend-swatch--silver" />{t('rosterLegendRunnerUp')}</span>
-          <span className="roster-legend-item"><span className="roster-legend-swatch roster-legend-swatch--bronze" />{t('rosterLegendSemifinal')}</span>
-          <span className="roster-legend-item"><span className="roster-legend-swatch roster-legend-swatch--out" />{t('rosterLegendOut')}</span>
-          <label className="roster-legend-item roster-eliminated-toggle">
+        <div className="pm-section roster-filter-row">
+          <label className="roster-status-toggle">
             <input
               type="checkbox"
               checked={activeOnly}
               onChange={(e) => setActiveOnly(e.target.checked)}
             />
             {t('rosterFilterActive')}
+          </label>
+          <label className="roster-status-toggle">
+            <input
+              type="checkbox"
+              checked={eliminatedOnly}
+              onChange={(e) => setEliminatedOnly(e.target.checked)}
+            />
+            {t('rosterFilterEliminated')}
           </label>
         </div>
 

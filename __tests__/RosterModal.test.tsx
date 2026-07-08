@@ -103,9 +103,9 @@ describe('RosterModal chip status colors', () => {
     expect(cls).toContain('country-roster-chip--in')
   })
 
-  it('renders a legend', () => {
+  it('does not render the status color legend', () => {
     renderColored()
-    expect(document.querySelector('.roster-legend')).toBeTruthy()
+    expect(document.querySelector('.roster-legend-swatch')).toBeNull()
   })
 })
 
@@ -127,6 +127,7 @@ describe('RosterModal active filter', () => {
   }
 
   const checkbox = () => screen.getByRole('checkbox', { name: /Active/i }) as HTMLInputElement
+  const eliminatedBox = () => screen.getByRole('checkbox', { name: /Eliminated/i }) as HTMLInputElement
   const headerText = () => document.querySelector('.pm-section-title')?.textContent ?? ''
 
   it('renders an Active checkbox, unchecked by default', () => {
@@ -168,12 +169,37 @@ describe('RosterModal active filter', () => {
     expect(visibleNames()).toContain('NoStatus')
   })
 
-  it('combines the text query and the eliminated filter (AND)', () => {
+  it('combines the text query and the active filter (AND)', () => {
     renderElim()
     fireEvent.change(document.querySelector('.roster-filter-input')!, { target: { value: 'ms' } })
     expect(visibleNames()).toEqual(['BothOut', 'Mixed'])
     fireEvent.click(checkbox())
     expect(visibleNames()).toEqual(['Mixed'])
+  })
+
+  it('renders an Eliminated checkbox after Active, unchecked by default', () => {
+    renderElim()
+    const boxes = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))
+    expect(boxes).toHaveLength(2)
+    expect(eliminatedBox().checked).toBe(false)
+    // Order: Active first, Eliminated second.
+    expect(boxes[0]).toBe(checkbox())
+    expect(boxes[1]).toBe(eliminatedBox())
+  })
+
+  it('shows only fully-eliminated players when Eliminated is checked', () => {
+    renderElim()
+    fireEvent.click(eliminatedBox())
+    expect(visibleNames()).toEqual(['AllOut', 'BothOut'])
+    expect(headerText()).toContain('2') // eliminated players
+  })
+
+  it('shows everyone when both Active and Eliminated are checked', () => {
+    renderElim()
+    fireEvent.click(checkbox())
+    fireEvent.click(eliminatedBox())
+    expect(visibleNames()).toEqual(['AllOut', 'BothOut', 'Mixed', 'NoStatus', 'StillIn'])
+    expect(headerText()).toContain('5')
   })
 
   it('resets the checkbox to off when the modal is reopened', () => {
