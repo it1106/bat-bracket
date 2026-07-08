@@ -109,7 +109,7 @@ describe('RosterModal chip status colors', () => {
   })
 })
 
-describe('RosterModal eliminated filter', () => {
+describe('RosterModal active filter', () => {
   const elimRows: RosterRow[] = [
     { name: 'AllOut', playerId: 'a', events: ['MD'], statusByEvent: { MD: 'out' } },
     { name: 'BothOut', playerId: 'b', events: ['MS', 'WS'], statusByEvent: { MS: 'out', WS: 'out' } },
@@ -126,9 +126,10 @@ describe('RosterModal eliminated filter', () => {
     )
   }
 
-  const checkbox = () => screen.getByRole('checkbox', { name: /Eliminated/i }) as HTMLInputElement
+  const checkbox = () => screen.getByRole('checkbox', { name: /Active/i }) as HTMLInputElement
+  const headerText = () => document.querySelector('.pm-section-title')?.textContent ?? ''
 
-  it('renders an Eliminated checkbox, unchecked by default', () => {
+  it('renders an Active checkbox, unchecked by default', () => {
     renderElim()
     expect(checkbox().checked).toBe(false)
     expect(visibleNames()).toEqual(['AllOut', 'BothOut', 'Mixed', 'NoStatus', 'StillIn'])
@@ -138,6 +139,21 @@ describe('RosterModal eliminated filter', () => {
     renderElim()
     fireEvent.click(checkbox())
     expect(visibleNames()).toEqual(['Mixed', 'NoStatus', 'StillIn'])
+  })
+
+  it('shows the total count unchecked and the active count when checked', () => {
+    renderElim()
+    expect(headerText()).toContain('5') // total roster size
+    fireEvent.click(checkbox())
+    expect(headerText()).toContain('3') // active players (2 fully eliminated hidden)
+  })
+
+  it('keeps the active count independent of the text query', () => {
+    renderElim()
+    fireEvent.click(checkbox())
+    fireEvent.change(document.querySelector('.roster-filter-input')!, { target: { value: 'mixed' } })
+    expect(visibleNames()).toEqual(['Mixed'])
+    expect(headerText()).toContain('3') // headline still reflects all active players, not the search
   })
 
   it('keeps players with a non-out event visible', () => {

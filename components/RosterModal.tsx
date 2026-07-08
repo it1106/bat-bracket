@@ -30,10 +30,10 @@ interface Props {
 export default function RosterModal({ open, title, count, rows, onClose, nameSuffix, nameTitle }: Props) {
   const { t } = useLanguage()
   const [query, setQuery] = useState('')
-  const [hideEliminated, setHideEliminated] = useState(false)
+  const [activeOnly, setActiveOnly] = useState(false)
 
   // Reset the filters whenever the modal is (re)opened.
-  useEffect(() => { if (open) { setQuery(''); setHideEliminated(false) } }, [open])
+  useEffect(() => { if (open) { setQuery(''); setActiveOnly(false) } }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -51,11 +51,16 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return rows.filter((r) => {
-      if (hideEliminated && isFullyEliminated(r)) return false
+      if (activeOnly && isFullyEliminated(r)) return false
       if (!q) return true
       return r.name.toLowerCase().includes(q) || r.events.some((e) => e.toLowerCase().includes(q))
     })
-  }, [rows, query, hideEliminated])
+  }, [rows, query, activeOnly])
+
+  // Headline count reflects the Active toggle (total when off, active-player
+  // count when on) but not the text search, which is a lookup, not a filter.
+  const activeCount = useMemo(() => rows.filter((r) => !isFullyEliminated(r)).length, [rows])
+  const displayedCount = activeOnly ? activeCount : count
 
   if (!open) return null
 
@@ -65,7 +70,7 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
         <button className="pm-close" onClick={onClose} aria-label={t('close')}>✕</button>
         <div className="pm-header">
           <div className="pm-section-title">
-            {title} · {count} {t('statsColPlayers')}
+            {title} · {displayedCount} {t('statsColPlayers')}
           </div>
         </div>
 
@@ -88,10 +93,10 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
           <label className="roster-legend-item roster-eliminated-toggle">
             <input
               type="checkbox"
-              checked={hideEliminated}
-              onChange={(e) => setHideEliminated(e.target.checked)}
+              checked={activeOnly}
+              onChange={(e) => setActiveOnly(e.target.checked)}
             />
-            {t('rosterFilterEliminated')}
+            {t('rosterFilterActive')}
           </label>
         </div>
 
