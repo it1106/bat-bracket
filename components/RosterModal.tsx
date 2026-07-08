@@ -30,9 +30,10 @@ interface Props {
 export default function RosterModal({ open, title, count, rows, onClose, nameSuffix, nameTitle }: Props) {
   const { t } = useLanguage()
   const [query, setQuery] = useState('')
+  const [hideEliminated, setHideEliminated] = useState(false)
 
-  // Reset the filter whenever the modal is (re)opened.
-  useEffect(() => { if (open) setQuery('') }, [open])
+  // Reset the filters whenever the modal is (re)opened.
+  useEffect(() => { if (open) { setQuery(''); setHideEliminated(false) } }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -41,13 +42,20 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // A player is "fully eliminated" only when they have events and every one of
+  // them is 'out' (missing status ⇒ not eliminated, so fallback bare-name rows
+  // and still-in/medal players are always kept).
+  const isFullyEliminated = (r: RosterRow) =>
+    r.events.length > 0 && r.events.every((e) => r.statusByEvent?.[e] === 'out')
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return rows
-    return rows.filter((r) =>
-      r.name.toLowerCase().includes(q) || r.events.some((e) => e.toLowerCase().includes(q)),
-    )
-  }, [rows, query])
+    return rows.filter((r) => {
+      if (hideEliminated && isFullyEliminated(r)) return false
+      if (!q) return true
+      return r.name.toLowerCase().includes(q) || r.events.some((e) => e.toLowerCase().includes(q))
+    })
+  }, [rows, query, hideEliminated])
 
   if (!open) return null
 
@@ -77,6 +85,14 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
           <span className="roster-legend-item"><span className="roster-legend-swatch roster-legend-swatch--silver" />{t('rosterLegendRunnerUp')}</span>
           <span className="roster-legend-item"><span className="roster-legend-swatch roster-legend-swatch--bronze" />{t('rosterLegendSemifinal')}</span>
           <span className="roster-legend-item"><span className="roster-legend-swatch roster-legend-swatch--out" />{t('rosterLegendOut')}</span>
+          <label className="roster-legend-item roster-eliminated-toggle">
+            <input
+              type="checkbox"
+              checked={hideEliminated}
+              onChange={(e) => setHideEliminated(e.target.checked)}
+            />
+            {t('rosterFilterEliminated')}
+          </label>
         </div>
 
         <div className="pm-section" style={{ maxHeight: '55vh', overflowY: 'auto' }}>

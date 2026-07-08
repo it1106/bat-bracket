@@ -108,3 +108,70 @@ describe('RosterModal chip status colors', () => {
     expect(document.querySelector('.roster-legend')).toBeTruthy()
   })
 })
+
+describe('RosterModal eliminated filter', () => {
+  const elimRows: RosterRow[] = [
+    { name: 'AllOut', playerId: 'a', events: ['MD'], statusByEvent: { MD: 'out' } },
+    { name: 'BothOut', playerId: 'b', events: ['MS', 'WS'], statusByEvent: { MS: 'out', WS: 'out' } },
+    { name: 'Mixed', playerId: 'm', events: ['MS', 'WS'], statusByEvent: { MS: 'out', WS: 'gold' } },
+    { name: 'NoStatus', playerId: 'n', events: ['GD'] },
+    { name: 'StillIn', playerId: 'i', events: ['XD'], statusByEvent: { XD: 'in' } },
+  ]
+
+  function renderElim(open = true) {
+    return render(
+      <LanguageProvider>
+        <RosterModal open={open} title="KBA" count={elimRows.length} rows={elimRows} onClose={() => {}} />
+      </LanguageProvider>,
+    )
+  }
+
+  const checkbox = () => screen.getByRole('checkbox', { name: /Eliminated/i }) as HTMLInputElement
+
+  it('renders an Eliminated checkbox, unchecked by default', () => {
+    renderElim()
+    expect(checkbox().checked).toBe(false)
+    expect(visibleNames()).toEqual(['AllOut', 'BothOut', 'Mixed', 'NoStatus', 'StillIn'])
+  })
+
+  it('hides players eliminated in every event when checked', () => {
+    renderElim()
+    fireEvent.click(checkbox())
+    expect(visibleNames()).toEqual(['Mixed', 'NoStatus', 'StillIn'])
+  })
+
+  it('keeps players with a non-out event visible', () => {
+    renderElim()
+    fireEvent.click(checkbox())
+    expect(visibleNames()).toContain('Mixed')
+  })
+
+  it('keeps players with no status data visible', () => {
+    renderElim()
+    fireEvent.click(checkbox())
+    expect(visibleNames()).toContain('NoStatus')
+  })
+
+  it('combines the text query and the eliminated filter (AND)', () => {
+    renderElim()
+    fireEvent.change(document.querySelector('.roster-filter-input')!, { target: { value: 'ms' } })
+    expect(visibleNames()).toEqual(['BothOut', 'Mixed'])
+    fireEvent.click(checkbox())
+    expect(visibleNames()).toEqual(['Mixed'])
+  })
+
+  it('resets the checkbox to off when the modal is reopened', () => {
+    const { rerender } = renderElim(true)
+    fireEvent.click(checkbox())
+    expect(checkbox().checked).toBe(true)
+    const remount = (open: boolean) =>
+      rerender(
+        <LanguageProvider>
+          <RosterModal open={open} title="KBA" count={elimRows.length} rows={elimRows} onClose={() => {}} />
+        </LanguageProvider>,
+      )
+    remount(false)
+    remount(true)
+    expect(checkbox().checked).toBe(false)
+  })
+})
