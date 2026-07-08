@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
+import type { ChipStatus } from '@/lib/types'
 
 export interface RosterRow {
   name: string
   events: string[]
   playerId?: string
+  // Per-event result keyed by the same strings in `events`. Missing ⇒ 'in'.
+  statusByEvent?: Record<string, ChipStatus>
 }
 
 interface Props {
@@ -69,6 +72,13 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
           />
         </div>
 
+        <div className="pm-section roster-legend">
+          <span className="roster-legend-item"><span className="roster-legend-swatch roster-legend-swatch--gold" />{t('rosterLegendChampion')}</span>
+          <span className="roster-legend-item"><span className="roster-legend-swatch roster-legend-swatch--silver" />{t('rosterLegendRunnerUp')}</span>
+          <span className="roster-legend-item"><span className="roster-legend-swatch roster-legend-swatch--bronze" />{t('rosterLegendSemifinal')}</span>
+          <span className="roster-legend-item"><span className="roster-legend-swatch roster-legend-swatch--out" />{t('rosterLegendOut')}</span>
+        </div>
+
         <div className="pm-section" style={{ maxHeight: '55vh', overflowY: 'auto' }}>
           {filtered.length === 0 ? (
             <div className="country-roster-empty" style={{ padding: '8px 4px' }}>{t('rosterNoMatches')}</div>
@@ -82,9 +92,12 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
                   </span>
                   <span className="country-roster-events">
                     {r.events.length > 0
-                      ? r.events.map((e) => (
-                          <span className="country-roster-chip" key={e}>{e}</span>
-                        ))
+                      ? r.events.map((e) => {
+                          const status: ChipStatus = r.statusByEvent?.[e] ?? 'in'
+                          return (
+                            <span className={`country-roster-chip country-roster-chip--${status}`} key={e}>{e}</span>
+                          )
+                        })
                       : <span className="country-roster-empty">{t('statsCountryNoEvents')}</span>}
                   </span>
                 </li>

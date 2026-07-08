@@ -1,5 +1,6 @@
 import { abbrevRoundL, longRoundL } from './i18n'
 import type {
+  ChipStatus,
   ComputedStats,
   DrawInfo,
   MatchEntry,
@@ -103,6 +104,13 @@ function isFinal(round: string): boolean {
 }
 function isSemiFinal(round: string): boolean {
   return longRoundL(round, 'en') === 'Semi Final'
+}
+// A round that belongs to a single-elimination bracket (F/SF/QF/R{n}). Group /
+// round-robin rounds normalize to something else and return false, so a loss in
+// them never counts as a knockout elimination.
+function isKnockoutRound(round: string): boolean {
+  const a = abbrevRoundL(round, 'en')
+  return a === 'F' || a === 'SF' || a === 'QF' || /^R\d+$/.test(a)
 }
 
 function buildKpis(
@@ -738,10 +746,103 @@ function collectPlayerEvents(
   return out
 }
 
+interface StatusAcc {
+  medal?: 'gold' | 'silver' | 'bronze'
+  koLoss: boolean     // completed loss in a knockout (non-SF/F) round
+  inPlayoff: boolean  // appears in the draw whose name equals the collapsed event
+}
+
+// playerId -> { collapsed eventKey -> ChipStatus }. Reuses the same
+// `eventName ?? draw` collapse as the roster builders so status keys line up
+// with the chip strings. Medals come from finals/semis (walkovers included,
+// matching buildClubMedalsAndMultiGold). "out" is knockout-only: a knockout
+// loss, or — for grouped formats — a group player absent from a seeded playoff
+// draw. Everyone else is "in".
+function buildEventStatusByPlayer(
+  ctxs: MatchCtx[],
+  rosterByDraw?: Map<string, RosterDraw>,
+): Map<string, Record<string, ChipStatus>> {
+  const perPlayer = new Map<string, Map<string, StatusAcc>>()
+  const hasGroupDraw = new Set<string>()   // eventKeys that have a "<event> - Group X" sub-draw
+  const playoffSeeded = new Set<string>()  // eventKeys whose "<event>" (playoff) draw exists
+  const medalRank = { gold: 3, silver: 2, bronze: 1 } as const
+
+  const accOf = (pid: string, ev: string): StatusAcc => {
+    let byE = perPlayer.get(pid)
+    if (!byE) { byE = new Map(); perPlayer.set(pid, byE) }
+    let a = byE.get(ev)
+    if (!a) { a = { koLoss: false, inPlayoff: false }; byE.set(ev, a) }
+    return a
+  }
+  const setMedal = (pid: string, ev: string, m: 'gold' | 'silver' | 'bronze') => {
+    const a = accOf(pid, ev)
+    if (!a.medal || medalRank[m] > medalRank[a.medal]) a.medal = m
+  }
+
+  const walk = (
+    drawName: string,
+    eventName: string | undefined,
+    team1: MatchPlayer[],
+    team2: MatchPlayer[],
+    round: string,
+    winner: 1 | 2 | null,
+  ) => {
+    const ev = eventName ?? drawName
+    const isGroupDraw = drawName !== ev
+    if (isGroupDraw) hasGroupDraw.add(ev)
+    else playoffSeeded.add(ev)
+    for (const p of [...team1, ...team2]) {
+      if (!p.playerId) continue
+      const a = accOf(p.playerId, ev)
+      if (!isGroupDraw) a.inPlayoff = true
+    }
+    if (winner === null) return
+    const win = winner === 1 ? team1 : team2
+    const lose = winner === 1 ? team2 : team1
+    if (isFinal(round)) {
+      for (const p of win) if (p.playerId) setMedal(p.playerId, ev, 'gold')
+      for (const p of lose) if (p.playerId) setMedal(p.playerId, ev, 'silver')
+    } else if (isSemiFinal(round)) {
+      for (const p of lose) if (p.playerId) setMedal(p.playerId, ev, 'bronze')
+    } else if (!isGroupDraw && isKnockoutRound(round)) {
+      for (const p of lose) if (p.playerId) accOf(p.playerId, ev).koLoss = true
+    }
+  }
+
+  for (const { match } of ctxs) {
+    walk(match.draw, match.eventName, match.team1, match.team2, match.round, match.winner)
+  }
+  if (rosterByDraw) {
+    for (const [drawName, draw] of Array.from(rosterByDraw)) {
+      for (const m of draw.entries) {
+        walk(drawName, draw.eventName, m.team1, m.team2, m.round, m.winner)
+      }
+    }
+  }
+
+  const resolve = (ev: string, a: StatusAcc): ChipStatus => {
+    if (a.medal) return a.medal
+    if (a.koLoss) return 'out'
+    // Grouped format: group stage resolved (playoff seeded) and this player
+    // never reached the playoff ⇒ eliminated in the group phase.
+    if (hasGroupDraw.has(ev) && playoffSeeded.has(ev) && !a.inPlayoff) return 'out'
+    return 'in'
+  }
+
+  const out = new Map<string, Record<string, ChipStatus>>()
+  for (const [pid, byE] of Array.from(perPlayer)) {
+    const rec: Record<string, ChipStatus> = {}
+    for (const [ev, a] of Array.from(byE)) rec[ev] = resolve(ev, a)
+    out.set(pid, rec)
+  }
+  return out
+}
+
 function buildClubRosters(
   clubs: Record<string, string>,
   names: Record<string, string>,
   eventsByPlayer: Map<string, string[]>,
+  statusByPlayer: Map<string, Record<string, ChipStatus>>,
 ): StatsClubRoster[] {
   // The clubs map is playerId -> club for every player registered in the
   // tournament (built by walking brackets in /api/clubs). Pair each entry with
@@ -751,7 +852,7 @@ function buildClubRosters(
   for (const [pid, club] of Object.entries(clubs)) {
     if (!club) continue
     const list = membersByClub.get(club) ?? []
-    list.push({ name: names[pid] ?? `#${pid}`, playerId: pid, events: eventsByPlayer.get(pid) ?? [] })
+    list.push({ name: names[pid] ?? `#${pid}`, playerId: pid, events: eventsByPlayer.get(pid) ?? [], statusByEvent: statusByPlayer.get(pid) })
     membersByClub.set(club, list)
   }
   return Array.from(membersByClub.entries())
@@ -769,6 +870,7 @@ function buildClubRosters(
 
 function buildCountryRosters(
   ctxs: MatchCtx[],
+  statusByPlayer: Map<string, Record<string, ChipStatus>>,
   rosterByDraw?: Map<string, RosterDraw>,
 ): StatsCountryRoster[] {
   // BWF carries country + name on each MatchPlayer. Walk every unique
@@ -810,6 +912,7 @@ function buildCountryRosters(
       name,
       playerId,
       events: Array.from(events).sort((a, b) => eventRank(a) - eventRank(b) || a.localeCompare(b)),
+      statusByEvent: statusByPlayer.get(playerId),
     })
     rosterByCountry.set(country, list)
   }
@@ -900,13 +1003,14 @@ export function aggregate(
   const ctxs: MatchCtx[] = Array.from(iterateMatches(data, dayGroupsByDate))
   const rosterSize = rosterByDraw ? rosterByDraw.size : 0
   const eventsByPlayer = collectPlayerEvents(ctxs, rosterByDraw)
+  const statusByPlayer = buildEventStatusByPlayer(ctxs, rosterByDraw)
   // clubRosters is derived purely from the clubs map (playerId -> club), so
   // it's meaningful even before any match is scheduled — register-then-show.
   if (ctxs.length === 0 && rosterSize === 0) {
     const base: ComputedStats = {
       ...EMPTY,
-      clubRosters: buildClubRosters(clubs, names, eventsByPlayer),
-      countryRosters: buildCountryRosters(ctxs, rosterByDraw),
+      clubRosters: buildClubRosters(clubs, names, eventsByPlayer, statusByPlayer),
+      countryRosters: buildCountryRosters(ctxs, statusByPlayer, rosterByDraw),
     }
     return decorateOptional(base, extras, data, dayGroupsByDate)
   }
@@ -920,8 +1024,8 @@ export function aggregate(
     courtUtilization: buildCourtUtilization(ctxs),
     clubMedals,
     multiGoldPlayers,
-    clubRosters: buildClubRosters(clubs, names, eventsByPlayer),
-    countryRosters: buildCountryRosters(ctxs, rosterByDraw),
+    clubRosters: buildClubRosters(clubs, names, eventsByPlayer, statusByPlayer),
+    countryRosters: buildCountryRosters(ctxs, statusByPlayer, rosterByDraw),
     integrity: buildIntegrity(ctxs),
   }
   return decorateOptional(base, extras, data, dayGroupsByDate)
