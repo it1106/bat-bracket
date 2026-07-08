@@ -2448,28 +2448,16 @@ html.dark .ms-match--next-opp {
 .country-roster-chip--out {
   opacity: 0.45;
 }
-.roster-legend {
+.roster-filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 14px;
   font-size: 11px;
   color: var(--muted);
   align-items: center;
 }
-.roster-legend-item { display: inline-flex; align-items: center; gap: 4px; }
-.roster-eliminated-toggle { margin-left: auto; cursor: pointer; }
-.roster-eliminated-toggle input { cursor: pointer; }
-.roster-legend-swatch {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  border: 1px solid var(--border);
-}
-.roster-legend-swatch--gold { background: #c9a227; border-color: #c9a227; }
-.roster-legend-swatch--silver { background: #9aa3ad; border-color: #9aa3ad; }
-.roster-legend-swatch--bronze { background: #b0764a; border-color: #b0764a; }
-.roster-legend-swatch--out { background: var(--muted); opacity: 0.45; }
+.roster-status-toggle { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.roster-status-toggle input { cursor: pointer; }
 .country-roster-empty { font-size: 11px; color: var(--muted); font-style: italic; }
 
 .stats-wl-cell {
