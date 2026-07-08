@@ -30,11 +30,14 @@ interface Props {
 export default function RosterModal({ open, title, count, rows, onClose, nameSuffix, nameTitle }: Props) {
   const { t } = useLanguage()
   const [query, setQuery] = useState('')
-  const [activeOnly, setActiveOnly] = useState(false)
-  const [eliminatedOnly, setEliminatedOnly] = useState(false)
+  const [showActive, setShowActive] = useState(false)
+  const [showEnded, setShowEnded] = useState(false)
+  const [showMedaled, setShowMedaled] = useState(false)
 
   // Reset the filters whenever the modal is (re)opened.
-  useEffect(() => { if (open) { setQuery(''); setActiveOnly(false); setEliminatedOnly(false) } }, [open])
+  useEffect(() => {
+    if (open) { setQuery(''); setShowActive(false); setShowEnded(false); setShowMedaled(false) }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -46,30 +49,37 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
   // A player is "fully eliminated" only when they have events and every one of
   // them is 'out' (missing status ⇒ not eliminated, so fallback bare-name rows
   // and still-in/medal players are always kept).
-  const isFullyEliminated = (r: RosterRow) =>
-    r.events.length > 0 && r.events.every((e) => r.statusByEvent?.[e] === 'out')
+  // Missing status ⇒ 'in' (same default the chips use). A player is Active while
+  // any event is ongoing; Ended once every event is concluded (whether they were
+  // eliminated or medaled); Medaled if they took a medal in any event.
+  const isActive = (r: RosterRow) => r.events.some((e) => (r.statusByEvent?.[e] ?? 'in') === 'in')
+  const isEnded = (r: RosterRow) => r.events.length > 0 && !isActive(r)
+  const isMedaled = (r: RosterRow) =>
+    r.events.some((e) => { const s = r.statusByEvent?.[e]; return s === 'gold' || s === 'silver' || s === 'bronze' })
 
-  // Active and Eliminated are opposite one-sided filters. Exactly one checked
-  // narrows to that group; both (or neither) checked shows everyone.
-  const statusFilter: 'active' | 'eliminated' | null =
-    activeOnly === eliminatedOnly ? null : activeOnly ? 'active' : 'eliminated'
+  // Each checked category adds its group (union); none checked shows everyone.
+  const anyStatusFilter = showActive || showEnded || showMedaled
+  const matchesStatus = (r: RosterRow) =>
+    !anyStatusFilter ||
+    (showActive && isActive(r)) ||
+    (showEnded && isEnded(r)) ||
+    (showMedaled && isMedaled(r))
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return rows.filter((r) => {
-      if (statusFilter === 'active' && isFullyEliminated(r)) return false
-      if (statusFilter === 'eliminated' && !isFullyEliminated(r)) return false
+      if (!matchesStatus(r)) return false
       if (!q) return true
       return r.name.toLowerCase().includes(q) || r.events.some((e) => e.toLowerCase().includes(q))
     })
-  }, [rows, query, statusFilter])
+  }, [rows, query, showActive, showEnded, showMedaled])
 
-  // Headline count reflects the status toggles (total when off/both, else the
-  // matching group's size) but not the text search, which is a lookup.
-  const activeCount = useMemo(() => rows.filter((r) => !isFullyEliminated(r)).length, [rows])
-  const eliminatedCount = useMemo(() => rows.filter((r) => isFullyEliminated(r)).length, [rows])
-  const displayedCount =
-    statusFilter === 'active' ? activeCount : statusFilter === 'eliminated' ? eliminatedCount : count
+  // Headline count reflects the category union (total when none checked) but not
+  // the text search, which is a lookup.
+  const displayedCount = useMemo(
+    () => (anyStatusFilter ? rows.filter(matchesStatus).length : count),
+    [rows, count, anyStatusFilter, showActive, showEnded, showMedaled],
+  )
 
   if (!open) return null
 
@@ -96,20 +106,16 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
 
         <div className="pm-section roster-filter-row">
           <label className="roster-status-toggle">
-            <input
-              type="checkbox"
-              checked={activeOnly}
-              onChange={(e) => setActiveOnly(e.target.checked)}
-            />
+            <input type="checkbox" checked={showActive} onChange={(e) => setShowActive(e.target.checked)} />
             {t('rosterFilterActive')}
           </label>
           <label className="roster-status-toggle">
-            <input
-              type="checkbox"
-              checked={eliminatedOnly}
-              onChange={(e) => setEliminatedOnly(e.target.checked)}
-            />
-            {t('rosterFilterEliminated')}
+            <input type="checkbox" checked={showEnded} onChange={(e) => setShowEnded(e.target.checked)} />
+            {t('rosterFilterEnded')}
+          </label>
+          <label className="roster-status-toggle">
+            <input type="checkbox" checked={showMedaled} onChange={(e) => setShowMedaled(e.target.checked)} />
+            {t('rosterFilterMedaled')}
           </label>
         </div>
 
