@@ -2457,6 +2457,8 @@ html.dark .ms-match--next-opp {
   align-items: center;
 }
 .roster-legend-item { display: inline-flex; align-items: center; gap: 4px; }
+.roster-eliminated-toggle { margin-left: auto; cursor: pointer; }
+.roster-eliminated-toggle input { cursor: pointer; }
 .roster-legend-swatch {
   display: inline-block;
   width: 12px;
