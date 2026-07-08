@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import type { ChipStatus } from '@/lib/types'
+import { isActive, isEnded, isMedaled } from '@/lib/rosterStatus'
 
 export interface RosterRow {
   name: string
@@ -46,18 +47,9 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  // A player is "fully eliminated" only when they have events and every one of
-  // them is 'out' (missing status ⇒ not eliminated, so fallback bare-name rows
-  // and still-in/medal players are always kept).
-  // Missing status ⇒ 'in' (same default the chips use). A player is Active while
-  // any event is ongoing; Ended once every event is concluded (whether they were
-  // eliminated or medaled); Medaled if they took a medal in any event.
-  const isActive = (r: RosterRow) => r.events.some((e) => (r.statusByEvent?.[e] ?? 'in') === 'in')
-  const isEnded = (r: RosterRow) => r.events.length > 0 && !isActive(r)
-  const isMedaled = (r: RosterRow) =>
-    r.events.some((e) => { const s = r.statusByEvent?.[e]; return s === 'gold' || s === 'silver' || s === 'bronze' })
-
-  // Each checked category adds its group (union); none checked shows everyone.
+  // Active/Ended/Medaled definitions live in lib/rosterStatus (shared with the
+  // country/club summary counts). Each checked category adds its group (union);
+  // none checked shows everyone.
   const anyStatusFilter = showActive || showEnded || showMedaled
   const matchesStatus = (r: RosterRow) =>
     !anyStatusFilter ||

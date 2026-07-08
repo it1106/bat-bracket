@@ -7,6 +7,7 @@ import { useLongPress } from '@/lib/useLongPress'
 import { buildFilename, captureStatsImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
 import { abbrevRoundL } from '@/lib/i18n'
 import { countryDisplayName } from '@/lib/countryCodes'
+import { isActive, isMedaled, type RosterStatusMember } from '@/lib/rosterStatus'
 import CountryRosterModal from '@/components/CountryRosterModal'
 import ClubRosterModal from '@/components/ClubRosterModal'
 import type { StatsClubMedalist, StatsClubRoster, StatsCountryRoster, StatsPlayerResult, TournamentStats } from '@/lib/types'
@@ -392,6 +393,8 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               <th></th>
               <th>{t('statsColClub')}</th>
               <th className="stats-num">{t('statsColPlayers')}</th>
+              <th className="stats-num">{t('statsColActive')}</th>
+              <th className="stats-num">{t('statsColMedaled')}</th>
             </tr></thead>
             <tbody>
               {(clubRostersExpanded ? (stats.clubRosters ?? []) : (stats.clubRosters ?? []).slice(0, 10)).map((c, i) => (
@@ -403,6 +406,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
                     </button>
                   </td>
                   <td className="stats-num"><RosterCell count={c.players} members={c.members} /></td>
+                  <RosterStatusCells roster={c.roster} />
                 </tr>
               ))}
             </tbody>
@@ -430,6 +434,8 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               <th></th>
               <th>{t('statsColCountry')}</th>
               <th className="stats-num">{t('statsColPlayers')}</th>
+              <th className="stats-num">{t('statsColActive')}</th>
+              <th className="stats-num">{t('statsColMedaled')}</th>
             </tr></thead>
             <tbody>
               {(stats.countryRosters ?? []).map((c, i) => {
@@ -446,6 +452,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
                       </button>
                     </td>
                     <td className="stats-num"><RosterCell count={c.players} members={c.members} /></td>
+                    <RosterStatusCells roster={c.roster} />
                   </tr>
                 )
               })}
@@ -559,6 +566,18 @@ interface DramaCardProps {
 // but a stale v3 envelope or a non-numeric marker like [Q]/[WC] could still
 // slip through to the popover.
 const stripSeedSuffix = (name: string): string => name.replace(/\s*\[[^\]]*\]\s*$/, '').trim()
+
+// The Active and Medaled counts for a club/country row, derived from its roster
+// members' per-event status. Renders '—' when the roster (per-player status) is
+// unavailable — e.g. stats blobs cached before status tracking existed.
+function RosterStatusCells({ roster }: { roster?: RosterStatusMember[] }) {
+  if (!roster) {
+    return (<><td className="stats-num">—</td><td className="stats-num">—</td></>)
+  }
+  const active = roster.filter(isActive).length
+  const medaled = roster.filter(isMedaled).length
+  return (<><td className="stats-num">{fmt(active)}</td><td className="stats-num">{fmt(medaled)}</td></>)
+}
 
 function RosterCell({ count, members }: { count: number; members?: string[] }) {
   // Hover tooltip listing player names (sorted, scrolls when long). Mirrors

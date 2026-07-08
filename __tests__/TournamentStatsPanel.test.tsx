@@ -236,3 +236,38 @@ describe('TournamentStatsPanel — club roster modal', () => {
     expect(global.fetch).not.toHaveBeenCalledWith(expect.stringContaining('/api/bwf/player-ages'))
   })
 })
+
+describe('TournamentStatsPanel — club roster active/medaled counts', () => {
+  const statusPayload = {
+    ...minimalLegacyPayload,
+    clubRosters: [
+      {
+        club: 'KBA',
+        players: 3,
+        members: ['A', 'B', 'C'],
+        roster: [
+          { name: 'A', playerId: '1', events: ['MS'], statusByEvent: { MS: 'in' } },   // active
+          { name: 'B', playerId: '2', events: ['MS'], statusByEvent: { MS: 'gold' } }, // ended + medaled
+          { name: 'C', playerId: '3', events: ['MS'], statusByEvent: { MS: 'out' } },  // ended
+        ],
+      },
+    ],
+  }
+
+  test('shows Players / Active / Medaled columns per club', async () => {
+    fetchOnce(statusPayload)
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    const btn = await screen.findByRole('button', { name: 'KBA' })
+    expect(screen.getByText('statsColActive')).toBeTruthy()
+    expect(screen.getByText('statsColMedaled')).toBeTruthy()
+
+    const row = btn.closest('tr')!
+    const nums = Array.from(row.querySelectorAll('.stats-num'))
+    expect(nums).toHaveLength(3)
+    expect(nums[0].textContent).toContain('3') // players (may include tooltip names)
+    expect(nums[1].textContent).toBe('1')      // active
+    expect(nums[2].textContent).toBe('1')      // medaled
+  })
+})

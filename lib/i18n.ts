@@ -186,6 +186,8 @@ export type TKey =
   | 'statsShowLess'
   | 'statsColCountry'
   | 'statsColPlayers'
+  | 'statsColActive'
+  | 'statsColMedaled'
   | 'statsSectionMultiGold'
   | 'statsSectionIntegrity'
   | 'statsMarathonBadge'
@@ -444,6 +446,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsShowLess: 'Show less',
     statsColCountry: 'Country',
     statsColPlayers: 'Players',
+    statsColActive: 'Active',
+    statsColMedaled: 'Medaled',
     statsCountryNoEvents: 'No events listed',
     rosterFilterPlaceholder: 'Filter by name or event',
     rosterNoMatches: 'No matches',
@@ -734,6 +738,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsShowLess: 'แสดงน้อยลง',
     statsColCountry: 'ประเทศ',
     statsColPlayers: 'จำนวนนักกีฬา',
+    statsColActive: 'ยังแข่งอยู่',
+    statsColMedaled: 'ได้เหรียญ',
     statsCountryNoEvents: 'ไม่มีข้อมูลประเภท',
     rosterFilterPlaceholder: 'ค้นหาชื่อหรือประเภท',
     rosterNoMatches: 'ไม่พบรายชื่อ',
