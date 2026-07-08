@@ -2426,6 +2426,48 @@ html.dark .ms-match--next-opp {
   color: var(--muted);
   white-space: nowrap;
 }
+.country-roster-chip--in { /* neutral default, no override */ }
+.country-roster-chip--gold {
+  border-color: #c9a227;
+  border-left: 3px solid #c9a227;
+  background: rgba(201, 162, 39, 0.14);
+  color: var(--fg);
+}
+.country-roster-chip--silver {
+  border-color: #9aa3ad;
+  border-left: 3px solid #9aa3ad;
+  background: rgba(154, 163, 173, 0.16);
+  color: var(--fg);
+}
+.country-roster-chip--bronze {
+  border-color: #b0764a;
+  border-left: 3px solid #b0764a;
+  background: rgba(176, 118, 74, 0.16);
+  color: var(--fg);
+}
+.country-roster-chip--out {
+  opacity: 0.45;
+}
+.roster-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  align-items: center;
+}
+.roster-legend-item { display: inline-flex; align-items: center; gap: 4px; }
+.roster-legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+.roster-legend-swatch--gold { background: #c9a227; border-color: #c9a227; }
+.roster-legend-swatch--silver { background: #9aa3ad; border-color: #9aa3ad; }
+.roster-legend-swatch--bronze { background: #b0764a; border-color: #b0764a; }
+.roster-legend-swatch--out { background: var(--muted); opacity: 0.45; }
 .country-roster-empty { font-size: 11px; color: var(--muted); font-style: italic; }
 
 .stats-wl-cell {

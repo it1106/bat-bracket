@@ -66,3 +66,45 @@ describe('RosterModal filter', () => {
     expect(onClose).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('RosterModal chip status colors', () => {
+  const coloredRows: RosterRow[] = [
+    { name: 'Gold', playerId: 'g', events: ['MS'], statusByEvent: { MS: 'gold' } },
+    { name: 'Silver', playerId: 's', events: ['WS'], statusByEvent: { WS: 'silver' } },
+    { name: 'Bronze', playerId: 'b', events: ['XD'], statusByEvent: { XD: 'bronze' } },
+    { name: 'Out', playerId: 'o', events: ['MD'], statusByEvent: { MD: 'out' } },
+    { name: 'Plain', playerId: 'p', events: ['GD'] },
+  ]
+
+  function renderColored() {
+    return render(
+      <LanguageProvider>
+        <RosterModal open title="KBA" count={coloredRows.length} rows={coloredRows} onClose={() => {}} />
+      </LanguageProvider>,
+    )
+  }
+
+  const chipClass = (text: string) =>
+    Array.from(document.querySelectorAll('.country-roster-chip'))
+      .find((el) => el.textContent === text)?.className ?? ''
+
+  it('applies a per-status class to each chip', () => {
+    renderColored()
+    expect(chipClass('MS')).toContain('country-roster-chip--gold')
+    expect(chipClass('WS')).toContain('country-roster-chip--silver')
+    expect(chipClass('XD')).toContain('country-roster-chip--bronze')
+    expect(chipClass('MD')).toContain('country-roster-chip--out')
+  })
+
+  it('falls back to the neutral "in" status when statusByEvent is missing', () => {
+    renderColored()
+    const cls = chipClass('GD')
+    expect(cls).toContain('country-roster-chip')
+    expect(cls).toContain('country-roster-chip--in')
+  })
+
+  it('renders a legend', () => {
+    renderColored()
+    expect(document.querySelector('.roster-legend')).toBeTruthy()
+  })
+})

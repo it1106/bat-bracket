@@ -40,7 +40,9 @@ export default function CountryRosterModal({ roster, onClose }: Props) {
 
   // Prefer the rich per-player roster; fall back to bare names for stats blobs
   // cached before the `roster` field existed (they still have `members`).
-  const rows: RosterRow[] = roster.roster ?? roster.members.map((name) => ({ name, events: [] }))
+  const rows: RosterRow[] = roster.roster
+    ? roster.roster.map((m) => ({ name: m.name, playerId: m.playerId, events: m.events, statusByEvent: m.statusByEvent }))
+    : roster.members.map((name) => ({ name, events: [] }))
   const name = countryDisplayName(roster.country)
   const title = name && name.toLowerCase() !== roster.country.toLowerCase()
     ? `${name} (${roster.country})`
