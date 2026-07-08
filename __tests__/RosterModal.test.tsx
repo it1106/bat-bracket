@@ -109,111 +109,94 @@ describe('RosterModal chip status colors', () => {
   })
 })
 
-describe('RosterModal active filter', () => {
-  const elimRows: RosterRow[] = [
-    { name: 'AllOut', playerId: 'a', events: ['MD'], statusByEvent: { MD: 'out' } },
-    { name: 'BothOut', playerId: 'b', events: ['MS', 'WS'], statusByEvent: { MS: 'out', WS: 'out' } },
-    { name: 'Mixed', playerId: 'm', events: ['MS', 'WS'], statusByEvent: { MS: 'out', WS: 'gold' } },
-    { name: 'NoStatus', playerId: 'n', events: ['GD'] },
-    { name: 'StillIn', playerId: 'i', events: ['XD'], statusByEvent: { XD: 'in' } },
+describe('RosterModal status filters', () => {
+  // Playing: still in.  Champ: event over, medaled.  Out: event over, no medal.
+  // StillMedal: won one event, still playing another.  NoData: no status ⇒ still in.
+  const statusRows: RosterRow[] = [
+    { name: 'Playing', playerId: 'p', events: ['MS'], statusByEvent: { MS: 'in' } },
+    { name: 'Champ', playerId: 'c', events: ['MS'], statusByEvent: { MS: 'gold' } },
+    { name: 'Out', playerId: 'o', events: ['WS'], statusByEvent: { WS: 'out' } },
+    { name: 'StillMedal', playerId: 's', events: ['MS', 'MD'], statusByEvent: { MS: 'gold', MD: 'in' } },
+    { name: 'NoData', playerId: 'n', events: ['GD'] },
   ]
 
-  function renderElim(open = true) {
+  function renderStatus(open = true) {
     return render(
       <LanguageProvider>
-        <RosterModal open={open} title="KBA" count={elimRows.length} rows={elimRows} onClose={() => {}} />
+        <RosterModal open={open} title="KBA" count={statusRows.length} rows={statusRows} onClose={() => {}} />
       </LanguageProvider>,
     )
   }
 
-  const checkbox = () => screen.getByRole('checkbox', { name: /Active/i }) as HTMLInputElement
-  const eliminatedBox = () => screen.getByRole('checkbox', { name: /Eliminated/i }) as HTMLInputElement
+  const activeBox = () => screen.getByRole('checkbox', { name: /Active/i }) as HTMLInputElement
+  const endedBox = () => screen.getByRole('checkbox', { name: /Ended/i }) as HTMLInputElement
+  const medaledBox = () => screen.getByRole('checkbox', { name: /Medaled/i }) as HTMLInputElement
   const headerText = () => document.querySelector('.pm-section-title')?.textContent ?? ''
 
-  it('renders an Active checkbox, unchecked by default', () => {
-    renderElim()
-    expect(checkbox().checked).toBe(false)
-    expect(visibleNames()).toEqual(['AllOut', 'BothOut', 'Mixed', 'NoStatus', 'StillIn'])
-  })
-
-  it('hides players eliminated in every event when checked', () => {
-    renderElim()
-    fireEvent.click(checkbox())
-    expect(visibleNames()).toEqual(['Mixed', 'NoStatus', 'StillIn'])
-  })
-
-  it('shows the total count unchecked and the active count when checked', () => {
-    renderElim()
-    expect(headerText()).toContain('5') // total roster size
-    fireEvent.click(checkbox())
-    expect(headerText()).toContain('3') // active players (2 fully eliminated hidden)
-  })
-
-  it('keeps the active count independent of the text query', () => {
-    renderElim()
-    fireEvent.click(checkbox())
-    fireEvent.change(document.querySelector('.roster-filter-input')!, { target: { value: 'mixed' } })
-    expect(visibleNames()).toEqual(['Mixed'])
-    expect(headerText()).toContain('3') // headline still reflects all active players, not the search
-  })
-
-  it('keeps players with a non-out event visible', () => {
-    renderElim()
-    fireEvent.click(checkbox())
-    expect(visibleNames()).toContain('Mixed')
-  })
-
-  it('keeps players with no status data visible', () => {
-    renderElim()
-    fireEvent.click(checkbox())
-    expect(visibleNames()).toContain('NoStatus')
-  })
-
-  it('combines the text query and the active filter (AND)', () => {
-    renderElim()
-    fireEvent.change(document.querySelector('.roster-filter-input')!, { target: { value: 'ms' } })
-    expect(visibleNames()).toEqual(['BothOut', 'Mixed'])
-    fireEvent.click(checkbox())
-    expect(visibleNames()).toEqual(['Mixed'])
-  })
-
-  it('renders an Eliminated checkbox after Active, unchecked by default', () => {
-    renderElim()
+  it('renders Active, Ended, Medaled checkboxes in order, unchecked by default', () => {
+    renderStatus()
     const boxes = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'))
-    expect(boxes).toHaveLength(2)
-    expect(eliminatedBox().checked).toBe(false)
-    // Order: Active first, Eliminated second.
-    expect(boxes[0]).toBe(checkbox())
-    expect(boxes[1]).toBe(eliminatedBox())
-  })
-
-  it('shows only fully-eliminated players when Eliminated is checked', () => {
-    renderElim()
-    fireEvent.click(eliminatedBox())
-    expect(visibleNames()).toEqual(['AllOut', 'BothOut'])
-    expect(headerText()).toContain('2') // eliminated players
-  })
-
-  it('shows everyone when both Active and Eliminated are checked', () => {
-    renderElim()
-    fireEvent.click(checkbox())
-    fireEvent.click(eliminatedBox())
-    expect(visibleNames()).toEqual(['AllOut', 'BothOut', 'Mixed', 'NoStatus', 'StillIn'])
+    expect(boxes).toHaveLength(3)
+    expect(boxes.map((b) => b.checked)).toEqual([false, false, false])
+    expect(boxes[0]).toBe(activeBox())
+    expect(boxes[1]).toBe(endedBox())
+    expect(boxes[2]).toBe(medaledBox())
+    expect(visibleNames()).toEqual(['Playing', 'Champ', 'Out', 'StillMedal', 'NoData'])
     expect(headerText()).toContain('5')
   })
 
-  it('resets the checkbox to off when the modal is reopened', () => {
-    const { rerender } = renderElim(true)
-    fireEvent.click(checkbox())
-    expect(checkbox().checked).toBe(true)
+  it('Active shows players with an ongoing event (medalists still playing count, finished ones do not)', () => {
+    renderStatus()
+    fireEvent.click(activeBox())
+    expect(visibleNames()).toEqual(['Playing', 'StillMedal', 'NoData'])
+    expect(headerText()).toContain('3')
+  })
+
+  it('Ended shows players whose events are all concluded (eliminated and finished medalists)', () => {
+    renderStatus()
+    fireEvent.click(endedBox())
+    expect(visibleNames()).toEqual(['Champ', 'Out'])
+    expect(headerText()).toContain('2')
+  })
+
+  it('Medaled shows only players who won a medal, even if still playing', () => {
+    renderStatus()
+    fireEvent.click(medaledBox())
+    expect(visibleNames()).toEqual(['Champ', 'StillMedal'])
+    expect(headerText()).toContain('2')
+  })
+
+  it('unions the checked categories', () => {
+    renderStatus()
+    fireEvent.click(activeBox())
+    fireEvent.click(medaledBox())
+    // active ∪ medaled = {Playing, StillMedal, NoData} ∪ {Champ, StillMedal}
+    expect(visibleNames()).toEqual(['Playing', 'Champ', 'StillMedal', 'NoData'])
+    expect(headerText()).toContain('4')
+  })
+
+  it('keeps the category count independent of the text query', () => {
+    renderStatus()
+    fireEvent.click(activeBox())
+    fireEvent.change(document.querySelector('.roster-filter-input')!, { target: { value: 'playing' } })
+    expect(visibleNames()).toEqual(['Playing'])
+    expect(headerText()).toContain('3') // headline still reflects all active players, not the search
+  })
+
+  it('resets the checkboxes to off when the modal is reopened', () => {
+    const { rerender } = renderStatus(true)
+    fireEvent.click(activeBox())
+    fireEvent.click(medaledBox())
+    expect(activeBox().checked).toBe(true)
     const remount = (open: boolean) =>
       rerender(
         <LanguageProvider>
-          <RosterModal open={open} title="KBA" count={elimRows.length} rows={elimRows} onClose={() => {}} />
+          <RosterModal open={open} title="KBA" count={statusRows.length} rows={statusRows} onClose={() => {}} />
         </LanguageProvider>,
       )
     remount(false)
     remount(true)
-    expect(checkbox().checked).toBe(false)
+    expect(activeBox().checked).toBe(false)
+    expect(medaledBox().checked).toBe(false)
   })
 })
