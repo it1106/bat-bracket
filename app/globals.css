@@ -2343,7 +2343,14 @@ html.dark .ms-match--next-opp {
 .stats-matrix-cell.stats-matrix-total { border-left: 2px solid var(--border); font-weight: 600; }
 .stats-matrix-fulllink { color: var(--brand); white-space: nowrap; }
 .stats-matrix-fulllink:hover { text-decoration: underline; }
-.stats-matrix-agesel { margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+.stats-matrix-agesel {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
 .stats-matrix-agesel select {
   font: inherit;
   color: var(--fg);

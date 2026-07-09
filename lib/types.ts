@@ -379,16 +379,24 @@ export interface CountryMatrixData {
   cells: Record<string, Record<string, StatsCountryMatrixCell>>
 }
 
-export interface StatsCountryMatrixGroup extends CountryMatrixData {
-  ageGroup: string // e.g. "U19", "U17"
+export type CountryMatrixGender = 'male' | 'female' | 'mixed'
+
+// One leaf sub-matrix for a single (age band, gender) combination. Age band is
+// parsed from the draw ("U19", "U17", …; "" when the draw has no band); gender
+// from the draw's leading letter (B/M=male, G/W=female, X=mixed). The UI merges
+// the buckets matching the selected age and gender filters.
+export interface StatsCountryMatrixBucket extends CountryMatrixData {
+  ageGroup: string
+  gender: CountryMatrixGender
 }
 
 export interface StatsCountryMatrix extends CountryMatrixData {
-  // Per-age-group sub-matrices (age band parsed from each match's draw),
-  // ordered high→low. Optional: present only when ≥2 age groups qualify, so a
-  // single-age-group tournament (or a blob cached before this field existed)
-  // just shows the all-ages grid with no age dropdown.
-  ageGroups?: StatsCountryMatrixGroup[]
+  // Per-(age, gender) leaf buckets so the UI can filter by age group and/or
+  // discipline gender independently. Ordered age desc, then male/female/mixed.
+  // Optional: present only when ≥2 leaves exist (a real filter choice), so a
+  // single-leaf tournament — or a blob cached before this field existed — just
+  // shows the all/all grid with no dropdowns.
+  buckets?: StatsCountryMatrixBucket[]
 }
 
 export interface StatsIntegrityWalkover {

@@ -367,43 +367,45 @@ describe('tournamentStats — country head-to-head matrix', () => {
     expect(aggregate(data, days, clubs).countryMatrix).toBeUndefined()
   })
 
-  // Age-group breakdown: the matrix also carries per-age-group sub-matrices
-  // (extracted from the "U<n>" in each match's draw) so the UI can filter the
-  // grid. The top-level matrix stays the all-ages aggregate (default view).
-  describe('age-group breakdown', () => {
+  // Per-(age, gender) leaf buckets: the matrix carries one sub-matrix per
+  // (age band, gender) so the UI can filter by age and/or discipline gender
+  // independently, merging the matching buckets. Age band comes from "U<n>" in
+  // the draw; gender from the draw's first letter (B/M=male, G/W=female,
+  // X=mixed). The top-level matrix stays the all/all aggregate (default view).
+  describe('leaf buckets (age × gender)', () => {
     const grouped = build([
-      match([THA('a1')], [INA('b1')], 1, { draw: 'BS U17' }), // U17: THA beats INA
-      match([THA('a2')], [MAS('c1')], 1, { draw: 'GS U17' }), // U17: THA beats MAS
-      match([INA('b2')], [MAS('c2')], 1, { draw: 'MS-U19' }), // U19: INA beats MAS
-      match([INA('b3')], [THA('a3')], 1, { draw: 'WS-U19' }), // U19: INA beats THA
+      match([THA('a1')], [INA('b1')], 1, { draw: 'BS U17' }), // U17 male:   THA>INA
+      match([THA('a2')], [MAS('c1')], 1, { draw: 'GS U17' }), // U17 female: THA>MAS
+      match([INA('b2')], [MAS('c2')], 1, { draw: 'MS-U19' }), // U19 male:   INA>MAS
+      match([INA('b3')], [THA('a3')], 1, { draw: 'XD-U19' }), // U19 mixed:  INA>THA
     ])
+    const byKey = (ag: string, g: string) =>
+      grouped.countryMatrix!.buckets!.find((b) => b.ageGroup === ag && b.gender === g)!
 
-    it('exposes an ageGroups array ordered high→low', () => {
-      expect(grouped.countryMatrix!.ageGroups?.map((g) => g.ageGroup)).toEqual(['U19', 'U17'])
+    it('exposes one bucket per (age, gender) leaf, ordered age desc then male/female/mixed', () => {
+      expect(grouped.countryMatrix!.buckets!.map((b) => `${b.ageGroup}/${b.gender}`)).toEqual([
+        'U19/male', 'U19/mixed', 'U17/male', 'U17/female',
+      ])
     })
 
-    it('each age group holds only its own matches', () => {
-      const byAge = Object.fromEntries(grouped.countryMatrix!.ageGroups!.map((g) => [g.ageGroup, g]))
-      // U17: THA has two wins (vs INA, vs MAS), no losses.
-      expect(byAge.U17.cells.THA.INA).toEqual({ w: 1, l: 0 })
-      expect(byAge.U17.cells.THA.MAS).toEqual({ w: 1, l: 0 })
-      expect(byAge.U17.cells.INA?.MAS).toBeUndefined() // INA never met MAS in U17
-      // U19: INA beat both MAS and THA.
-      expect(byAge.U19.cells.INA.MAS).toEqual({ w: 1, l: 0 })
-      expect(byAge.U19.cells.INA.THA).toEqual({ w: 1, l: 0 })
+    it('each bucket holds only its own (age, gender) matches', () => {
+      expect(byKey('U17', 'male').cells.THA.INA).toEqual({ w: 1, l: 0 })
+      expect(byKey('U17', 'female').cells.THA.MAS).toEqual({ w: 1, l: 0 })
+      expect(byKey('U19', 'male').cells.INA.MAS).toEqual({ w: 1, l: 0 })
+      expect(byKey('U19', 'mixed').cells.INA.THA).toEqual({ w: 1, l: 0 })
     })
 
-    it('keeps the top-level matrix as the all-ages aggregate', () => {
-      // THA overall vs INA across both age groups: 1 win (U17) and 1 loss (U19).
+    it('keeps the top-level matrix as the all/all aggregate', () => {
+      // THA vs INA across all buckets: 1 win (U17 male) and 1 loss (U19 mixed).
       expect(grouped.countryMatrix!.cells.THA.INA).toEqual({ w: 1, l: 1 })
     })
 
-    it('omits ageGroups when only one age group qualifies (dropdown pointless)', () => {
+    it('omits buckets when there is only one leaf (no filter choice)', () => {
       const single = build([
         match([THA('a')], [INA('b')], 1, { draw: 'BS U17' }),
-        match([THA('c')], [MAS('d')], 1, { draw: 'GS U17' }),
+        match([THA('c')], [MAS('d')], 1, { draw: 'BD U17' }), // same leaf: U17 male
       ])
-      expect(single.countryMatrix!.ageGroups).toBeUndefined()
+      expect(single.countryMatrix!.buckets).toBeUndefined()
     })
   })
 })
