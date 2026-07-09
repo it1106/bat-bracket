@@ -380,22 +380,26 @@ export interface CountryMatrixData {
 }
 
 export type CountryMatrixGender = 'male' | 'female' | 'mixed'
+export type CountryMatrixDiscipline = 'singles' | 'doubles'
 
-// One leaf sub-matrix for a single (age band, gender) combination. Age band is
-// parsed from the draw ("U19", "U17", …; "" when the draw has no band); gender
-// from the draw's leading letter (B/M=male, G/W=female, X=mixed). The UI merges
-// the buckets matching the selected age and gender filters.
+// One leaf sub-matrix for a single (age band, gender, discipline) combination.
+// Age band is parsed from the draw ("U19", "U17", …; "" when the draw has no
+// band); gender from the draw's leading letter (B/M=male, G/W=female, X=mixed);
+// discipline from the second letter (S=singles, D=doubles). The UI merges the
+// buckets matching the selected age, gender, and discipline filters.
 export interface StatsCountryMatrixBucket extends CountryMatrixData {
   ageGroup: string
   gender: CountryMatrixGender
+  discipline: CountryMatrixDiscipline
 }
 
 export interface StatsCountryMatrix extends CountryMatrixData {
-  // Per-(age, gender) leaf buckets so the UI can filter by age group and/or
-  // discipline gender independently. Ordered age desc, then male/female/mixed.
-  // Optional: present only when ≥2 leaves exist (a real filter choice), so a
-  // single-leaf tournament — or a blob cached before this field existed — just
-  // shows the all/all grid with no dropdowns.
+  // Per-(age, gender, discipline) leaf buckets so the UI can filter by age
+  // group, gender, and singles/doubles independently. Ordered age desc, then
+  // male/female/mixed, then singles/doubles. Optional: present only when ≥2
+  // leaves exist (a real filter choice), so a single-leaf tournament — or a
+  // blob cached before this field existed — just shows the all/all grid with
+  // no dropdowns.
   buckets?: StatsCountryMatrixBucket[]
 }
 

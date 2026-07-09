@@ -6,12 +6,14 @@ import { countryDisplayName } from '@/lib/countryCodes'
 import { countryMatrixRowTotals, mergeCountryMatrices } from '@/lib/countryMatrix'
 import type {
   CountryMatrixData,
+  CountryMatrixDiscipline,
   CountryMatrixGender,
   StatsCountryMatrix,
   StatsCountryMatrixCell,
 } from '@/lib/types'
 
 const GENDER_ORDER: CountryMatrixGender[] = ['male', 'female', 'mixed']
+const DISCIPLINE_ORDER: CountryMatrixDiscipline[] = ['singles', 'doubles']
 
 const pct = (r: number) => `${Math.round(r * 100)}%`
 const tintOf = (w: number, l: number) => {
@@ -85,30 +87,43 @@ export default function CountryMatrixTable({ matrix }: { matrix: StatsCountryMat
   const { t } = useLanguage()
   const [age, setAge] = useState('all')
   const [gender, setGender] = useState('all')
+  const [discipline, setDiscipline] = useState('all')
 
   const buckets = matrix.buckets ?? []
   const ages = Array.from(new Set(buckets.map((b) => b.ageGroup).filter(Boolean)))
     .sort((a, b) => parseInt(b.slice(1), 10) - parseInt(a.slice(1), 10))
   const genders = GENDER_ORDER.filter((g) => buckets.some((b) => b.gender === g))
+  const disciplines = DISCIPLINE_ORDER.filter((d) => buckets.some((b) => b.discipline === d))
 
   const genderLabel: Record<CountryMatrixGender, string> = {
     male: t('statsCountryMatrixMale'),
     female: t('statsCountryMatrixFemale'),
     mixed: t('statsCountryMatrixMixed'),
   }
+  const disciplineLabel: Record<CountryMatrixDiscipline, string> = {
+    singles: t('statsCountryMatrixSingles'),
+    doubles: t('statsCountryMatrixDoubles'),
+  }
 
-  // all/all → the precomputed top-level aggregate; otherwise merge the buckets
-  // matching both filters (an unmatched combination yields an empty grid).
+  // all/all/all → the precomputed top-level aggregate; otherwise merge the
+  // buckets matching every active filter (an unmatched combination yields an
+  // empty grid).
   const active: CountryMatrixData =
-    age === 'all' && gender === 'all'
+    age === 'all' && gender === 'all' && discipline === 'all'
       ? matrix
       : mergeCountryMatrices(
-          buckets.filter((b) => (age === 'all' || b.ageGroup === age) && (gender === 'all' || b.gender === gender)),
+          buckets.filter((b) =>
+            (age === 'all' || b.ageGroup === age) &&
+            (gender === 'all' || b.gender === gender) &&
+            (discipline === 'all' || b.discipline === discipline),
+          ),
         )
+
+  const showFilters = buckets.length > 0 && (ages.length >= 2 || genders.length >= 2 || disciplines.length >= 2)
 
   return (
     <>
-      {buckets.length > 0 && (ages.length >= 2 || genders.length >= 2) && (
+      {showFilters && (
         <div className="stats-matrix-agesel">
           {ages.length >= 2 && (
             <label>
@@ -125,6 +140,15 @@ export default function CountryMatrixTable({ matrix }: { matrix: StatsCountryMat
               <select value={gender} onChange={(e) => setGender(e.target.value)}>
                 <option value="all">{t('statsCountryMatrixAllGenders')}</option>
                 {genders.map((g) => <option key={g} value={g}>{genderLabel[g]}</option>)}
+              </select>
+            </label>
+          )}
+          {disciplines.length >= 2 && (
+            <label>
+              {t('statsCountryMatrixDisciplineLabel')}{' '}
+              <select value={discipline} onChange={(e) => setDiscipline(e.target.value)}>
+                <option value="all">{t('statsCountryMatrixAllDisciplines')}</option>
+                {disciplines.map((d) => <option key={d} value={d}>{disciplineLabel[d]}</option>)}
               </select>
             </label>
           )}

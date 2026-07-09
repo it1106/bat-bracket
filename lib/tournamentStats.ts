@@ -11,6 +11,7 @@ import type {
   StatsClubMedalist,
   StatsPlayerResult,
   CountryMatrixData,
+  CountryMatrixDiscipline,
   CountryMatrixGender,
   StatsClubRoster,
   StatsCountryMatrix,
@@ -1025,12 +1026,22 @@ function genderOfDraw(draw: string): CountryMatrixGender | null {
   return null
 }
 
+// Singles vs doubles from the draw's second letter: S = singles, D = doubles
+// (e.g. "MS"→singles, "BD"→doubles, "XD"→doubles). null for anything else.
+function disciplineOfDraw(draw: string): CountryMatrixDiscipline | null {
+  const c = draw.trim()[1]?.toUpperCase()
+  if (c === 'S') return 'singles'
+  if (c === 'D') return 'doubles'
+  return null
+}
+
 function ageRank(band: string): number {
   const n = parseInt(band.slice(1), 10)
   return Number.isFinite(n) ? n : -1 // "" (no band) sorts last
 }
 
 const GENDER_RANK: Record<CountryMatrixGender, number> = { male: 0, female: 1, mixed: 2 }
+const DISCIPLINE_RANK: Record<CountryMatrixDiscipline, number> = { singles: 0, doubles: 1 }
 
 // Core grid from a list of matches. Same rules as before: decided, non-walkover,
 // each side a single country, cross-country only. Returns undefined when fewer
@@ -1069,26 +1080,31 @@ function buildCountryMatrix(ctxs: MatchCtx[]): StatsCountryMatrix | undefined {
   const all = computeMatrix(allMatches)
   if (!all) return undefined
 
-  // One leaf per (age band, gender). Matches with no classifiable gender are
-  // left out of the leaves (but remain in the all/all grid above).
-  const byLeaf = new Map<string, { ageGroup: string; gender: CountryMatrixGender; matches: MatchEntry[] }>()
+  // One leaf per (age band, gender, discipline). Matches with no classifiable
+  // gender or discipline are left out of the leaves (but remain in the all/all
+  // grid above).
+  const byLeaf = new Map<string, { ageGroup: string; gender: CountryMatrixGender; discipline: CountryMatrixDiscipline; matches: MatchEntry[] }>()
   for (const match of allMatches) {
     const gender = genderOfDraw(match.draw)
-    if (!gender) continue
+    const discipline = disciplineOfDraw(match.draw)
+    if (!gender || !discipline) continue
     const ageGroup = ageBandOfDraw(match.draw)
-    const key = `${ageGroup}|${gender}`
+    const key = `${ageGroup}|${gender}|${discipline}`
     let leaf = byLeaf.get(key)
-    if (!leaf) { leaf = { ageGroup, gender, matches: [] }; byLeaf.set(key, leaf) }
+    if (!leaf) { leaf = { ageGroup, gender, discipline, matches: [] }; byLeaf.set(key, leaf) }
     leaf.matches.push(match)
   }
 
   const buckets: StatsCountryMatrix['buckets'] = []
   for (const leaf of Array.from(byLeaf.values())) {
     const sub = computeMatrix(leaf.matches)
-    if (sub) buckets.push({ ageGroup: leaf.ageGroup, gender: leaf.gender, ...sub })
+    if (sub) buckets.push({ ageGroup: leaf.ageGroup, gender: leaf.gender, discipline: leaf.discipline, ...sub })
   }
   buckets.sort(
-    (a, b) => ageRank(b.ageGroup) - ageRank(a.ageGroup) || GENDER_RANK[a.gender] - GENDER_RANK[b.gender],
+    (a, b) =>
+      ageRank(b.ageGroup) - ageRank(a.ageGroup) ||
+      GENDER_RANK[a.gender] - GENDER_RANK[b.gender] ||
+      DISCIPLINE_RANK[a.discipline] - DISCIPLINE_RANK[b.discipline],
   )
 
   // Only attach when there's a real filter choice — a single leaf would just

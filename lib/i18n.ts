@@ -194,6 +194,10 @@ export type TKey =
   | 'statsCountryMatrixMale'
   | 'statsCountryMatrixFemale'
   | 'statsCountryMatrixMixed'
+  | 'statsCountryMatrixDisciplineLabel'
+  | 'statsCountryMatrixAllDisciplines'
+  | 'statsCountryMatrixSingles'
+  | 'statsCountryMatrixDoubles'
   | 'statsShowAll'
   | 'statsShowLess'
   | 'statsColCountry'
@@ -466,6 +470,10 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsCountryMatrixMale: 'Male',
     statsCountryMatrixFemale: 'Female',
     statsCountryMatrixMixed: 'Mixed',
+    statsCountryMatrixDisciplineLabel: 'Type:',
+    statsCountryMatrixAllDisciplines: 'All',
+    statsCountryMatrixSingles: 'Singles',
+    statsCountryMatrixDoubles: 'Doubles',
     statsShowAll: 'Show all',
     statsShowLess: 'Show less',
     statsColCountry: 'Country',
@@ -770,6 +778,10 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsCountryMatrixMale: 'ชาย',
     statsCountryMatrixFemale: 'หญิง',
     statsCountryMatrixMixed: 'คู่ผสม',
+    statsCountryMatrixDisciplineLabel: 'ประเภทเดี่ยว/คู่:',
+    statsCountryMatrixAllDisciplines: 'ทั้งหมด',
+    statsCountryMatrixSingles: 'เดี่ยว',
+    statsCountryMatrixDoubles: 'คู่',
     statsShowAll: 'แสดงทั้งหมด',
     statsShowLess: 'แสดงน้อยลง',
     statsColCountry: 'ประเทศ',

@@ -367,43 +367,44 @@ describe('tournamentStats — country head-to-head matrix', () => {
     expect(aggregate(data, days, clubs).countryMatrix).toBeUndefined()
   })
 
-  // Per-(age, gender) leaf buckets: the matrix carries one sub-matrix per
-  // (age band, gender) so the UI can filter by age and/or discipline gender
-  // independently, merging the matching buckets. Age band comes from "U<n>" in
-  // the draw; gender from the draw's first letter (B/M=male, G/W=female,
-  // X=mixed). The top-level matrix stays the all/all aggregate (default view).
-  describe('leaf buckets (age × gender)', () => {
+  // Per-(age, gender, discipline) leaf buckets: the matrix carries one sub-matrix
+  // per (age band, gender, singles/doubles) so the UI can filter by each axis
+  // independently, merging the matching buckets. Age from "U<n>" in the draw;
+  // gender from the draw's first letter (B/M=male, G/W=female, X=mixed);
+  // discipline from the second letter (S=singles, D=doubles). The top-level
+  // matrix stays the all/all/all aggregate (default view).
+  describe('leaf buckets (age × gender × discipline)', () => {
     const grouped = build([
-      match([THA('a1')], [INA('b1')], 1, { draw: 'BS U17' }), // U17 male:   THA>INA
-      match([THA('a2')], [MAS('c1')], 1, { draw: 'GS U17' }), // U17 female: THA>MAS
-      match([INA('b2')], [MAS('c2')], 1, { draw: 'MS-U19' }), // U19 male:   INA>MAS
-      match([INA('b3')], [THA('a3')], 1, { draw: 'XD-U19' }), // U19 mixed:  INA>THA
+      match([THA('a1')], [INA('b1')], 1, { draw: 'BS U17' }),                       // U17 male singles:   THA>INA
+      match([THA('a2'), THA('a2b')], [MAS('c1'), MAS('c1b')], 1, { draw: 'BD U17' }), // U17 male doubles:   THA>MAS
+      match([INA('b2')], [MAS('c2')], 1, { draw: 'WS-U19' }),                        // U19 female singles: INA>MAS
+      match([INA('b3'), INA('b3b')], [THA('a3'), THA('a3b')], 1, { draw: 'XD-U19' }), // U19 mixed doubles:  INA>THA
     ])
-    const byKey = (ag: string, g: string) =>
-      grouped.countryMatrix!.buckets!.find((b) => b.ageGroup === ag && b.gender === g)!
+    const byKey = (ag: string, g: string, d: string) =>
+      grouped.countryMatrix!.buckets!.find((b) => b.ageGroup === ag && b.gender === g && b.discipline === d)!
 
-    it('exposes one bucket per (age, gender) leaf, ordered age desc then male/female/mixed', () => {
-      expect(grouped.countryMatrix!.buckets!.map((b) => `${b.ageGroup}/${b.gender}`)).toEqual([
-        'U19/male', 'U19/mixed', 'U17/male', 'U17/female',
+    it('exposes one bucket per leaf, ordered age desc, gender m/f/x, singles then doubles', () => {
+      expect(grouped.countryMatrix!.buckets!.map((b) => `${b.ageGroup}/${b.gender}/${b.discipline}`)).toEqual([
+        'U19/female/singles', 'U19/mixed/doubles', 'U17/male/singles', 'U17/male/doubles',
       ])
     })
 
-    it('each bucket holds only its own (age, gender) matches', () => {
-      expect(byKey('U17', 'male').cells.THA.INA).toEqual({ w: 1, l: 0 })
-      expect(byKey('U17', 'female').cells.THA.MAS).toEqual({ w: 1, l: 0 })
-      expect(byKey('U19', 'male').cells.INA.MAS).toEqual({ w: 1, l: 0 })
-      expect(byKey('U19', 'mixed').cells.INA.THA).toEqual({ w: 1, l: 0 })
+    it('each bucket holds only its own (age, gender, discipline) matches', () => {
+      expect(byKey('U17', 'male', 'singles').cells.THA.INA).toEqual({ w: 1, l: 0 })
+      expect(byKey('U17', 'male', 'doubles').cells.THA.MAS).toEqual({ w: 1, l: 0 })
+      expect(byKey('U19', 'female', 'singles').cells.INA.MAS).toEqual({ w: 1, l: 0 })
+      expect(byKey('U19', 'mixed', 'doubles').cells.INA.THA).toEqual({ w: 1, l: 0 })
     })
 
-    it('keeps the top-level matrix as the all/all aggregate', () => {
-      // THA vs INA across all buckets: 1 win (U17 male) and 1 loss (U19 mixed).
+    it('keeps the top-level matrix as the all/all/all aggregate', () => {
+      // THA vs INA across all buckets: 1 win (U17 male singles) and 1 loss (U19 mixed doubles).
       expect(grouped.countryMatrix!.cells.THA.INA).toEqual({ w: 1, l: 1 })
     })
 
     it('omits buckets when there is only one leaf (no filter choice)', () => {
       const single = build([
         match([THA('a')], [INA('b')], 1, { draw: 'BS U17' }),
-        match([THA('c')], [MAS('d')], 1, { draw: 'BD U17' }), // same leaf: U17 male
+        match([THA('c')], [MAS('d')], 1, { draw: 'BS U17' }), // same leaf: U17 male singles
       ])
       expect(single.countryMatrix!.buckets).toBeUndefined()
     })
