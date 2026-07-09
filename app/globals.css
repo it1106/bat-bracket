@@ -2328,6 +2328,29 @@ html.dark .ms-match--next-opp {
 .stats-matrix-cell.is-loss { background: color-mix(in srgb, #ef4444 16%, transparent); }
 .stats-matrix-wl { display: block; font-weight: 600; }
 .stats-matrix-pct { display: block; color: var(--muted); font-size: 11px; }
+/* Trailing Overall column: each country's aggregate record. Sits at the far
+   right after all opponents; a heavier left border + header styling set it
+   apart from the per-opponent cells. */
+.stats-matrix .stats-matrix-total-col {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 600;
+  border-left: 2px solid var(--border);
+}
+.stats-matrix-cell.stats-matrix-total { border-left: 2px solid var(--border); font-weight: 600; }
+.stats-matrix-fulllink { color: var(--brand); white-space: nowrap; }
+.stats-matrix-fulllink:hover { text-decoration: underline; }
+
+/* Standalone /country-matrix/<id> page. */
+.country-matrix-page { padding: 16px; max-width: 100%; }
+.country-matrix-page__head { margin-bottom: 12px; }
+.country-matrix-page__head h1 { font-size: 20px; margin: 0 0 4px; }
+.country-matrix-page__sub { color: var(--muted); margin: 0 0 8px; }
+.country-matrix-page__msg { color: var(--muted); padding: 24px 0; }
+
 .stats-evname { font-weight: 600; }
 .stats-winner-cell { color: var(--fg); }
 

@@ -184,6 +184,9 @@ export type TKey =
   | 'statsSectionCountryRosters'
   | 'statsSectionCountryMatrix'
   | 'statsCountryMatrixHint'
+  | 'statsCountryMatrixTotal'
+  | 'statsCountryMatrixOpenFull'
+  | 'statsCountryMatrixEmpty'
   | 'statsShowAll'
   | 'statsShowLess'
   | 'statsColCountry'
@@ -446,6 +449,9 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionCountryRosters: 'Country',
     statsSectionCountryMatrix: 'Country head-to-head',
     statsCountryMatrixHint: 'Each cell: the row country’s wins–losses and win% vs the column country.',
+    statsCountryMatrixTotal: 'Overall',
+    statsCountryMatrixOpenFull: 'Open full page',
+    statsCountryMatrixEmpty: 'No country head-to-head data for this tournament.',
     statsShowAll: 'Show all',
     statsShowLess: 'Show less',
     statsColCountry: 'Country',
@@ -740,6 +746,9 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionCountryRosters: 'ประเทศ',
     statsSectionCountryMatrix: 'สถิติเจอกันระหว่างประเทศ',
     statsCountryMatrixHint: 'แต่ละช่อง: สถิติชนะ–แพ้ และ % ชนะ ของประเทศแถวเมื่อเจอกับประเทศคอลัมน์',
+    statsCountryMatrixTotal: 'รวม',
+    statsCountryMatrixOpenFull: 'เปิดแบบเต็มหน้า',
+    statsCountryMatrixEmpty: 'ไม่มีข้อมูลการเจอกันระหว่างประเทศสำหรับทัวร์นาเมนต์นี้',
     statsShowAll: 'แสดงทั้งหมด',
     statsShowLess: 'แสดงน้อยลง',
     statsColCountry: 'ประเทศ',

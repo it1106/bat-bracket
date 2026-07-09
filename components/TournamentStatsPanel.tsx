@@ -10,6 +10,7 @@ import { countryDisplayName } from '@/lib/countryCodes'
 import { isActive, isMedaled, type RosterStatusMember } from '@/lib/rosterStatus'
 import CountryRosterModal from '@/components/CountryRosterModal'
 import ClubRosterModal from '@/components/ClubRosterModal'
+import CountryMatrixTable from '@/components/CountryMatrixTable'
 import type { StatsClubMedalist, StatsClubRoster, StatsCountryRoster, StatsPlayerResult, TournamentStats } from '@/lib/types'
 
 interface Props {
@@ -465,40 +466,19 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       {stats.countryMatrix && stats.countryMatrix.countries.length >= 2 && (
         <section className="stats-section">
           <h2>{t('statsSectionCountryMatrix')}</h2>
-          <div className="stats-matrix-hint">{t('statsCountryMatrixHint')}</div>
-          <div className="stats-matrix-wrap">
-            <table className="stats-matrix">
-              <thead>
-                <tr>
-                  <th className="stats-matrix-corner"></th>
-                  {stats.countryMatrix.countries.map((c) => (
-                    <th key={c} className="stats-matrix-col" title={countryDisplayName(c) || c}>{c}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {stats.countryMatrix.countries.map((row) => (
-                  <tr key={row}>
-                    <th className="stats-matrix-row" title={countryDisplayName(row) || row}>{row}</th>
-                    {stats.countryMatrix!.countries.map((col) => {
-                      if (row === col) return <td key={col} className="stats-matrix-cell stats-matrix-diag" />
-                      const cell = stats.countryMatrix!.cells[row]?.[col]
-                      const total = cell ? cell.w + cell.l : 0
-                      if (!cell || total === 0) return <td key={col} className="stats-matrix-cell" />
-                      const r = cell.w / total
-                      const tint = r > 0.5 ? 'is-win' : r < 0.5 ? 'is-loss' : 'is-even'
-                      return (
-                        <td key={col} className={`stats-matrix-cell ${tint}`}>
-                          <span className="stats-matrix-wl">{cell.w}–{cell.l}</span>
-                          <span className="stats-matrix-pct">{pct(r)}</span>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="stats-matrix-hint">
+            {t('statsCountryMatrixHint')}
+            {' · '}
+            <a
+              className="stats-matrix-fulllink"
+              href={`/country-matrix/${encodeURIComponent(tournamentId)}${tournamentName ? `?name=${encodeURIComponent(tournamentName)}` : ''}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t('statsCountryMatrixOpenFull')} ↗
+            </a>
           </div>
+          <CountryMatrixTable matrix={stats.countryMatrix} />
         </section>
       )}
 
