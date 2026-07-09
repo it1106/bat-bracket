@@ -189,6 +189,11 @@ export type TKey =
   | 'statsCountryMatrixEmpty'
   | 'statsCountryMatrixAgeLabel'
   | 'statsCountryMatrixAllAges'
+  | 'statsCountryMatrixGenderLabel'
+  | 'statsCountryMatrixAllGenders'
+  | 'statsCountryMatrixMale'
+  | 'statsCountryMatrixFemale'
+  | 'statsCountryMatrixMixed'
   | 'statsShowAll'
   | 'statsShowLess'
   | 'statsColCountry'
@@ -456,6 +461,11 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsCountryMatrixEmpty: 'No country head-to-head data for this tournament.',
     statsCountryMatrixAgeLabel: 'Age group:',
     statsCountryMatrixAllAges: 'All ages',
+    statsCountryMatrixGenderLabel: 'Category:',
+    statsCountryMatrixAllGenders: 'All',
+    statsCountryMatrixMale: 'Male',
+    statsCountryMatrixFemale: 'Female',
+    statsCountryMatrixMixed: 'Mixed',
     statsShowAll: 'Show all',
     statsShowLess: 'Show less',
     statsColCountry: 'Country',
@@ -755,6 +765,11 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsCountryMatrixEmpty: 'ไม่มีข้อมูลการเจอกันระหว่างประเทศสำหรับทัวร์นาเมนต์นี้',
     statsCountryMatrixAgeLabel: 'รุ่นอายุ:',
     statsCountryMatrixAllAges: 'ทุกรุ่นอายุ',
+    statsCountryMatrixGenderLabel: 'ประเภท:',
+    statsCountryMatrixAllGenders: 'ทั้งหมด',
+    statsCountryMatrixMale: 'ชาย',
+    statsCountryMatrixFemale: 'หญิง',
+    statsCountryMatrixMixed: 'คู่ผสม',
     statsShowAll: 'แสดงทั้งหมด',
     statsShowLess: 'แสดงน้อยลง',
     statsColCountry: 'ประเทศ',

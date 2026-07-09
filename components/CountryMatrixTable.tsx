@@ -3,8 +3,15 @@
 import { useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import { countryDisplayName } from '@/lib/countryCodes'
-import { countryMatrixRowTotals } from '@/lib/countryMatrix'
-import type { CountryMatrixData, StatsCountryMatrix, StatsCountryMatrixCell } from '@/lib/types'
+import { countryMatrixRowTotals, mergeCountryMatrices } from '@/lib/countryMatrix'
+import type {
+  CountryMatrixData,
+  CountryMatrixGender,
+  StatsCountryMatrix,
+  StatsCountryMatrixCell,
+} from '@/lib/types'
+
+const GENDER_ORDER: CountryMatrixGender[] = ['male', 'female', 'mixed']
 
 const pct = (r: number) => `${Math.round(r * 100)}%`
 const tintOf = (w: number, l: number) => {
@@ -67,35 +74,65 @@ function MatrixGrid({ data, totalLabel }: { data: CountryMatrixData; totalLabel:
   )
 }
 
-// Wraps the grid with an age-group selector. The top-level matrix is the
-// all-ages aggregate (default); each age group folds every discipline in that
-// band (e.g. U13 = BS/GS/BD/GD/XD U13). The selector only appears when the
-// matrix carries ≥2 age groups. Rendered both in the stats panel and on the
-// standalone /country-matrix page.
+// Wraps the grid with independent age-group and gender selectors. The top-level
+// matrix is the all/all aggregate (default). Each leaf bucket is one (age band,
+// gender) combination — a band folds every discipline (U13 = BS/GS/BD/GD/XD
+// U13) and a gender folds every age (Male = all boys'/men's draws). Selecting
+// filters merges the matching buckets. Selectors appear only when the matrix
+// carries buckets and the axis has ≥2 values. Rendered in the stats panel and
+// on the standalone /country-matrix page.
 export default function CountryMatrixTable({ matrix }: { matrix: StatsCountryMatrix }) {
   const { t } = useLanguage()
-  const [selected, setSelected] = useState('all')
+  const [age, setAge] = useState('all')
+  const [gender, setGender] = useState('all')
 
-  const groups = matrix.ageGroups ?? []
+  const buckets = matrix.buckets ?? []
+  const ages = Array.from(new Set(buckets.map((b) => b.ageGroup).filter(Boolean)))
+    .sort((a, b) => parseInt(b.slice(1), 10) - parseInt(a.slice(1), 10))
+  const genders = GENDER_ORDER.filter((g) => buckets.some((b) => b.gender === g))
+
+  const genderLabel: Record<CountryMatrixGender, string> = {
+    male: t('statsCountryMatrixMale'),
+    female: t('statsCountryMatrixFemale'),
+    mixed: t('statsCountryMatrixMixed'),
+  }
+
+  // all/all → the precomputed top-level aggregate; otherwise merge the buckets
+  // matching both filters (an unmatched combination yields an empty grid).
   const active: CountryMatrixData =
-    selected === 'all' ? matrix : (groups.find((g) => g.ageGroup === selected) ?? matrix)
+    age === 'all' && gender === 'all'
+      ? matrix
+      : mergeCountryMatrices(
+          buckets.filter((b) => (age === 'all' || b.ageGroup === age) && (gender === 'all' || b.gender === gender)),
+        )
 
   return (
     <>
-      {groups.length > 0 && (
+      {buckets.length > 0 && (ages.length >= 2 || genders.length >= 2) && (
         <div className="stats-matrix-agesel">
-          <label>
-            {t('statsCountryMatrixAgeLabel')}{' '}
-            <select value={selected} onChange={(e) => setSelected(e.target.value)}>
-              <option value="all">{t('statsCountryMatrixAllAges')}</option>
-              {groups.map((g) => (
-                <option key={g.ageGroup} value={g.ageGroup}>{g.ageGroup}</option>
-              ))}
-            </select>
-          </label>
+          {ages.length >= 2 && (
+            <label>
+              {t('statsCountryMatrixAgeLabel')}{' '}
+              <select value={age} onChange={(e) => setAge(e.target.value)}>
+                <option value="all">{t('statsCountryMatrixAllAges')}</option>
+                {ages.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </label>
+          )}
+          {genders.length >= 2 && (
+            <label>
+              {t('statsCountryMatrixGenderLabel')}{' '}
+              <select value={gender} onChange={(e) => setGender(e.target.value)}>
+                <option value="all">{t('statsCountryMatrixAllGenders')}</option>
+                {genders.map((g) => <option key={g} value={g}>{genderLabel[g]}</option>)}
+              </select>
+            </label>
+          )}
         </div>
       )}
-      <MatrixGrid data={active} totalLabel={t('statsCountryMatrixTotal')} />
+      {active.countries.length >= 2
+        ? <MatrixGrid data={active} totalLabel={t('statsCountryMatrixTotal')} />
+        : <p className="country-matrix-page__msg">{t('statsCountryMatrixEmpty')}</p>}
     </>
   )
 }

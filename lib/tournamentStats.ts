@@ -11,6 +11,7 @@ import type {
   StatsClubMedalist,
   StatsPlayerResult,
   CountryMatrixData,
+  CountryMatrixGender,
   StatsClubRoster,
   StatsCountryMatrix,
   StatsCountryRoster,
@@ -1008,10 +1009,28 @@ function sideCountry(players: MatchPlayer[]): string | null {
 }
 
 // Age band token ("U19", "U17", …) from a draw name like "BS U17" or "MS-U19".
-function ageBandOfDraw(draw: string): string | null {
+// Empty string when the draw carries no band (still counts in the all/all grid).
+function ageBandOfDraw(draw: string): string {
   const m = /\bU\s*(\d+)\b/i.exec(draw) || /U(\d+)/i.exec(draw)
-  return m ? `U${m[1]}` : null
+  return m ? `U${m[1]}` : ''
 }
+
+// Discipline gender from the draw's leading letter: B/M = male (boys/men),
+// G/W = female (girls/women), X = mixed. null for anything else.
+function genderOfDraw(draw: string): CountryMatrixGender | null {
+  const c = draw.trim()[0]?.toUpperCase()
+  if (c === 'B' || c === 'M') return 'male'
+  if (c === 'G' || c === 'W') return 'female'
+  if (c === 'X') return 'mixed'
+  return null
+}
+
+function ageRank(band: string): number {
+  const n = parseInt(band.slice(1), 10)
+  return Number.isFinite(n) ? n : -1 // "" (no band) sorts last
+}
+
+const GENDER_RANK: Record<CountryMatrixGender, number> = { male: 0, female: 1, mixed: 2 }
 
 // Core grid from a list of matches. Same rules as before: decided, non-walkover,
 // each side a single country, cross-country only. Returns undefined when fewer
@@ -1050,25 +1069,31 @@ function buildCountryMatrix(ctxs: MatchCtx[]): StatsCountryMatrix | undefined {
   const all = computeMatrix(allMatches)
   if (!all) return undefined
 
-  // Per-age-group sub-matrices, ordered high→low by band (U19 before U17).
-  const byBand = new Map<string, MatchEntry[]>()
+  // One leaf per (age band, gender). Matches with no classifiable gender are
+  // left out of the leaves (but remain in the all/all grid above).
+  const byLeaf = new Map<string, { ageGroup: string; gender: CountryMatrixGender; matches: MatchEntry[] }>()
   for (const match of allMatches) {
-    const band = ageBandOfDraw(match.draw)
-    if (!band) continue
-    ;(byBand.get(band) ?? byBand.set(band, []).get(band)!).push(match)
-  }
-  const groups: StatsCountryMatrix['ageGroups'] = []
-  const bands = Array.from(byBand.keys()).sort(
-    (a, b) => parseInt(b.slice(1), 10) - parseInt(a.slice(1), 10),
-  )
-  for (const band of bands) {
-    const sub = computeMatrix(byBand.get(band)!)
-    if (sub) groups.push({ ageGroup: band, ...sub })
+    const gender = genderOfDraw(match.draw)
+    if (!gender) continue
+    const ageGroup = ageBandOfDraw(match.draw)
+    const key = `${ageGroup}|${gender}`
+    let leaf = byLeaf.get(key)
+    if (!leaf) { leaf = { ageGroup, gender, matches: [] }; byLeaf.set(key, leaf) }
+    leaf.matches.push(match)
   }
 
-  // Only attach when there's a real choice — one age group would duplicate the
-  // all-ages view and make the dropdown pointless.
-  return groups.length >= 2 ? { ...all, ageGroups: groups } : all
+  const buckets: StatsCountryMatrix['buckets'] = []
+  for (const leaf of Array.from(byLeaf.values())) {
+    const sub = computeMatrix(leaf.matches)
+    if (sub) buckets.push({ ageGroup: leaf.ageGroup, gender: leaf.gender, ...sub })
+  }
+  buckets.sort(
+    (a, b) => ageRank(b.ageGroup) - ageRank(a.ageGroup) || GENDER_RANK[a.gender] - GENDER_RANK[b.gender],
+  )
+
+  // Only attach when there's a real filter choice — a single leaf would just
+  // duplicate the all/all view and make the dropdowns pointless.
+  return buckets.length >= 2 ? { ...all, buckets } : all
 }
 
 // ─── Pre-match builders ─────────────────────────────────────────────
