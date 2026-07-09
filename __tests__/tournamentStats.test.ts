@@ -295,9 +295,9 @@ describe('tournamentStats — country head-to-head matrix', () => {
     t1: P[],
     t2: P[],
     winner: 1 | 2,
-    opts: { walkover?: boolean; retired?: boolean } = {},
+    opts: { walkover?: boolean; retired?: boolean; draw?: string } = {},
   ): MatchEntry => ({
-    draw: t1.length > 1 ? 'MD' : 'MS', drawNum: '1', round: 'R16',
+    draw: opts.draw ?? (t1.length > 1 ? 'MD' : 'MS'), drawNum: '1', round: 'R16',
     team1: t1.map(pl), team2: t2.map(pl),
     winner,
     scores: opts.walkover ? [] : [{ t1: 21, t2: 15 }, { t1: 21, t2: 18 }],
@@ -365,6 +365,46 @@ describe('tournamentStats — country head-to-head matrix', () => {
   it('is undefined for club-based tournaments (no country codes)', () => {
     const { data, days, clubs } = loadSprc()
     expect(aggregate(data, days, clubs).countryMatrix).toBeUndefined()
+  })
+
+  // Age-group breakdown: the matrix also carries per-age-group sub-matrices
+  // (extracted from the "U<n>" in each match's draw) so the UI can filter the
+  // grid. The top-level matrix stays the all-ages aggregate (default view).
+  describe('age-group breakdown', () => {
+    const grouped = build([
+      match([THA('a1')], [INA('b1')], 1, { draw: 'BS U17' }), // U17: THA beats INA
+      match([THA('a2')], [MAS('c1')], 1, { draw: 'GS U17' }), // U17: THA beats MAS
+      match([INA('b2')], [MAS('c2')], 1, { draw: 'MS-U19' }), // U19: INA beats MAS
+      match([INA('b3')], [THA('a3')], 1, { draw: 'WS-U19' }), // U19: INA beats THA
+    ])
+
+    it('exposes an ageGroups array ordered high→low', () => {
+      expect(grouped.countryMatrix!.ageGroups?.map((g) => g.ageGroup)).toEqual(['U19', 'U17'])
+    })
+
+    it('each age group holds only its own matches', () => {
+      const byAge = Object.fromEntries(grouped.countryMatrix!.ageGroups!.map((g) => [g.ageGroup, g]))
+      // U17: THA has two wins (vs INA, vs MAS), no losses.
+      expect(byAge.U17.cells.THA.INA).toEqual({ w: 1, l: 0 })
+      expect(byAge.U17.cells.THA.MAS).toEqual({ w: 1, l: 0 })
+      expect(byAge.U17.cells.INA?.MAS).toBeUndefined() // INA never met MAS in U17
+      // U19: INA beat both MAS and THA.
+      expect(byAge.U19.cells.INA.MAS).toEqual({ w: 1, l: 0 })
+      expect(byAge.U19.cells.INA.THA).toEqual({ w: 1, l: 0 })
+    })
+
+    it('keeps the top-level matrix as the all-ages aggregate', () => {
+      // THA overall vs INA across both age groups: 1 win (U17) and 1 loss (U19).
+      expect(grouped.countryMatrix!.cells.THA.INA).toEqual({ w: 1, l: 1 })
+    })
+
+    it('omits ageGroups when only one age group qualifies (dropdown pointless)', () => {
+      const single = build([
+        match([THA('a')], [INA('b')], 1, { draw: 'BS U17' }),
+        match([THA('c')], [MAS('d')], 1, { draw: 'GS U17' }),
+      ])
+      expect(single.countryMatrix!.ageGroups).toBeUndefined()
+    })
   })
 })
 
