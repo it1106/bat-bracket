@@ -746,6 +746,59 @@ function collectPlayerEvents(
   return out
 }
 
+// playerId -> that player's decided matches, newest-first. Scores are stored in
+// the player's perspective (t1 = their side). Event uses the collapsed key so it
+// joins to the roster chip string. Walkovers are excluded (no score); retired
+// matches are kept and flagged. Mirrors buildTopPlayers' orientation logic.
+function buildPlayerResultsByPlayer(ctxs: MatchCtx[]): Map<string, StatsPlayerResult[]> {
+  interface Acc { result: StatsPlayerResult; dateIso: string }
+  const byPlayer = new Map<string, Acc[]>()
+
+  const record = (
+    players: MatchPlayer[],
+    side: 1 | 2,
+    match: MatchEntry,
+    opponents: MatchPlayer[],
+    dateIso: string,
+  ) => {
+    const oriented = side === 1 ? match.scores : match.scores.map((s) => ({ t1: s.t2, t2: s.t1 }))
+    const opponent = opponents.map((p) => extractSeed(p.name).plain)
+    const event = match.eventName ?? match.draw
+    for (const p of players) {
+      if (!p.playerId) continue
+      const list = byPlayer.get(p.playerId) ?? []
+      list.push({
+        result: {
+          event,
+          round: match.round,
+          won: match.winner === side,
+          opponent,
+          scores: oriented,
+          retired: match.retired || undefined,
+        },
+        dateIso,
+      })
+      byPlayer.set(p.playerId, list)
+    }
+  }
+
+  for (const { match, dateIso } of ctxs) {
+    if (match.winner === null || match.walkover) continue
+    record(match.team1, 1, match, match.team2, dateIso)
+    record(match.team2, 2, match, match.team1, dateIso)
+  }
+
+  const out = new Map<string, StatsPlayerResult[]>()
+  for (const [pid, accs] of Array.from(byPlayer)) {
+    accs.sort((a, b) =>
+      b.dateIso.localeCompare(a.dateIso) ||                    // date descending (newest first)
+      roundSize(a.result.round) - roundSize(b.result.round),  // deepest round first (F=2 < SF=4 < …)
+    )
+    out.set(pid, accs.map((a) => a.result))
+  }
+  return out
+}
+
 interface StatusAcc {
   medal?: 'gold' | 'silver' | 'bronze'
   koLoss: boolean     // completed loss in a knockout (non-SF/F) round
@@ -843,6 +896,7 @@ function buildClubRosters(
   names: Record<string, string>,
   eventsByPlayer: Map<string, string[]>,
   statusByPlayer: Map<string, Record<string, ChipStatus>>,
+  resultsByPlayer: Map<string, StatsPlayerResult[]>,
 ): StatsClubRoster[] {
   // The clubs map is playerId -> club for every player registered in the
   // tournament (built by walking brackets in /api/clubs). Pair each entry with
@@ -852,7 +906,7 @@ function buildClubRosters(
   for (const [pid, club] of Object.entries(clubs)) {
     if (!club) continue
     const list = membersByClub.get(club) ?? []
-    list.push({ name: names[pid] ?? `#${pid}`, playerId: pid, events: eventsByPlayer.get(pid) ?? [], statusByEvent: statusByPlayer.get(pid) })
+    list.push({ name: names[pid] ?? `#${pid}`, playerId: pid, events: eventsByPlayer.get(pid) ?? [], statusByEvent: statusByPlayer.get(pid), results: resultsByPlayer.get(pid) })
     membersByClub.set(club, list)
   }
   return Array.from(membersByClub.entries())
@@ -871,6 +925,7 @@ function buildClubRosters(
 function buildCountryRosters(
   ctxs: MatchCtx[],
   statusByPlayer: Map<string, Record<string, ChipStatus>>,
+  resultsByPlayer: Map<string, StatsPlayerResult[]>,
   rosterByDraw?: Map<string, RosterDraw>,
 ): StatsCountryRoster[] {
   // BWF carries country + name on each MatchPlayer. Walk every unique
@@ -913,6 +968,7 @@ function buildCountryRosters(
       playerId,
       events: Array.from(events).sort((a, b) => eventRank(a) - eventRank(b) || a.localeCompare(b)),
       statusByEvent: statusByPlayer.get(playerId),
+      results: resultsByPlayer.get(playerId),
     })
     rosterByCountry.set(country, list)
   }
@@ -1004,13 +1060,14 @@ export function aggregate(
   const rosterSize = rosterByDraw ? rosterByDraw.size : 0
   const eventsByPlayer = collectPlayerEvents(ctxs, rosterByDraw)
   const statusByPlayer = buildEventStatusByPlayer(ctxs, rosterByDraw)
+  const resultsByPlayer = buildPlayerResultsByPlayer(ctxs)
   // clubRosters is derived purely from the clubs map (playerId -> club), so
   // it's meaningful even before any match is scheduled — register-then-show.
   if (ctxs.length === 0 && rosterSize === 0) {
     const base: ComputedStats = {
       ...EMPTY,
-      clubRosters: buildClubRosters(clubs, names, eventsByPlayer, statusByPlayer),
-      countryRosters: buildCountryRosters(ctxs, statusByPlayer, rosterByDraw),
+      clubRosters: buildClubRosters(clubs, names, eventsByPlayer, statusByPlayer, resultsByPlayer),
+      countryRosters: buildCountryRosters(ctxs, statusByPlayer, resultsByPlayer, rosterByDraw),
     }
     return decorateOptional(base, extras, data, dayGroupsByDate)
   }
@@ -1024,8 +1081,8 @@ export function aggregate(
     courtUtilization: buildCourtUtilization(ctxs),
     clubMedals,
     multiGoldPlayers,
-    clubRosters: buildClubRosters(clubs, names, eventsByPlayer, statusByPlayer),
-    countryRosters: buildCountryRosters(ctxs, statusByPlayer, rosterByDraw),
+    clubRosters: buildClubRosters(clubs, names, eventsByPlayer, statusByPlayer, resultsByPlayer),
+    countryRosters: buildCountryRosters(ctxs, statusByPlayer, resultsByPlayer, rosterByDraw),
     integrity: buildIntegrity(ctxs),
   }
   return decorateOptional(base, extras, data, dayGroupsByDate)

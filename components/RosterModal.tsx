@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
-import type { ChipStatus } from '@/lib/types'
+import type { ChipStatus, StatsPlayerResult } from '@/lib/types'
 import { isActive, isEnded, isMedaled } from '@/lib/rosterStatus'
+import { abbrevRoundL } from '@/lib/i18n'
 
 export interface RosterRow {
   name: string
@@ -11,6 +12,8 @@ export interface RosterRow {
   playerId?: string
   // Per-event result keyed by the same strings in `events`. Missing ⇒ 'in'.
   statusByEvent?: Record<string, ChipStatus>
+  // Player's decided matches (all events), newest-first, player-perspective.
+  results?: StatsPlayerResult[]
 }
 
 interface Props {
@@ -29,7 +32,7 @@ interface Props {
 // shell, a name/event filter box, and the player list. Each caller supplies the
 // title and rows; the country modal additionally passes per-row age adornments.
 export default function RosterModal({ open, title, count, rows, onClose, nameSuffix, nameTitle }: Props) {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [query, setQuery] = useState('')
   const [showActive, setShowActive] = useState(false)
   const [showEnded, setShowEnded] = useState(false)
@@ -126,8 +129,25 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
                     {r.events.length > 0
                       ? r.events.map((e) => {
                           const status: ChipStatus = r.statusByEvent?.[e] ?? 'in'
+                          const lines = (r.results ?? []).filter((res) => res.event === e)
                           return (
-                            <span className={`country-roster-chip country-roster-chip--${status}`} key={e}>{e}</span>
+                            <span className="country-roster-chip-wrap" key={e} tabIndex={lines.length ? 0 : undefined}>
+                              <span className={`country-roster-chip country-roster-chip--${status}`}>{e}</span>
+                              {lines.length > 0 && (
+                                <span className="country-roster-chip-tip" role="tooltip">
+                                  {lines.map((res, i) => (
+                                    <span className="country-roster-chip-tip-row" key={i}>
+                                      <span className="ct-round">{abbrevRoundL(res.round, lang)}</span>
+                                      <span className={`ct-wl ct-wl--${res.won ? 'w' : 'l'}`}>{res.won ? 'W' : 'L'}</span>
+                                      <span className="ct-opp">vs {res.opponent.join(' / ')}</span>
+                                      <span className="ct-score">
+                                        {res.scores.map((s) => `${s.t1}-${s.t2}`).join(' ')}{res.retired ? ' (ret.)' : ''}
+                                      </span>
+                                    </span>
+                                  ))}
+                                </span>
+                              )}
+                            </span>
                           )
                         })
                       : <span className="country-roster-empty">{t('statsCountryNoEvents')}</span>}

@@ -323,6 +323,9 @@ export interface StatsClubMember {
   // keyed by the same collapsed event string used in `events`. Optional so
   // stats blobs cached before this field existed still parse (missing ⇒ 'in').
   statusByEvent?: Record<string, ChipStatus>
+  // Player's decided matches (all events), newest-first, player-perspective
+  // scores. Optional so blobs cached before this field existed still parse.
+  results?: StatsPlayerResult[]
 }
 
 export interface StatsClubRoster {
@@ -345,6 +348,9 @@ export interface StatsCountryMember {
   // keyed by the same collapsed event string used in `events`. Optional so
   // stats blobs cached before this field existed still parse (missing ⇒ 'in').
   statusByEvent?: Record<string, ChipStatus>
+  // Player's decided matches (all events), newest-first, player-perspective
+  // scores. Optional so blobs cached before this field existed still parse.
+  results?: StatsPlayerResult[]
 }
 
 export interface StatsCountryRoster {
