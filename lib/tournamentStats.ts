@@ -10,6 +10,7 @@ import type {
   MatchesData,
   StatsClubMedalist,
   StatsPlayerResult,
+  CountryMatrixData,
   StatsClubRoster,
   StatsCountryMatrix,
   StatsCountryRoster,
@@ -993,20 +994,29 @@ function buildCountryRosters(
 // skipped, as are same-country (diagonal) matches. Returns undefined when fewer
 // than two countries met (nothing meaningful to grid), which also covers
 // club-based tournaments where no player carries a country code.
-function buildCountryMatrix(ctxs: MatchCtx[]): StatsCountryMatrix | undefined {
-  // The single country of a side, or null if empty/missing/mixed.
-  const sideCountry = (players: MatchPlayer[]): string | null => {
-    if (players.length === 0) return null
-    let country: string | null = null
-    for (const p of players) {
-      const c = (p.country ?? '').trim()
-      if (!c) return null
-      if (country === null) country = c
-      else if (country !== c) return null
-    }
-    return country
+// The single country of a side, or null if empty/missing/mixed.
+function sideCountry(players: MatchPlayer[]): string | null {
+  if (players.length === 0) return null
+  let country: string | null = null
+  for (const p of players) {
+    const c = (p.country ?? '').trim()
+    if (!c) return null
+    if (country === null) country = c
+    else if (country !== c) return null
   }
+  return country
+}
 
+// Age band token ("U19", "U17", …) from a draw name like "BS U17" or "MS-U19".
+function ageBandOfDraw(draw: string): string | null {
+  const m = /\bU\s*(\d+)\b/i.exec(draw) || /U(\d+)/i.exec(draw)
+  return m ? `U${m[1]}` : null
+}
+
+// Core grid from a list of matches. Same rules as before: decided, non-walkover,
+// each side a single country, cross-country only. Returns undefined when fewer
+// than two countries met.
+function computeMatrix(matches: MatchEntry[]): CountryMatrixData | undefined {
   const cells: Record<string, Record<string, { w: number; l: number }>> = {}
   const total = new Map<string, number>()
   const credit = (winner: string, loser: string) => {
@@ -1018,7 +1028,7 @@ function buildCountryMatrix(ctxs: MatchCtx[]): StatsCountryMatrix | undefined {
     total.set(loser, (total.get(loser) ?? 0) + 1)
   }
 
-  for (const { match } of ctxs) {
+  for (const match of matches) {
     if (match.winner === null || match.walkover) continue
     const c1 = sideCountry(match.team1)
     const c2 = sideCountry(match.team2)
@@ -1033,6 +1043,32 @@ function buildCountryMatrix(ctxs: MatchCtx[]): StatsCountryMatrix | undefined {
   )
   if (countries.length < 2) return undefined
   return { countries, cells }
+}
+
+function buildCountryMatrix(ctxs: MatchCtx[]): StatsCountryMatrix | undefined {
+  const allMatches = ctxs.map((c) => c.match)
+  const all = computeMatrix(allMatches)
+  if (!all) return undefined
+
+  // Per-age-group sub-matrices, ordered high→low by band (U19 before U17).
+  const byBand = new Map<string, MatchEntry[]>()
+  for (const match of allMatches) {
+    const band = ageBandOfDraw(match.draw)
+    if (!band) continue
+    ;(byBand.get(band) ?? byBand.set(band, []).get(band)!).push(match)
+  }
+  const groups: StatsCountryMatrix['ageGroups'] = []
+  const bands = Array.from(byBand.keys()).sort(
+    (a, b) => parseInt(b.slice(1), 10) - parseInt(a.slice(1), 10),
+  )
+  for (const band of bands) {
+    const sub = computeMatrix(byBand.get(band)!)
+    if (sub) groups.push({ ageGroup: band, ...sub })
+  }
+
+  // Only attach when there's a real choice — one age group would duplicate the
+  // all-ages view and make the dropdown pointless.
+  return groups.length >= 2 ? { ...all, ageGroups: groups } : all
 }
 
 // ─── Pre-match builders ─────────────────────────────────────────────

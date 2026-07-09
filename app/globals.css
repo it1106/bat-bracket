@@ -2343,6 +2343,16 @@ html.dark .ms-match--next-opp {
 .stats-matrix-cell.stats-matrix-total { border-left: 2px solid var(--border); font-weight: 600; }
 .stats-matrix-fulllink { color: var(--brand); white-space: nowrap; }
 .stats-matrix-fulllink:hover { text-decoration: underline; }
+.stats-matrix-agesel { margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+.stats-matrix-agesel select {
+  font: inherit;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  margin-left: 2px;
+}
 
 /* Standalone /country-matrix/<id> page. */
 .country-matrix-page { padding: 16px; max-width: 100%; }

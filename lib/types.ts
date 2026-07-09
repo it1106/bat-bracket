@@ -368,13 +368,27 @@ export interface StatsCountryMatrixCell {
   l: number
 }
 
-export interface StatsCountryMatrix {
+// A single head-to-head grid: countries axis + the cell records. Shared by the
+// all-ages matrix and each per-age-group sub-matrix.
+export interface CountryMatrixData {
   // Axis order for both rows and columns (participating country codes).
   countries: string[]
   // cells[row][col] = the ROW country's record vs the COL country. Symmetric:
   // cells[A][B] = { w, l } ⇔ cells[B][A] = { w: l, l: w }. Diagonal (A vs A)
   // and pairings that never met are absent.
   cells: Record<string, Record<string, StatsCountryMatrixCell>>
+}
+
+export interface StatsCountryMatrixGroup extends CountryMatrixData {
+  ageGroup: string // e.g. "U19", "U17"
+}
+
+export interface StatsCountryMatrix extends CountryMatrixData {
+  // Per-age-group sub-matrices (age band parsed from each match's draw),
+  // ordered high→low. Optional: present only when ≥2 age groups qualify, so a
+  // single-age-group tournament (or a blob cached before this field existed)
+  // just shows the all-ages grid with no age dropdown.
+  ageGroups?: StatsCountryMatrixGroup[]
 }
 
 export interface StatsIntegrityWalkover {
