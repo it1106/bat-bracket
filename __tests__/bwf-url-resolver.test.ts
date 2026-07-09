@@ -1,6 +1,12 @@
 import fs from 'fs'
 import path from 'path'
-import { extractMetaFromPageHtml, extractDatesFromPageHtml, extractTokenFromHtml } from '@/lib/providers/bwf/url-resolver'
+import {
+  extractMetaFromPageHtml,
+  extractDatesFromPageHtml,
+  extractTokenFromHtml,
+  parseTmtIdFromBwfUrl,
+  sidecarFieldsFromDetail,
+} from '@/lib/providers/bwf/url-resolver'
 
 const html = () => fs.readFileSync(path.join(process.cwd(), 'fixtures', 'bwf', 'tournament-page.html'), 'utf-8')
 
@@ -69,5 +75,61 @@ describe('extractDatesFromPageHtml', () => {
 
   it('returns null on unparseable date', () => {
     expect(extractDatesFromPageHtml('<div>nope</div>')).toBeNull()
+  })
+})
+
+describe('parseTmtIdFromBwfUrl', () => {
+  it('parses the numeric id from a /tournament/<id>/<slug>/ URL', () => {
+    expect(parseTmtIdFromBwfUrl(
+      'https://bwfbadminton.com/tournament/5738/yonex-sunrise-pembangunan-jaya-raya-junior-international-grand-prix-2026/',
+    )).toBe(5738)
+  })
+
+  it('tolerates trailing path segments like /info', () => {
+    expect(parseTmtIdFromBwfUrl('https://bwfbadminton.com/tournament/5726/mith-yonex/info')).toBe(5726)
+  })
+
+  it('returns null when there is no numeric tournament id', () => {
+    expect(parseTmtIdFromBwfUrl('https://bwfbadminton.com/calendar/')).toBeNull()
+    expect(parseTmtIdFromBwfUrl('https://bwfbadminton.com/tournament/abc/foo')).toBeNull()
+  })
+})
+
+describe('sidecarFieldsFromDetail', () => {
+  const full = {
+    id: 5738,
+    code: 'f25a7927-e9ba-47c8-959d-42a013b65592',
+    name: 'YONEX SUNRISE Pembangunan Jaya Raya Junior International Grand Prix 2026',
+    slug: 'yonex-sunrise-pembangunan-jaya-raya-junior-international-grand-prix-2026',
+    start_date: '2026-07-07 00:00:00',
+    end_date: '2026-07-12 00:00:00',
+  }
+
+  it('maps the vue-tournament-detail result to sidecar fields (uppercased code, ISO dates)', () => {
+    expect(sidecarFieldsFromDetail(full)).toEqual({
+      tmtId: 5738,
+      tournamentCode: 'F25A7927-E9BA-47C8-959D-42A013B65592',
+      slug: 'yonex-sunrise-pembangunan-jaya-raya-junior-international-grand-prix-2026',
+      name: 'YONEX SUNRISE Pembangunan Jaya Raya Junior International Grand Prix 2026',
+      startDateIso: '2026-07-07',
+      endDateIso: '2026-07-12',
+    })
+  })
+
+  it('leaves dates empty when the detail omits them', () => {
+    const { start_date, end_date, ...noDates } = full
+    const out = sidecarFieldsFromDetail(noDates)!
+    expect(out.startDateIso).toBe('')
+    expect(out.endDateIso).toBe('')
+  })
+
+  it('returns null when a required field (code) is missing', () => {
+    const { code, ...noCode } = full
+    expect(sidecarFieldsFromDetail(noCode)).toBeNull()
+  })
+
+  it('returns null for a non-object / empty result', () => {
+    expect(sidecarFieldsFromDetail(null)).toBeNull()
+    expect(sidecarFieldsFromDetail({})).toBeNull()
   })
 })

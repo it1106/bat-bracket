@@ -363,6 +363,20 @@ export interface StatsCountryRoster {
   roster?: StatsCountryMember[]
 }
 
+export interface StatsCountryMatrixCell {
+  w: number
+  l: number
+}
+
+export interface StatsCountryMatrix {
+  // Axis order for both rows and columns (participating country codes).
+  countries: string[]
+  // cells[row][col] = the ROW country's record vs the COL country. Symmetric:
+  // cells[A][B] = { w, l } ⇔ cells[B][A] = { w: l, l: w }. Diagonal (A vs A)
+  // and pairings that never met are absent.
+  cells: Record<string, Record<string, StatsCountryMatrixCell>>
+}
+
 export interface StatsIntegrityWalkover {
   event: string
   walkovers: number
@@ -427,6 +441,9 @@ export interface ComputedStats {
   clubRosters: StatsClubRoster[]
   countryRosters: StatsCountryRoster[]
   integrity: StatsIntegrity
+  // BWF-only: country-vs-country head-to-head grid. Absent for club-based
+  // tournaments (no country codes) or when fewer than two countries met.
+  countryMatrix?: StatsCountryMatrix
   defendingChampion?: StatsDefendingChampion[]
   schedulePreview?: StatsSchedulePreview
 }

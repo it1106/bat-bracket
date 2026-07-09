@@ -42,6 +42,56 @@ export function extractMetaFromPageHtml(html: string): BwfPageMeta | null {
   }
 }
 
+// The numeric tournament id lives in the path: /tournament/<id>/<slug>/…
+const TMT_ID_IN_URL = /\/tournament\/(\d+)(?:\/|$)/
+
+export function parseTmtIdFromBwfUrl(url: string): number | null {
+  const m = TMT_ID_IN_URL.exec(url)
+  return m ? Number(m[1]) : null
+}
+
+// Sidecar fields (everything a SidecarEntry needs except resolvedAt), the shape
+// saveSidecarEntry consumes. Kept structural so we don't import the sidecar type
+// into this pure module.
+export interface BwfSidecarFields {
+  tmtId: number
+  tournamentCode: string
+  slug: string
+  name: string
+  startDateIso: string
+  endDateIso: string
+}
+
+// A "YYYY-MM-DD HH:MM:SS" (or already-ISO) datetime → the date part. Anything
+// that doesn't start with a date collapses to '' so the sidecar stays lenient.
+function isoDateOnly(raw: unknown): string {
+  if (typeof raw !== 'string') return ''
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(raw.trim())
+  return m ? m[1] : ''
+}
+
+// Fallback for when the HTML page is Cloudflare-challenged: the extranet API's
+// vue-tournament-detail (keyed by tmtId, no HTML scrape) returns the same
+// identity fields. Map its `results` object into sidecar fields. Returns null
+// unless every required identity field (id, code, name, slug) is present.
+export function sidecarFieldsFromDetail(results: unknown): BwfSidecarFields | null {
+  if (!results || typeof results !== 'object') return null
+  const r = results as Record<string, unknown>
+  const id = typeof r.id === 'number' ? r.id : typeof r.id === 'string' ? Number(r.id) : NaN
+  const code = typeof r.code === 'string' ? r.code : ''
+  const name = typeof r.name === 'string' ? r.name : ''
+  const slug = typeof r.slug === 'string' ? r.slug : ''
+  if (!Number.isFinite(id) || !code || !name || !slug) return null
+  return {
+    tmtId: id,
+    tournamentCode: code.toUpperCase(),
+    slug,
+    name,
+    startDateIso: isoDateOnly(r.start_date),
+    endDateIso: isoDateOnly(r.end_date),
+  }
+}
+
 const MONTHS: Record<string, string> = {
   jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
   jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',

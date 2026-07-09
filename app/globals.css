@@ -2270,6 +2270,64 @@ html.dark .ms-match--next-opp {
 }
 .stats-wl b { color: var(--win-fg, var(--brand)); }
 .stats-wl i { color: var(--loss-fg, var(--brand)); font-style: normal; }
+
+/* Country head-to-head matrix: a wide, scrollable grid with a sticky header
+   row and sticky first column so the country labels stay visible. */
+.stats-matrix-hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.stats-matrix-wrap {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.stats-matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.stats-matrix th,
+.stats-matrix td {
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+.stats-matrix .stats-matrix-col {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 600;
+}
+.stats-matrix .stats-matrix-row {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 600;
+  text-align: left;
+}
+.stats-matrix .stats-matrix-corner {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  background: var(--surface);
+}
+.stats-matrix-cell { min-width: 52px; }
+.stats-matrix-diag { background: var(--border); }
+.stats-matrix-cell.is-win { background: color-mix(in srgb, #22c55e 16%, transparent); }
+.stats-matrix-cell.is-loss { background: color-mix(in srgb, #ef4444 16%, transparent); }
+.stats-matrix-wl { display: block; font-weight: 600; }
+.stats-matrix-pct { display: block; color: var(--muted); font-size: 11px; }
 .stats-evname { font-weight: 600; }
 .stats-winner-cell { color: var(--fg); }
 
