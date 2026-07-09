@@ -11,6 +11,7 @@ import type {
   StatsClubMedalist,
   StatsPlayerResult,
   StatsClubRoster,
+  StatsCountryMatrix,
   StatsCountryRoster,
   StatsCountryMember,
   StatsClubMember,
@@ -985,6 +986,55 @@ function buildCountryRosters(
     .sort((a, b) => b.players - a.players || a.country.localeCompare(b.country))
 }
 
+// Country-vs-country head-to-head grid (BWF only). Each decided, non-walkover
+// match is credited to the winning side's country vs the losing side's country
+// — but only when each side is a single country. A side has a country only if
+// every player on it shares one non-empty code; mixed-nationality pairs are
+// skipped, as are same-country (diagonal) matches. Returns undefined when fewer
+// than two countries met (nothing meaningful to grid), which also covers
+// club-based tournaments where no player carries a country code.
+function buildCountryMatrix(ctxs: MatchCtx[]): StatsCountryMatrix | undefined {
+  // The single country of a side, or null if empty/missing/mixed.
+  const sideCountry = (players: MatchPlayer[]): string | null => {
+    if (players.length === 0) return null
+    let country: string | null = null
+    for (const p of players) {
+      const c = (p.country ?? '').trim()
+      if (!c) return null
+      if (country === null) country = c
+      else if (country !== c) return null
+    }
+    return country
+  }
+
+  const cells: Record<string, Record<string, { w: number; l: number }>> = {}
+  const total = new Map<string, number>()
+  const credit = (winner: string, loser: string) => {
+    ;(cells[winner] ??= {})[loser] ??= { w: 0, l: 0 }
+    ;(cells[loser] ??= {})[winner] ??= { w: 0, l: 0 }
+    cells[winner][loser].w++
+    cells[loser][winner].l++
+    total.set(winner, (total.get(winner) ?? 0) + 1)
+    total.set(loser, (total.get(loser) ?? 0) + 1)
+  }
+
+  for (const { match } of ctxs) {
+    if (match.winner === null || match.walkover) continue
+    const c1 = sideCountry(match.team1)
+    const c2 = sideCountry(match.team2)
+    if (!c1 || !c2 || c1 === c2) continue
+    const winner = match.winner === 1 ? c1 : c2
+    const loser = match.winner === 1 ? c2 : c1
+    credit(winner, loser)
+  }
+
+  const countries = Array.from(total.keys()).sort(
+    (a, b) => (total.get(b)! - total.get(a)!) || a.localeCompare(b),
+  )
+  if (countries.length < 2) return undefined
+  return { countries, cells }
+}
+
 // ─── Pre-match builders ─────────────────────────────────────────────
 
 export function buildSchedulePreview(
@@ -1085,6 +1135,8 @@ export function aggregate(
     countryRosters: buildCountryRosters(ctxs, statusByPlayer, resultsByPlayer, rosterByDraw),
     integrity: buildIntegrity(ctxs),
   }
+  const countryMatrix = buildCountryMatrix(ctxs)
+  if (countryMatrix) base.countryMatrix = countryMatrix
   return decorateOptional(base, extras, data, dayGroupsByDate)
 }
 

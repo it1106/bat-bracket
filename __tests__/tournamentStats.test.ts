@@ -284,6 +284,90 @@ describe('tournamentStats — empty', () => {
   })
 })
 
+// BWF international tournaments tag every player with a country code. The
+// country head-to-head matrix aggregates decided cross-country matches into a
+// symmetric grid: cells[A][B] is A's record vs B. Mixed-nationality pairs and
+// same-country (diagonal) matches are excluded.
+describe('tournamentStats — country head-to-head matrix', () => {
+  type P = { c: string; id: string }
+  const pl = (p: P) => ({ name: p.id, playerId: p.id, country: p.c })
+  const match = (
+    t1: P[],
+    t2: P[],
+    winner: 1 | 2,
+    opts: { walkover?: boolean; retired?: boolean } = {},
+  ): MatchEntry => ({
+    draw: t1.length > 1 ? 'MD' : 'MS', drawNum: '1', round: 'R16',
+    team1: t1.map(pl), team2: t2.map(pl),
+    winner,
+    scores: opts.walkover ? [] : [{ t1: 21, t2: 15 }, { t1: 21, t2: 18 }],
+    court: 'Court 1',
+    walkover: !!opts.walkover, retired: !!opts.retired, nowPlaying: false,
+  })
+
+  const THA = (id: string): P => ({ c: 'THA', id })
+  const INA = (id: string): P => ({ c: 'INA', id })
+  const MAS = (id: string): P => ({ c: 'MAS', id })
+
+  function build(matches: MatchEntry[]) {
+    const data: MatchesData = {
+      days: [{ date: '20260519', label: '19/05', dateIso: '2026-05-19', hasMatches: true }],
+      currentDate: '20260519',
+      groups: [],
+    }
+    const days = new Map<string, MatchScheduleGroup[]>([
+      ['2026-05-19', [{ type: 'time', time: '09:00', matches }]],
+    ])
+    return aggregate(data, days, {})
+  }
+
+  const stats = build([
+    match([THA('t1')], [INA('i1')], 1),                 // THA beats INA (singles)
+    match([THA('t2')], [INA('i2')], 2),                 // INA beats THA (singles)
+    match([THA('t3'), THA('t4')], [MAS('m1'), MAS('m2')], 1), // THA beats MAS (doubles)
+    match([THA('t5'), INA('i3')], [MAS('m3'), MAS('m4')], 1),  // mixed-nationality side → skip
+    match([THA('t6')], [THA('t7')], 1),                 // same country (diagonal) → skip
+    match([THA('t8')], [INA('i4')], 1, { walkover: true }),    // walkover → excluded
+    match([MAS('m5')], [INA('i5')], 1, { retired: true }),     // retired → counted
+  ])
+
+  it('credits winner/loser countries symmetrically (mirror)', () => {
+    const m = stats.countryMatrix!
+    expect(m.cells.THA.INA).toEqual({ w: 1, l: 1 })
+    expect(m.cells.INA.THA).toEqual({ w: 1, l: 1 })
+  })
+
+  it('excludes mixed-nationality pairs and walkovers', () => {
+    // THA vs MAS is only the one doubles win; the mixed THA/INA match is skipped.
+    expect(stats.countryMatrix!.cells.THA.MAS).toEqual({ w: 1, l: 0 })
+    expect(stats.countryMatrix!.cells.MAS.THA).toEqual({ w: 0, l: 1 })
+  })
+
+  it('counts retired matches (they have a winner)', () => {
+    expect(stats.countryMatrix!.cells.MAS.INA).toEqual({ w: 1, l: 0 })
+    expect(stats.countryMatrix!.cells.INA.MAS).toEqual({ w: 0, l: 1 })
+  })
+
+  it('never records the diagonal (same country)', () => {
+    expect(stats.countryMatrix!.cells.THA?.THA).toBeUndefined()
+  })
+
+  it('orders the axis by total matches desc, then code asc', () => {
+    // THA:3, INA:3, MAS:2 → tie broken alphabetically (INA before THA).
+    expect(stats.countryMatrix!.countries).toEqual(['INA', 'THA', 'MAS'])
+  })
+
+  it('is undefined when fewer than two countries have cross-country matches', () => {
+    const s = build([match([THA('a')], [THA('b')], 1)]) // only a diagonal match
+    expect(s.countryMatrix).toBeUndefined()
+  })
+
+  it('is undefined for club-based tournaments (no country codes)', () => {
+    const { data, days, clubs } = loadSprc()
+    expect(aggregate(data, days, clubs).countryMatrix).toBeUndefined()
+  })
+})
+
 // Live tournament reality: per-day matches only surface the events that have
 // been scheduled so far (singles in early days), while the full draw roster
 // lists every event including doubles that start mid-week. The roster input

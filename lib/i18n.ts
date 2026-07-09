@@ -182,6 +182,8 @@ export type TKey =
   | 'statsSectionClubMedals'
   | 'statsSectionClubRosters'
   | 'statsSectionCountryRosters'
+  | 'statsSectionCountryMatrix'
+  | 'statsCountryMatrixHint'
   | 'statsShowAll'
   | 'statsShowLess'
   | 'statsColCountry'
@@ -442,6 +444,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionClubMedals: 'Top clubs by medals',
     statsSectionClubRosters: 'Club / Team',
     statsSectionCountryRosters: 'Country',
+    statsSectionCountryMatrix: 'Country head-to-head',
+    statsCountryMatrixHint: 'Each cell: the row country’s wins–losses and win% vs the column country.',
     statsShowAll: 'Show all',
     statsShowLess: 'Show less',
     statsColCountry: 'Country',
@@ -734,6 +738,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsSectionClubMedals: 'สโมสรยอดเยี่ยม (เรียงตามเหรียญรางวัล)',
     statsSectionClubRosters: 'สโมสร / ทีม',
     statsSectionCountryRosters: 'ประเทศ',
+    statsSectionCountryMatrix: 'สถิติเจอกันระหว่างประเทศ',
+    statsCountryMatrixHint: 'แต่ละช่อง: สถิติชนะ–แพ้ และ % ชนะ ของประเทศแถวเมื่อเจอกับประเทศคอลัมน์',
     statsShowAll: 'แสดงทั้งหมด',
     statsShowLess: 'แสดงน้อยลง',
     statsColCountry: 'ประเทศ',
