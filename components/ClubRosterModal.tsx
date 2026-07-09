@@ -17,7 +17,7 @@ export default function ClubRosterModal({ roster, onClose }: Props) {
   // Prefer the rich per-player roster; fall back to bare names for stats blobs
   // cached before the `roster` field existed (they still have `members`).
   const rows: RosterRow[] = roster.roster
-    ? roster.roster.map((m) => ({ name: m.name, playerId: m.playerId, events: m.events, statusByEvent: m.statusByEvent }))
+    ? roster.roster.map((m) => ({ name: m.name, playerId: m.playerId, events: m.events, statusByEvent: m.statusByEvent, results: m.results }))
     : roster.members.map((name) => ({ name, events: [] }))
 
   return (

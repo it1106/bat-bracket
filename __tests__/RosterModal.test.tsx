@@ -200,3 +200,54 @@ describe('RosterModal status filters', () => {
     expect(medaledBox().checked).toBe(false)
   })
 })
+
+describe('RosterModal chip match tooltip', () => {
+  const rows: RosterRow[] = [
+    {
+      name: 'P', playerId: '1', events: ['MS', 'XD', 'WS'],
+      statusByEvent: { MS: 'out', XD: 'gold', WS: 'in' },
+      results: [
+        { event: 'MS', round: 'Final', won: false, opponent: ['A. Lee'], scores: [{ t1: 19, t2: 21 }, { t1: 21, t2: 17 }, { t1: 18, t2: 21 }] },
+        { event: 'MS', round: 'Semi Final', won: true, opponent: ['B. Chan'], scores: [{ t1: 21, t2: 14 }, { t1: 21, t2: 16 }] },
+        { event: 'XD', round: 'Final', won: true, opponent: ['C', 'D'], scores: [{ t1: 21, t2: 10 }, { t1: 21, t2: 9 }], retired: true },
+      ],
+    },
+  ]
+
+  function renderTip() {
+    return render(
+      <LanguageProvider>
+        <RosterModal open title="KBA" count={1} rows={rows} onClose={() => {}} />
+      </LanguageProvider>,
+    )
+  }
+
+  const wrapFor = (label: string) =>
+    Array.from(document.querySelectorAll('.country-roster-chip-wrap')).find(
+      (w) => w.querySelector('.country-roster-chip')?.textContent === label,
+    )
+
+  it('lists that event\'s matches newest-first with round/W-L/opponent/score', () => {
+    renderTip()
+    const tipRows = wrapFor('MS')!.querySelectorAll('.country-roster-chip-tip-row')
+    expect(tipRows).toHaveLength(2)
+    expect(tipRows[0].querySelector('.ct-round')!.textContent).toBe('F')
+    expect(tipRows[0].querySelector('.ct-wl')!.textContent).toBe('L')
+    expect(tipRows[0].querySelector('.ct-opp')!.textContent).toContain('A. Lee')
+    expect(tipRows[0].querySelector('.ct-score')!.textContent).toBe('19-21 21-17 18-21')
+    expect(tipRows[1].querySelector('.ct-round')!.textContent).toBe('SF')
+    expect(tipRows[1].querySelector('.ct-wl')!.textContent).toBe('W')
+  })
+
+  it('marks retired matches and joins doubles opponents', () => {
+    renderTip()
+    const row = wrapFor('XD')!.querySelector('.country-roster-chip-tip-row')!
+    expect(row.querySelector('.ct-opp')!.textContent).toContain('C / D')
+    expect(row.querySelector('.ct-score')!.textContent).toContain('(ret.)')
+  })
+
+  it('renders no tooltip for an event with no results', () => {
+    renderTip()
+    expect(wrapFor('WS')!.querySelector('.country-roster-chip-tip')).toBeNull()
+  })
+})
