@@ -8,6 +8,8 @@ import { buildFilename, captureStatsImageFile, prewarmFontEmbedCSS, shareFile } 
 import { abbrevRoundL } from '@/lib/i18n'
 import { countryDisplayName } from '@/lib/countryCodes'
 import { isActive, isMedaled, type RosterStatusMember } from '@/lib/rosterStatus'
+import { sortRosterRows, type RosterSort, type RosterSortCol } from '@/lib/rosterSort'
+import { filterCountryRostersByGender, type RosterGender } from '@/lib/rosterGender'
 import CountryRosterModal from '@/components/CountryRosterModal'
 import ClubRosterModal from '@/components/ClubRosterModal'
 import CountryMatrixTable from '@/components/CountryMatrixTable'
@@ -48,6 +50,9 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   const [clubMedalsExpanded, setClubMedalsExpanded] = useState(false)
   const [selectedCountry, setSelectedCountry] = useState<StatsCountryRoster | null>(null)
   const [selectedClub, setSelectedClub] = useState<StatsClubRoster | null>(null)
+  // Country-roster controls: a gender filter and a sortable-header sort spec.
+  const [countryGender, setCountryGender] = useState<RosterGender | 'all'>('all')
+  const [countrySort, setCountrySort] = useState<RosterSort | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const preparedFileRef = useRef<File | null>(null)
 
@@ -427,19 +432,49 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       )}
 
       {/* Country rosters (BWF: no clubs, players grouped by country code) */}
-      {(stats.clubRosters ?? []).length === 0 && (stats.countryRosters ?? []).length > 0 && (
+      {(stats.clubRosters ?? []).length === 0 && (stats.countryRosters ?? []).length > 0 && (() => {
+        const filtered = filterCountryRostersByGender(stats.countryRosters ?? [], countryGender)
+        const sorted = sortRosterRows(filtered, (c) => c.country, countrySort)
+        const toggleSort = (col: RosterSortCol) =>
+          setCountrySort((prev) =>
+            prev?.col === col
+              ? { col, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+              : { col, dir: col === 'name' ? 'asc' : 'desc' },
+          )
+        const arrow = (col: RosterSortCol) =>
+          countrySort?.col === col ? (countrySort.dir === 'asc' ? ' ▲' : ' ▼') : ''
+        const sortableTh = (col: RosterSortCol, label: string, num = false) => (
+          <th
+            className={`stats-th-sort${num ? ' stats-num' : ''}`}
+            aria-sort={countrySort?.col === col ? (countrySort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+            onClick={() => toggleSort(col)}
+          >
+            {label}{arrow(col)}
+          </th>
+        )
+        return (
         <section className="stats-section">
           <h2>{t('statsSectionCountryRosters')}</h2>
+          <div className="stats-matrix-agesel">
+            <label>
+              {t('statsCountryMatrixGenderLabel')}{' '}
+              <select value={countryGender} onChange={(e) => setCountryGender(e.target.value as RosterGender | 'all')}>
+                <option value="all">{t('statsCountryMatrixAllGenders')}</option>
+                <option value="male">{t('statsCountryMatrixMale')}</option>
+                <option value="female">{t('statsCountryMatrixFemale')}</option>
+              </select>
+            </label>
+          </div>
           <table className="stats-table">
             <thead><tr>
               <th></th>
-              <th>{t('statsColCountry')}</th>
-              <th className="stats-num">{t('statsColPlayers')}</th>
-              <th className="stats-num">{t('statsColActive')}</th>
-              <th className="stats-num">{t('statsColMedaled')}</th>
+              {sortableTh('name', t('statsColCountry'))}
+              {sortableTh('players', t('statsColPlayers'), true)}
+              {sortableTh('active', t('statsColActive'), true)}
+              {sortableTh('medaled', t('statsColMedaled'), true)}
             </tr></thead>
             <tbody>
-              {(stats.countryRosters ?? []).map((c, i) => {
+              {sorted.map((c, i) => {
                 const display = countryDisplayName(c.country)
                 const label = display && display.toLowerCase() !== c.country.toLowerCase()
                   ? `${display} (${c.country})`
@@ -460,7 +495,8 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
             </tbody>
           </table>
         </section>
-      )}
+        )
+      })()}
 
       {/* Country head-to-head matrix (BWF: row-vs-column win/loss grid) */}
       {stats.countryMatrix && stats.countryMatrix.countries.length >= 2 && (
