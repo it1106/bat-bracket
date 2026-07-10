@@ -151,6 +151,35 @@ function mapPlayers(team: BwfTeam | undefined): MatchPlayer[] {
   })
 }
 
+// The side that won more sets, or null when tied/empty. Used only to recover a
+// winner BWF failed to record (see resolveWinner).
+function winnerFromSets(scores: MatchScore[]): 1 | 2 | null {
+  let a = 0
+  let b = 0
+  for (const s of scores) {
+    if (s.t1 > s.t2) a++
+    else if (s.t2 > s.t1) b++
+  }
+  if (a > b) return 1
+  if (b > a) return 2
+  return null
+}
+
+// The match winner. Normally BWF's `winner` field (1|2); anything else is null.
+// But BWF occasionally marks a match Finished (matchStatus 'F') with a decisive
+// complete score yet leaves winner=0 — observed live on YONEX Sunrise. In that
+// case recover the winner from the set score so the match reads as completed
+// (otherwise "exclude completed" keeps showing it). Restricted to normal
+// results (scoreStatus 0): a walkover/retirement carries winner from BWF and may
+// have only a partial score.
+function resolveWinner(m: BwfMatch, scores: MatchScore[]): 1 | 2 | null {
+  if (m.winner === 1 || m.winner === 2) return m.winner
+  if ((m.matchStatus ?? '') === 'F' && (m.scoreStatus ?? 0) === 0) {
+    return winnerFromSets(scores)
+  }
+  return null
+}
+
 function mapScores(score: BwfMatch['score']): MatchScore[] {
   if (!Array.isArray(score)) return []
   return score.map((s) => ({ t1: s.home, t2: s.away }))
@@ -180,7 +209,8 @@ export function parseDrawData(
     if (isEmptyTeam(m.team1) && isEmptyTeam(m.team2)) continue
 
     try {
-      const winner = (m.winner === 1 || m.winner === 2 ? m.winner : null) as 1 | 2 | null
+      const scores = mapScores(m.score)
+      const winner = resolveWinner(m, scores)
       const status = m.scoreStatus ?? 0
       const matchStatus = m.matchStatus ?? 'N'
       const court = m.courtName ?? ''
@@ -192,7 +222,7 @@ export function parseDrawData(
         team1: mapPlayers(m.team1),
         team2: mapPlayers(m.team2),
         winner,
-        scores: mapScores(m.score),
+        scores,
         court,
         walkover,
         retired: status === 2,
@@ -220,7 +250,8 @@ function formatMatchTime(raw: string | undefined): string | undefined {
 }
 
 function dayMatchToEntry(m: BwfMatch, drawNumByName: Map<string, string>): MatchEntry {
-  const winner = (m.winner === 1 || m.winner === 2 ? m.winner : null) as 1 | 2 | null
+  const scores = mapScores(m.score)
+  const winner = resolveWinner(m, scores)
   const status = m.scoreStatus ?? 0
   const matchStatus = m.matchStatus ?? 'N'
   const court = m.courtName ?? ''
@@ -233,7 +264,7 @@ function dayMatchToEntry(m: BwfMatch, drawNumByName: Map<string, string>): Match
     team1: mapPlayers(m.team1),
     team2: mapPlayers(m.team2),
     winner,
-    scores: mapScores(m.score),
+    scores,
     court,
     walkover,
     retired: status === 2,

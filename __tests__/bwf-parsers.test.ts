@@ -142,6 +142,65 @@ describe('parseDrawData', () => {
     expect(ret.retired).toBe(true)
     expect(ret.walkover).toBe(false)
   })
+
+  // Observed live on YONEX Sunrise: BWF marks a match Finished (matchStatus 'F')
+  // with a decisive complete score but leaves winner=0. Trusting winner alone
+  // left these reading as not-completed (so "exclude completed" kept showing
+  // them). Recover the winner from the set score.
+  it('derives the winner from the score when a finished match has winner=0', () => {
+    const m = parseDrawData(
+      {
+        drawsize: 2, drawendcol: 2, gameTypeId: 1,
+        results: { '0-0': { match: {
+          team1: { players: [{ id: '1', nameDisplay: 'A' }] },
+          team2: { players: [{ id: '2', nameDisplay: 'B' }] },
+          winner: 0, score: [{ home: 21, away: 17 }, { home: 21, away: 13 }],
+          scoreStatus: 0, matchStatus: 'F',
+          roundName: 'R16', drawName: 'GD U17',
+        } } }, matches: [],
+      },
+      { drawNum: '9', drawName: 'GD U17' },
+    )[0]
+    expect(m.winner).toBe(1) // team1 won both sets
+    expect(m.nowPlaying).toBe(false)
+    expect(m.walkover).toBe(false)
+  })
+
+  it('derives winner=2 when team2 took the finished match', () => {
+    const m = parseDrawData(
+      {
+        drawsize: 2, drawendcol: 2, gameTypeId: 1,
+        results: { '0-0': { match: {
+          team1: { players: [{ id: '1', nameDisplay: 'A' }] },
+          team2: { players: [{ id: '2', nameDisplay: 'B' }] },
+          winner: 0, score: [{ home: 15, away: 21 }, { home: 18, away: 21 }],
+          scoreStatus: 0, matchStatus: 'F',
+          roundName: 'R16', drawName: 'X',
+        } } }, matches: [],
+      },
+      { drawNum: '9', drawName: 'X' },
+    )[0]
+    expect(m.winner).toBe(2)
+  })
+
+  it('does NOT derive a winner for an in-progress match with winner=0', () => {
+    // matchStatus 'P' (playing), one set each → still live, no winner yet.
+    const m = parseDrawData(
+      {
+        drawsize: 2, drawendcol: 2, gameTypeId: 1,
+        results: { '0-0': { match: {
+          team1: { players: [{ id: '1', nameDisplay: 'A' }] },
+          team2: { players: [{ id: '2', nameDisplay: 'B' }] },
+          winner: 0, score: [{ home: 21, away: 15 }, { home: 10, away: 12 }],
+          scoreStatus: 0, matchStatus: 'P',
+          roundName: 'R16', drawName: 'X', courtName: 'C1',
+        } } }, matches: [],
+      },
+      { drawNum: '9', drawName: 'X' },
+    )[0]
+    expect(m.winner).toBeNull()
+    expect(m.nowPlaying).toBe(true)
+  })
 })
 
 describe('parseDayMatches', () => {
