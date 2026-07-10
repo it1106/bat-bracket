@@ -140,18 +140,18 @@ function isFinalRound(round: string): boolean {
   return t === 'final' || t === 'finale'
 }
 
-// Native-title tooltip text for a player name span. BAT players resolve to
-// their club; BWF players (no club, but a country code + a lookup-able date of
-// birth) resolve to "COUNTRY (YOB)" — e.g. "INA (2013)" — falling back to the
-// bare country code when the birth year isn't known yet.
+// Native-title tooltip text for a player name span: the base label is the club
+// (BAT) or the country code (BWF), with the birth year appended when known —
+// e.g. "KBA Club (2011)" or "INA (2013)". Falls back to just the base label
+// until the YOB resolves, and to no tooltip when neither is known.
 export function playerTooltip(
   club: string | undefined,
   country: string | undefined,
   yob: string | undefined,
 ): string | undefined {
-  if (club) return club
-  if (!country) return undefined
-  return yob ? `${country} (${yob})` : country
+  const base = club || country
+  if (!base) return undefined
+  return yob ? `${base} (${yob})` : base
 }
 
 function playerMatchesQuery(
@@ -188,11 +188,19 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       else next.add(key)
       return next
     })
-  // BWF players (tagged with a country) carry a lookup-able date of birth. Grab
-  // the ids on the visible schedule and fetch their birth years once per id set
-  // (the endpoint caches server-side, so repeat days resolve instantly); BAT
-  // players have no country and keep their club tooltip, so we skip them.
+  // Birth year per playerId, appended to the name tooltip. BWF players (tagged
+  // with a country) resolve in one cached batch; BAT players (no country) resolve
+  // by scraping — polite and chunked below. Reset when the tournament changes so
+  // one tournament's ids never leak into another's tooltips.
   const [yobByPid, setYobByPid] = useState<Record<string, string>>({})
+  const yobAttempted = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    setYobByPid({})
+    yobAttempted.current = new Set()
+  }, [tournamentId])
+
+  // BWF: one batch call, YOB from date-of-birth. The endpoint caches forever, so
+  // repeat days resolve instantly.
   const bwfIdsKey = useMemo(() => {
     const ids = new Set<string>()
     for (const g of groups) {
@@ -216,11 +224,53 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           const yob = info?.dob?.slice(0, 4)
           if (yob) map[id] = yob
         }
-        setYobByPid(map)
+        if (Object.keys(map).length) setYobByPid((prev) => ({ ...prev, ...map }))
       })
       .catch(() => { /* leave empty — tooltip falls back to country only */ })
     return () => { cancelled = true }
   }, [bwfIdsKey])
+
+  // BAT: no country and YOB isn't batch-available, so we scrape it. To stay
+  // polite (and under the request timeout) we fetch only ids we haven't tried
+  // yet, in small sequential chunks — the server scrapes cache-misses serially
+  // with a gap. Tooltips fill in progressively; results cache forever.
+  const batIdsKey = useMemo(() => {
+    if (!tournamentId) return ''
+    const ids = new Set<string>()
+    for (const g of groups) {
+      for (const m of g.matches) {
+        for (const p of [...m.team1, ...m.team2]) {
+          if (p.playerId && !p.country) ids.add(p.playerId)
+        }
+      }
+    }
+    return Array.from(ids).sort().join(',')
+  }, [groups, tournamentId])
+  useEffect(() => {
+    if (!batIdsKey || !tournamentId) return
+    const pending = batIdsKey.split(',').filter((id) => !yobAttempted.current.has(id))
+    if (pending.length === 0) return
+    pending.forEach((id) => yobAttempted.current.add(id))
+    let cancelled = false
+    const CHUNK = 15
+    ;(async () => {
+      for (let i = 0; i < pending.length && !cancelled; i += CHUNK) {
+        const chunk = pending.slice(i, i + CHUNK)
+        try {
+          const res = await fetch(`/api/bat/player-ages?tournament=${encodeURIComponent(tournamentId)}&ids=${encodeURIComponent(chunk.join(','))}`)
+          if (!res.ok) continue
+          const data = (await res.json()) as Record<string, { yob: string | null }>
+          if (cancelled) return
+          const map: Record<string, string> = {}
+          for (const [id, info] of Object.entries(data)) {
+            if (info?.yob) map[id] = info.yob
+          }
+          if (Object.keys(map).length) setYobByPid((prev) => ({ ...prev, ...map }))
+        } catch { /* skip this chunk; ids stay marked attempted */ }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [batIdsKey, tournamentId])
 
   const hasCourtSchedule = useMemo(
     () =>
