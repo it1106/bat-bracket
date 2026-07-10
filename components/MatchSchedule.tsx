@@ -140,6 +140,20 @@ function isFinalRound(round: string): boolean {
   return t === 'final' || t === 'finale'
 }
 
+// Native-title tooltip text for a player name span. BAT players resolve to
+// their club; BWF players (no club, but a country code + a lookup-able date of
+// birth) resolve to "COUNTRY (YOB)" — e.g. "INA (2013)" — falling back to the
+// bare country code when the birth year isn't known yet.
+export function playerTooltip(
+  club: string | undefined,
+  country: string | undefined,
+  yob: string | undefined,
+): string | undefined {
+  if (club) return club
+  if (!country) return undefined
+  return yob ? `${country} (${yob})` : country
+}
+
 function playerMatchesQuery(
   p: { name: string; playerId: string; country?: string },
   queries: string[],
@@ -174,6 +188,40 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       else next.add(key)
       return next
     })
+  // BWF players (tagged with a country) carry a lookup-able date of birth. Grab
+  // the ids on the visible schedule and fetch their birth years once per id set
+  // (the endpoint caches server-side, so repeat days resolve instantly); BAT
+  // players have no country and keep their club tooltip, so we skip them.
+  const [yobByPid, setYobByPid] = useState<Record<string, string>>({})
+  const bwfIdsKey = useMemo(() => {
+    const ids = new Set<string>()
+    for (const g of groups) {
+      for (const m of g.matches) {
+        for (const p of [...m.team1, ...m.team2]) {
+          if (p.playerId && p.country) ids.add(p.playerId)
+        }
+      }
+    }
+    return Array.from(ids).sort().join(',')
+  }, [groups])
+  useEffect(() => {
+    if (!bwfIdsKey) return
+    let cancelled = false
+    fetch(`/api/bwf/player-ages?ids=${encodeURIComponent(bwfIdsKey)}`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((data: Record<string, { dob: string | null }>) => {
+        if (cancelled) return
+        const map: Record<string, string> = {}
+        for (const [id, info] of Object.entries(data)) {
+          const yob = info?.dob?.slice(0, 4)
+          if (yob) map[id] = yob
+        }
+        setYobByPid(map)
+      })
+      .catch(() => { /* leave empty — tooltip falls back to country only */ })
+    return () => { cancelled = true }
+  }, [bwfIdsKey])
+
   const hasCourtSchedule = useMemo(
     () =>
       groups.some((g) => g.type === 'court') &&
@@ -325,10 +373,12 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   const flag = (p: { countryFlagUrl?: string }) =>
     p.countryFlagUrl ? <img className="ms-flag" src={p.countryFlagUrl} alt="" /> : null
   // Native title tooltip on desktop name spans: club for BAT (via
-  // playerClubMap), country for BWF (which has no club concept).
+  // playerClubMap), "COUNTRY (YOB)" for BWF (no club concept; YOB fetched lazily
+  // from /api/bwf/player-ages below).
   const teamTooltip = (p: { playerId: string; country?: string }): string | undefined => {
     const club = playerClubMap && p.playerId ? playerClubMap[p.playerId] : undefined
-    return club || p.country || undefined
+    const yob = p.playerId ? yobByPid[p.playerId] : undefined
+    return playerTooltip(club, p.country, yob)
   }
 
   const renderTbdOpp = (candidates: MatchPlayer[][]) => (
