@@ -63,4 +63,24 @@ describe('TournamentStatsPanel — country roster controls', () => {
     fireEvent.click(playersHeader)
     expect(codesInOrder()).toEqual(['THA', 'INA'])
   })
+
+  it('Active header sorts by count first, then by % on the next click', async () => {
+    const ins = (n: number, p: string) => Array.from({ length: n }, (_, i) => male(`${p}${i}`))
+    const outs = (n: number, p: string) => Array.from({ length: n }, (_, i) => ({ name: `${p}o${i}`, playerId: `${p}o${i}`, events: ['MS U19'], statusByEvent: { 'MS U19': 'out' as const } }))
+    // BIG: 3 active of 10 (30%). SML: 2 active of 2 (100%).
+    const rosters = [
+      { country: 'BIG', players: 10, members: [], roster: [...ins(3, 'b'), ...outs(7, 'b')] },
+      { country: 'SML', players: 2, members: [], roster: [...ins(2, 's')] },
+    ]
+    await renderPanel(statsBlob({ countryRosters: rosters }))
+    const activeHeader = Array.from(document.querySelectorAll('th.stats-th-sort')).find((th) => /Active/.test(th.textContent ?? ''))!
+    // First click → by active count desc: BIG (3) before SML (2).
+    fireEvent.click(activeHeader)
+    expect(codesInOrder()).toEqual(['BIG', 'SML'])
+    expect(activeHeader.textContent).toMatch(/▼/)
+    // Second click → by active % desc: SML (100%) before BIG (30%).
+    fireEvent.click(activeHeader)
+    expect(codesInOrder()).toEqual(['SML', 'BIG'])
+    expect(activeHeader.textContent).toMatch(/%▼/)
+  })
 })

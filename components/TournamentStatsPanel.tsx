@@ -452,6 +452,13 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
             {label}{arrow(col)}
           </th>
         )
+        // The Active header is special: first it sorts by active count (number
+        // of players), then a click switches to sorting by active % — both
+        // highest→lowest. Clicking again cycles back to count.
+        const activeMode = countrySort?.col === 'active' ? 'count'
+          : countrySort?.col === 'activePct' ? 'pct' : null
+        const toggleActive = () =>
+          setCountrySort({ col: activeMode === 'count' ? 'activePct' : 'active', dir: 'desc' })
         return (
         <section className="stats-section">
           <h2>{t('statsSectionCountryRosters')}</h2>
@@ -470,7 +477,13 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               <th></th>
               {sortableTh('name', t('statsColCountry'))}
               {sortableTh('players', t('statsColPlayers'), true)}
-              {sortableTh('active', t('statsColActive'), true)}
+              <th
+                className="stats-th-sort stats-num"
+                aria-sort={activeMode ? 'descending' : 'none'}
+                onClick={toggleActive}
+              >
+                {t('statsColActive')}{activeMode === 'count' ? ' ▼' : activeMode === 'pct' ? ' %▼' : ''}
+              </th>
               {sortableTh('medaled', t('statsColMedaled'), true)}
             </tr></thead>
             <tbody>
