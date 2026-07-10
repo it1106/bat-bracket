@@ -12,6 +12,7 @@ import CustomTabButton from '@/components/CustomTabButton'
 import Link from 'next/link'
 import { useLongPress } from '@/lib/useLongPress'
 import { usePointerReorder } from '@/lib/usePointerReorder'
+import { schedulePollUrl } from '@/lib/schedulePoll'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import StaleCacheBanner from '@/components/StaleCacheBanner'
 import DiskCacheBadge from '@/components/DiskCacheBadge'
@@ -260,6 +261,31 @@ export default function Home() {
       }
     }
   }, [liveByCourt, selectedTournament, selectedDay])
+
+  // Periodic background refresh of the viewed day's schedule. The SignalR
+  // completion refetch above only fires while a match is on court; when nothing
+  // is live (between rounds/sessions) it never triggers, so scores finalized
+  // upstream wouldn't appear until a manual reload. This poll fills that gap.
+  // It omits fresh=1 so it rides the server's per-day memcache — repeat polls
+  // are cheap and don't hammer the upstream (the cache TTL bounds staleness).
+  useEffect(() => {
+    const url = schedulePollUrl(selectedTournament, selectedDay)
+    if (!url) return
+    let cancelled = false
+    const tick = async () => {
+      try {
+        const res = await fetch(url)
+        const stale = readStaleFlag(res)
+        if (!cancelled && stale !== null) setStaleCache(stale)
+        const data = await safeJson(res)
+        if (!cancelled && !isApiError(data)) {
+          setMatchGroups((data as Pick<MatchesData, 'groups'>).groups)
+        }
+      } catch { /* ignore — next tick retries */ }
+    }
+    const id = setInterval(tick, 60_000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [selectedTournament, selectedDay])
 
 
   useEffect(() => {
