@@ -35,11 +35,15 @@ export async function getBatPlayerYobs(
   let scrapes = 0
 
   for (const id of unique) {
-    // Cache hit → no upstream call.
     const cached = await readBatPlayer(tournamentId, id)
-    if (cached && isFresh(cached)) {
-      out[id] = yobYear(cached.profile.yob)
-      continue
+    if (cached) {
+      const y = yobYear(cached.profile.yob)
+      // A birth year is immutable — once cached, serve it forever and never
+      // re-scrape, even for a live tournament whose profile TTL has lapsed.
+      if (y) { out[id] = y; continue }
+      // A recent "no YOB on file" result: respect it rather than re-hammering.
+      // (A stale miss falls through to re-check in case BAT added a DOB since.)
+      if (isFresh(cached)) { out[id] = null; continue }
     }
     // Miss → scrape, but only up to the per-request cap; leave the rest for a
     // follow-up request so no single call hammers BAT or blows the timeout.

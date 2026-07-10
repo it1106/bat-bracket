@@ -38,6 +38,16 @@ describe('getBatPlayerYobs', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
+  it('serves a cached YOB even when the entry is stale (birth year is permanent)', async () => {
+    mockRead.mockResolvedValue({ profile: { yob: '2010' }, ts: 0 } as never)
+    const isFreshMock = jest.requireMock('../lib/bat-player-cache').isFresh as jest.Mock
+    isFreshMock.mockReturnValue(false) // stale
+    const out = await getBatPlayerYobs('T1', ['a'], { gapMs: 0 })
+    expect(out).toEqual({ a: '2010' })
+    expect(mockFetch).not.toHaveBeenCalled() // no re-scrape for an immutable YOB
+    isFreshMock.mockReturnValue(true)
+  })
+
   it('scrapes only cache misses', async () => {
     mockRead.mockResolvedValue(null) // all misses
     mockFetch.mockResolvedValue(profileWithYob('2012'))

@@ -250,12 +250,15 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     if (!batIdsKey || !tournamentId) return
     const pending = batIdsKey.split(',').filter((id) => !yobAttempted.current.has(id))
     if (pending.length === 0) return
-    pending.forEach((id) => yobAttempted.current.add(id))
     let cancelled = false
     const CHUNK = 15
     ;(async () => {
       for (let i = 0; i < pending.length && !cancelled; i += CHUNK) {
         const chunk = pending.slice(i, i + CHUNK)
+        // Mark per-chunk (not all upfront): if a day switch cancels the loop,
+        // the chunks we never reached stay unattempted and get picked up next
+        // time, instead of being stranded without a YOB.
+        chunk.forEach((id) => yobAttempted.current.add(id))
         try {
           const res = await fetch(`/api/bat/player-ages?tournament=${encodeURIComponent(tournamentId)}&ids=${encodeURIComponent(chunk.join(','))}`)
           if (!res.ok) continue
