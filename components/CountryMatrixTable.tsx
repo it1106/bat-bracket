@@ -6,14 +6,14 @@ import { countryDisplayName } from '@/lib/countryCodes'
 import { countryMatrixRowTotals, mergeCountryMatrices } from '@/lib/countryMatrix'
 import type {
   CountryMatrixData,
-  CountryMatrixDiscipline,
+  CountryMatrixEvent,
   CountryMatrixGender,
   StatsCountryMatrix,
   StatsCountryMatrixCell,
 } from '@/lib/types'
 
-const GENDER_ORDER: CountryMatrixGender[] = ['male', 'female', 'mixed']
-const DISCIPLINE_ORDER: CountryMatrixDiscipline[] = ['singles', 'doubles']
+const GENDER_ORDER: CountryMatrixGender[] = ['male', 'female']
+const EVENT_ORDER: CountryMatrixEvent[] = ['singles', 'doubles', 'mixed']
 
 const pct = (r: number) => `${Math.round(r * 100)}%`
 const tintOf = (w: number, l: number) => {
@@ -87,39 +87,40 @@ export default function CountryMatrixTable({ matrix }: { matrix: StatsCountryMat
   const { t } = useLanguage()
   const [age, setAge] = useState('all')
   const [gender, setGender] = useState('all')
-  const [discipline, setDiscipline] = useState('all')
+  const [event, setEvent] = useState('all')
 
   const buckets = matrix.buckets ?? []
   const ages = Array.from(new Set(buckets.map((b) => b.ageGroup).filter(Boolean)))
     .sort((a, b) => parseInt(b.slice(1), 10) - parseInt(a.slice(1), 10))
   const genders = GENDER_ORDER.filter((g) => buckets.some((b) => b.gender === g))
-  const disciplines = DISCIPLINE_ORDER.filter((d) => buckets.some((b) => b.discipline === d))
+  const events = EVENT_ORDER.filter((e) => buckets.some((b) => b.event === e))
 
   const genderLabel: Record<CountryMatrixGender, string> = {
     male: t('statsCountryMatrixMale'),
     female: t('statsCountryMatrixFemale'),
-    mixed: t('statsCountryMatrixMixed'),
   }
-  const disciplineLabel: Record<CountryMatrixDiscipline, string> = {
+  const eventLabel: Record<CountryMatrixEvent, string> = {
     singles: t('statsCountryMatrixSingles'),
     doubles: t('statsCountryMatrixDoubles'),
+    mixed: t('statsCountryMatrixMixed'),
   }
 
   // all/all/all → the precomputed top-level aggregate; otherwise merge the
   // buckets matching every active filter (an unmatched combination yields an
-  // empty grid).
+  // empty grid). Mixed buckets are genderless, so a male/female gender filter
+  // excludes them.
   const active: CountryMatrixData =
-    age === 'all' && gender === 'all' && discipline === 'all'
+    age === 'all' && gender === 'all' && event === 'all'
       ? matrix
       : mergeCountryMatrices(
           buckets.filter((b) =>
             (age === 'all' || b.ageGroup === age) &&
             (gender === 'all' || b.gender === gender) &&
-            (discipline === 'all' || b.discipline === discipline),
+            (event === 'all' || b.event === event),
           ),
         )
 
-  const showFilters = buckets.length > 0 && (ages.length >= 2 || genders.length >= 2 || disciplines.length >= 2)
+  const showFilters = buckets.length > 0 && (ages.length >= 2 || genders.length >= 2 || events.length >= 2)
 
   return (
     <>
@@ -143,12 +144,12 @@ export default function CountryMatrixTable({ matrix }: { matrix: StatsCountryMat
               </select>
             </label>
           )}
-          {disciplines.length >= 2 && (
+          {events.length >= 2 && (
             <label>
-              {t('statsCountryMatrixDisciplineLabel')}{' '}
-              <select value={discipline} onChange={(e) => setDiscipline(e.target.value)}>
-                <option value="all">{t('statsCountryMatrixAllDisciplines')}</option>
-                {disciplines.map((d) => <option key={d} value={d}>{disciplineLabel[d]}</option>)}
+              {t('statsCountryMatrixEventLabel')}{' '}
+              <select value={event} onChange={(e) => setEvent(e.target.value)}>
+                <option value="all">{t('statsCountryMatrixAllEvents')}</option>
+                {events.map((e) => <option key={e} value={e}>{eventLabel[e]}</option>)}
               </select>
             </label>
           )}

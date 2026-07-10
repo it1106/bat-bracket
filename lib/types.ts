@@ -379,27 +379,26 @@ export interface CountryMatrixData {
   cells: Record<string, Record<string, StatsCountryMatrixCell>>
 }
 
-export type CountryMatrixGender = 'male' | 'female' | 'mixed'
-export type CountryMatrixDiscipline = 'singles' | 'doubles'
+export type CountryMatrixGender = 'male' | 'female'
+export type CountryMatrixEvent = 'singles' | 'doubles' | 'mixed'
 
-// One leaf sub-matrix for a single (age band, gender, discipline) combination.
-// Age band is parsed from the draw ("U19", "U17", …; "" when the draw has no
-// band); gender from the draw's leading letter (B/M=male, G/W=female, X=mixed);
-// discipline from the second letter (S=singles, D=doubles). The UI merges the
-// buckets matching the selected age, gender, and discipline filters.
+// One leaf sub-matrix for a single (age band, gender, event) combination. Age
+// band is parsed from the draw ("U19", "U17", …; "" when the draw has no band);
+// event from the draw (X…=mixed, else 2nd letter S=singles / D=doubles); gender
+// from the leading letter (B/M=male, G/W=female). Mixed events (XD) are
+// genderless, so `gender` is absent for them. The UI merges the buckets matching
+// the selected age, gender, and event filters.
 export interface StatsCountryMatrixBucket extends CountryMatrixData {
   ageGroup: string
-  gender: CountryMatrixGender
-  discipline: CountryMatrixDiscipline
+  gender?: CountryMatrixGender
+  event: CountryMatrixEvent
 }
 
 export interface StatsCountryMatrix extends CountryMatrixData {
-  // Per-(age, gender, discipline) leaf buckets so the UI can filter by age
-  // group, gender, and singles/doubles independently. Ordered age desc, then
-  // male/female/mixed, then singles/doubles. Optional: present only when ≥2
-  // leaves exist (a real filter choice), so a single-leaf tournament — or a
-  // blob cached before this field existed — just shows the all/all grid with
-  // no dropdowns.
+  // Per-(age, gender, event) leaf buckets so the UI can filter by age group,
+  // gender, and event independently. Optional: present only when ≥2 leaves exist
+  // (a real filter choice), so a single-leaf tournament — or a blob cached
+  // before this field existed — just shows the all grid with no dropdowns.
   buckets?: StatsCountryMatrixBucket[]
 }
 
