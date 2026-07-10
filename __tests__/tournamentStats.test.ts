@@ -408,6 +408,25 @@ describe('tournamentStats — country head-to-head matrix', () => {
       ])
       expect(single.countryMatrix!.buckets).toBeUndefined()
     })
+
+    it('emits a flat cross-country match list tagged for the cell modal', () => {
+      const ms = grouped.countryMatrix!.matches!
+      expect(ms).toHaveLength(4) // all 4 fixture matches are cross-country & decided
+      const bs = ms.find((m) => m.draw === 'BS U17')!
+      expect(bs.country1).toBe('THA')
+      expect(bs.country2).toBe('INA')
+      expect(bs.team1).toEqual(['a1'])
+      expect(bs.team2).toEqual(['b1'])
+      expect(bs.winnerSide).toBe(1)
+      expect(bs.scores.length).toBeGreaterThan(0)
+      expect(bs.ageGroup).toBe('U17')
+      expect(bs.gender).toBe('male')
+      expect(bs.discipline).toBe('singles')
+      // Mixed carries no gender and discipline 'mixed'.
+      const xd = ms.find((m) => m.draw === 'XD-U19')!
+      expect(xd.gender).toBeUndefined()
+      expect(xd.discipline).toBe('mixed')
+    })
   })
 })
 

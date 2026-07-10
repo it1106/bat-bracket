@@ -2347,6 +2347,33 @@ html.dark .ms-match--next-opp {
   border-left: 2px solid var(--border);
 }
 .stats-matrix-cell.stats-matrix-total { border-left: 2px solid var(--border); font-weight: 600; }
+.stats-matrix-clickable { cursor: pointer; }
+.stats-matrix-clickable:hover { outline: 2px solid var(--brand); outline-offset: -2px; }
+
+/* Country head-to-head cell modal: the individual match score lines. */
+.cmx-modal { max-width: 560px; width: 92vw; max-height: 82vh; overflow: auto; }
+.cmx-modal-head { margin-bottom: 12px; }
+.cmx-modal-head h3 { margin: 0; font-size: 16px; }
+.cmx-vs { color: var(--muted); font-weight: 400; margin: 0 4px; }
+.cmx-modal-sub { color: var(--muted); font-size: 13px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.cmx-lines { display: flex; flex-direction: column; gap: 8px; }
+.cmx-line {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.cmx-line-meta { display: flex; gap: 8px; color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+.cmx-line-draw { font-weight: 600; }
+.cmx-side {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+  font-size: 13px;
+}
+.cmx-side.is-win { font-weight: 700; }
+.cmx-team { min-width: 0; }
+.cmx-score { display: flex; gap: 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stats-matrix-fulllink { color: var(--brand); white-space: nowrap; }
 .stats-matrix-fulllink:hover { text-decoration: underline; }
 .stats-matrix-agesel {

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import { countryDisplayName } from '@/lib/countryCodes'
-import { countryMatrixRowTotals, mergeCountryMatrices } from '@/lib/countryMatrix'
+import { countryMatrixRowTotals, mergeCountryMatrices, countryMatrixCellMatches } from '@/lib/countryMatrix'
+import CountryMatrixCellModal from '@/components/CountryMatrixCellModal'
 import type {
   CountryMatrixData,
   CountryMatrixEvent,
@@ -33,7 +34,11 @@ function Cell({ cell }: { cell: StatsCountryMatrixCell }) {
 // The head-to-head grid for one matrix (all-ages or a single age group):
 // countries on both axes, cells[row][col] is the row country's record vs the
 // column country, plus a trailing Overall column with each country's aggregate.
-function MatrixGrid({ data, totalLabel }: { data: CountryMatrixData; totalLabel: string }) {
+function MatrixGrid({ data, totalLabel, onCellClick }: {
+  data: CountryMatrixData
+  totalLabel: string
+  onCellClick?: (row: string, col: string) => void
+}) {
   const totals = countryMatrixRowTotals(data)
   return (
     <div className="stats-matrix-wrap">
@@ -58,8 +63,18 @@ function MatrixGrid({ data, totalLabel }: { data: CountryMatrixData; totalLabel:
                   if (row === col) return <td key={col} className="stats-matrix-cell stats-matrix-diag" />
                   const cell = data.cells[row]?.[col]
                   if (!cell || cell.w + cell.l === 0) return <td key={col} className="stats-matrix-cell" />
+                  const clickable = !!onCellClick
                   return (
-                    <td key={col} className={`stats-matrix-cell ${tintOf(cell.w, cell.l)}`}>
+                    <td
+                      key={col}
+                      className={`stats-matrix-cell ${tintOf(cell.w, cell.l)}${clickable ? ' stats-matrix-clickable' : ''}`}
+                      {...(clickable && {
+                        role: 'button',
+                        tabIndex: 0,
+                        onClick: () => onCellClick!(row, col),
+                        onKeyDown: (e: ReactKeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCellClick!(row, col) } },
+                      })}
+                    >
                       <Cell cell={cell} />
                     </td>
                   )
@@ -88,6 +103,7 @@ export default function CountryMatrixTable({ matrix }: { matrix: StatsCountryMat
   const [age, setAge] = useState('all')
   const [gender, setGender] = useState('all')
   const [event, setEvent] = useState('all')
+  const [cell, setCell] = useState<{ row: string; col: string } | null>(null)
 
   const buckets = matrix.buckets ?? []
   const ages = Array.from(new Set(buckets.map((b) => b.ageGroup).filter(Boolean)))
@@ -121,6 +137,17 @@ export default function CountryMatrixTable({ matrix }: { matrix: StatsCountryMat
         )
 
   const showFilters = buckets.length > 0 && (ages.length >= 2 || genders.length >= 2 || events.length >= 2)
+
+  // Cells are clickable only when the blob carries the per-match list (absent on
+  // older cached blobs). Clicking opens the modal with the matches behind that
+  // cell, narrowed to the active filters.
+  const allMatches = matrix.matches
+  const onCellClick = allMatches ? (row: string, col: string) => setCell({ row, col }) : undefined
+  const cellMatches = cell && allMatches
+    ? countryMatrixCellMatches(allMatches, cell.row, cell.col, {
+        age, gender: gender as CountryMatrixGender | 'all', discipline: event as CountryMatrixEvent | 'all',
+      })
+    : []
 
   return (
     <>
@@ -156,8 +183,11 @@ export default function CountryMatrixTable({ matrix }: { matrix: StatsCountryMat
         </div>
       )}
       {active.countries.length >= 2
-        ? <MatrixGrid data={active} totalLabel={t('statsCountryMatrixTotal')} />
+        ? <MatrixGrid data={active} totalLabel={t('statsCountryMatrixTotal')} onCellClick={onCellClick} />
         : <p className="country-matrix-page__msg">{t('statsCountryMatrixEmpty')}</p>}
+      {cell && cellMatches.length > 0 && (
+        <CountryMatrixCellModal row={cell.row} col={cell.col} matches={cellMatches} onClose={() => setCell(null)} />
+      )}
     </>
   )
 }

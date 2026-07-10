@@ -1,4 +1,11 @@
-import type { CountryMatrixData, StatsCountryMatrixCell } from './types'
+import type {
+  CountryMatrixData,
+  CountryMatrixEvent,
+  CountryMatrixGender,
+  MatchScore,
+  StatsCountryMatrixCell,
+  StatsCountryMatrixMatch,
+} from './types'
 
 // Each country's overall record across every opponent, i.e. the row sum of the
 // head-to-head grid. Derived from `cells` on the fly (not stored on the blob),
@@ -53,4 +60,53 @@ export function mergeCountryMatrices(parts: CountryMatrixData[]): CountryMatrixD
     (a, b) => totalOf(b) - totalOf(a) || a.localeCompare(b),
   )
   return { countries, cells }
+}
+
+// A cross-country match oriented so the clicked row country reads first.
+export interface OrientedCellMatch extends StatsCountryMatrixMatch {
+  rowTeam: string[]      // the row country's players
+  colTeam: string[]      // the opponent country's players
+  rowWon: boolean        // did the row country win
+  rowScores: MatchScore[] // scores from the row country's perspective (their points as t1)
+}
+
+export interface CellMatchFilters {
+  age?: string                       // 'all' or an ageGroup like "U19"
+  gender?: CountryMatrixGender | 'all'
+  discipline?: CountryMatrixEvent | 'all'
+}
+
+// The matches behind a clicked cell: every stored cross-country match between
+// `row` and `col` (in either stored order), narrowed to the active age/gender/
+// discipline filters, and oriented so the row country reads as the first team.
+// Mixed matches carry no gender, so a male/female gender filter excludes them —
+// matching the grid's bucket logic.
+export function countryMatrixCellMatches(
+  matches: StatsCountryMatrixMatch[],
+  row: string,
+  col: string,
+  filters: CellMatchFilters,
+): OrientedCellMatch[] {
+  const { age, gender, discipline } = filters
+  const out: OrientedCellMatch[] = []
+  for (const m of matches) {
+    const isPair =
+      (m.country1 === row && m.country2 === col) ||
+      (m.country1 === col && m.country2 === row)
+    if (!isPair) continue
+    if (age && age !== 'all' && m.ageGroup !== age) continue
+    if (gender && gender !== 'all' && m.gender !== gender) continue
+    if (discipline && discipline !== 'all' && m.discipline !== discipline) continue
+
+    const rowIsTeam1 = m.country1 === row
+    const rowTeam = rowIsTeam1 ? m.team1 : m.team2
+    const colTeam = rowIsTeam1 ? m.team2 : m.team1
+    const rowSide = rowIsTeam1 ? 1 : 2
+    const rowWon = m.winnerSide === rowSide
+    const rowScores = rowIsTeam1
+      ? m.scores
+      : m.scores.map((s) => ({ t1: s.t2, t2: s.t1 }))
+    out.push({ ...m, rowTeam, colTeam, rowWon, rowScores })
+  }
+  return out
 }

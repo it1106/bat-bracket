@@ -1108,9 +1108,37 @@ function buildCountryMatrix(ctxs: MatchCtx[]): StatsCountryMatrix | undefined {
       (GENDER_RANK[a.gender ?? 'male'] - GENDER_RANK[b.gender ?? 'male']),
   )
 
-  // Only attach when there's a real filter choice — a single leaf would just
-  // duplicate the all/all view and make the dropdowns pointless.
-  return buckets.length >= 2 ? { ...all, buckets } : all
+  // Flat list of every cross-country match (same filter as computeMatrix),
+  // tagged with its bucket keys so the cell-click modal can filter by the
+  // clicked pair and the active age/gender/event dropdowns.
+  const matches: NonNullable<StatsCountryMatrix['matches']> = []
+  for (const m of allMatches) {
+    if (m.winner === null || m.walkover) continue
+    const c1 = sideCountry(m.team1)
+    const c2 = sideCountry(m.team2)
+    if (!c1 || !c2 || c1 === c2) continue
+    const discipline = eventOfDraw(m.draw)
+    if (!discipline) continue
+    const gender = genderOfDraw(m.draw) ?? undefined
+    matches.push({
+      country1: c1,
+      country2: c2,
+      team1: m.team1.map((p) => extractSeed(p.name).plain),
+      team2: m.team2.map((p) => extractSeed(p.name).plain),
+      winnerSide: m.winner,
+      scores: m.scores,
+      draw: m.draw,
+      round: m.round,
+      ageGroup: ageBandOfDraw(m.draw),
+      ...(gender && { gender }),
+      discipline,
+    })
+  }
+
+  const withMatches = matches.length > 0 ? { matches } : {}
+  // Only attach buckets when there's a real filter choice — a single leaf would
+  // just duplicate the all/all view and make the dropdowns pointless.
+  return buckets.length >= 2 ? { ...all, buckets, ...withMatches } : { ...all, ...withMatches }
 }
 
 // ─── Pre-match builders ─────────────────────────────────────────────
