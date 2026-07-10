@@ -2241,6 +2241,12 @@ html.dark .ms-match--next-opp {
   padding: 4px 8px;
   border-bottom: 1px solid var(--border);
 }
+.stats-table th.stats-th-sort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.stats-table th.stats-th-sort:hover { color: var(--fg); }
 .stats-table td {
   padding: 7px 8px;
   border-bottom: 1px solid var(--border);
