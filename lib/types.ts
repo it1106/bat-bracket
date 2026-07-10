@@ -394,12 +394,34 @@ export interface StatsCountryMatrixBucket extends CountryMatrixData {
   event: CountryMatrixEvent
 }
 
+// One cross-country match, powering the modal opened by clicking a matrix cell.
+// A flat list (tagged with the bucket keys) rather than nesting under cells, so
+// it's stored once and the client filters it by the clicked pair and the active
+// age/gender/event dropdowns. country1/team1 are team1's side; winnerSide says
+// which side won (1 = team1).
+export interface StatsCountryMatrixMatch {
+  country1: string
+  country2: string
+  team1: string[]
+  team2: string[]
+  winnerSide: 1 | 2
+  scores: MatchScore[]
+  draw: string   // draw code, e.g. "GD U17"
+  round: string
+  ageGroup: string
+  gender?: CountryMatrixGender
+  discipline: CountryMatrixEvent
+}
+
 export interface StatsCountryMatrix extends CountryMatrixData {
   // Per-(age, gender, event) leaf buckets so the UI can filter by age group,
   // gender, and event independently. Optional: present only when ≥2 leaves exist
   // (a real filter choice), so a single-leaf tournament — or a blob cached
   // before this field existed — just shows the all grid with no dropdowns.
   buckets?: StatsCountryMatrixBucket[]
+  // Flat list of every cross-country match, for the cell-click modal. Optional
+  // so blobs cached before it existed still parse (the modal just won't open).
+  matches?: StatsCountryMatrixMatch[]
 }
 
 export interface StatsIntegrityWalkover {

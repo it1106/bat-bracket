@@ -67,6 +67,44 @@ describe('CountryMatrixTable', () => {
     const { container } = renderTable()
     expect(container.querySelector('.stats-matrix-agesel')).toBeNull()
   })
+
+  it('cells are not clickable when the blob carries no per-match list', () => {
+    const { container } = renderTable()
+    expect(container.querySelector('.stats-matrix-clickable')).toBeNull()
+  })
+})
+
+describe('CountryMatrixTable — cell modal', () => {
+  const withMatches: StatsCountryMatrix = {
+    countries: ['THA', 'INA'],
+    cells: { THA: { INA: { w: 1, l: 1 } }, INA: { THA: { w: 1, l: 1 } } },
+    matches: [
+      { country1: 'THA', country2: 'INA', team1: ['Somchai'], team2: ['Budi'], winnerSide: 1, scores: [{ t1: 21, t2: 17 }, { t1: 21, t2: 13 }], draw: 'BS U17', round: 'R16', ageGroup: 'U17', gender: 'male', discipline: 'singles' },
+      { country1: 'INA', country2: 'THA', team1: ['Sri'], team2: ['Nan'], winnerSide: 1, scores: [{ t1: 21, t2: 10 }, { t1: 21, t2: 8 }], draw: 'WS U19', round: 'QF', ageGroup: 'U19', gender: 'female', discipline: 'singles' },
+    ],
+  }
+
+  it('opens a modal listing the score lines when a cell is clicked', () => {
+    const { container } = renderTable(withMatches)
+    const thaRow = container.querySelectorAll('tbody tr')[0]
+    const thaVsIna = thaRow.querySelector('.stats-matrix-clickable') as HTMLElement
+    expect(thaVsIna).toBeTruthy()
+    fireEvent.click(thaVsIna)
+    // Modal shows both THA↔INA matches, oriented THA-first.
+    expect(screen.getByText('Somchai')).toBeInTheDocument()
+    expect(screen.getByText('Budi')).toBeInTheDocument()
+    expect(screen.getByText('Sri')).toBeInTheDocument()
+    // Header summarizes THA's record vs INA (1–1).
+    expect(container.querySelector('.cmx-modal-sub')?.textContent).toBe('1–1')
+  })
+
+  it('closes the modal on the close button', () => {
+    const { container } = renderTable(withMatches)
+    fireEvent.click(container.querySelector('.stats-matrix-clickable') as HTMLElement)
+    expect(screen.getByText('Somchai')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Close'))
+    expect(screen.queryByText('Somchai')).toBeNull()
+  })
 })
 
 describe('CountryMatrixTable — age + gender + event dropdowns', () => {
