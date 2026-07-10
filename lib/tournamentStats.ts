@@ -11,7 +11,7 @@ import type {
   StatsClubMedalist,
   StatsPlayerResult,
   CountryMatrixData,
-  CountryMatrixDiscipline,
+  CountryMatrixEvent,
   CountryMatrixGender,
   StatsClubRoster,
   StatsCountryMatrix,
@@ -1016,20 +1016,21 @@ function ageBandOfDraw(draw: string): string {
   return m ? `U${m[1]}` : ''
 }
 
-// Discipline gender from the draw's leading letter: B/M = male (boys/men),
-// G/W = female (girls/women), X = mixed. null for anything else.
+// Gender from the draw's leading letter: B/M = male (boys/men), G/W = female
+// (girls/women). Mixed (X) is genderless → null.
 function genderOfDraw(draw: string): CountryMatrixGender | null {
   const c = draw.trim()[0]?.toUpperCase()
   if (c === 'B' || c === 'M') return 'male'
   if (c === 'G' || c === 'W') return 'female'
-  if (c === 'X') return 'mixed'
   return null
 }
 
-// Singles vs doubles from the draw's second letter: S = singles, D = doubles
-// (e.g. "MS"→singles, "BD"→doubles, "XD"→doubles). null for anything else.
-function disciplineOfDraw(draw: string): CountryMatrixDiscipline | null {
-  const c = draw.trim()[1]?.toUpperCase()
+// Event from the draw: a leading X is mixed (XD); otherwise the second letter
+// gives singles (S) or doubles (D). null for anything unrecognized.
+function eventOfDraw(draw: string): CountryMatrixEvent | null {
+  const s = draw.trim()
+  if (s[0]?.toUpperCase() === 'X') return 'mixed'
+  const c = s[1]?.toUpperCase()
   if (c === 'S') return 'singles'
   if (c === 'D') return 'doubles'
   return null
@@ -1040,8 +1041,8 @@ function ageRank(band: string): number {
   return Number.isFinite(n) ? n : -1 // "" (no band) sorts last
 }
 
-const GENDER_RANK: Record<CountryMatrixGender, number> = { male: 0, female: 1, mixed: 2 }
-const DISCIPLINE_RANK: Record<CountryMatrixDiscipline, number> = { singles: 0, doubles: 1 }
+const MATRIX_EVENT_RANK: Record<CountryMatrixEvent, number> = { singles: 0, doubles: 1, mixed: 2 }
+const GENDER_RANK: Record<CountryMatrixGender, number> = { male: 0, female: 1 }
 
 // Core grid from a list of matches. Same rules as before: decided, non-walkover,
 // each side a single country, cross-country only. Returns undefined when fewer
@@ -1080,31 +1081,31 @@ function buildCountryMatrix(ctxs: MatchCtx[]): StatsCountryMatrix | undefined {
   const all = computeMatrix(allMatches)
   if (!all) return undefined
 
-  // One leaf per (age band, gender, discipline). Matches with no classifiable
-  // gender or discipline are left out of the leaves (but remain in the all/all
-  // grid above).
-  const byLeaf = new Map<string, { ageGroup: string; gender: CountryMatrixGender; discipline: CountryMatrixDiscipline; matches: MatchEntry[] }>()
+  // One leaf per (age band, gender, event). Matches with no classifiable event
+  // are left out of the leaves (but remain in the all grid above). Mixed events
+  // are genderless, so their leaf gender is undefined.
+  const byLeaf = new Map<string, { ageGroup: string; gender?: CountryMatrixGender; event: CountryMatrixEvent; matches: MatchEntry[] }>()
   for (const match of allMatches) {
-    const gender = genderOfDraw(match.draw)
-    const discipline = disciplineOfDraw(match.draw)
-    if (!gender || !discipline) continue
+    const event = eventOfDraw(match.draw)
+    if (!event) continue
+    const gender = genderOfDraw(match.draw) ?? undefined
     const ageGroup = ageBandOfDraw(match.draw)
-    const key = `${ageGroup}|${gender}|${discipline}`
+    const key = `${ageGroup}|${gender ?? ''}|${event}`
     let leaf = byLeaf.get(key)
-    if (!leaf) { leaf = { ageGroup, gender, discipline, matches: [] }; byLeaf.set(key, leaf) }
+    if (!leaf) { leaf = { ageGroup, gender, event, matches: [] }; byLeaf.set(key, leaf) }
     leaf.matches.push(match)
   }
 
   const buckets: StatsCountryMatrix['buckets'] = []
   for (const leaf of Array.from(byLeaf.values())) {
     const sub = computeMatrix(leaf.matches)
-    if (sub) buckets.push({ ageGroup: leaf.ageGroup, gender: leaf.gender, discipline: leaf.discipline, ...sub })
+    if (sub) buckets.push({ ageGroup: leaf.ageGroup, ...(leaf.gender && { gender: leaf.gender }), event: leaf.event, ...sub })
   }
   buckets.sort(
     (a, b) =>
       ageRank(b.ageGroup) - ageRank(a.ageGroup) ||
-      GENDER_RANK[a.gender] - GENDER_RANK[b.gender] ||
-      DISCIPLINE_RANK[a.discipline] - DISCIPLINE_RANK[b.discipline],
+      MATRIX_EVENT_RANK[a.event] - MATRIX_EVENT_RANK[b.event] ||
+      (GENDER_RANK[a.gender ?? 'male'] - GENDER_RANK[b.gender ?? 'male']),
   )
 
   // Only attach when there's a real filter choice — a single leaf would just

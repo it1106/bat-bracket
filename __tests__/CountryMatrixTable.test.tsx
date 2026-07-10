@@ -69,14 +69,16 @@ describe('CountryMatrixTable', () => {
   })
 })
 
-describe('CountryMatrixTable — age + gender + discipline dropdowns', () => {
-  // Buckets: U19 male singles (THA 4–0 INA), U17 female doubles (INA 3–0 THA).
+describe('CountryMatrixTable — age + gender + event dropdowns', () => {
+  // Buckets: U19 male singles (THA 4–0 INA), U17 female doubles (INA 3–0 THA),
+  // U19 mixed/genderless (INA 2–0 THA).
   const withBuckets: StatsCountryMatrix = {
     countries: ['THA', 'INA'],
-    cells: { THA: { INA: { w: 4, l: 3 } }, INA: { THA: { w: 3, l: 4 } } },
+    cells: { THA: { INA: { w: 4, l: 5 } }, INA: { THA: { w: 5, l: 4 } } },
     buckets: [
-      { ageGroup: 'U19', gender: 'male', discipline: 'singles', countries: ['THA', 'INA'], cells: { THA: { INA: { w: 4, l: 0 } }, INA: { THA: { w: 0, l: 4 } } } },
-      { ageGroup: 'U17', gender: 'female', discipline: 'doubles', countries: ['INA', 'THA'], cells: { INA: { THA: { w: 3, l: 0 } }, THA: { INA: { w: 0, l: 3 } } } },
+      { ageGroup: 'U19', gender: 'male', event: 'singles', countries: ['THA', 'INA'], cells: { THA: { INA: { w: 4, l: 0 } }, INA: { THA: { w: 0, l: 4 } } } },
+      { ageGroup: 'U19', event: 'mixed', countries: ['INA', 'THA'], cells: { INA: { THA: { w: 2, l: 0 } }, THA: { INA: { w: 0, l: 2 } } } },
+      { ageGroup: 'U17', gender: 'female', event: 'doubles', countries: ['INA', 'THA'], cells: { INA: { THA: { w: 3, l: 0 } }, THA: { INA: { w: 0, l: 3 } } } },
     ],
   }
 
@@ -90,51 +92,49 @@ describe('CountryMatrixTable — age + gender + discipline dropdowns', () => {
     return row.querySelector('.stats-matrix-cell:not(.stats-matrix-diag):not(.stats-matrix-total)') as HTMLElement
   }
 
-  it('defaults to the all/all aggregate', () => {
+  it('defaults to the all aggregate', () => {
     const { container } = renderTable(withBuckets)
-    // THA row, first opponent cell = THA vs INA = 4–3.
-    expect(within(firstCellOfRow(container, 'THA')).getByText('4–3')).toBeInTheDocument()
+    // THA row, first opponent cell = THA vs INA = 4–5.
+    expect(within(firstCellOfRow(container, 'THA')).getByText('4–5')).toBeInTheDocument()
   })
 
-  it('offers age, gender, and discipline dropdowns for the values present', () => {
+  it('offers age, gender (male/female only), and event (singles/doubles/mixed) dropdowns', () => {
     renderTable(withBuckets)
-    const [ageSel, genderSel, discSel] = screen.getAllByRole('combobox') as HTMLSelectElement[]
+    const [ageSel, genderSel, eventSel] = screen.getAllByRole('combobox') as HTMLSelectElement[]
     expect(Array.from(ageSel.options).map((o) => o.value)).toEqual(['all', 'U19', 'U17'])
     expect(Array.from(genderSel.options).map((o) => o.value)).toEqual(['all', 'male', 'female'])
-    expect(Array.from(discSel.options).map((o) => o.value)).toEqual(['all', 'singles', 'doubles'])
+    expect(Array.from(eventSel.options).map((o) => o.value)).toEqual(['all', 'singles', 'doubles', 'mixed'])
   })
 
   it('filters by age alone', () => {
     const { container } = renderTable(withBuckets)
     const [ageSel] = screen.getAllByRole('combobox') as HTMLSelectElement[]
-    fireEvent.change(ageSel, { target: { value: 'U19' } })
-    // U19 male: THA beat INA 4–0.
-    expect(within(firstCellOfRow(container, 'THA')).getByText('4–0')).toBeInTheDocument()
-  })
-
-  it('filters by gender alone (regardless of age)', () => {
-    const { container } = renderTable(withBuckets)
-    const [, genderSel] = screen.getAllByRole('combobox') as HTMLSelectElement[]
-    fireEvent.change(genderSel, { target: { value: 'female' } })
-    // Female bucket: INA beat THA 3–0.
+    fireEvent.change(ageSel, { target: { value: 'U17' } })
+    // U17 has only the female doubles bucket: INA beat THA 3–0.
     expect(within(firstCellOfRow(container, 'INA')).getByText('3–0')).toBeInTheDocument()
   })
 
-  it('filters by discipline alone (regardless of age/gender)', () => {
+  it('filters by gender alone, excluding genderless mixed', () => {
     const { container } = renderTable(withBuckets)
-    const [, , discSel] = screen.getAllByRole('combobox') as HTMLSelectElement[]
-    fireEvent.change(discSel, { target: { value: 'singles' } })
-    // Only the U19 male singles bucket: THA beat INA 4–0.
+    const [, genderSel] = screen.getAllByRole('combobox') as HTMLSelectElement[]
+    fireEvent.change(genderSel, { target: { value: 'male' } })
+    // Only the U19 male singles bucket (mixed is excluded): THA beat INA 4–0.
     expect(within(firstCellOfRow(container, 'THA')).getByText('4–0')).toBeInTheDocument()
   })
 
-  it('combines age, gender, and discipline filters', () => {
+  it('filters by event=mixed (the genderless XD bucket)', () => {
     const { container } = renderTable(withBuckets)
-    const [ageSel, genderSel, discSel] = screen.getAllByRole('combobox') as HTMLSelectElement[]
-    fireEvent.change(ageSel, { target: { value: 'U19' } })
-    fireEvent.change(genderSel, { target: { value: 'female' } })
-    fireEvent.change(discSel, { target: { value: 'doubles' } })
-    // No U19 / female / doubles bucket → empty grid, empty-state message shown.
+    const [, , eventSel] = screen.getAllByRole('combobox') as HTMLSelectElement[]
+    fireEvent.change(eventSel, { target: { value: 'mixed' } })
+    // U19 mixed: INA beat THA 2–0.
+    expect(within(firstCellOfRow(container, 'INA')).getByText('2–0')).toBeInTheDocument()
+  })
+
+  it('gender=Male + event=Mixed yields no data (male mixed does not exist)', () => {
+    const { container } = renderTable(withBuckets)
+    const [, genderSel, eventSel] = screen.getAllByRole('combobox') as HTMLSelectElement[]
+    fireEvent.change(genderSel, { target: { value: 'male' } })
+    fireEvent.change(eventSel, { target: { value: 'mixed' } })
     expect(container.querySelector('.stats-matrix')).toBeNull()
     expect(screen.getByText('No country head-to-head data for this tournament.')).toBeInTheDocument()
   })
