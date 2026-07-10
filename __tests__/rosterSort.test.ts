@@ -42,6 +42,19 @@ describe('sortRosterRows', () => {
     expect(sortRosterRows(rows, nameOf, { col: 'medaled', dir: 'desc' }).map((r) => r.country)).toEqual(['THA', 'MAS', 'INA'])
   })
 
+  it('sorts by active percentage (active / roster size), distinct from raw count', () => {
+    const ins = (n: number) => Array.from({ length: n }, () => m('in'))
+    const outs = (n: number) => Array.from({ length: n }, () => m('out'))
+    const r: Row[] = [
+      { country: 'BIG', players: 10, roster: [...ins(3), ...outs(7)] },   // count 3, pct 0.30
+      { country: 'SMALL', players: 2, roster: [...ins(2)] },              // count 2, pct 1.00
+    ]
+    // By raw active count, BIG (3) outranks SMALL (2)…
+    expect(sortRosterRows(r, nameOf, { col: 'active', dir: 'desc' }).map((c) => c.country)).toEqual(['BIG', 'SMALL'])
+    // …but by active percentage, SMALL (100%) outranks BIG (30%).
+    expect(sortRosterRows(r, nameOf, { col: 'activePct', dir: 'desc' }).map((c) => c.country)).toEqual(['SMALL', 'BIG'])
+  })
+
   it('does not mutate the input array', () => {
     const before = rows.map((r) => r.country)
     sortRosterRows(rows, nameOf, { col: 'players', dir: 'asc' })
