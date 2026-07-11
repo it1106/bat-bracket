@@ -7,6 +7,7 @@ import { useLanguage } from '@/lib/LanguageContext'
 import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
 import { computePlayingOrder } from '@/lib/playingOrder'
 import { expandSearchQuery, parseSearchQuery } from '@/lib/searchAliases'
+import { abbrevRoundL, longRoundL } from '@/lib/i18n'
 import { queryMatchesCountry } from '@/lib/countryCodes'
 import { track } from '@/lib/analytics'
 import { buildNextOppMap } from '@/lib/nextOpp'
@@ -82,7 +83,22 @@ function sideMatchesGroup(
   clubMap?: Record<string, string>,
 ): boolean {
   if (group.some((q) => entry.draw.toLowerCase().includes(q))) return true
+  if (roundMatchesQuery(entry.round, group)) return true
   return team.some((p) => playerMatchesQuery(p, group, clubMap))
+}
+
+// Lets the user filter by round phase using the English short/long forms —
+// "QF", "SF", "R16", "F", or "quarter"/"semi"/"final"/"round of 16" — always
+// in English regardless of the UI language, since that's what people type.
+// The stored round is raw site text (schedule) or the normalized long form
+// (bracket), so we match against the raw string, its English abbreviation, and
+// its English long name to be format-independent.
+function roundMatchesQuery(round: string, group: string[]): boolean {
+  const raw = round.trim().toLowerCase()
+  if (!raw) return false
+  const abbr = abbrevRoundL(round, 'en').toLowerCase()
+  const long = longRoundL(round, 'en').toLowerCase()
+  return group.some((q) => q === abbr || q === raw || (q.length >= 3 && long.startsWith(q)))
 }
 
 function entryMatchesGroup(entry: MatchEntry, group: string[], clubMap?: Record<string, string>): boolean {
@@ -129,7 +145,7 @@ export function summarizeSearchResults(
   return { total: matches.length, won, lost, unplayed }
 }
 
-function matchesQuery(entry: MatchEntry, query: string, clubMap?: Record<string, string>): boolean {
+export function matchesQuery(entry: MatchEntry, query: string, clubMap?: Record<string, string>): boolean {
   const groups = parseSearchQuery(query)
   if (groups.length === 0) return true
   return groups.every((g) => entryMatchesGroup(entry, g, clubMap))
