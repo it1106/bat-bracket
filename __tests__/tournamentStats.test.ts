@@ -812,3 +812,54 @@ describe('dailyVolume hybrid phase', () => {
     ])
   })
 })
+
+// Regression: the BWF live day feed emits ABBREVIATED round codes ("QF", "SF",
+// "F") for the knockout stage, whereas earlier rounds arrive as "R64"/"R32"/
+// "R16". Player status (active / eliminated / medaled) classifies by round, so
+// if the parser only understands "R{n}" and long forms, a QF/SF/F result never
+// updates a player's status — they stay wrongly "active" while the h2h matrix
+// (round-agnostic) already reflects the result. Status must react to the
+// abbreviated codes exactly as it does to the long forms.
+describe('tournamentStats — abbreviated knockout round codes update player status', () => {
+  const pl = (id: string) => ({ name: id, playerId: id, country: id.startsWith('T') ? 'THA' : 'INA' })
+  const m = (round: string, w: string, l: string, winner: 1 | 2): MatchEntry => ({
+    draw: 'BS U17', drawNum: '1', round,
+    team1: [pl(winner === 1 ? w : l)],
+    team2: [pl(winner === 1 ? l : w)],
+    winner,
+    scores: [{ t1: 21, t2: 15 }, { t1: 21, t2: 18 }],
+    court: 'Court 1', walkover: false, retired: false, nowPlaying: false,
+  })
+  const data: MatchesData = {
+    days: [{ date: '20260711', label: '11/07', dateIso: '2026-07-11', hasMatches: true }],
+    currentDate: '20260711',
+    groups: [],
+  }
+  // T1 runs the table: beats I2 in QF, I3 in SF, I4 in F.
+  const days = new Map<string, MatchScheduleGroup[]>([
+    ['2026-07-11', [{ type: 'time', time: '09:00', matches: [
+      m('QF', 'T1', 'I2', 1),
+      m('SF', 'T1', 'I3', 1),
+      m('F', 'T1', 'I4', 1),
+    ] }]],
+  ])
+  const statusOf = (id: string): string | undefined => {
+    const s = aggregate(data, days, {})
+    for (const c of s.countryRosters ?? []) {
+      const member = c.roster.find((r) => r.playerId === id)
+      if (member) return member.statusByEvent?.['BS U17']
+    }
+    return undefined
+  }
+
+  it('marks a QF loser as eliminated (out), not active (in)', () => {
+    expect(statusOf('I2')).toBe('out')
+  })
+  it('marks an SF loser with bronze', () => {
+    expect(statusOf('I3')).toBe('bronze')
+  })
+  it('marks the Final winner gold and loser silver', () => {
+    expect(statusOf('T1')).toBe('gold')
+    expect(statusOf('I4')).toBe('silver')
+  })
+})

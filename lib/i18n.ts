@@ -15,9 +15,12 @@ function normalizeRound(name: string): { kind: 'final' | 'semi' | 'quarter' | 'r
   const n = name.trim()
   const translated = ROUND_TRANSLATIONS[n.toLowerCase()] ?? n
   const t = translated.trim()
-  if (/^final$/i.test(t)) return { kind: 'final', raw: t }
-  if (/semi.?final/i.test(t)) return { kind: 'semi', raw: t }
-  if (/quarter.?final/i.test(t)) return { kind: 'quarter', raw: t }
+  // Long forms plus the abbreviated codes ("F"/"SF"/"QF") the BWF live day
+  // feed emits for the knockout stage (earlier rounds arrive as "R{n}", which
+  // the round/round-of rules below already cover).
+  if (/^final$/i.test(t) || /^f$/i.test(t)) return { kind: 'final', raw: t }
+  if (/semi.?final/i.test(t) || /^sf$/i.test(t)) return { kind: 'semi', raw: t }
+  if (/quarter.?final/i.test(t) || /^qf$/i.test(t)) return { kind: 'quarter', raw: t }
   const rofMatch = t.match(/round\s+of\s+(\d+)/i)
   if (rofMatch) return { kind: 'roundOf', n: parseInt(rofMatch[1], 10), raw: t }
   const rondVanMatch = t.match(/^ronde\s+van\s+(\d+)$/i)
