@@ -2384,6 +2384,15 @@ html.dark .ms-match--next-opp {
   flex-wrap: wrap;
   gap: 6px 16px;
 }
+.stats-medals-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.stats-medals-toggle input {
+  cursor: pointer;
+}
 .stats-matrix-agesel select {
   font: inherit;
   color: var(--fg);

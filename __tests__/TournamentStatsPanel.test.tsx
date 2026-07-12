@@ -96,6 +96,47 @@ describe('TournamentStatsPanel medal heading', () => {
   })
 })
 
+// The "count once per event" checkbox collapses duplicated medals: a doubles
+// or mixed win credits 2 medalists but only 1 event. Per-event is the DEFAULT
+// (checkbox checked); unchecking reveals the raw per-medalist counts. Counts
+// are derived client-side from the medalists arrays (distinct events).
+describe('TournamentStatsPanel medals per-event toggle', () => {
+  const goldCell = () =>
+    document.querySelector('[data-stats-share="club-medals"] tbody td.stats-num b')
+
+  async function renderWithDoublesGold() {
+    fetchOnce({
+      ...minimalLegacyPayload,
+      clubMedals: [{
+        club: 'THA', gold: 2, silver: 0, bronze: 0,
+        goldMedalists: [
+          { playerId: 'a', name: 'A', event: 'BD U15' },
+          { playerId: 'b', name: 'B', event: 'BD U15' },
+        ],
+        silverMedalists: [], bronzeMedalists: [],
+      }],
+      clubRosters: [],
+      countryRosters: [{ country: 'THA', players: 2, members: [] }],
+    })
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    await waitFor(() => expect(screen.getByRole('checkbox')).toBeInTheDocument())
+  }
+
+  test('defaults to per-event counting (doubles win = 1 gold, checkbox checked)', async () => {
+    await renderWithDoublesGold()
+    expect(goldCell()?.textContent).toBe('1')
+    expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(true)
+  })
+
+  test('unchecking reveals raw per-medalist counts (doubles win = 2 golds)', async () => {
+    await renderWithDoublesGold()
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(goldCell()?.textContent).toBe('2')
+  })
+})
+
 describe('TournamentStatsPanel pre-match render', () => {
   test('renders the pre-match footer and hides result-phase sections when decided=0', async () => {
     fetchOnce(preMatchPayload)

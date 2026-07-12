@@ -48,6 +48,10 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   const [loading, setLoading] = useState(true)
   const [clubRostersExpanded, setClubRostersExpanded] = useState(false)
   const [clubMedalsExpanded, setClubMedalsExpanded] = useState(false)
+  // Medal counting mode. A doubles/mixed win credits two medalists but only one
+  // event; per-event (the default) collapses that so the table isn't inflated.
+  // Unchecking reverts to the raw per-medalist counts the server computes.
+  const [medalsPerEvent, setMedalsPerEvent] = useState(true)
   const [selectedCountry, setSelectedCountry] = useState<StatsCountryRoster | null>(null)
   const [selectedClub, setSelectedClub] = useState<StatsClubRoster | null>(null)
   // Country-roster controls: a gender filter and a sortable-header sort spec.
@@ -157,6 +161,23 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   // table "Country Medals" and its column "Country" instead of the club terms.
   const isCountryBased =
     (stats.clubRosters ?? []).length === 0 && (stats.countryRosters ?? []).length > 0
+  // Medal rows, recounted per the active mode. Per-event counts distinct events
+  // in each medalists array (a doubles win = 1); per-medalist uses the raw
+  // server counts. Re-sort so the ranking matches the displayed numbers.
+  const distinctEvents = (ms: StatsClubMedalist[]) => new Set(ms.map((m) => m.event)).size
+  const medalRows = !medalsPerEvent
+    ? stats.clubMedals
+    : stats.clubMedals
+        .map((c) => ({
+          ...c,
+          gold: distinctEvents(c.goldMedalists),
+          silver: distinctEvents(c.silverMedalists),
+          bronze: distinctEvents(c.bronzeMedalists),
+        }))
+        .sort((a, b) =>
+          b.gold - a.gold || b.silver - a.silver || b.bronze - a.bronze ||
+          (a.club < b.club ? -1 : 1),
+        )
 
   return (
     <div className="stats-panel" ref={containerRef}>
@@ -274,10 +295,20 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       {stats.clubMedals.length > 0 && (
         <section className="stats-section" data-stats-share="club-medals">
           <h2>{t(isCountryBased ? 'statsSectionCountryMedals' : 'statsSectionClubMedals')}</h2>
+          <div className="stats-matrix-agesel">
+            <label className="stats-medals-toggle">
+              <input
+                type="checkbox"
+                checked={medalsPerEvent}
+                onChange={(e) => setMedalsPerEvent(e.target.checked)}
+              />
+              {' '}{t('statsMedalsPerEvent')}
+            </label>
+          </div>
           <table className="stats-table">
             <thead><tr><th></th><th>{t(isCountryBased ? 'statsColCountry' : 'statsColClub')}</th><th className="stats-num">🥇</th><th className="stats-num">🥈</th><th className="stats-num">🥉</th></tr></thead>
             <tbody>
-              {(clubMedalsExpanded ? stats.clubMedals : stats.clubMedals.slice(0, 10)).map((c, i) => (
+              {(clubMedalsExpanded ? medalRows : medalRows.slice(0, 10)).map((c, i) => (
                 <tr key={c.club}>
                   <td className="stats-rank">{i + 1}</td>
                   <td>{c.club}</td>
@@ -294,7 +325,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               ))}
             </tbody>
           </table>
-          {stats.clubMedals.length > 10 && (
+          {medalRows.length > 10 && (
             <button
               type="button"
               className="stats-show-toggle"
@@ -302,7 +333,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
             >
               {clubMedalsExpanded
                 ? t('statsShowLess')
-                : `${t('statsShowAll')} (${stats.clubMedals.length})`}
+                : `${t('statsShowAll')} (${medalRows.length})`}
             </button>
           )}
         </section>

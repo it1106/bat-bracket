@@ -204,6 +204,7 @@ export type TKey =
   | 'statsCountryMatrixDoubles'
   | 'statsShowAll'
   | 'statsShowLess'
+  | 'statsMedalsPerEvent'
   | 'statsColCountry'
   | 'statsColPlayers'
   | 'statsColActive'
@@ -480,6 +481,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsCountryMatrixSingles: 'Singles',
     statsCountryMatrixDoubles: 'Doubles',
     statsShowAll: 'Show all',
+    statsMedalsPerEvent: 'Count once per event',
     statsShowLess: 'Show less',
     statsColCountry: 'Country',
     statsColPlayers: 'Players',
@@ -789,6 +791,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsCountryMatrixSingles: 'เดี่ยว',
     statsCountryMatrixDoubles: 'คู่',
     statsShowAll: 'แสดงทั้งหมด',
+    statsMedalsPerEvent: 'นับ 1 เหรียญต่อรายการ',
     statsShowLess: 'แสดงน้อยลง',
     statsColCountry: 'ประเทศ',
     statsColPlayers: 'จำนวนนักกีฬา',
