@@ -43,9 +43,11 @@ function statsPath(tournamentId: string): string {
 // v14 adds eventBreakdown (per-country team counts by knockout round). v13
 // envelopes lack it, so the Event Breakdown matrix would be empty until
 // recomputed.
+// v15 adds per-cell teams[] (member names + event) to eventBreakdown for the
+// hover tooltip. v14 cells have no names, so the tooltip would be empty.
 // Bumping the version invalidates older envelopes so they get recomputed.
 export interface StatsCacheEnvelope {
-  version: 14
+  version: 15
   sourceVersion: string
   // Set to true only when every day in fullData.days had a disk-cache hit at
   // write time. Older envelopes (or those written with partial coverage) are
@@ -59,7 +61,7 @@ export async function readStatsCache(tournamentId: string): Promise<StatsCacheEn
   try {
     const buf = await fs.readFile(statsPath(tournamentId), 'utf8')
     const parsed = JSON.parse(buf) as StatsCacheEnvelope
-    if (parsed.version !== 14) return null
+    if (parsed.version !== 15) return null
     if (parsed.coverageComplete !== true) return null
     return parsed
   } catch {
@@ -76,7 +78,7 @@ export async function writeStatsCache(
   const tmp = `${file}.tmp`
   try {
     await fs.mkdir(path.dirname(file), { recursive: true })
-    const payload: StatsCacheEnvelope = { version: 14, ...envelope }
+    const payload: StatsCacheEnvelope = { version: 15, ...envelope }
     await fs.writeFile(tmp, JSON.stringify(payload), 'utf8')
     await fs.rename(tmp, file)
     console.log(`[stats-cache] wrote tournament=${tournamentId}`)

@@ -768,6 +768,7 @@ function bucketForSize(size: number): string {
 
 interface EbTeamAcc {
   country: string
+  names: string[] // member names (seed suffix stripped), for the hover tooltip
   wonFinal: boolean
   lossRound?: string
   pendingRound?: string
@@ -801,7 +802,12 @@ function buildEventBreakdown(ctxs: MatchCtx[]): StatsEventBreakdown {
     if (!teams) { teams = new Map(); byEvent.set(event, teams) }
     let a = teams.get(key)
     if (!a) {
-      a = { country: countryOfTeam(team), wonFinal: false, deepestWonSize: Infinity }
+      a = {
+        country: countryOfTeam(team),
+        names: team.map((p) => extractSeed(p.name).plain),
+        wonFinal: false,
+        deepestWonSize: Infinity,
+      }
       teams.set(key, a)
     }
     return a
@@ -857,9 +863,10 @@ function buildEventBreakdown(ctxs: MatchCtx[]): StatsEventBreakdown {
       allBuckets.add(bucket)
       const byCountry = (counts[event] ??= {})
       const byBucket = (byCountry[a.country] ??= {})
-      const cell = (byBucket[bucket] ??= { done: 0, active: 0 })
+      const cell = (byBucket[bucket] ??= { done: 0, active: 0, teams: [] })
       if (active) cell.active++
       else cell.done++
+      cell.teams.push({ names: a.names, event, active })
     }
     columnsByEvent[event] = sortBuckets(evBuckets)
   }

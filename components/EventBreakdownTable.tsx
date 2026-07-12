@@ -14,13 +14,30 @@ function labelOf(country: string): string {
 
 function Cell({ cell }: { cell: StatsEventBreakdownCell }) {
   if (cell.done === 0 && cell.active === 0) return null
+  // Reuse the medal-tip pattern (hover + keyboard focus). Sort by event then
+  // name so the All-view tooltip groups a country's teams by event.
+  const teams = cell.teams
+    .slice()
+    .sort((a, b) => a.event.localeCompare(b.event) || a.names.join('/').localeCompare(b.names.join('/')))
   return (
-    <>
+    <span className="stats-medal-cell" tabIndex={0}>
       {cell.done > 0 && <span>{fmt(cell.done)}</span>}
       {cell.active > 0 && (
         <span className="stats-eb-active">{cell.done > 0 ? ' ' : ''}{fmt(cell.active)}</span>
       )}
-    </>
+      {teams.length > 0 && (
+        <span className="stats-medal-tip" role="tooltip">
+          {teams.map((tm, i) => (
+            <span className="stats-medal-tip-row" key={`${tm.names.join('/')}-${tm.event}-${i}`}>
+              <span className={`stats-medal-tip-name${tm.active ? ' stats-eb-active' : ''}`}>
+                {tm.names.join(' / ')}
+              </span>
+              <span className="stats-medal-tip-event">{tm.event}</span>
+            </span>
+          ))}
+        </span>
+      )}
+    </span>
   )
 }
 
@@ -40,8 +57,12 @@ export default function EventBreakdownTable({ data }: { data: StatsEventBreakdow
       let m = scope.get(country)
       if (!m) { m = new Map(); scope.set(country, m) }
       for (const [bucket, cell] of Object.entries(byBucket)) {
-        const cur = m.get(bucket) ?? { done: 0, active: 0 }
-        m.set(bucket, { done: cur.done + cell.done, active: cur.active + cell.active })
+        const cur = m.get(bucket) ?? { done: 0, active: 0, teams: [] }
+        m.set(bucket, {
+          done: cur.done + cell.done,
+          active: cur.active + cell.active,
+          teams: [...cur.teams, ...cell.teams],
+        })
       }
     }
   }
@@ -91,7 +112,7 @@ export default function EventBreakdownTable({ data }: { data: StatsEventBreakdow
                 <td>{labelOf(r.country)}</td>
                 {columns.map((b) => (
                   <td key={b} className="stats-num">
-                    <Cell cell={r.byBucket.get(b) ?? { done: 0, active: 0 }} />
+                    <Cell cell={r.byBucket.get(b) ?? { done: 0, active: 0, teams: [] }} />
                   </td>
                 ))}
                 <td className="stats-num">{fmt(r.total)}</td>

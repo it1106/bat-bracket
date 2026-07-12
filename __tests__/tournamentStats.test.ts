@@ -1015,24 +1015,39 @@ describe('tournamentStats — event breakdown', () => {
 
   it('buckets singles: champion, runner-up, SF losers per country', () => {
     const c = eb().counts['MS']
-    expect(c['THA']['Champion']).toEqual({ done: 1, active: 0 })
-    expect(c['MAS']['F']).toEqual({ done: 1, active: 0 })
-    expect(c['INA']['SF']).toEqual({ done: 2, active: 0 })
+    expect(c['THA']['Champion']).toMatchObject({ done: 1, active: 0 })
+    expect(c['MAS']['F']).toMatchObject({ done: 1, active: 0 })
+    expect(c['INA']['SF']).toMatchObject({ done: 2, active: 0 })
   })
 
   it('counts a doubles pair as one team (dedup)', () => {
     const c = eb().counts['MD']
-    expect(c['THA']['Champion']).toEqual({ done: 1, active: 0 })
-    expect(c['MAS']['F']).toEqual({ done: 1, active: 0 })
-    expect(c['INA']['SF']).toEqual({ done: 2, active: 0 }) // two pairs, not four players
+    expect(c['THA']['Champion'].done).toBe(1)
+    expect(c['MAS']['F'].done).toBe(1)
+    expect(c['INA']['SF'].done).toBe(2) // two pairs, not four players
+    expect(c['INA']['SF'].active).toBe(0)
+  })
+
+  it('carries per-team names + event for the hover tooltip', () => {
+    const c = eb().counts['MD']['INA']['SF']
+    expect(c.teams).toHaveLength(2)
+    const pairs = c.teams.map((t) => t.names.slice().sort().join('/')).sort()
+    expect(pairs).toEqual(['a1/a2', 'b1/b2'])
+    for (const t of c.teams) {
+      expect(t.event).toBe('MD')
+      expect(t.active).toBe(false)
+    }
+    // Active teams are flagged so the tooltip can render them green.
+    const wsActive = eb().counts['WS']['KOR']['SF'].teams
+    expect(wsActive).toEqual([{ names: ['k1'], event: 'WS', active: true }])
   })
 
   it('places active teams in their current round as active (green)', () => {
     const c = eb().counts['WS']
-    expect(c['THA']['F']).toEqual({ done: 0, active: 1 }) // won SF -> active in Final
-    expect(c['JPN']['SF']).toEqual({ done: 1, active: 0 }) // lost SF
-    expect(c['KOR']['SF']).toEqual({ done: 0, active: 1 }) // pending SF
-    expect(c['CHN']['SF']).toEqual({ done: 0, active: 1 })
+    expect(c['THA']['F']).toMatchObject({ done: 0, active: 1 }) // won SF -> active in Final
+    expect(c['JPN']['SF']).toMatchObject({ done: 1, active: 0 }) // lost SF
+    expect(c['KOR']['SF']).toMatchObject({ done: 0, active: 1 }) // pending SF
+    expect(c['CHN']['SF']).toMatchObject({ done: 0, active: 1 })
   })
 
   it('produces dynamic, ordered column unions', () => {
@@ -1064,7 +1079,7 @@ describe('tournamentStats — event breakdown', () => {
     }]]])
     const r = aggregate(rdData, rdDays, {}).eventBreakdown!
     expect(r.columnsByEvent['GS']).toEqual(['R32', 'R16', 'QF', 'SF'])
-    expect(r.counts['GS']['INA']['R32']).toEqual({ done: 1, active: 0 })
-    expect(r.counts['GS']['THA']['SF']).toEqual({ done: 0, active: 1 }) // won QF -> active SF
+    expect(r.counts['GS']['INA']['R32']).toMatchObject({ done: 1, active: 0 })
+    expect(r.counts['GS']['THA']['SF']).toMatchObject({ done: 0, active: 1 }) // won QF -> active SF
   })
 })

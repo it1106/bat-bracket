@@ -12,11 +12,14 @@ const data: StatsEventBreakdown = {
   columnsByEvent: { MS: ['SF', 'F', 'Champion'], WS: ['SF', 'F'] },
   counts: {
     MS: {
-      THA: { Champion: { done: 1, active: 0 }, SF: { done: 1, active: 0 } },
-      INA: { F: { done: 1, active: 0 } },
+      THA: {
+        Champion: { done: 1, active: 0, teams: [{ names: ['Somchai', 'Anan'], event: 'MS', active: false }] },
+        SF: { done: 1, active: 0, teams: [{ names: ['Chai'], event: 'MS', active: false }] },
+      },
+      INA: { F: { done: 1, active: 0, teams: [{ names: ['Budi'], event: 'MS', active: false }] } },
     },
     WS: {
-      THA: { F: { done: 0, active: 1 } }, // active (green)
+      THA: { F: { done: 0, active: 1, teams: [{ names: ['Nari'], event: 'WS', active: true }] } }, // active (green)
     },
   },
 }
@@ -48,5 +51,14 @@ describe('EventBreakdownTable', () => {
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'WS' } })
     // WS has no Champion column.
     expect(screen.queryByText('Champion')).not.toBeInTheDocument()
+  })
+
+  it('renders per-team names + event in the hover tooltip', () => {
+    renderIt()
+    // Tooltip DOM is always present (shown via CSS on hover); a doubles pair
+    // joins with " / " and carries its event label.
+    expect(screen.getByText('Somchai / Anan')).toBeInTheDocument()
+    const active = screen.getByText('Nari')
+    expect(active).toHaveClass('stats-eb-active') // still-in team is green
   })
 })

@@ -430,9 +430,16 @@ export interface StatsCountryMatrix extends CountryMatrixData {
   matches?: StatsCountryMatrixMatch[]
 }
 
+export interface StatsEventBreakdownTeam {
+  names: string[] // member names (seed suffix stripped); 1 for singles, 2 for doubles
+  event: string   // event key this team competed in (for the All-view tooltip)
+  active: boolean // still competing (rendered green in the tooltip)
+}
+
 export interface StatsEventBreakdownCell {
   done: number   // teams eliminated AT this round
   active: number // teams still in, currently in this round (rendered green)
+  teams: StatsEventBreakdownTeam[] // the teams in this cell, for the hover tooltip
 }
 
 export interface StatsEventBreakdown {
