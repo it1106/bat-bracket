@@ -271,6 +271,52 @@ describe('tournamentStats — walkover final still crowns a champion', () => {
   })
 })
 
+// BWF international tournaments (e.g. YONEX Sunraise) carry no club affiliations
+// — every player is tagged with a country code instead. The medal table must
+// fall back to that country the way top-players/rosters already do, otherwise
+// every medalist is grouped under '—' and filtered out, hiding the table.
+describe('tournamentStats — medals fall back to country for BWF', () => {
+  const data: MatchesData = {
+    days: [{ date: '20260519', label: '19/05', dateIso: '2026-05-19', hasMatches: true }],
+    currentDate: '20260519',
+    groups: [],
+  }
+  type P = { c: string; id: string }
+  const pl = (p: P) => ({ name: p.id, playerId: p.id, country: p.c })
+  const sgl = (round: string, t1: P, t2: P, winner: 1 | 2): MatchEntry => ({
+    draw: 'MS', drawNum: '1', round,
+    team1: [pl(t1)], team2: [pl(t2)],
+    winner,
+    scores: [{ t1: 21, t2: 15 }, { t1: 21, t2: 18 }],
+    court: 'Court 1', walkover: false, retired: false, nowPlaying: false,
+  })
+  const THA = (id: string): P => ({ c: 'THA', id })
+  const INA = (id: string): P => ({ c: 'INA', id })
+  const MAS = (id: string): P => ({ c: 'MAS', id })
+  const JPN = (id: string): P => ({ c: 'JPN', id })
+  const dayGroups: MatchScheduleGroup[] = [{
+    type: 'time' as const,
+    time: '09:00',
+    matches: [
+      sgl('Semi final', THA('t1'), MAS('m1'), 1),
+      sgl('Semi final', INA('i1'), JPN('j1'), 1),
+      sgl('Final', THA('t1'), INA('i1'), 1),
+    ],
+  }]
+  const days = new Map([['2026-05-19', dayGroups]])
+
+  it('groups medals by country when the clubs map is empty', () => {
+    const s = aggregate(data, days, {})
+    const byCountry = Object.fromEntries(s.clubMedals.map((m) => [m.club, m]))
+    expect(byCountry['THA']?.gold).toBe(1)
+    expect(byCountry['INA']?.silver).toBe(1)
+    expect(byCountry['MAS']?.bronze).toBe(1)
+    expect(byCountry['JPN']?.bronze).toBe(1)
+    // No medalist should be dropped under the '—' placeholder.
+    expect(s.clubMedals.some((m) => m.club === '—')).toBe(false)
+  })
+})
+
 describe('tournamentStats — empty', () => {
   it('zero matches → all empty arrays', () => {
     const empty = JSON.parse(

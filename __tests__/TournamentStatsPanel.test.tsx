@@ -61,6 +61,41 @@ const preMatchPayload = {
   kpis: { ...minimalLegacyPayload.kpis, matches: 0, decided: 0, entries: 12, draws: 3, players: 8 },
 }
 
+// The medal table heading switches between club and country wording based on
+// whether the tournament is club-based (has clubRosters) or BWF-style (only
+// countryRosters). See the isCountryBased heuristic in the panel.
+describe('TournamentStatsPanel medal heading', () => {
+  const medalRow = { club: 'THA', gold: 1, silver: 0, bronze: 0, goldMedalists: [], silverMedalists: [], bronzeMedalists: [] }
+
+  test('uses club wording when the tournament has club rosters', async () => {
+    fetchOnce({
+      ...minimalLegacyPayload,
+      clubMedals: [{ ...medalRow, club: 'ClubA' }],
+      clubRosters: [{ club: 'ClubA', players: 1, members: [] }],
+      countryRosters: [],
+    })
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    await waitFor(() => expect(screen.getByText('statsSectionClubMedals')).toBeInTheDocument())
+    expect(screen.queryByText('statsSectionCountryMedals')).toBeNull()
+  })
+
+  test('uses country wording for BWF (no clubs, has countries)', async () => {
+    fetchOnce({
+      ...minimalLegacyPayload,
+      clubMedals: [medalRow],
+      clubRosters: [],
+      countryRosters: [{ country: 'THA', players: 1, members: [] }],
+    })
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    await waitFor(() => expect(screen.getByText('statsSectionCountryMedals')).toBeInTheDocument())
+    expect(screen.queryByText('statsSectionClubMedals')).toBeNull()
+  })
+})
+
 describe('TournamentStatsPanel pre-match render', () => {
   test('renders the pre-match footer and hides result-phase sections when decided=0', async () => {
     fetchOnce(preMatchPayload)

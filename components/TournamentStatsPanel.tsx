@@ -152,6 +152,11 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   const comebackCount = stats.drama.comebackCount
   const comebackRate = stats.kpis.decided > 0 ? comebackCount / stats.kpis.decided : 0
   const defLabel = lang === 'th' ? 'ชนะ' : 'def.'
+  // BWF tournaments carry no clubs — medals/rosters fall back to country codes.
+  // Mirror the roster heuristic (no clubs, has countries) to label the medal
+  // table "Country Medals" and its column "Country" instead of the club terms.
+  const isCountryBased =
+    (stats.clubRosters ?? []).length === 0 && (stats.countryRosters ?? []).length > 0
 
   return (
     <div className="stats-panel" ref={containerRef}>
@@ -268,9 +273,9 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       {/* Club Medals */}
       {stats.clubMedals.length > 0 && (
         <section className="stats-section" data-stats-share="club-medals">
-          <h2>{t('statsSectionClubMedals')}</h2>
+          <h2>{t(isCountryBased ? 'statsSectionCountryMedals' : 'statsSectionClubMedals')}</h2>
           <table className="stats-table">
-            <thead><tr><th></th><th>{t('statsColClub')}</th><th className="stats-num">🥇</th><th className="stats-num">🥈</th><th className="stats-num">🥉</th></tr></thead>
+            <thead><tr><th></th><th>{t(isCountryBased ? 'statsColCountry' : 'statsColClub')}</th><th className="stats-num">🥇</th><th className="stats-num">🥈</th><th className="stats-num">🥉</th></tr></thead>
             <tbody>
               {(clubMedalsExpanded ? stats.clubMedals : stats.clubMedals.slice(0, 10)).map((c, i) => (
                 <tr key={c.club}>

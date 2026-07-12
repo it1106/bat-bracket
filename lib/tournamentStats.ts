@@ -605,8 +605,17 @@ function buildClubMedalsAndMultiGold(
 ): { clubMedals: ComputedStats['clubMedals']; multiGoldPlayers: ComputedStats['multiGoldPlayers'] } {
   const lastFinalByDraw = new Map<string, MatchEntry>()
   const semiLosersByDraw = new Map<string, MatchEntry[]>()
+  // BWF payloads carry no clubs but tag each MatchPlayer with a country code
+  // (e.g. "THA", "IDN"). Remember the first country seen per playerId so we can
+  // fall back to it when the clubs map is empty, matching buildTopPlayers.
+  const countryByPid = new Map<string, string>()
 
   for (const { match } of ctxs) {
+    for (const p of [...match.team1, ...match.team2]) {
+      if (p.playerId && p.country && !countryByPid.has(p.playerId)) {
+        countryByPid.set(p.playerId, p.country)
+      }
+    }
     // Walkovers are kept here (unlike the play-derived stats): a walkover final
     // still awards gold/silver, and a walkover semi still earns the loser bronze.
     if (match.winner === null) continue
@@ -646,7 +655,11 @@ function buildClubMedalsAndMultiGold(
     else r.bronzeMedalists.push(medalist)
     medals.set(club, r)
   }
-  const clubOf = (pid: string) => (clubs[pid] ?? '').trim() || '—'
+  const clubOf = (pid: string) => {
+    const c = (clubs[pid] ?? '').trim()
+    if (c) return c
+    return (countryByPid.get(pid) ?? '').trim() || '—'
+  }
   const medalistOf = (p: { playerId: string; name: string }, event: string): StatsClubMedalist => ({
     playerId: p.playerId,
     name: extractSeed(p.name).plain,
