@@ -60,12 +60,13 @@ Normalize every round with the existing `abbrevRoundL(round, 'en')` →
 the final. Ordering (first round → title): sort by `roundSize` descending
 (`R128`=128 … `QF`=8, `SF`=4, `F`=2), with `Champion` last (sentinel size `1`).
 
-Grouped (RR+PO) events: knockout-playoff results bucket by their KO round as
-above. A team eliminated in the group phase (reached no playoff match) buckets
-under a synthetic **Group** column shown before `R128` when present. This
-mirrors the existing group-elimination logic in `buildEventStatusByPlayer`.
-BWF junior Grand Prix events are pure knockout, so this path is secondary; the
-tested/primary path is knockout.
+Grouped (RR+PO) events (deferred to a follow-up): only knockout-playoff
+matches are bucketed. A team eliminated in the group phase (reached no playoff
+match) is omitted from the matrix in v1. BWF junior Grand Prix events are pure
+knockout (confirmed: every Yonex Sunrise event is `type: 'KO'`), so this gap
+affects no current tournament. A later revision can add a leading **Group**
+column using the existing group-elimination logic in
+`buildEventStatusByPlayer`.
 
 ## Architecture
 
@@ -168,9 +169,9 @@ way and on non-empty data:
 ### i18n (`lib/i18n.ts`, EN + TH)
 
 New keys: `statsSectionEventBreakdown` ("Event Breakdown"),
-`statsEventBreakdownAll` ("All events"), `statsEventBreakdownTotal` ("Total"),
-`statsEventBreakdownChampion` ("Champion"), `statsEventBreakdownGroup`
-("Group"). Round abbreviations already come from `abbrevRoundL`.
+`statsEventBreakdownAll` ("All events"), `statsEventBreakdownFilter` ("Event"),
+`statsEventBreakdownTotal` ("Total"), `statsEventBreakdownChampion`
+("Champion"). Round abbreviations already come from `abbrevRoundL`.
 
 ### Cache
 
