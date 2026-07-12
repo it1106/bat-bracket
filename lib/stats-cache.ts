@@ -36,9 +36,13 @@ function statsPath(tournamentId: string): string {
 // still crowns a champion (event winner + gold/silver) and a walkover semi
 // still earns the loser bronze. v11 envelopes show such finals as "pending"
 // with no medal credit, so they must be recomputed.
+// v13 adds team (sorted playerIds) to each clubMedals medalist so the panel's
+// "medals" mode can dedup by team instead of event — badminton awards two
+// bronzes per event, so two same-country bronze teams must count separately.
+// v12 envelopes lack team and would still collapse those to one bronze.
 // Bumping the version invalidates older envelopes so they get recomputed.
 export interface StatsCacheEnvelope {
-  version: 12
+  version: 13
   sourceVersion: string
   // Set to true only when every day in fullData.days had a disk-cache hit at
   // write time. Older envelopes (or those written with partial coverage) are
@@ -52,7 +56,7 @@ export async function readStatsCache(tournamentId: string): Promise<StatsCacheEn
   try {
     const buf = await fs.readFile(statsPath(tournamentId), 'utf8')
     const parsed = JSON.parse(buf) as StatsCacheEnvelope
-    if (parsed.version !== 12) return null
+    if (parsed.version !== 13) return null
     if (parsed.coverageComplete !== true) return null
     return parsed
   } catch {
@@ -69,7 +73,7 @@ export async function writeStatsCache(
   const tmp = `${file}.tmp`
   try {
     await fs.mkdir(path.dirname(file), { recursive: true })
-    const payload: StatsCacheEnvelope = { version: 12, ...envelope }
+    const payload: StatsCacheEnvelope = { version: 13, ...envelope }
     await fs.writeFile(tmp, JSON.stringify(payload), 'utf8')
     await fs.rename(tmp, file)
     console.log(`[stats-cache] wrote tournament=${tournamentId}`)

@@ -291,6 +291,12 @@ export interface StatsClubMedalist {
   playerId: string
   name: string
   event: string
+  // Stable identifier of the medal-winning team (sorted playerIds of the
+  // team, comma-joined). A doubles pair shares one team key, so counting
+  // distinct teams treats a pair as one medal — while still counting two
+  // same-country bronze teams in one event separately (badminton awards two
+  // bronzes per event). Used by the "medals" counting mode in the panel.
+  team: string
 }
 
 export interface StatsClubMedal {

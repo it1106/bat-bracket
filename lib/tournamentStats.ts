@@ -660,33 +660,46 @@ function buildClubMedalsAndMultiGold(
     if (c) return c
     return (countryByPid.get(pid) ?? '').trim() || '—'
   }
-  const medalistOf = (p: { playerId: string; name: string }, event: string): StatsClubMedalist => ({
+  // Stable team key: sorted playerIds of the team, comma-joined. Distinct team
+  // keys within an event = distinct medals (a doubles pair collapses to one,
+  // two same-country bronze teams stay separate).
+  const teamKeyOf = (team: { playerId: string }[]): string =>
+    team.map((p) => p.playerId).filter(Boolean).slice().sort().join(',')
+  const medalistOf = (
+    p: { playerId: string; name: string },
+    event: string,
+    team: string,
+  ): StatsClubMedalist => ({
     playerId: p.playerId,
     name: extractSeed(p.name).plain,
     event,
+    team,
   })
 
   for (const [draw, m] of Array.from(lastFinalByDraw)) {
     const win = m.winner === 1 ? m.team1 : m.team2
     const lose = m.winner === 1 ? m.team2 : m.team1
+    const winKey = teamKeyOf(win)
+    const loseKey = teamKeyOf(lose)
     for (const p of win) {
       if (!p.playerId) continue
-      credit(clubOf(p.playerId), 'gold', medalistOf(p, draw))
+      credit(clubOf(p.playerId), 'gold', medalistOf(p, draw, winKey))
       const g = goldsByPlayer.get(p.playerId) ?? { name: p.name, events: [] }
       g.events.push(draw)
       goldsByPlayer.set(p.playerId, g)
     }
     for (const p of lose) {
       if (!p.playerId) continue
-      credit(clubOf(p.playerId), 'silver', medalistOf(p, draw))
+      credit(clubOf(p.playerId), 'silver', medalistOf(p, draw, loseKey))
     }
   }
   for (const semis of Array.from(semiLosersByDraw.values())) {
     for (const m of semis) {
       const lose = m.winner === 1 ? m.team2 : m.team1
+      const loseKey = teamKeyOf(lose)
       for (const p of lose) {
         if (!p.playerId) continue
-        credit(clubOf(p.playerId), 'bronze', medalistOf(p, m.draw))
+        credit(clubOf(p.playerId), 'bronze', medalistOf(p, m.draw, loseKey))
       }
     }
   }

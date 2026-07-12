@@ -317,6 +317,58 @@ describe('tournamentStats — medals fall back to country for BWF', () => {
   })
 })
 
+// Badminton awards two bronzes per event (both losing semifinalists). When one
+// country sweeps both, the panel's "medals" mode must still count two — it dedups
+// by team, not event. Regression for the Yonex Sunrise "19 instead of 28" bug.
+describe('tournamentStats — bronze medalists carry distinct team keys', () => {
+  const data: MatchesData = {
+    days: [{ date: '20260519', label: '19/05', dateIso: '2026-05-19', hasMatches: true }],
+    currentDate: '20260519',
+    groups: [],
+  }
+  type P = { c: string; id: string }
+  const pl = (p: P) => ({ name: p.id, playerId: p.id, country: p.c })
+  const dbl = (round: string, t1: [P, P], t2: [P, P], winner: 1 | 2): MatchEntry => ({
+    draw: 'MD', drawNum: '1', round,
+    team1: t1.map(pl), team2: t2.map(pl),
+    winner,
+    scores: [{ t1: 21, t2: 15 }, { t1: 21, t2: 18 }],
+    court: 'Court 1', walkover: false, retired: false, nowPlaying: false,
+  })
+  const THA = (id: string): P => ({ c: 'THA', id })
+  const INA = (id: string): P => ({ c: 'INA', id })
+  const MAS = (id: string): P => ({ c: 'MAS', id })
+  // One doubles event: THA beats INA-pair-A in one semi, MAS beats INA-pair-B in
+  // the other → INA takes both bronzes with two distinct pairs.
+  const dayGroups: MatchScheduleGroup[] = [{
+    type: 'time' as const,
+    time: '09:00',
+    matches: [
+      dbl('Semi final', [THA('t1'), THA('t2')], [INA('a1'), INA('a2')], 1),
+      dbl('Semi final', [MAS('m1'), MAS('m2')], [INA('b1'), INA('b2')], 1),
+      dbl('Final', [THA('t1'), THA('t2')], [MAS('m1'), MAS('m2')], 1),
+    ],
+  }]
+  const days = new Map([['2026-05-19', dayGroups]])
+
+  it('gives INA two distinct bronze team keys in one event; a pair shares one key', () => {
+    const s = aggregate(data, days, {})
+    const ina = s.clubMedals.find((m) => m.club === 'INA')!
+    // Raw server count: 4 medalists (two pairs of two players).
+    expect(ina.bronze).toBe(4)
+    // Each doubles pair shares one team key → two distinct team keys total.
+    const teamKeys = new Set(ina.bronzeMedalists.map((m) => m.team))
+    expect(teamKeys.size).toBe(2)
+    // Deduping by event alone would wrongly collapse the sweep to one.
+    expect(new Set(ina.bronzeMedalists.map((m) => m.event)).size).toBe(1)
+    // Every pair's two players carry the same key.
+    for (const m of ina.bronzeMedalists) {
+      const mate = ina.bronzeMedalists.find((x) => x.team === m.team && x.playerId !== m.playerId)
+      expect(mate).toBeDefined()
+    }
+  })
+})
+
 describe('tournamentStats — empty', () => {
   it('zero matches → all empty arrays', () => {
     const empty = JSON.parse(

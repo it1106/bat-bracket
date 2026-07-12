@@ -161,18 +161,21 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   // table "Country Medals" and its column "Country" instead of the club terms.
   const isCountryBased =
     (stats.clubRosters ?? []).length === 0 && (stats.countryRosters ?? []).length > 0
-  // Medal rows, recounted per the active mode. Per-event counts distinct events
-  // in each medalists array (a doubles win = 1); per-medalist uses the raw
-  // server counts. Re-sort so the ranking matches the displayed numbers.
-  const distinctEvents = (ms: StatsClubMedalist[]) => new Set(ms.map((m) => m.event)).size
+  // Medal rows, recounted per the active mode. The "medals" mode counts distinct
+  // teams (a doubles pair = 1 medal, but two same-country bronze teams in one
+  // event count separately — badminton awards two bronzes per event); the raw
+  // mode uses the server's per-medalist counts. Re-sort so the ranking matches
+  // the displayed numbers. Falls back to event for pre-`team` cached envelopes.
+  const distinctTeams = (ms: StatsClubMedalist[]) =>
+    new Set(ms.map((m) => m.team ?? m.event)).size
   const medalRows = !medalsPerEvent
     ? stats.clubMedals
     : stats.clubMedals
         .map((c) => ({
           ...c,
-          gold: distinctEvents(c.goldMedalists),
-          silver: distinctEvents(c.silverMedalists),
-          bronze: distinctEvents(c.bronzeMedalists),
+          gold: distinctTeams(c.goldMedalists),
+          silver: distinctTeams(c.silverMedalists),
+          bronze: distinctTeams(c.bronzeMedalists),
         }))
         .sort((a, b) =>
           b.gold - a.gold || b.silver - a.silver || b.bronze - a.bronze ||
