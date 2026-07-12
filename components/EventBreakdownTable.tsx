@@ -76,28 +76,30 @@ export default function EventBreakdownTable({ data }: { data: StatsEventBreakdow
           </select>
         </label>
       </div>
-      <table className="stats-table">
-        <thead><tr>
-          <th></th>
-          <th>{t('statsColCountry')}</th>
-          {columns.map((b) => <th key={b} className="stats-num">{colLabel(b)}</th>)}
-          <th className="stats-num">{t('statsEventBreakdownTotal')}</th>
-        </tr></thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={r.country}>
-              <td className="stats-rank">{i + 1}</td>
-              <td>{labelOf(r.country)}</td>
-              {columns.map((b) => (
-                <td key={b} className="stats-num">
-                  <Cell cell={r.byBucket.get(b) ?? { done: 0, active: 0 }} />
-                </td>
-              ))}
-              <td className="stats-num">{fmt(r.total)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="stats-eb-scroll">
+        <table className="stats-table">
+          <thead><tr>
+            <th></th>
+            <th>{t('statsColCountry')}</th>
+            {columns.map((b) => <th key={b} className="stats-num">{colLabel(b)}</th>)}
+            <th className="stats-num">{t('statsEventBreakdownTotal')}</th>
+          </tr></thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.country}>
+                <td className="stats-rank">{i + 1}</td>
+                <td>{labelOf(r.country)}</td>
+                {columns.map((b) => (
+                  <td key={b} className="stats-num">
+                    <Cell cell={r.byBucket.get(b) ?? { done: 0, active: 0 }} />
+                  </td>
+                ))}
+                <td className="stats-num">{fmt(r.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   )
 }
