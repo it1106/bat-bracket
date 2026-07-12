@@ -41,6 +41,56 @@ pm2 list                        # confirm worker online
 git push && ssh root@ezebat.lan "set -e; cd ~/app && git pull --ff-only && npm run build && pm2 reload bat-bracket && pm2 list | grep bat-bracket"
 ```
 
+## ⚠️ Deploy hazard: Cloudflare caching build-time 404s
+
+`npm run build` rewrites `.next/static/*` **in place**. Next asset filenames are
+content-hashed, so a normal deploy changes some chunk/CSS hashes. For the few
+seconds mid-build when an asset's file is momentarily absent, any request for it
+returns 404 — and **Cloudflare caches that 404** (default negative TTL is hours).
+The origin recovers instantly, but the edge keeps serving the stale 404, so:
+
+- a missing JS chunk → `ChunkLoadError` → blank/broken page (looks like an outage);
+- a missing CSS file → unstyled page.
+
+This bit us on 2026-07-12: `chunks/328-*.js` and a `css/*.css` got stuck as
+cached 404s at the edge while the origin served them fine. Symptoms and triage:
+
+```bash
+# Origin is healthy if the LAN bypass serves the asset 200:
+curl -si http://172.16.88.198:3000/_next/static/chunks/<hash>.js | head -1
+# Edge is poisoned if the SAME url is 404 but a cache-busting query is 200:
+curl -si "https://batmatch.app/_next/static/chunks/<hash>.js"       | head -1  # 404 cf HIT
+curl -si "https://batmatch.app/_next/static/chunks/<hash>.js?cb=1"  | head -1  # 200 cf MISS
+```
+
+If origin=200 but edge=404, it's edge cache poisoning — **not the app**.
+
+### Fix when it happens
+
+Purge the Cloudflare cache (dashboard → `batmatch.app` → Caching → **Purge
+Everything**, or Custom Purge the exact asset URLs for both apex and `www`).
+There is no CF API token on the box, so this is a manual dashboard action.
+
+### Prevention (do these once)
+
+1. **Stop Cloudflare caching 4xx.** Add a Cache Rule for `/_next/static/*` that
+   sets *Edge Cache TTL by status code* → `404, 410 = No cache` (or bypass cache
+   on 4xx). This alone prevents the poisoning permanently.
+2. **Purge static after each build** as a post-deploy step (needs a scoped API
+   token with Zone → *Cache Purge*), or build into a fresh dir and swap so assets
+   are never briefly missing. Until then, expect a possible blip on deploy and
+   hard-refresh (Cmd+Shift+R) to confirm.
+
+### `www` vs apex
+
+The public/canonical host is the **apex** `batmatch.app`. `www.batmatch.app` is
+redirected to it via a Cloudflare Redirect Rule (`http.host eq
+"www.batmatch.app"` → `301` to `concat("https://batmatch.app",
+http.request.uri.path)`, preserve query). `www` sits behind an extra off-box
+caching proxy on the tunnel device that re-serves poisoned 404s even after a CF
+purge, so keep traffic canonicalized to the apex. If `www` ever needs its own
+static serving again, that proxy's cache must be cleared on the tunnel device.
+
 ## Switching branches on the server
 
 ```bash
