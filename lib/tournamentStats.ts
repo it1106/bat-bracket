@@ -9,6 +9,7 @@ import type {
   MatchScore,
   MatchesData,
   StatsClubMedalist,
+  StatsEventBreakdown,
   StatsPlayerResult,
   CountryMatrixData,
   CountryMatrixEvent,
@@ -743,6 +744,133 @@ function buildClubMedalsAndMultiGold(
   return { clubMedals, multiGoldPlayers }
 }
 
+// ---- Event Breakdown ----
+
+const CHAMPION_BUCKET = 'Champion'
+
+// Order buckets first-round -> title. roundSize gives R128=128 … F=2; the
+// synthetic Champion sorts last (sentinel 1, "deeper" than the final).
+function bucketOrderKey(bucket: string): number {
+  return bucket === CHAMPION_BUCKET ? 1 : roundSize(bucket)
+}
+function sortBuckets(buckets: Iterable<string>): string[] {
+  return Array.from(new Set(buckets)).sort((a, b) => bucketOrderKey(b) - bucketOrderKey(a))
+}
+
+// Label for a knockout draw size (F/SF/QF/R{n}); size<=1 is the champion.
+function bucketForSize(size: number): string {
+  if (size <= 1) return CHAMPION_BUCKET
+  if (size === 2) return 'F'
+  if (size === 4) return 'SF'
+  if (size === 8) return 'QF'
+  return `R${size}`
+}
+
+interface EbTeamAcc {
+  country: string
+  wonFinal: boolean
+  lossRound?: string
+  pendingRound?: string
+  deepestWonSize: number // smallest roundSize won; Infinity if none won
+}
+
+function buildEventBreakdown(ctxs: MatchCtx[]): StatsEventBreakdown {
+  const countryByPid = new Map<string, string>()
+  for (const { match } of ctxs) {
+    for (const p of [...match.team1, ...match.team2]) {
+      if (p.playerId && p.country && !countryByPid.has(p.playerId)) {
+        countryByPid.set(p.playerId, p.country)
+      }
+    }
+  }
+  const countryOfTeam = (team: MatchPlayer[]): string => {
+    const cs = team
+      .map((p) => (p.country ?? countryByPid.get(p.playerId) ?? '').trim())
+      .filter(Boolean)
+    if (cs.length === 0) return '—'
+    return cs.every((c) => c === cs[0]) ? cs[0] : cs[0] // shared, else first player's
+  }
+  const teamKeyOf = (team: MatchPlayer[]): string =>
+    team.map((p) => p.playerId).filter(Boolean).slice().sort().join(',')
+
+  const byEvent = new Map<string, Map<string, EbTeamAcc>>()
+  const accOf = (event: string, team: MatchPlayer[]): EbTeamAcc | null => {
+    const key = teamKeyOf(team)
+    if (!key) return null
+    let teams = byEvent.get(event)
+    if (!teams) { teams = new Map(); byEvent.set(event, teams) }
+    let a = teams.get(key)
+    if (!a) {
+      a = { country: countryOfTeam(team), wonFinal: false, deepestWonSize: Infinity }
+      teams.set(key, a)
+    }
+    return a
+  }
+
+  for (const { match } of ctxs) {
+    if (!isKnockoutRound(match.round)) continue
+    const event = match.eventName ?? match.draw
+    if (!event) continue
+    const a1 = accOf(event, match.team1)
+    const a2 = accOf(event, match.team2)
+    if (match.winner === null) {
+      // In-progress: both sides are "in" this round. Keep the deepest.
+      const keepDeeper = (a: EbTeamAcc | null) => {
+        if (!a) return
+        if (!a.pendingRound || roundSize(match.round) < roundSize(a.pendingRound)) {
+          a.pendingRound = match.round
+        }
+      }
+      keepDeeper(a1); keepDeeper(a2)
+      continue
+    }
+    const winAcc = match.winner === 1 ? a1 : a2
+    const loseAcc = match.winner === 1 ? a2 : a1
+    if (winAcc) {
+      const sz = roundSize(match.round)
+      if (sz < winAcc.deepestWonSize) winAcc.deepestWonSize = sz
+      if (isFinal(match.round)) winAcc.wonFinal = true
+    }
+    if (loseAcc) loseAcc.lossRound = match.round // one loss in single-elim
+  }
+
+  const counts: StatsEventBreakdown['counts'] = {}
+  const columnsByEvent: Record<string, string[]> = {}
+  const allBuckets = new Set<string>()
+
+  for (const [event, teams] of Array.from(byEvent)) {
+    const evBuckets = new Set<string>()
+    for (const a of Array.from(teams.values())) {
+      let bucket: string
+      let active = false
+      if (a.wonFinal) {
+        bucket = CHAMPION_BUCKET
+      } else if (a.lossRound) {
+        bucket = abbrevRoundL(a.lossRound, 'en')
+      } else {
+        active = true
+        if (a.pendingRound) bucket = abbrevRoundL(a.pendingRound, 'en')
+        else if (a.deepestWonSize < Infinity) bucket = bucketForSize(a.deepestWonSize / 2)
+        else continue // no signal — cannot place
+      }
+      evBuckets.add(bucket)
+      allBuckets.add(bucket)
+      const byCountry = (counts[event] ??= {})
+      const byBucket = (byCountry[a.country] ??= {})
+      const cell = (byBucket[bucket] ??= { done: 0, active: 0 })
+      if (active) cell.active++
+      else cell.done++
+    }
+    columnsByEvent[event] = sortBuckets(evBuckets)
+  }
+
+  const events = Object.keys(counts)
+    .sort((a, b) => eventRank(a) - eventRank(b))
+    .map((key) => ({ key, label: key }))
+
+  return { events, columns: sortBuckets(allBuckets), columnsByEvent, counts }
+}
+
 // playerId -> the set of events they're entered in, collected from scheduled
 // matches plus draw rosters. Uses the same event key as everywhere else
 // (eventName collapses "<event> - Group X" into the parent event). Shared by the
@@ -1267,7 +1395,7 @@ export function aggregate(
     clubRosters: buildClubRosters(clubs, names, eventsByPlayer, statusByPlayer, resultsByPlayer),
     countryRosters: buildCountryRosters(ctxs, statusByPlayer, resultsByPlayer, rosterByDraw),
     integrity: buildIntegrity(ctxs),
-    eventBreakdown: { events: [], columns: [], columnsByEvent: {}, counts: {} },
+    eventBreakdown: buildEventBreakdown(ctxs),
   }
   const countryMatrix = buildCountryMatrix(ctxs)
   if (countryMatrix) base.countryMatrix = countryMatrix

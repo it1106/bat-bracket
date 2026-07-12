@@ -969,3 +969,84 @@ describe('tournamentStats — abbreviated knockout round codes update player sta
     expect(statusOf('I4')).toBe('silver')
   })
 })
+
+describe('tournamentStats — event breakdown', () => {
+  const data: MatchesData = {
+    days: [{ date: '20260519', label: '19/05', dateIso: '2026-05-19', hasMatches: true }],
+    currentDate: '20260519',
+    groups: [],
+  }
+  type P = { c: string; id: string }
+  const pl = (p: P) => ({ name: p.id, playerId: p.id, country: p.c })
+  const THA = (id: string): P => ({ c: 'THA', id })
+  const INA = (id: string): P => ({ c: 'INA', id })
+  const MAS = (id: string): P => ({ c: 'MAS', id })
+  const JPN = (id: string): P => ({ c: 'JPN', id })
+  const KOR = (id: string): P => ({ c: 'KOR', id })
+  const CHN = (id: string): P => ({ c: 'CHN', id })
+  // draw, round, team1, team2, winner (null = pending)
+  const M = (draw: string, round: string, t1: P[], t2: P[], winner: 1 | 2 | null): MatchEntry => ({
+    draw, drawNum: '1', round,
+    team1: t1.map(pl), team2: t2.map(pl),
+    winner,
+    scores: winner === null ? [] : [{ t1: 21, t2: 15 }, { t1: 21, t2: 18 }],
+    court: 'C1', walkover: false, retired: false, nowPlaying: false,
+  })
+  const dayGroups: MatchScheduleGroup[] = [{
+    type: 'time' as const, time: '09:00',
+    matches: [
+      // MS singles, 4-draw: THA champion, MAS runner-up, INA two SF losers.
+      M('MS', 'Semi final', [THA('t1')], [INA('i1')], 1),
+      M('MS', 'Semi final', [MAS('m1')], [INA('i2')], 1),
+      M('MS', 'Final', [THA('t1')], [MAS('m1')], 1),
+      // MD doubles, 4-draw: THA pair champion, MAS pair runner-up, INA two SF pairs.
+      M('MD', 'Semi final', [THA('t1'), THA('t2')], [INA('a1'), INA('a2')], 1),
+      M('MD', 'Semi final', [MAS('m1'), MAS('m2')], [INA('b1'), INA('b2')], 1),
+      M('MD', 'Final', [THA('t1'), THA('t2')], [MAS('m1'), MAS('m2')], 1),
+      // WS singles, 4-draw, IN PROGRESS: SF1 done, SF2 pending, no final yet.
+      M('WS', 'Semi final', [THA('w1')], [JPN('j1')], 1),   // THA won SF -> active in F
+      M('WS', 'Semi final', [KOR('k1')], [CHN('c1')], null), // both active in SF
+      // BS singles, deeper draw: a single QF result to introduce a QF column.
+      M('BS', 'Quarter final', [THA('b1')], [INA('x1')], 1), // b1 active in SF, x1 out at QF
+    ],
+  }]
+  const days = new Map([['2026-05-19', dayGroups]])
+  const eb = () => aggregate(data, days, {}).eventBreakdown!
+
+  it('buckets singles: champion, runner-up, SF losers per country', () => {
+    const c = eb().counts['MS']
+    expect(c['THA']['Champion']).toEqual({ done: 1, active: 0 })
+    expect(c['MAS']['F']).toEqual({ done: 1, active: 0 })
+    expect(c['INA']['SF']).toEqual({ done: 2, active: 0 })
+  })
+
+  it('counts a doubles pair as one team (dedup)', () => {
+    const c = eb().counts['MD']
+    expect(c['THA']['Champion']).toEqual({ done: 1, active: 0 })
+    expect(c['MAS']['F']).toEqual({ done: 1, active: 0 })
+    expect(c['INA']['SF']).toEqual({ done: 2, active: 0 }) // two pairs, not four players
+  })
+
+  it('places active teams in their current round as active (green)', () => {
+    const c = eb().counts['WS']
+    expect(c['THA']['F']).toEqual({ done: 0, active: 1 }) // won SF -> active in Final
+    expect(c['JPN']['SF']).toEqual({ done: 1, active: 0 }) // lost SF
+    expect(c['KOR']['SF']).toEqual({ done: 0, active: 1 }) // pending SF
+    expect(c['CHN']['SF']).toEqual({ done: 0, active: 1 })
+  })
+
+  it('produces dynamic, ordered column unions', () => {
+    const r = eb()
+    // BS introduces QF; overall union ordered first-round -> title.
+    expect(r.columns).toEqual(['QF', 'SF', 'F', 'Champion'])
+    // MS (4-draw) omits QF.
+    expect(r.columnsByEvent['MS']).toEqual(['SF', 'F', 'Champion'])
+    expect(r.columnsByEvent['BS']).toEqual(['QF', 'SF'])
+  })
+
+  it('lists events ordered by event rank with labels', () => {
+    const evs = eb().events.map((e) => e.key)
+    expect(evs).toEqual(['MS', 'WS', 'MD', 'BS']) // OPEN_ORDER MS,WS,MD… then unknown BS last
+    expect(eb().events[0]).toEqual({ key: 'MS', label: 'MS' })
+  })
+})
