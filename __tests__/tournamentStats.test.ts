@@ -1049,4 +1049,22 @@ describe('tournamentStats — event breakdown', () => {
     expect(evs).toEqual(['MS', 'WS', 'MD', 'BS']) // OPEN_ORDER MS,WS,MD… then unknown BS last
     expect(eb().events[0]).toEqual({ key: 'MS', label: 'MS' })
   })
+
+  it('orders numbered R-rounds correctly (R{n} buckets, not the 512 sentinel)', () => {
+    // roundSize re-abbreviates an already-abbreviated bucket; confirm "R32" etc.
+    // re-parse to their sizes and sort R32 -> R16 -> QF -> SF, not collapsed.
+    const rdData: MatchesData = { ...data }
+    const rdDays = new Map([['2026-05-19', [{
+      type: 'time' as const, time: '09:00',
+      matches: [
+        M('GS', 'Round of 32', [THA('g1')], [INA('y1')], 1), // y1 out R32
+        M('GS', 'Round of 16', [THA('g1')], [JPN('y2')], 1), // y2 out R16
+        M('GS', 'Quarter final', [THA('g1')], [KOR('y3')], 1), // y3 out QF, g1 active SF
+      ],
+    }]]])
+    const r = aggregate(rdData, rdDays, {}).eventBreakdown!
+    expect(r.columnsByEvent['GS']).toEqual(['R32', 'R16', 'QF', 'SF'])
+    expect(r.counts['GS']['INA']['R32']).toEqual({ done: 1, active: 0 })
+    expect(r.counts['GS']['THA']['SF']).toEqual({ done: 0, active: 1 }) // won QF -> active SF
+  })
 })
