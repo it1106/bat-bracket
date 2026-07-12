@@ -149,7 +149,6 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   const hasDecided = stats.kpis.decided > 0
   const dramaHasContent = !!(stats.drama.marathon || stats.drama.highestSet || stats.drama.highestScoringMatch || stats.drama.mostCourtTime)
   const dayMax = Math.max(1, ...stats.dailyVolume.map((d) => d.total))
-  const courtMax = Math.max(1, ...stats.courtUtilization.map((c) => c.minutes))
   const playersPct = stats.kpis.players > 0
     ? Math.round((stats.kpis.multiEventPlayers / stats.kpis.players) * 100)
     : 0
@@ -631,26 +630,6 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
             </span>
           </div>
         ))}
-      </section>
-      )}
-
-      {/* Court utilization */}
-      {stats.courtUtilization.length > 0 && (
-      <section className="stats-section">
-        <h2>{t('statsSectionCourtUtilization')}</h2>
-        {stats.courtUtilization.map((c) => {
-          const tail = c.name.split(' - ').pop() ?? c.name
-          return (
-            <div className="stats-court-row" key={c.name}>
-              <span className="stats-court-nm">{tail}</span>
-              <div className="stats-bar-track"><div className="stats-bar-fill" style={{ width: `${(c.minutes / courtMax) * 100}%` }} /></div>
-              <span className="stats-court-v">
-                {(c.minutes / 60).toFixed(1)}{lang === 'th' ? ' ชม.' : ' h'}
-                <span className="stats-bar-secondary">{fmt(c.matches)} {lang === 'th' ? 'แมตช์' : c.matches === 1 ? 'match' : 'matches'}</span>
-              </span>
-            </div>
-          )
-        })}
       </section>
       )}
 
