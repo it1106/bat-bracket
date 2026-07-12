@@ -1,6 +1,6 @@
 import { isActive, isMedaled, type RosterStatusMember } from './rosterStatus'
 
-export type RosterSortCol = 'name' | 'players' | 'active' | 'activePct' | 'medaled'
+export type RosterSortCol = 'name' | 'players' | 'active' | 'activePct' | 'medaled' | 'medaledPct'
 export interface RosterSort {
   col: RosterSortCol
   dir: 'asc' | 'desc'
@@ -29,6 +29,11 @@ export function sortRosterRows<T extends { players: number; roster?: RosterStatu
         return r.length > 0 ? r.filter(isActive).length / r.length : 0
       }
       case 'medaled': return (row.roster ?? []).filter(isMedaled).length
+      case 'medaledPct': {
+        // Share of the roster that medaled (matches the displayed %).
+        const r = row.roster ?? []
+        return r.length > 0 ? r.filter(isMedaled).length / r.length : 0
+      }
     }
   }
   const sorted = [...rows].sort((a, b) => {

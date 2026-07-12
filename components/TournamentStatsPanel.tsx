@@ -498,6 +498,12 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           : countrySort?.col === 'activePct' ? 'pct' : null
         const toggleActive = () =>
           setCountrySort({ col: activeMode === 'count' ? 'activePct' : 'active', dir: 'desc' })
+        // The Medaled header mirrors Active: sort by medaled count, then by
+        // medaled % on the next click, cycling back to count.
+        const medaledMode = countrySort?.col === 'medaled' ? 'count'
+          : countrySort?.col === 'medaledPct' ? 'pct' : null
+        const toggleMedaled = () =>
+          setCountrySort({ col: medaledMode === 'count' ? 'medaledPct' : 'medaled', dir: 'desc' })
         return (
         <section className="stats-section">
           <h2>{t('statsSectionCountryRosters')}</h2>
@@ -523,7 +529,13 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
               >
                 {t('statsColActive')}{activeMode === 'count' ? ' ▼' : activeMode === 'pct' ? ' %▼' : ''}
               </th>
-              {sortableTh('medaled', t('statsColMedaled'), true)}
+              <th
+                className="stats-th-sort stats-num"
+                aria-sort={medaledMode ? 'descending' : 'none'}
+                onClick={toggleMedaled}
+              >
+                {t('statsColMedaled')}{medaledMode === 'count' ? ' ▼' : medaledMode === 'pct' ? ' %▼' : ''}
+              </th>
             </tr></thead>
             <tbody>
               {sorted.map((c, i) => {
@@ -540,7 +552,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
                       </button>
                     </td>
                     <td className="stats-num"><RosterCell count={c.players} members={c.members} /></td>
-                    <RosterStatusCells roster={c.roster} showActivePct />
+                    <RosterStatusCells roster={c.roster} showActivePct showMedaledPct />
                   </tr>
                 )
               })}
@@ -679,19 +691,30 @@ const stripSeedSuffix = (name: string): string => name.replace(/\s*\[[^\]]*\]\s*
 // The Active and Medaled counts for a club/country row, derived from its roster
 // members' per-event status. Renders '—' when the roster (per-player status) is
 // unavailable — e.g. stats blobs cached before status tracking existed.
-function RosterStatusCells({ roster, showActivePct = false }: { roster?: RosterStatusMember[]; showActivePct?: boolean }) {
+function RosterStatusCells({
+  roster,
+  showActivePct = false,
+  showMedaledPct = false,
+}: {
+  roster?: RosterStatusMember[]
+  showActivePct?: boolean
+  showMedaledPct?: boolean
+}) {
   if (!roster) {
     return (<><td className="stats-num">—</td><td className="stats-num">—</td></>)
   }
   const active = roster.filter(isActive).length
   const medaled = roster.filter(isMedaled).length
-  // Country rosters append the active share (active / roster size), so a small
-  // contingent that's mostly still in reads differently from a large one that's
-  // mostly out. Guard against an empty roster to avoid dividing by zero.
+  // Country rosters append the active/medaled share (count / roster size), so a
+  // small contingent that's mostly still in (or mostly medaled) reads
+  // differently from a large one. Guard an empty roster against dividing by zero.
   const activeCell = showActivePct && roster.length > 0
     ? `${fmt(active)} (${pct(active / roster.length)})`
     : fmt(active)
-  return (<><td className="stats-num">{activeCell}</td><td className="stats-num">{fmt(medaled)}</td></>)
+  const medaledCell = showMedaledPct && roster.length > 0
+    ? `${fmt(medaled)} (${pct(medaled / roster.length)})`
+    : fmt(medaled)
+  return (<><td className="stats-num">{activeCell}</td><td className="stats-num">{medaledCell}</td></>)
 }
 
 function RosterCell({ count, members }: { count: number; members?: string[] }) {

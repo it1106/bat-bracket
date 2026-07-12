@@ -42,6 +42,14 @@ describe('sortRosterRows', () => {
     expect(sortRosterRows(rows, nameOf, { col: 'medaled', dir: 'desc' }).map((r) => r.country)).toEqual(['THA', 'MAS', 'INA'])
   })
 
+  it('sorts by medaled percentage (medaled / roster size), distinct from raw count', () => {
+    // THA medaled 1/3 (0.33), MAS 1/1 (1.00), INA 0/5 (0).
+    // By raw count THA (1) ties MAS (1) and stays first (stable)…
+    expect(sortRosterRows(rows, nameOf, { col: 'medaled', dir: 'desc' }).map((r) => r.country)).toEqual(['THA', 'MAS', 'INA'])
+    // …but by percentage MAS (100%) outranks THA (33%).
+    expect(sortRosterRows(rows, nameOf, { col: 'medaledPct', dir: 'desc' }).map((r) => r.country)).toEqual(['MAS', 'THA', 'INA'])
+  })
+
   it('sorts by active percentage (active / roster size), distinct from raw count', () => {
     const ins = (n: number) => Array.from({ length: n }, () => m('in'))
     const outs = (n: number) => Array.from({ length: n }, () => m('out'))
