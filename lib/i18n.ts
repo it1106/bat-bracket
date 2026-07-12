@@ -205,6 +205,11 @@ export type TKey =
   | 'statsShowAll'
   | 'statsShowLess'
   | 'statsMedalsPerEvent'
+  | 'statsSectionEventBreakdown'
+  | 'statsEventBreakdownAll'
+  | 'statsEventBreakdownFilter'
+  | 'statsEventBreakdownTotal'
+  | 'statsEventBreakdownChampion'
   | 'statsColCountry'
   | 'statsColPlayers'
   | 'statsColActive'
@@ -482,6 +487,11 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsCountryMatrixDoubles: 'Doubles',
     statsShowAll: 'Show all',
     statsMedalsPerEvent: 'Count medals (doubles = 1)',
+    statsSectionEventBreakdown: 'Event Breakdown',
+    statsEventBreakdownAll: 'All events',
+    statsEventBreakdownFilter: 'Event',
+    statsEventBreakdownTotal: 'Total',
+    statsEventBreakdownChampion: 'Champion',
     statsShowLess: 'Show less',
     statsColCountry: 'Country',
     statsColPlayers: 'Players',
@@ -792,6 +802,11 @@ const dict: Record<Lang, Record<TKey, string>> = {
     statsCountryMatrixDoubles: 'คู่',
     statsShowAll: 'แสดงทั้งหมด',
     statsMedalsPerEvent: 'นับเหรียญ (คู่ = 1)',
+    statsSectionEventBreakdown: 'สรุปผลแต่ละรอบ',
+    statsEventBreakdownAll: 'ทุกประเภท',
+    statsEventBreakdownFilter: 'ประเภท',
+    statsEventBreakdownTotal: 'รวม',
+    statsEventBreakdownChampion: 'แชมป์',
     statsShowLess: 'แสดงน้อยลง',
     statsColCountry: 'ประเทศ',
     statsColPlayers: 'จำนวนนักกีฬา',
