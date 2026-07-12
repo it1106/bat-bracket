@@ -13,6 +13,7 @@ import { filterCountryRostersByGender, type RosterGender } from '@/lib/rosterGen
 import CountryRosterModal from '@/components/CountryRosterModal'
 import ClubRosterModal from '@/components/ClubRosterModal'
 import CountryMatrixTable from '@/components/CountryMatrixTable'
+import EventBreakdownTable from '@/components/EventBreakdownTable'
 import type { StatsClubMedalist, StatsClubRoster, StatsCountryRoster, StatsPlayerResult, TournamentStats } from '@/lib/types'
 
 interface Props {
@@ -579,6 +580,14 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
             </a>
           </div>
           <CountryMatrixTable matrix={stats.countryMatrix} />
+        </section>
+      )}
+
+      {/* Event Breakdown (BWF: teams by knockout round, per country) */}
+      {isCountryBased && stats.eventBreakdown && stats.eventBreakdown.events.length > 0 && (
+        <section className="stats-section">
+          <h2>{t('statsSectionEventBreakdown')}</h2>
+          <EventBreakdownTable data={stats.eventBreakdown} />
         </section>
       )}
 
