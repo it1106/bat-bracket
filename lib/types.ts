@@ -430,6 +430,23 @@ export interface StatsCountryMatrix extends CountryMatrixData {
   matches?: StatsCountryMatrixMatch[]
 }
 
+export interface StatsEventBreakdownCell {
+  done: number   // teams eliminated AT this round
+  active: number // teams still in, currently in this round (rendered green)
+}
+
+export interface StatsEventBreakdown {
+  // Dropdown options ordered by event rank. key = collapsed event key
+  // (eventName ?? draw); label = display string (e.g. "BS U17").
+  events: { key: string; label: string }[]
+  // Ordered bucket union across all events (the "All" view columns).
+  columns: string[]
+  // Ordered buckets present within each event key.
+  columnsByEvent: Record<string, string[]>
+  // counts[eventKey][country][bucket] = cell. Sparse; omit zero cells.
+  counts: Record<string, Record<string, Record<string, StatsEventBreakdownCell>>>
+}
+
 export interface StatsIntegrityWalkover {
   event: string
   walkovers: number
@@ -497,6 +514,9 @@ export interface ComputedStats {
   // BWF-only: country-vs-country head-to-head grid. Absent for club-based
   // tournaments (no country codes) or when fewer than two countries met.
   countryMatrix?: StatsCountryMatrix
+  // BWF-only: per-country team distribution across knockout rounds. Absent
+  // for club-based tournaments or when no knockout events exist.
+  eventBreakdown?: StatsEventBreakdown
   defendingChampion?: StatsDefendingChampion[]
   schedulePreview?: StatsSchedulePreview
 }

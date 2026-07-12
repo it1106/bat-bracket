@@ -47,6 +47,7 @@ const EMPTY: ComputedStats = {
   clubRosters: [],
   countryRosters: [],
   integrity: { walkoverByEvent: [], threeSetterByEvent: [] },
+  eventBreakdown: { events: [], columns: [], columnsByEvent: {}, counts: {} },
 }
 
 export function parseDurationMinutes(raw: string | undefined): number {
@@ -1266,6 +1267,7 @@ export function aggregate(
     clubRosters: buildClubRosters(clubs, names, eventsByPlayer, statusByPlayer, resultsByPlayer),
     countryRosters: buildCountryRosters(ctxs, statusByPlayer, resultsByPlayer, rosterByDraw),
     integrity: buildIntegrity(ctxs),
+    eventBreakdown: { events: [], columns: [], columnsByEvent: {}, counts: {} },
   }
   const countryMatrix = buildCountryMatrix(ctxs)
   if (countryMatrix) base.countryMatrix = countryMatrix

@@ -40,9 +40,12 @@ function statsPath(tournamentId: string): string {
 // "medals" mode can dedup by team instead of event — badminton awards two
 // bronzes per event, so two same-country bronze teams must count separately.
 // v12 envelopes lack team and would still collapse those to one bronze.
+// v14 adds eventBreakdown (per-country team counts by knockout round). v13
+// envelopes lack it, so the Event Breakdown matrix would be empty until
+// recomputed.
 // Bumping the version invalidates older envelopes so they get recomputed.
 export interface StatsCacheEnvelope {
-  version: 13
+  version: 14
   sourceVersion: string
   // Set to true only when every day in fullData.days had a disk-cache hit at
   // write time. Older envelopes (or those written with partial coverage) are
@@ -56,7 +59,7 @@ export async function readStatsCache(tournamentId: string): Promise<StatsCacheEn
   try {
     const buf = await fs.readFile(statsPath(tournamentId), 'utf8')
     const parsed = JSON.parse(buf) as StatsCacheEnvelope
-    if (parsed.version !== 13) return null
+    if (parsed.version !== 14) return null
     if (parsed.coverageComplete !== true) return null
     return parsed
   } catch {
@@ -73,7 +76,7 @@ export async function writeStatsCache(
   const tmp = `${file}.tmp`
   try {
     await fs.mkdir(path.dirname(file), { recursive: true })
-    const payload: StatsCacheEnvelope = { version: 13, ...envelope }
+    const payload: StatsCacheEnvelope = { version: 14, ...envelope }
     await fs.writeFile(tmp, JSON.stringify(payload), 'utf8')
     await fs.rename(tmp, file)
     console.log(`[stats-cache] wrote tournament=${tournamentId}`)

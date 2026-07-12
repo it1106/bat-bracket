@@ -380,6 +380,14 @@ describe('tournamentStats — empty', () => {
     expect(s.clubMedals).toEqual([])
     expect(s.drama.marathon).toBeNull()
   })
+
+  it('exposes an empty eventBreakdown when there are no matches', () => {
+    const empty = JSON.parse(
+      fs.readFileSync(path.join(FIX, 'stats-empty.json'), 'utf8'),
+    ) as MatchesData
+    const s = aggregate(empty, new Map(), {})
+    expect(s.eventBreakdown).toEqual({ events: [], columns: [], columnsByEvent: {}, counts: {} })
+  })
 })
 
 // BWF international tournaments tag every player with a country code. The
