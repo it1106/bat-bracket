@@ -61,4 +61,11 @@ describe('EventBreakdownTable', () => {
     const active = screen.getByText('Nari')
     expect(active).toHaveClass('stats-eb-active') // still-in team is green
   })
+
+  it('shows each cell as a percentage of the country total on a 2nd line', () => {
+    renderIt()
+    // INA has a single team (F), so its one cell is 100% of INA's total.
+    const p = screen.getByText('100%')
+    expect(p).toHaveClass('stats-eb-pct')
+  })
 })

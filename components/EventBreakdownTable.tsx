@@ -6,14 +6,16 @@ import { countryDisplayName } from '@/lib/countryCodes'
 import type { StatsEventBreakdown, StatsEventBreakdownCell } from '@/lib/types'
 
 const fmt = (n: number) => n.toLocaleString('en-US')
+const pct = (r: number) => `${Math.round(r * 100)}%`
 
 function labelOf(country: string): string {
   const d = countryDisplayName(country)
   return d && d.toLowerCase() !== country.toLowerCase() ? `${d} (${country})` : country
 }
 
-function Cell({ cell }: { cell: StatsEventBreakdownCell }) {
-  if (cell.done === 0 && cell.active === 0) return null
+function Cell({ cell, total }: { cell: StatsEventBreakdownCell; total: number }) {
+  const n = cell.done + cell.active
+  if (n === 0) return null
   // Reuse the medal-tip pattern (hover + keyboard focus). Sort by event then
   // name so the All-view tooltip groups a country's teams by event.
   const teams = cell.teams
@@ -21,10 +23,13 @@ function Cell({ cell }: { cell: StatsEventBreakdownCell }) {
     .sort((a, b) => a.event.localeCompare(b.event) || a.names.join('/').localeCompare(b.names.join('/')))
   return (
     <span className="stats-medal-cell" tabIndex={0}>
-      {cell.done > 0 && <span>{fmt(cell.done)}</span>}
-      {cell.active > 0 && (
-        <span className="stats-eb-active">{cell.done > 0 ? ' ' : ''}{fmt(cell.active)}</span>
-      )}
+      <span className="stats-eb-count">
+        {cell.done > 0 && <span>{fmt(cell.done)}</span>}
+        {cell.active > 0 && (
+          <span className="stats-eb-active">{cell.done > 0 ? ' ' : ''}{fmt(cell.active)}</span>
+        )}
+      </span>
+      {total > 0 && <span className="stats-eb-pct">{pct(n / total)}</span>}
       {teams.length > 0 && (
         <span className="stats-medal-tip" role="tooltip">
           {teams.map((tm, i) => (
@@ -112,7 +117,7 @@ export default function EventBreakdownTable({ data }: { data: StatsEventBreakdow
                 <td>{labelOf(r.country)}</td>
                 {columns.map((b) => (
                   <td key={b} className="stats-num">
-                    <Cell cell={r.byBucket.get(b) ?? { done: 0, active: 0, teams: [] }} />
+                    <Cell cell={r.byBucket.get(b) ?? { done: 0, active: 0, teams: [] }} total={r.total} />
                   </td>
                 ))}
                 <td className="stats-num">{fmt(r.total)}</td>

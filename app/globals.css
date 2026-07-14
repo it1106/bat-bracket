@@ -3531,6 +3531,14 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 
 /* Event Breakdown: still-active teams shown in the theme-aware "win" green. */
 .stats-eb-active { color: var(--win-fg); font-weight: 600; }
+/* Two-line cell: count on top, its share of the country's total below. */
+.stats-eb-count { display: block; }
+.stats-eb-pct {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 /* The round columns can total 11+ wide; scroll horizontally on narrow screens
    instead of forcing the whole page to scroll. */
 .stats-eb-scroll { overflow-x: auto; }
