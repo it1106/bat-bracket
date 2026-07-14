@@ -7,9 +7,9 @@ import EventBreakdownTable from '@/components/EventBreakdownTable'
 import type { StatsEventBreakdown } from '@/lib/types'
 
 const data: StatsEventBreakdown = {
-  events: [{ key: 'MS', label: 'MS' }, { key: 'WS', label: 'WS' }],
+  events: [{ key: 'MS', label: 'MS' }, { key: 'WS', label: 'WS' }, { key: 'XD U17', label: 'XD U17' }],
   columns: ['SF', 'F', 'Champion'],
-  columnsByEvent: { MS: ['SF', 'F', 'Champion'], WS: ['SF', 'F'] },
+  columnsByEvent: { MS: ['SF', 'F', 'Champion'], WS: ['SF', 'F'], 'XD U17': ['SF'] },
   counts: {
     MS: {
       THA: {
@@ -20,6 +20,9 @@ const data: StatsEventBreakdown = {
     },
     WS: {
       THA: { F: { done: 0, active: 1, teams: [{ names: ['Nari'], event: 'WS', active: true }] } }, // active (green)
+    },
+    'XD U17': {
+      KOR: { SF: { done: 1, active: 0, teams: [{ names: ['Mixy', 'Paira'], event: 'XD U17', active: false }] } },
     },
   },
 }
@@ -65,7 +68,26 @@ describe('EventBreakdownTable', () => {
   it('shows each cell as a percentage of the country total on a 2nd line', () => {
     renderIt()
     // INA has a single team (F), so its one cell is 100% of INA's total.
-    const p = screen.getByText('100%')
+    const ina = screen.getAllByRole('row').find((r) => within(r).queryByText(/INA/))!
+    const p = within(ina).getByText('100%')
     expect(p).toHaveClass('stats-eb-pct')
+  })
+
+  it('male filter aggregates only B*/M* events and excludes mixed (XD)', () => {
+    renderIt()
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'male' } })
+    // MS is the only male event: INA (MS) stays; WS's Nari and XD's KOR team go.
+    expect(screen.getByText('Budi')).toBeInTheDocument()
+    expect(screen.queryByText('Nari')).not.toBeInTheDocument()
+    expect(screen.queryByText('Mixy / Paira')).not.toBeInTheDocument()
+  })
+
+  it('female filter excludes mixed (XD) too', () => {
+    renderIt()
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'female' } })
+    // WS is the only female event; the mixed XD team must not appear.
+    expect(screen.getByText('Nari')).toBeInTheDocument()
+    expect(screen.queryByText('Mixy / Paira')).not.toBeInTheDocument()
+    expect(screen.queryByText('Champion')).not.toBeInTheDocument() // WS has no champion
   })
 })

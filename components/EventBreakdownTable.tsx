@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import { countryDisplayName } from '@/lib/countryCodes'
+import { memberGender } from '@/lib/rosterGender'
 import type { StatsEventBreakdown, StatsEventBreakdownCell } from '@/lib/types'
 
 const fmt = (n: number) => n.toLocaleString('en-US')
@@ -48,13 +49,25 @@ function Cell({ cell, total }: { cell: StatsEventBreakdownCell; total: number })
 
 export default function EventBreakdownTable({ data }: { data: StatsEventBreakdown }) {
   const { t } = useLanguage()
-  const [event, setEvent] = useState<'all' | string>('all')
+  // 'all' | 'male' | 'female' | <eventKey>. Gender filters aggregate every
+  // boys'/men's (B*/M*) or girls'/women's (G*/W*) event; mixed (XD) events are
+  // excluded from both, via the shared memberGender helper.
+  const [event, setEvent] = useState<'all' | 'male' | 'female' | string>('all')
 
-  const columns = event === 'all' ? data.columns : (data.columnsByEvent[event] ?? [])
+  const allEventKeys = Object.keys(data.counts)
+  const eventsInScope =
+    event === 'all' ? allEventKeys
+    : event === 'male' || event === 'female'
+      ? allEventKeys.filter((k) => memberGender([k]) === event)
+      : [event]
+
+  // Columns = the ordered overall union restricted to buckets present in scope.
+  const presentBuckets = new Set<string>()
+  for (const ev of eventsInScope) for (const b of (data.columnsByEvent[ev] ?? [])) presentBuckets.add(b)
+  const columns = data.columns.filter((b) => presentBuckets.has(b))
 
   // Aggregate the current scope: country -> bucket -> summed cell.
   const scope = new Map<string, Map<string, StatsEventBreakdownCell>>()
-  const eventsInScope = event === 'all' ? Object.keys(data.counts) : [event]
   for (const ev of eventsInScope) {
     const byCountry = data.counts[ev] ?? {}
     for (const [country, byBucket] of Object.entries(byCountry)) {
@@ -96,6 +109,8 @@ export default function EventBreakdownTable({ data }: { data: StatsEventBreakdow
           {t('statsEventBreakdownFilter')}{' '}
           <select value={event} onChange={(e) => setEvent(e.target.value)}>
             <option value="all">{t('statsEventBreakdownAll')}</option>
+            <option value="male">{t('statsCountryMatrixMale')}</option>
+            <option value="female">{t('statsCountryMatrixFemale')}</option>
             {data.events.map((ev) => (
               <option key={ev.key} value={ev.key}>{ev.label}</option>
             ))}
