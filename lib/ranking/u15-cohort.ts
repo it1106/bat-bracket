@@ -1,5 +1,6 @@
 import { readRankingCache } from '@/lib/ranking/cache'
 import { readRankingPlayerDetail } from '@/lib/ranking/player-cache'
+import { rankingIdForEvent } from '@/lib/ranking/series'
 import type { Discipline } from '@/lib/ranking/player-view'
 
 export const COHORT_SIZE = 50
@@ -55,7 +56,9 @@ export async function loadCohort(eventCode: string): Promise<
       slug: e.slug, globalPlayerId: e.globalPlayerId!, officialRank: e.rank,
       officialPoints: e.points, name: e.name,
     }))
-  return { rankingId: ranking.rankingId, publishDate: ranking.publishDate, players }
+  // U15 lives in the Junior series, whose publication id differs from the
+  // snapshot's primary (Open) one — resolve it from the event itself.
+  return { rankingId: rankingIdForEvent(ranking, ev), publishDate: ranking.publishDate, players }
 }
 
 /** The union of every U15 board's top-50 globalPlayerIds — the set the backfill
@@ -67,14 +70,22 @@ export async function loadU15BackfillSet(): Promise<
   const ranking = await readRankingCache('bat')
   if (!ranking) return null
   const gids = new Set<string>()
+  // Every U15 board sits in the same (Junior) series, so one publication id
+  // covers the whole union — take it from the first board we find.
+  let rankingId: string | null = null
   for (const board of U15_BOARDS) {
     const ev = ranking.events.find(e => e.eventCode === board.eventCode)
     if (!ev) continue
+    rankingId ??= rankingIdForEvent(ranking, ev)
     for (const e of ev.entries.slice().sort((a, b) => a.rank - b.rank).filter(e => !!e.globalPlayerId).slice(0, COHORT_SIZE)) {
       gids.add(e.globalPlayerId!)
     }
   }
-  return { rankingId: ranking.rankingId, publishDate: ranking.publishDate, gids: Array.from(gids) }
+  return {
+    rankingId: rankingId ?? ranking.rankingId,
+    publishDate: ranking.publishDate,
+    gids: Array.from(gids),
+  }
 }
 
 /** A cohort player is ready when their cached detail (or notFound marker) is

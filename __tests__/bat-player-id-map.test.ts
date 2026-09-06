@@ -22,7 +22,22 @@ describe('bat-player-id-map', () => {
 
   it('persists and reads a success', async () => {
     await writePlayerIdSuccess('ravin', '3903158')
-    expect(await readPlayerIdEntry('ravin')).toEqual({ globalPlayerId: '3903158' })
+    expect(await readPlayerIdEntry('ravin')).toEqual({ globalPlayerId: '3903158', bySeries: {} })
+  })
+
+  it('persists one id per ranking series', async () => {
+    await writePlayerIdSuccess('ravin', '9687100', { '289': '9687100', '189': '9687863' })
+    expect(await readPlayerIdEntry('ravin')).toEqual({
+      globalPlayerId: '9687100', bySeries: { '289': '9687100', '189': '9687863' },
+    })
+  })
+
+  it('discards a v1 file (ids from the retired rid=188 list)', async () => {
+    await fs.writeFile(
+      path.join(tmp, 'bat-player-id-map.json'),
+      JSON.stringify({ version: 1, players: { ravin: { globalPlayerId: '3903158' } } }),
+    )
+    expect(await readPlayerIdEntry('ravin')).toBeNull()
   })
 
   it('persists and reads a failure sentinel', async () => {
@@ -33,14 +48,14 @@ describe('bat-player-id-map', () => {
   it('a later success overwrites an earlier failure for the same slug', async () => {
     await writePlayerIdFailure('flaky', 'transient')
     await writePlayerIdSuccess('flaky', '42')
-    expect(await readPlayerIdEntry('flaky')).toEqual({ globalPlayerId: '42' })
+    expect(await readPlayerIdEntry('flaky')).toEqual({ globalPlayerId: '42', bySeries: {} })
   })
 
   it('preserves other slugs across writes', async () => {
     await writePlayerIdSuccess('a', '1')
     await writePlayerIdSuccess('b', '2')
-    expect(await readPlayerIdEntry('a')).toEqual({ globalPlayerId: '1' })
-    expect(await readPlayerIdEntry('b')).toEqual({ globalPlayerId: '2' })
+    expect(await readPlayerIdEntry('a')).toEqual({ globalPlayerId: '1', bySeries: {} })
+    expect(await readPlayerIdEntry('b')).toEqual({ globalPlayerId: '2', bySeries: {} })
   })
 
   it('returns null on corrupt file', async () => {

@@ -828,6 +828,27 @@ export interface RankingEvent {
   eventCode: string
   eventName: string
   entries: RankingEntry[]
+  /** The ranking *series* this event belongs to — the `rid=` URL parameter
+   *  (BAT: '289' Open, '189' Junior; BWF: '186'). Optional so envelopes
+   *  written before the BAT Open/Junior split still load. */
+  seriesId?: string
+  /** The weekly publication id (`id=` on category/player URLs) of this
+   *  event's series. Per-event because BAT now publishes two series with
+   *  independent publication ids. Falls back to `Ranking.rankingId`. */
+  rankingId?: string
+}
+
+/** One ranking series inside a provider's snapshot. BAT has two (Open and
+ *  Junior, since the 2569 split); BWF has one. */
+export interface RankingSeries {
+  /** `rid=` series id, e.g. '289'. */
+  seriesId: string
+  /** Human label as published upstream, e.g. 'Badminton Thailand Open Ranking'. */
+  label?: string
+  /** This series' weekly publication id (`id=`). */
+  rankingId: string
+  /** This series' publish date, in the provider's raw upstream format. */
+  publishDate: string
 }
 
 export interface Ranking {
@@ -841,6 +862,10 @@ export interface Ranking {
    *  duration of one publication; changes every Tuesday (BAT) or Wednesday
    *  (BWF). */
   rankingId: string
+  /** Every series scraped into this snapshot, in display order. Absent on
+   *  envelopes written before the BAT Open/Junior split — `readRankingCache`
+   *  rejects those so the poller repopulates. */
+  series?: RankingSeries[]
   events: RankingEvent[]
 }
 
@@ -921,8 +946,20 @@ export type BatRankingPlayerDetailCache = RankingPlayerDetailCache
  *  failures are persisted as { globalPlayerId: null, reason } so the
  *  discovery route doesn't re-hit every page view. */
 export interface BatPlayerIdMap {
-  version: 1
-  players: Record<string, { globalPlayerId: string | null; reason?: string }>
+  /** v2: `bySeries` added when BAT split its single ranking list into Open
+   *  (rid=289) and Junior (rid=189). A player has a *different* numeric
+   *  ranking-player id in each series, so one id per slug is no longer
+   *  enough. v1 files hold ids from the retired rid=188 list — all dead —
+   *  and are discarded on read. */
+  version: 2
+  players: Record<string, {
+    /** Primary id (first series the player was found in). Kept so callers
+     *  that only need one id keep working. Null when discovery failed. */
+    globalPlayerId: string | null
+    /** seriesId (`rid`) → that series' numeric player id. */
+    bySeries?: Record<string, string>
+    reason?: string
+  }>
 }
 
 // Live-scraped extras from a player's BAT global profile (career/YTD stats + YOB).

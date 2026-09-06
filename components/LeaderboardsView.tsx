@@ -81,9 +81,10 @@ const PROVIDER_LABELS: Record<ProviderTag, string> = {
   combined: 'BAT+BWF',
 }
 
-// Build the upstream "Overview" URL for a given week. BAT 404s on the static
-// series-id form (`rid=188`) and only resolves with the weekly rankingId via
-// `id=<rankingId>`; BWF accepts both, so `id=` works uniformly.
+// Build the upstream "Overview" URL for a given week from the weekly
+// publication id (`id=<rankingId>`), which resolves on both hosts. BAT now
+// publishes two series (Open + Junior); this links the primary (Open) one —
+// the upstream page's own nav reaches the other.
 function rankingOverviewHref(provider: 'bat' | 'bwf', rankingId: string): string {
   const base = provider === 'bat'
     ? 'https://bat.tournamentsoftware.com/ranking/ranking.aspx'

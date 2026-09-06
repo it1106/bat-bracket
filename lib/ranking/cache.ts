@@ -4,6 +4,12 @@ import type { Ranking, ProviderTag } from '@/lib/types'
 
 // v12 adds `provider`. v11 envelopes lack it — rejected on read so the
 // boot kick (instrumentation.ts) repopulates immediately.
+//
+// v13 adds `series[]` (BAT split its single rid=188 list into Open + Junior,
+// each with its own weekly publication id). A v12 envelope has no `series`,
+// and its events carry no per-event rankingId — serving one would build
+// player-detail URLs from a retired publication — so it is rejected the same
+// way and repopulated on the next poll.
 
 let root = path.join(process.cwd(), '.cache', 'players')
 
@@ -22,6 +28,7 @@ export async function readRankingCache(provider: ProviderTag): Promise<Ranking |
   try {
     const parsed = JSON.parse(await fs.readFile(cacheFile(provider), 'utf8')) as Ranking
     if (parsed.provider !== provider) return null
+    if (!Array.isArray(parsed.series) || parsed.series.length === 0) return null
     return parsed
   } catch {
     // First miss on BAT also tries to sweep the legacy file so it doesn't

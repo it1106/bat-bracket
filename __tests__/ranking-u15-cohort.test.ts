@@ -25,7 +25,8 @@ async function seedRanking(dir: string) {
     eventCode: b.eventCode, eventName: b.eventCode, entries: eventEntries(b.eventCode),
   }))
   await fs.writeFile(path.join(dir, 'ranking-bat.json'), JSON.stringify({
-    provider: 'bat', scrapedAt: 'now', publishDate: '23/6/2569', rankingId: '52346', events,
+    provider: 'bat', scrapedAt: 'now', publishDate: '23/6/2569', rankingId: '52346',
+    series: [{ seriesId: '189', rankingId: '52346', publishDate: '23/6/2569' }], events,
   }))
 }
 

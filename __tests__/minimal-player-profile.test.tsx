@@ -30,7 +30,8 @@ const baseRankings: RankingPlayerRank[] = [
 ]
 
 const baseRanking: Ranking = {
-  provider: 'bwf', scrapedAt: 'x', publishDate: '03/06/2026', rankingId: '52035', events: [],
+  provider: 'bwf', scrapedAt: 'x', publishDate: '03/06/2026', rankingId: '52035',
+  series: [{ seriesId: '186', rankingId: '52035', publishDate: '03/06/2026' }], events: [],
 }
 
 beforeEach(() => { detailTabsMock.mockClear() })

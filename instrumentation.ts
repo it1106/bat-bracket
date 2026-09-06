@@ -236,24 +236,39 @@ export async function register() {
       const peekAndMaybeRefresh = async (provider: 'bat' | 'bwf') => {
         const cfg = PROVIDER_CONFIG[provider]
         try {
-          const overviewRes = await rankingFetch(provider, 'poll-overview', cfg.overviewUrl)
-          if (!overviewRes.ok) {
-            console.log(`[ranking/${provider}/poll] overview status=${overviewRes.status}, skipping`)
-            return
-          }
-          const html = await overviewRes.text()
-          const upstreamPublishDate = parsePublishDate(html)
+          // Peek every series the provider publishes (BAT: Open + Junior).
+          // A refresh fires when ANY of them moved — they publish on the same
+          // day but nothing upstream guarantees they stay in lockstep.
           const cached = await readRankingCache(provider)
-          const cachedPublishDate = cached?.publishDate ?? null
           const cacheAgeMs = cached ? Date.now() - new Date(cached.scrapedAt).getTime() : null
-          if (!shouldRefresh(cachedPublishDate, upstreamPublishDate, cacheAgeMs, cfg.pollSchedule.staleBootKickMs)) {
-            console.log(`[ranking/${provider}/poll] publishDate unchanged (${upstreamPublishDate || 'unparsable'}) and cache fresh, no refresh`)
+          const changes: string[] = []
+          let anyOk = false
+          for (const series of cfg.series) {
+            const overviewRes = await rankingFetch(provider, 'poll-overview', cfg.overviewUrl(series.id))
+            if (!overviewRes.ok) {
+              console.log(`[ranking/${provider}/poll] series ${series.id} overview status=${overviewRes.status}, skipping`)
+              continue
+            }
+            anyOk = true
+            const html = await overviewRes.text()
+            const upstreamPublishDate = parsePublishDate(html)
+            const cachedPublishDate =
+              cached?.series?.find(s => s.seriesId === series.id)?.publishDate ?? cached?.publishDate ?? null
+            if (shouldRefresh(cachedPublishDate, upstreamPublishDate, cacheAgeMs, cfg.pollSchedule.staleBootKickMs)) {
+              changes.push(cachedPublishDate === upstreamPublishDate
+                ? `${series.id}: in-place revision suspected (cacheAge>${(cfg.pollSchedule.staleBootKickMs / 86_400_000).toFixed(0)}d)`
+                : `${series.id}: new publishDate ${cachedPublishDate ?? '(none)'} -> ${upstreamPublishDate || '(unparsable)'}`)
+            }
+          }
+          if (!anyOk) {
+            console.log(`[ranking/${provider}/poll] no series overview reachable, skipping`)
             return
           }
-          const reason = cachedPublishDate === upstreamPublishDate
-            ? `in-place revision suspected (cacheAge>${(cfg.pollSchedule.staleBootKickMs / 86_400_000).toFixed(0)}d)`
-            : `new publishDate ${cachedPublishDate ?? '(none)'} -> ${upstreamPublishDate}`
-          console.log(`[ranking/${provider}/poll] triggering refresh: ${reason}`)
+          if (changes.length === 0) {
+            console.log(`[ranking/${provider}/poll] all series unchanged and cache fresh, no refresh`)
+            return
+          }
+          console.log(`[ranking/${provider}/poll] triggering refresh: ${changes.join('; ')}`)
           const refreshRes = await fetch(`${origin}/api/ranking/${provider}/refresh?force=true`, { method: 'POST' })
           const body = await refreshRes.text()
           console.log(`[ranking/${provider}/poll] refresh status=${refreshRes.status} body=${body.slice(0, 200)}`)

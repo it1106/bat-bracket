@@ -41,14 +41,54 @@ const bwfReq = (slug: string) =>
   new Request(`http://localhost/api/players/ranking-detail?provider=bwf&slug=${encodeURIComponent(slug)}`)
 
 const batCurrent = (publishDate = '26/5/2569', rankingId = '51869') => ({
-  provider: 'bat' as const, scrapedAt: 'x', publishDate, rankingId, events: [],
+  provider: 'bat' as const, scrapedAt: 'x', publishDate, rankingId,
+  series: [{ seriesId: '289', rankingId, publishDate }],
+  events: [],
 })
+
+// BAT publishes two series (Open + Junior) with a different player id in each.
+// `rankedIn` names the series whose events list `ravin`.
+const batTwoSeries = (publishDate = '1/9/2569', rankedIn: string[] = []) => ({
+  provider: 'bat' as const, scrapedAt: 'x', publishDate, rankingId: '53558',
+  series: [
+    { seriesId: '289', rankingId: '53558', publishDate },
+    { seriesId: '189', rankingId: '53559', publishDate },
+  ],
+  events: rankedIn.map(seriesId => ({
+    eventCode: seriesId === '289' ? 'MS' : 'U19_MS',
+    eventName: seriesId === '289' ? "Men's Singles" : 'U19 Boys singles',
+    seriesId, rankingId: seriesId === '289' ? '53558' : '53559',
+    entries: [{ rank: 1, name: 'RAVIN', slug: 'ravin', club: '', points: 100, tournaments: 1 }],
+  })),
+})
+
+/** The 3-hop discovery chain, ending on a profile page linking `links`
+ *  (publication id → player id). */
+function mockDiscovery(links: Array<[string, string]>) {
+  ;(readIndexCache as jest.Mock).mockResolvedValue({
+    players: { ravin: { sampleRef: { tournamentId: 'TID', playerId: 'TPID' } } },
+  })
+  ;(extractProfileUrl as jest.Mock).mockReturnValue('/player/abc/YmFzZTY0OjEx')
+  ;(batFetch as jest.Mock)
+    .mockResolvedValueOnce({ ok: true, text: async () => '<html>tournament-page</html>' })
+    .mockResolvedValueOnce({
+      ok: true,
+      text: async () => '<html><a href="/player-profile/abcdef12-3456-7890-abcd-ef1234567890/ranking">Ranking</a></html>',
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      text: async () => links
+        .map(([pub, pid]) => `<a href="/ranking/player.aspx?id=${pub}&amp;player=${pid}">D</a>`)
+        .join(''),
+    })
+}
 const bwfCurrent = (
   publishDate = '03/06/2026',
   rankingId = '52035',
   entries: Array<{ slug: string; globalPlayerId?: string }> = [],
 ) => ({
   provider: 'bwf' as const, scrapedAt: 'x', publishDate, rankingId,
+  series: [{ seriesId: '186', rankingId, publishDate }],
   events: [{
     eventCode: 'U17_MS', eventName: "Boy's singles U17",
     entries: entries.map((e, i) => ({
@@ -147,13 +187,87 @@ describe('GET /api/players/ranking-detail (BAT)', () => {
 
     const res = await GET(batReq('ravin'))
     expect(res.status).toBe(200)
-    expect(writePlayerIdSuccess).toHaveBeenCalledWith('ravin', '3903158')
+    expect(writePlayerIdSuccess).toHaveBeenCalledWith('ravin', '3903158', { '289': '3903158' })
     expect(writeRankingPlayerDetail).toHaveBeenCalled()
     expect(rankingFetch).toHaveBeenLastCalledWith(
       'bat',
       'player-detail',
       'https://bat.tournamentsoftware.com/ranking/player.aspx?id=51869&player=3903158',
     )
+  })
+
+  it('fetches both series and merges their Used-for markers into one detail', async () => {
+    ;(readRankingCache as jest.Mock).mockResolvedValue(batTwoSeries())
+    ;(readPlayerIdEntry as jest.Mock).mockResolvedValue({
+      globalPlayerId: '9687100', bySeries: { '289': '9687100', '189': '9687863' },
+    })
+    ;(readRankingPlayerDetail as jest.Mock).mockResolvedValue(null)
+    const row = (usedFor: string) =>
+      `<tr><td><a href="tournament.aspx?id=AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA">T</a></td>` +
+      `<td>MS</td><td>2026-26</td><td>1</td><td>10486</td><td></td>` +
+      `<td><img title="Used for: ${usedFor}" /></td></tr>`
+    ;(rankingFetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: true, text: async () => `<table>${row("Men's Singles")}</table>` })
+      .mockResolvedValueOnce({ ok: true, text: async () => `<table>${row('U19 Boys singles')}</table>` })
+
+    const res = await GET(batReq('ravin'))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.detail.tournaments).toHaveLength(1)
+    expect(body.detail.tournaments[0].countsTowardRankings).toEqual(["Men's Singles", 'U19 Boys singles'])
+    expect((rankingFetch as jest.Mock).mock.calls.map(c => c[2])).toEqual([
+      'https://bat.tournamentsoftware.com/ranking/player.aspx?id=53558&player=9687100',
+      'https://bat.tournamentsoftware.com/ranking/player.aspx?id=53559&player=9687863',
+    ])
+  })
+
+  it('re-discovers when the id map lacks a series the player is now ranked in', async () => {
+    // A junior who has since entered the Open list: the append-only map entry
+    // would otherwise stay Junior-only forever.
+    ;(readRankingCache as jest.Mock).mockResolvedValue(batTwoSeries('1/9/2569', ['289', '189']))
+    ;(readPlayerIdEntry as jest.Mock).mockResolvedValue({
+      globalPlayerId: '9687863', bySeries: { '189': '9687863' },
+    })
+    ;(readRankingPlayerDetail as jest.Mock).mockResolvedValue(null)
+    mockDiscovery([['53558', '9687100'], ['53559', '9687863']])
+    ;(rankingFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => '<table></table>' })
+
+    const res = await GET(batReq('ravin'))
+    expect(res.status).toBe(200)
+    expect(writePlayerIdSuccess).toHaveBeenCalledWith('ravin', '9687100', {
+      '289': '9687100', '189': '9687863',
+    })
+    expect((rankingFetch as jest.Mock).mock.calls.map(c => c[2])).toEqual([
+      'https://bat.tournamentsoftware.com/ranking/player.aspx?id=53558&player=9687100',
+      'https://bat.tournamentsoftware.com/ranking/player.aspx?id=53559&player=9687863',
+    ])
+  })
+
+  it('serves the cached entry without re-discovery when every ranked series has an id', async () => {
+    ;(readRankingCache as jest.Mock).mockResolvedValue(batTwoSeries('1/9/2569', ['189']))
+    ;(readPlayerIdEntry as jest.Mock).mockResolvedValue({
+      globalPlayerId: '9687863', bySeries: { '189': '9687863' },
+    })
+    ;(readRankingPlayerDetail as jest.Mock).mockResolvedValue(null)
+    ;(rankingFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => '<table></table>' })
+
+    const res = await GET(batReq('ravin'))
+    expect(res.status).toBe(200)
+    expect(batFetch).not.toHaveBeenCalled()
+  })
+
+  it('does not persist an unattributable discovery, and 404s instead of guessing a series', async () => {
+    // Upstream has published a new week but our snapshot still holds last
+    // week's publication ids, so no profile link matches a known series.
+    ;(readRankingCache as jest.Mock).mockResolvedValue(batTwoSeries())
+    ;(readPlayerIdEntry as jest.Mock).mockResolvedValue(null)
+    ;(readRankingPlayerDetail as jest.Mock).mockResolvedValue(null)
+    mockDiscovery([['99999', '9687100']])
+
+    const res = await GET(batReq('ravin'))
+    expect(res.status).toBe(404)
+    expect(writePlayerIdSuccess).not.toHaveBeenCalled()
+    expect(rankingFetch).not.toHaveBeenCalled()
   })
 
   it('persists a failure sentinel when the global page lacks the /player-profile/.../ranking link', async () => {

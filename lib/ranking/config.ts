@@ -15,9 +15,22 @@ export interface PollSchedule {
 
 export type DateFormat = 'thai-be' | 'en-gb'
 
+/** One ranking series published by a provider. BAT split its single
+ *  all-ages list (rid=188, retired after the 28/7/2569 publication) into an
+ *  Open list and a Junior list; both publish weekly on the same day. Order
+ *  here is display order — Open first, so it takes the slot the old U23
+ *  events used to occupy at the top of the board list. */
+export interface RankingSeriesConfig {
+  /** `rid=` series id. */
+  id: string
+  /** Short label used in logs and (optionally) UI. */
+  label: string
+}
+
 export interface RankingProviderConfig {
   provider: 'bat' | 'bwf'
-  overviewUrl: string
+  series: RankingSeriesConfig[]
+  overviewUrl: (seriesId: string) => string
   categoryUrl: (rankingId: string, categoryId: string, page?: number) => string
   playerUrl:   (rankingId: string, globalPlayerId: string) => string
   headers: Record<string, string>
@@ -34,7 +47,11 @@ const BWF_BASE = 'https://www.tournamentsoftware.com/ranking'
 export const PROVIDER_CONFIG: Record<'bat' | 'bwf', RankingProviderConfig> = {
   bat: {
     provider: 'bat',
-    overviewUrl: `${BAT_BASE}/ranking.aspx?rid=188`,
+    series: [
+      { id: '289', label: 'Open' },
+      { id: '189', label: 'Junior' },
+    ],
+    overviewUrl: (rid) => `${BAT_BASE}/ranking.aspx?rid=${rid}`,
     categoryUrl: (rid, cat, page) => {
       const base = `${BAT_BASE}/category.aspx?id=${rid}&category=${cat}&ps=100`
       return page && page > 1 ? `${base}&p=${page}` : base
@@ -46,7 +63,8 @@ export const PROVIDER_CONFIG: Record<'bat' | 'bwf', RankingProviderConfig> = {
   },
   bwf: {
     provider: 'bwf',
-    overviewUrl: `${BWF_BASE}/ranking.aspx?rid=186`,
+    series: [{ id: '186', label: 'Badminton Asia Junior' }],
+    overviewUrl: (rid) => `${BWF_BASE}/ranking.aspx?rid=${rid}`,
     categoryUrl: (rid, cat, page) => {
       const base = `${BWF_BASE}/category.aspx?id=${rid}&category=${cat}&ps=100`
       return page && page > 1 ? `${base}&p=${page}` : base

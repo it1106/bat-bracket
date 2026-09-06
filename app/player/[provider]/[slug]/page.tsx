@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { readIndexCache } from '@/lib/player-index-cache'
 import { readRankingCache } from '@/lib/ranking/cache'
-import { readRankingPlayerDetail, isDetailScrapeFresh } from '@/lib/ranking/player-cache'
+import { detailTargets, readMergedCachedDetail } from '@/lib/ranking/detail-merge'
 import { readPlayerIdEntry } from '@/lib/bat-player-id-map'
 import { countContributingTournaments, filterToLowestTwoAgeGroups } from '@/lib/ranking/player-view'
 import { rankingSlugAlias } from '@/lib/ranking/aliases'
@@ -60,23 +60,27 @@ export default async function PlayerPage({ params }: Props) {
   // upstream can revise a published edition in place). BAT gets its id from the
   // slug↔id map (built by the 3-hop discovery on first request); BWF gets
   // it directly from the matching ranking entry (no discovery needed).
+  //
+  // Since the BAT Open/Junior split a player has one detail page per series,
+  // so the SSR hit is the *merge* of them and only counts when every series
+  // is cached — a partial hit falls through to the client fetch.
   let initialDetail: RankingPlayerDetail | undefined
   let globalPlayerId = ''
+  let bySeries: Record<string, string> = {}
   if (provider === 'bat') {
     const idEntry = await readPlayerIdEntry(params.slug)
     globalPlayerId = idEntry?.globalPlayerId ?? ''
+    bySeries = (idEntry && idEntry.globalPlayerId !== null ? idEntry.bySeries : {}) ?? {}
   } else if (provider === 'bwf') {
     globalPlayerId = bwfGlobalPlayerId
   }
   if (globalPlayerId && currentRanking) {
-    const cached = await readRankingPlayerDetail(provider, globalPlayerId)
-    if (
-      cached?.detail &&
-      cached.detail.publishDate === currentRanking.publishDate &&
-      isDetailScrapeFresh(cached.detail.scrapedAt)
-    ) {
-      initialDetail = cached.detail
-    }
+    const hit = await readMergedCachedDetail(
+      provider,
+      detailTargets(currentRanking, globalPlayerId, bySeries),
+      currentRanking.publishDate,
+    )
+    if (hit.complete && hit.detail) initialDetail = hit.detail
   }
 
   const rankingPublishDate = currentRanking?.publishDate || undefined
