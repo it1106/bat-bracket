@@ -11,17 +11,23 @@ export interface U15Board {
   /** Leaderboard board id (page.tsx builds `ranking-<eventcode-lowercased>`). */
   boardId: string
   /** Which of a player's results credit this board. Gender is handled by cohort
-   *  membership (a boy only has boys' results), so discipline is the only filter. */
+   *  membership (a boy only has boys' results), so discipline plus age tier are
+   *  the filters. */
   discipline: Discipline
+  /** `U<NN>` tier the board ranks. Since BAT split its list, a result credits
+   *  only its own age group's ranking — a cohort member's U17 or U13 results do
+   *  not feed their U15 total — so the tier has to filter rows, not just
+   *  select the board. */
+  ageTier: number
 }
 
 /** The five U15 ranking boards the Projected Ranking (beta) pilot covers. */
 export const U15_BOARDS: U15Board[] = [
-  { eventCode: 'U15_MS',  boardId: 'ranking-u15_ms',  discipline: 'singles' },
-  { eventCode: 'U15_WS',  boardId: 'ranking-u15_ws',  discipline: 'singles' },
-  { eventCode: 'U15_MD',  boardId: 'ranking-u15_md',  discipline: 'doubles' },
-  { eventCode: 'U15_WD',  boardId: 'ranking-u15_wd',  discipline: 'doubles' },
-  { eventCode: 'U15_MXD', boardId: 'ranking-u15_mxd', discipline: 'mixed'   },
+  { eventCode: 'U15_MS',  boardId: 'ranking-u15_ms',  discipline: 'singles', ageTier: 15 },
+  { eventCode: 'U15_WS',  boardId: 'ranking-u15_ws',  discipline: 'singles', ageTier: 15 },
+  { eventCode: 'U15_MD',  boardId: 'ranking-u15_md',  discipline: 'doubles', ageTier: 15 },
+  { eventCode: 'U15_WD',  boardId: 'ranking-u15_wd',  discipline: 'doubles', ageTier: 15 },
+  { eventCode: 'U15_MXD', boardId: 'ranking-u15_mxd', discipline: 'mixed',   ageTier: 15 },
 ]
 
 export function u15BoardByEvent(eventCode: string): U15Board | undefined {

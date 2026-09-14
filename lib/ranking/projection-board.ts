@@ -6,17 +6,25 @@ import { disciplineOf, weekSortKey, type Discipline } from '@/lib/ranking/player
 import { ageGroupFromEvent, pointsFor, pointsRoundFromResult } from '@/lib/points/bat-points'
 import type { CohortPlayer } from '@/lib/ranking/u15-cohort'
 
-/** Every detail row of the board's `discipline`, credit = the row's own
- *  `points`. Do NOT key on `countsTowardRankingsParsed` — that array is
- *  populated ONLY for currently-counting rows, so keying on it hides the 11th+
- *  rows Rule 2 must promote on expiry. Every U15 cohort member is U15-eligible,
- *  so each of their results in this discipline credits the board at its own
- *  points (verified on prod for singles/doubles/mixed). Gender is handled by
- *  cohort membership, so discipline is the only filter needed. */
-export function buildBaseRows(detail: RankingPlayerDetail, discipline: Discipline): ProjectionRow[] {
+/** Every detail row of the board's `discipline` **and** age tier, credit = the
+ *  row's own `points`. Do NOT key on `countsTowardRankingsParsed` — that array
+ *  is populated ONLY for currently-counting rows, so keying on it hides the
+ *  11th+ rows Rule 2 must promote on expiry. That's also why the age tier is
+ *  matched on `sourceEvent` rather than read off the markers: since BAT split
+ *  its list, a result credits only its own age group's ranking (a U15 player's
+ *  BS U17 result feeds the U17 list alone, and a U13 result carries nothing
+ *  down — BAT has no BWF-style discounted carry), and an uncounted 11th row
+ *  has no marker to read the tier from. Gender is handled by cohort
+ *  membership, so discipline + tier are the only filters needed. */
+export function buildBaseRows(
+  detail: RankingPlayerDetail,
+  discipline: Discipline,
+  ageTier: number,
+): ProjectionRow[] {
   const out: ProjectionRow[] = []
   for (const t of detail.tournaments as RankingPlayerTournament[]) {
     if (disciplineOf(t.sourceEvent) !== discipline) continue
+    if (ageGroupFromEvent(t.sourceEvent) !== `U${ageTier}`) continue
     out.push({ week: t.week, sourceEvent: t.sourceEvent, tournamentName: t.tournamentName, credit: t.points })
   }
   return out
@@ -47,6 +55,7 @@ export function buildAddedRows(
   ctx: AddCtx,
   horizonWeek: string,
   discipline: Discipline,
+  ageTier: number,
 ): ProjectionRow[] {
   const out: ProjectionRow[] = []
   for (const e of events) {
@@ -55,6 +64,7 @@ export function buildAddedRows(
     if (!week) continue
     if (weekSortKey(week) <= weekSortKey(horizonWeek)) continue // already in the snapshot
     const age = ageGroupFromEvent(e.eventName)
+    if (age !== `U${ageTier}`) continue                      // and only its age group
     const level = ctx.levelOf(e.tournamentId)
     const round = pointsRoundFromResult(e.bestFinish, e.wins, e.drawSize, e.lostByWalkover, e.active)
     const credit = level && age && round ? pointsFor(level, age, round) : null
@@ -77,6 +87,9 @@ export interface ProjectedEntry {
 export interface AssembleDeps {
   publishDate: string
   discipline: Discipline
+  /** `U<NN>` tier the board ranks; rows from other age groups credit their own
+   *  ranking, not this one. */
+  ageTier: number
   detailOf: (gid: string) => Promise<RankingPlayerDetail | null>
   eventsOf: (slug: string) => PlayerEventResult[]
   addCtx: AddCtx
@@ -104,12 +117,12 @@ export async function assembleProjectedBoard(
   // and derive the global snapshot horizon from them.
   const loaded = await Promise.all(cohort.map(async p => {
     const detail = await deps.detailOf(p.globalPlayerId)
-    return { p, base: detail ? buildBaseRows(detail, deps.discipline) : [] }
+    return { p, base: detail ? buildBaseRows(detail, deps.discipline, deps.ageTier) : [] }
   }))
   const horizon = snapshotHorizonWeek(loaded.map(l => l.base))
 
   const scored = loaded.map(({ p, base }) => {
-    const added = buildAddedRows(deps.eventsOf(p.slug), deps.addCtx, horizon, deps.discipline)
+    const added = buildAddedRows(deps.eventsOf(p.slug), deps.addCtx, horizon, deps.discipline, deps.ageTier)
     const { projectedTotal } = projectPlayer(base, added, deps.publishDate)
     return { p, projectedPoints: projectedTotal }
   })

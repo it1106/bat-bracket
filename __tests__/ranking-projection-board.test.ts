@@ -18,7 +18,7 @@ const detail: RankingPlayerDetail = {
 
 describe('buildBaseRows', () => {
   it('keeps singles rows (credit = points), excludes doubles', () => {
-    const rows = buildBaseRows(detail, 'singles')
+    const rows = buildBaseRows(detail, 'singles', 15)
     expect(rows).toEqual([{ week: '2026-10', sourceEvent: 'BS U15', tournamentName: 'A', credit: 4194 }])
   })
 
@@ -31,14 +31,35 @@ describe('buildBaseRows', () => {
           result: '33/64', points: 2147, countsTowardRankings: [], countsTowardRankingsParsed: [] },
       ],
     }
-    const rows = buildBaseRows(withEleventh, 'singles')
+    const rows = buildBaseRows(withEleventh, 'singles', 15)
     expect(rows.find(r => r.tournamentName === 'OLD')).toMatchObject({ credit: 2147 })
   })
 
   it('selects by discipline — doubles board keeps only doubles rows', () => {
-    expect(buildBaseRows(detail, 'doubles')).toEqual([
+    expect(buildBaseRows(detail, 'doubles', 15)).toEqual([
       { week: '2026-10', sourceEvent: 'BD U15', tournamentName: 'A', credit: 3000 },
     ])
+  })
+
+  it('excludes other age groups — a U17 or U13 row credits its own list, not U15', () => {
+    const crossTier: RankingPlayerDetail = {
+      ...detail,
+      tournaments: [
+        ...detail.tournaments,
+        // The exact shape of the profile bug: a U15 player's U17 result.
+        { tournamentName: 'U17', tournamentId: null, sourceEvent: 'BS U17', week: '2026-11',
+          result: '33/64', points: 2684,
+          countsTowardRankings: ['U17 Boys singles'],
+          countsTowardRankingsParsed: [{ eventName: 'U17 Boys singles', credit: 2684 }] },
+        // BAT carries nothing down either: this earns U13 points only.
+        { tournamentName: 'U13', tournamentId: null, sourceEvent: 'BS U13', week: '2026-12',
+          result: '5/8', points: 2147, countsTowardRankings: [], countsTowardRankingsParsed: [] },
+        // An Open result has no U-tier at all and credits no junior list.
+        { tournamentName: 'OPEN', tournamentId: null, sourceEvent: 'MS', week: '2026-13',
+          result: '17/32', points: 8389, countsTowardRankings: [], countsTowardRankingsParsed: [] },
+      ],
+    }
+    expect(buildBaseRows(crossTier, 'singles', 15).map(r => r.sourceEvent)).toEqual(['BS U15'])
   })
 
   it('selects mixed rows for the mixed board', () => {
@@ -50,7 +71,7 @@ describe('buildBaseRows', () => {
           result: '5/8', points: 2684, countsTowardRankings: [], countsTowardRankingsParsed: [] },
       ],
     }
-    expect(buildBaseRows(withMixed, 'mixed')).toEqual([
+    expect(buildBaseRows(withMixed, 'mixed', 15)).toEqual([
       { week: '2026-11', sourceEvent: 'XD U15', tournamentName: 'M', credit: 2684 },
     ])
   })
@@ -71,7 +92,7 @@ describe('buildAddedRows', () => {
   })
 
   it('adds a singles result newer than the snapshot horizon', () => {
-    const rows = buildAddedRows([ev('YONEX', 'BS U15')], ctx, HORIZON, 'singles')
+    const rows = buildAddedRows([ev('YONEX', 'BS U15')], ctx, HORIZON, 'singles', 15)
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ week: '2026-25', sourceEvent: 'BS U15', tournamentName: 'YONEX-SINGHA-BAT-BTY 2026' })
     expect(rows[0].credit).toBeGreaterThan(0)
@@ -80,7 +101,7 @@ describe('buildAddedRows', () => {
   it('skips a tournament at or before the horizon (already in the official snapshot)', () => {
     // week 2026-17 <= horizon 2026-23 — this is the Toyota/Trang double-count bug:
     // the same tournament is in the official detail under a different name/week.
-    const rows = buildAddedRows([ev('OLD', 'BS U15')], ctx, HORIZON, 'singles')
+    const rows = buildAddedRows([ev('OLD', 'BS U15')], ctx, HORIZON, 'singles', 15)
     expect(rows).toEqual([])
   })
 
@@ -89,12 +110,18 @@ describe('buildAddedRows', () => {
     // though the tournament is post-horizon, nothing is added — this is why
     // ฐเดชา, who lost his opening YONEX match, gains no projected points.
     const noPoints = { ...ev('YONEX', 'BS U15'), bestFinish: 'R32' as const, wins: 0, lostByWalkover: true }
-    expect(buildAddedRows([noPoints], ctx, HORIZON, 'singles')).toEqual([])
+    expect(buildAddedRows([noPoints], ctx, HORIZON, 'singles', 15)).toEqual([])
+  })
+
+  it('excludes a new result from another age group', () => {
+    expect(buildAddedRows([ev('YONEX', 'BS U17')], ctx, HORIZON, 'singles', 15)).toEqual([])
+    expect(buildAddedRows([ev('YONEX', 'BS U13')], ctx, HORIZON, 'singles', 15)).toEqual([])
+    expect(buildAddedRows([ev('YONEX', 'MS')], ctx, HORIZON, 'singles', 15)).toEqual([])
   })
 
   it('excludes non-singles results (wrong board)', () => {
     const doubles = { ...ev('YONEX', 'BD U15'), discipline: 'doubles' as const }
-    expect(buildAddedRows([doubles], ctx, HORIZON, 'singles')).toEqual([])
+    expect(buildAddedRows([doubles], ctx, HORIZON, 'singles', 15)).toEqual([])
   })
 })
 
@@ -113,7 +140,7 @@ describe('assembleProjectedBoard', () => {
           result: 'y', points: 9000, countsTowardRankings: [TARGET], countsTowardRankingsParsed: [{ eventName: TARGET, credit: 9000 }] }] },
     }
     const board = await assembleProjectedBoard(cohort, {
-      publishDate: '23/6/2569', discipline: 'singles',
+      publishDate: '23/6/2569', discipline: 'singles', ageTier: 15,
       detailOf: async g => details[g] ?? null,
       eventsOf: () => [],
       addCtx: { levelOf: () => undefined, nameOf: () => '', weekOf: () => null },
@@ -142,7 +169,7 @@ describe('assembleProjectedBoard', () => {
         { slug: 'e', globalPlayerId: 'ge', officialRank: 5, officialPoints: 8000, name: 'E' },
       ],
       {
-        publishDate: '23/6/2569', discipline: 'singles',
+        publishDate: '23/6/2569', discipline: 'singles', ageTier: 15,
         detailOf: async g => details[g] ?? null,
         eventsOf: () => [],
         addCtx: { levelOf: () => undefined, nameOf: () => '', weekOf: () => null },
@@ -173,7 +200,7 @@ describe('assembleProjectedBoard', () => {
         { slug: 'b', globalPlayerId: 'gb', officialRank: 2, officialPoints: 4000, name: 'B' },
       ],
       {
-        publishDate: '23/6/2569', discipline: 'singles',
+        publishDate: '23/6/2569', discipline: 'singles', ageTier: 15,
         detailOf: async g => details[g] ?? null,
         eventsOf: slug => events[slug] ?? [],
         addCtx: {

@@ -28,6 +28,7 @@ export async function GET(req: Request) {
   const entries = await assembleProjectedBoard(cohort.players, {
     publishDate: cohort.publishDate,
     discipline: board.discipline,
+    ageTier: board.ageTier,
     detailOf: async gid => (await readRankingPlayerDetail('bat', gid))?.detail ?? null,
     eventsOf, addCtx,
   })
