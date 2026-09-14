@@ -7,6 +7,10 @@ export interface ProjectionRow {
   sourceEvent: string     // e.g. "BS U15"
   tournamentName: string
   credit: number          // credit toward the target event
+  /** Upstream tournament GUID, upper-cased. Shared key between BAT's official
+   *  detail rows and our index, so base and added rows dedupe exactly. Null
+   *  only when the upstream row carried no resolvable id. */
+  tournamentId: string | null
 }
 
 export interface PlayerProjection {
@@ -20,15 +24,19 @@ function ageOf(sourceEvent: string): number {
   return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY
 }
 
-/** Rule 1: collapse rows sharing (week, tournamentName) to a single entry,
- *  keeping the highest credit. Ties keep the older age group (immaterial to
- *  the total — mirrors upstream). Within a single source the same tournament
- *  always carries one week, so (week, name) is safe; cross-source dedup is
- *  handled upstream by the snapshot-horizon filter in projection-board. */
+/** Rule 1: collapse rows for the same tournament to a single entry, keeping
+ *  the highest credit. Ties keep the older age group (immaterial to the total
+ *  — mirrors upstream). The tournament GUID keys the collapse whenever it is
+ *  known; it is the one identifier BAT's detail and our index agree on (they
+ *  disagree on both name — sponsor prefixes — and ISO week). (week, name) is
+ *  the fallback for a row with no resolvable id: within a single source the
+ *  same tournament always carries one week, so it is safe there. */
 function dedupeByTournament(rows: ProjectionRow[]): ProjectionRow[] {
   const byKey = new Map<string, ProjectionRow>()
   for (const r of rows) {
-    const key = `${weekSortKey(r.week)}::${r.tournamentName.trim()}`
+    const key = r.tournamentId
+      ? `id::${r.tournamentId}`
+      : `${weekSortKey(r.week)}::${r.tournamentName.trim()}`
     const cur = byKey.get(key)
     if (!cur) { byKey.set(key, r); continue }
     let wins: boolean
@@ -51,8 +59,12 @@ export function projectPlayer(
   publishDate: string,
 ): PlayerProjection {
   const cutoff = expiringNextWeekCutoff(publishDate, 'thai-be')
-  const survivingBase = baseRows.filter(r => !isExpiringNextWeek(r.week, cutoff))
-  const merged = dedupeByTournament([...survivingBase, ...addedRows])
+  // The 52-week window applies to *both* sides. It used to be enough to filter
+  // the base rows, because the added side was bounded below by the snapshot
+  // horizon; now that identity does the de-duplication, an old index result
+  // that BAT never processed would otherwise sail into the top-10.
+  const surviving = [...baseRows, ...addedRows].filter(r => !isExpiringNextWeek(r.week, cutoff))
+  const merged = dedupeByTournament(surviving)
   const top = merged
     .slice()
     .sort((a, b) => b.credit - a.credit || weekSortKey(b.week).localeCompare(weekSortKey(a.week)))

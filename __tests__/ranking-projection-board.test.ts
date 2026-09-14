@@ -1,4 +1,4 @@
-import { buildBaseRows, buildAddedRows, assembleProjectedBoard, snapshotHorizonWeek } from '@/lib/ranking/projection-board'
+import { buildBaseRows, buildAddedRows, assembleProjectedBoard, countedTournamentIds } from '@/lib/ranking/projection-board'
 import type { RankingPlayerDetail, PlayerEventResult } from '@/lib/types'
 
 const TARGET = 'U15 Boys singles'
@@ -6,11 +6,11 @@ const TARGET = 'U15 Boys singles'
 const detail: RankingPlayerDetail = {
   globalPlayerId: 'g', publishDate: '23/6/2569', scrapedAt: 'now',
   tournaments: [
-    { tournamentName: 'A', tournamentId: null, sourceEvent: 'BS U15', week: '2026-10',
+    { tournamentName: 'A', tournamentId: 'T-A', sourceEvent: 'BS U15', week: '2026-10',
       result: '9/16', points: 4194,
       countsTowardRankings: [TARGET], countsTowardRankingsParsed: [{ eventName: TARGET, credit: 4194 }] },
     // doubles row: wrong board -> excluded
-    { tournamentName: 'A', tournamentId: null, sourceEvent: 'BD U15', week: '2026-10',
+    { tournamentName: 'A', tournamentId: 'T-A', sourceEvent: 'BD U15', week: '2026-10',
       result: '5/8', points: 3000,
       countsTowardRankings: ['U15 Boys doubles'], countsTowardRankingsParsed: [{ eventName: 'U15 Boys doubles', credit: 3000 }] },
   ],
@@ -19,7 +19,9 @@ const detail: RankingPlayerDetail = {
 describe('buildBaseRows', () => {
   it('keeps singles rows (credit = points), excludes doubles', () => {
     const rows = buildBaseRows(detail, 'singles', 15)
-    expect(rows).toEqual([{ week: '2026-10', sourceEvent: 'BS U15', tournamentName: 'A', credit: 4194 }])
+    expect(rows).toEqual([
+      { week: '2026-10', sourceEvent: 'BS U15', tournamentName: 'A', credit: 4194, tournamentId: 'T-A' },
+    ])
   })
 
   it('includes a NON-counting singles row (empty parsed credit) so Rule 2 can promote it', () => {
@@ -37,7 +39,7 @@ describe('buildBaseRows', () => {
 
   it('selects by discipline — doubles board keeps only doubles rows', () => {
     expect(buildBaseRows(detail, 'doubles', 15)).toEqual([
-      { week: '2026-10', sourceEvent: 'BD U15', tournamentName: 'A', credit: 3000 },
+      { week: '2026-10', sourceEvent: 'BD U15', tournamentName: 'A', credit: 3000, tournamentId: 'T-A' },
     ])
   })
 
@@ -67,61 +69,87 @@ describe('buildBaseRows', () => {
       ...detail,
       tournaments: [
         ...detail.tournaments,
-        { tournamentName: 'M', tournamentId: null, sourceEvent: 'XD U15', week: '2026-11',
+        { tournamentName: 'M', tournamentId: 'T-M', sourceEvent: 'XD U15', week: '2026-11',
           result: '5/8', points: 2684, countsTowardRankings: [], countsTowardRankingsParsed: [] },
       ],
     }
     expect(buildBaseRows(withMixed, 'mixed', 15)).toEqual([
-      { week: '2026-11', sourceEvent: 'XD U15', tournamentName: 'M', credit: 2684 },
+      { week: '2026-11', sourceEvent: 'XD U15', tournamentName: 'M', credit: 2684, tournamentId: 'T-M' },
     ])
   })
 })
 
+describe('countedTournamentIds', () => {
+  it('collects the ids of the player\'s official rows for the board', () => {
+    expect(countedTournamentIds(buildBaseRows(detail, 'singles', 15))).toEqual(new Set(['T-A']))
+  })
+
+  it('returns null when any base row has no resolvable id', () => {
+    const rows = buildBaseRows(detail, 'singles', 15)
+    expect(countedTournamentIds([...rows, { ...rows[0], tournamentId: null }])).toBeNull()
+  })
+})
+
 describe('buildAddedRows', () => {
-  // Horizon = the official snapshot's most-recent week. Anything at or before
-  // it is already published; only strictly-newer tournaments are un-counted.
-  const HORIZON = '2026-23'
+  // "Already counted" is per-player identity: a tournament present among the
+  // player's own official rows for this board. JORAKAY is one; PONSANA is a
+  // *different* tournament in the very same ISO week that BAT has not yet
+  // processed — the case the old week-horizon test could not express.
+  const COUNTED = new Set(['JORAKAY'])
   const ctx = {
     levelOf: () => 2,
-    nameOf: (id: string) => (id === 'YONEX' ? 'YONEX-SINGHA-BAT-BTY 2026' : 'OLD EVENT'),
-    weekOf: (id: string) => (id === 'YONEX' ? '2026-25' : '2026-17'),
+    nameOf: (id: string) => (id === 'PONSANA' ? 'BAT-VICTOR-PONSANA 2026' : 'Jorakay Junior 2026'),
+    weekOf: () => '2026-36',
   }
   const ev = (tournamentId: string, eventName: string): PlayerEventResult => ({
     tournamentId, eventId: 'e', eventName, discipline: 'singles',
     bestFinish: 'R16', wins: 2, losses: 1, drawSize: 32,
   })
 
-  it('adds a singles result newer than the snapshot horizon', () => {
-    const rows = buildAddedRows([ev('YONEX', 'BS U15')], ctx, HORIZON, 'singles', 15)
+  it('adds a tournament absent from the player\'s official rows', () => {
+    const rows = buildAddedRows([ev('PONSANA', 'BS U15')], ctx, COUNTED, 'singles', 15)
     expect(rows).toHaveLength(1)
-    expect(rows[0]).toMatchObject({ week: '2026-25', sourceEvent: 'BS U15', tournamentName: 'YONEX-SINGHA-BAT-BTY 2026' })
+    expect(rows[0]).toMatchObject({
+      week: '2026-36', sourceEvent: 'BS U15',
+      tournamentName: 'BAT-VICTOR-PONSANA 2026', tournamentId: 'PONSANA',
+    })
     expect(rows[0].credit).toBeGreaterThan(0)
   })
 
-  it('skips a tournament at or before the horizon (already in the official snapshot)', () => {
-    // week 2026-17 <= horizon 2026-23 — this is the Toyota/Trang double-count bug:
-    // the same tournament is in the official detail under a different name/week.
-    const rows = buildAddedRows([ev('OLD', 'BS U15')], ctx, HORIZON, 'singles', 15)
-    expect(rows).toEqual([])
+  it('skips a tournament already in the official snapshot, same week or not', () => {
+    // This is the Toyota/Trang double-count guard: the same tournament sits in
+    // the official detail under a different name and week.
+    expect(buildAddedRows([ev('JORAKAY', 'BS U15')], ctx, COUNTED, 'singles', 15)).toEqual([])
+  })
+
+  it('adds nothing at all when the counted set is unknown (null)', () => {
+    // A base row with no resolvable id means the set is incomplete; adding
+    // against it could double-count, so the player projects off base alone.
+    expect(buildAddedRows([ev('PONSANA', 'BS U15')], ctx, null, 'singles', 15)).toEqual([])
+  })
+
+  it('matches the counted set case-insensitively', () => {
+    const lower = { ...ev('jorakay', 'BS U15') }
+    expect(buildAddedRows([lower], ctx, COUNTED, 'singles', 15)).toEqual([])
   })
 
   it('skips a no-points result at a new tournament (e.g. first-round walkover loss)', () => {
     // A first-round walkover-loss earns 0 ranking points (shipped rule), so even
-    // though the tournament is post-horizon, nothing is added — this is why
+    // though the tournament is uncounted, nothing is added — this is why
     // ฐเดชา, who lost his opening YONEX match, gains no projected points.
-    const noPoints = { ...ev('YONEX', 'BS U15'), bestFinish: 'R32' as const, wins: 0, lostByWalkover: true }
-    expect(buildAddedRows([noPoints], ctx, HORIZON, 'singles', 15)).toEqual([])
+    const noPoints = { ...ev('PONSANA', 'BS U15'), bestFinish: 'R32' as const, wins: 0, lostByWalkover: true }
+    expect(buildAddedRows([noPoints], ctx, COUNTED, 'singles', 15)).toEqual([])
   })
 
   it('excludes a new result from another age group', () => {
-    expect(buildAddedRows([ev('YONEX', 'BS U17')], ctx, HORIZON, 'singles', 15)).toEqual([])
-    expect(buildAddedRows([ev('YONEX', 'BS U13')], ctx, HORIZON, 'singles', 15)).toEqual([])
-    expect(buildAddedRows([ev('YONEX', 'MS')], ctx, HORIZON, 'singles', 15)).toEqual([])
+    expect(buildAddedRows([ev('PONSANA', 'BS U17')], ctx, COUNTED, 'singles', 15)).toEqual([])
+    expect(buildAddedRows([ev('PONSANA', 'BS U13')], ctx, COUNTED, 'singles', 15)).toEqual([])
+    expect(buildAddedRows([ev('PONSANA', 'MS')], ctx, COUNTED, 'singles', 15)).toEqual([])
   })
 
   it('excludes non-singles results (wrong board)', () => {
-    const doubles = { ...ev('YONEX', 'BD U15'), discipline: 'doubles' as const }
-    expect(buildAddedRows([doubles], ctx, HORIZON, 'singles', 15)).toEqual([])
+    const doubles = { ...ev('PONSANA', 'BD U15'), discipline: 'doubles' as const }
+    expect(buildAddedRows([doubles], ctx, COUNTED, 'singles', 15)).toEqual([])
   })
 })
 
@@ -180,54 +208,47 @@ describe('assembleProjectedBoard', () => {
     ])
   })
 
-  it('adds a genuinely-new (post-horizon) result and leaves already-counted ones alone', async () => {
-    // Both players have one official result at week 2026-10 -> horizon = 2026-10.
-    const mk = (gid: string, pts: number): RankingPlayerDetail => ({
+  it('adds a same-week tournament BAT has not processed, but not one it has', async () => {
+    // The Ponsana regression (publication 8/9/2569). Both tournaments fall in
+    // ISO week 2026-36: BAT processed JORAKAY into the edition, PONSANA it did
+    // not. The old snapshot-horizon test skipped everything at or before the
+    // cohort's newest week, so it swallowed PONSANA too and understated the
+    // player by a whole tournament. Only PONSANA may be added, and exactly once.
+    const mk = (gid: string): RankingPlayerDetail => ({
       globalPlayerId: gid, publishDate: '23/6/2569', scrapedAt: 'now',
-      tournaments: [{ tournamentName: 'OldCup', tournamentId: null, sourceEvent: 'BS U15', week: '2026-10',
-        result: 'x', points: pts, countsTowardRankings: [TARGET], countsTowardRankingsParsed: [{ eventName: TARGET, credit: pts }] }],
+      tournaments: [{ tournamentName: 'Jorakay Junior 2026', tournamentId: 'JORAKAY',
+        sourceEvent: 'BS U15', week: '2026-36', result: 'x', points: 5000,
+        countsTowardRankings: [TARGET], countsTowardRankingsParsed: [{ eventName: TARGET, credit: 5000 }] }],
     })
-    const details: Record<string, RankingPlayerDetail> = { ga: mk('ga', 5000), gb: mk('gb', 4000) }
-    // gb played a NEW tournament (week 2026-25 > horizon) worth 3000; ga also has
-    // an index row but it's at the horizon week (already counted) -> not added.
+    const details: Record<string, RankingPlayerDetail> = { ga: mk('ga'), gb: mk('gb') }
+    const ev = (tournamentId: string): PlayerEventResult => ({
+      tournamentId, eventId: 'e', eventName: 'BS U15', discipline: 'singles',
+      bestFinish: 'Champion', wins: 6, losses: 0, drawSize: 128,
+    })
     const events: Record<string, PlayerEventResult[]> = {
-      a: [{ tournamentId: 'OLD', eventId: 'e', eventName: 'BS U15', discipline: 'singles', bestFinish: 'R16', wins: 2, losses: 1, drawSize: 32 }],
-      b: [{ tournamentId: 'NEW', eventId: 'e', eventName: 'BS U15', discipline: 'singles', bestFinish: 'F', wins: 5, losses: 1, drawSize: 32 }],
+      // a only replays the already-counted tournament; b also played Ponsana.
+      a: [ev('JORAKAY')],
+      b: [ev('JORAKAY'), ev('PONSANA')],
     }
     const board = await assembleProjectedBoard(
       [
         { slug: 'a', globalPlayerId: 'ga', officialRank: 1, officialPoints: 5000, name: 'A' },
-        { slug: 'b', globalPlayerId: 'gb', officialRank: 2, officialPoints: 4000, name: 'B' },
+        { slug: 'b', globalPlayerId: 'gb', officialRank: 2, officialPoints: 5000, name: 'B' },
       ],
       {
         publishDate: '23/6/2569', discipline: 'singles', ageTier: 15,
         detailOf: async g => details[g] ?? null,
         eventsOf: slug => events[slug] ?? [],
         addCtx: {
-          levelOf: () => 2,
-          nameOf: id => (id === 'NEW' ? 'YONEX 2026' : 'OldCup'),
-          weekOf: id => (id === 'NEW' ? '2026-25' : '2026-10'),
+          levelOf: () => 2,                                     // U15 Winner @ L2 = 8192
+          nameOf: id => (id === 'PONSANA' ? 'BAT-VICTOR-PONSANA 2026' : 'Jorakay Junior 2026'),
+          weekOf: () => '2026-36',
         },
       },
     )
     const a = board.find(e => e.slug === 'a')!
     const b = board.find(e => e.slug === 'b')!
-    expect(a.projectedPoints).toBe(5000)             // index row at horizon -> nothing added
-    expect(b.projectedPoints).toBeGreaterThan(4000)  // genuinely-new result added
-  })
-})
-
-describe('snapshotHorizonWeek', () => {
-  it('returns the most recent week across all base rows', () => {
-    const rows = [
-      [{ week: '2026-10', sourceEvent: 'BS U15', tournamentName: 'A', credit: 1 }],
-      [{ week: '2026-23', sourceEvent: 'BS U15', tournamentName: 'B', credit: 1 },
-       { week: '2026-05', sourceEvent: 'BS U15', tournamentName: 'C', credit: 1 }],
-    ]
-    expect(snapshotHorizonWeek(rows)).toBe('2026-23')
-  })
-
-  it('returns empty string when there are no rows', () => {
-    expect(snapshotHorizonWeek([[], []])).toBe('')
+    expect(a.projectedPoints).toBe(5000)          // counted tournament -> nothing added
+    expect(b.projectedPoints).toBe(5000 + 8192)   // +Ponsana only, and only once
   })
 })

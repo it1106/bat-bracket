@@ -24,6 +24,40 @@ describe('parseRankingPlayerPage', () => {
   })
 })
 
+describe('parseRankingPlayerPage — tournament id', () => {
+  // A real BAT row. The tournament-name anchor carries ranking-internal ids
+  // (`id=<rankingId>&tournament=<int>`), NOT the tournament GUID — reading the
+  // id from that cell alone is why every cached row used to be null. The GUID
+  // rides on the source-event and Matches links instead.
+  const batRow = `<table><tr>
+    <td><a href="tournament.aspx?id=53669&tournament=313774">SAT NSDF Badminton Thai Domestic power 2026 Final</a></td>
+    <td><a href="../sport/event.aspx?id=A2812D92-B33F-4F37-AC72-3310BB1BE0F1&event=11">BS U15</a></td>
+    <td>2026-22</td>
+    <td align="right"></td>
+    <td align="right">5243</td>
+    <td><a href="../sport/player.aspx?id=A2812D92-B33F-4F37-AC72-3310BB1BE0F1&player=1733">Matches</a></td>
+    <td><img src="x.gif" alt="" title="Used for: U15 Boys singles" /></td>
+  </tr></table>`
+
+  it('reads the GUID off the row even when the name anchor has none', () => {
+    const { tournaments } = parseRankingPlayerPage(batRow)
+    expect(tournaments).toHaveLength(1)
+    expect(tournaments[0].tournamentId).toBe('A2812D92-B33F-4F37-AC72-3310BB1BE0F1')
+  })
+
+  it('upper-cases the id so it matches the index key', () => {
+    const { tournaments } = parseRankingPlayerPage(batRow.toLowerCase().replace('<img src="x.gif"', '<img src="x.gif"'))
+    expect(tournaments[0]?.tournamentId).toBe('A2812D92-B33F-4F37-AC72-3310BB1BE0F1')
+  })
+
+  it('is null when the row carries no GUID anywhere', () => {
+    const noGuid = batRow
+      .replace('../sport/event.aspx?id=A2812D92-B33F-4F37-AC72-3310BB1BE0F1&event=11', '#')
+      .replace('../sport/player.aspx?id=A2812D92-B33F-4F37-AC72-3310BB1BE0F1&player=1733', '#')
+    expect(parseRankingPlayerPage(noGuid).tournaments[0].tournamentId).toBeNull()
+  })
+})
+
 describe('parseRankingPlayerPage — structured credits', () => {
   // Inline mini-HTML so the test does not depend on a captured fixture.
   // Matches BWF's row layout: 7 <td> cells, last one carrying the marker img.

@@ -10,8 +10,18 @@ function decodeEntities(s: string): string {
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
 }
 
-function tournamentIdFromHref(href: string): string | null {
-  const m = href.match(/tournament\.aspx\?id=([A-Fa-f0-9-]{36})/)
+/** The tournament's GUID — the same id the player index keys on, so a detail
+ *  row can be matched to an index result exactly.
+ *
+ *  It is NOT in the row's first cell: BAT's tournament-name anchor points at
+ *  `tournament.aspx?id=<rankingId>&tournament=<int>`, ranking-internal ids that
+ *  say nothing about the tournament itself. The GUID rides on the row's *other*
+ *  links — the source-event cell's `../sport/event.aspx?id=<GUID>&event=N` and
+ *  the Matches cell's `../sport/player.aspx?id=<GUID>&player=N`. Scan the whole
+ *  row so either one resolves it. (BWF pages use the `tournament.aspx?id=<GUID>`
+ *  shape, which is why that form is still matched.) */
+function tournamentIdFromRow(rowHtml: string): string | null {
+  const m = rowHtml.match(/(?:tournament|event|player)\.aspx\?id=([A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12})/)
   return m ? m[1].toUpperCase() : null
 }
 
@@ -52,7 +62,7 @@ function parseRow(rowHtml: string): RankingPlayerTournament | null {
   const tnLink = tds[0].match(/<a\s[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i)
   if (!tnLink) return null
   const tournamentName = decodeEntities(stripTags(tnLink[2]))
-  const tournamentId = tournamentIdFromHref(tnLink[1])
+  const tournamentId = tournamentIdFromRow(rowHtml)
 
   const sourceEventRaw = stripTags(tds[1])
   if (!sourceEventRaw) return null

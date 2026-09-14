@@ -5,8 +5,11 @@ import { projectPlayer, ProjectionRow } from '@/lib/ranking/projection'
 // 2025-26: rows in week <= 2025-26 expire next publish.
 const PUB = '23/6/2569'
 
-function row(week: string, credit: number, name = `T-${week}-${credit}`, src = 'BS U15'): ProjectionRow {
-  return { week, sourceEvent: src, tournamentName: name, credit }
+function row(
+  week: string, credit: number, name = `T-${week}-${credit}`, src = 'BS U15',
+  tournamentId: string | null = null,
+): ProjectionRow {
+  return { week, sourceEvent: src, tournamentName: name, credit, tournamentId }
 }
 
 describe('projectPlayer', () => {
@@ -42,10 +45,30 @@ describe('projectPlayer', () => {
     expect(p.rows).toHaveLength(1)
   })
 
+  it('Rule 1: the tournament id collapses rows the upstream names differently', () => {
+    // BAT's detail and our index disagree on both name and ISO week for the
+    // same event; the GUID is what they agree on.
+    const base = [row('2026-11', 4000, 'PONSANA CHAMPIONSHIPS', 'BS U15', 'GUID-1')]
+    const added = [row('2026-12', 6000, 'BAT-VICTOR-PONSANA … Presented by MITH', 'BS U15', 'GUID-1')]
+    const p = projectPlayer(base, added, PUB)
+    expect(p.projectedTotal).toBe(6000)
+    expect(p.rows).toHaveLength(1)
+  })
+
   it('adds recent results on top of base, then re-picks top-10', () => {
     const base = [row('2026-10', 5000)]
     const added = [row('2026-20', 7000, 'NEW')]
     const p = projectPlayer(base, added, PUB)
     expect(p.projectedTotal).toBe(12000)
+  })
+
+  it('applies the expiry window to added rows too, not just base rows', () => {
+    // An index result BAT never processed, older than the 52-week window. The
+    // snapshot horizon used to bound the added side; identity dedup does not.
+    const base = [row('2026-10', 5000)]
+    const added = [row('2025-20', 9000, 'ANCIENT', 'BS U15', 'GUID-OLD')]
+    const p = projectPlayer(base, added, PUB)
+    expect(p.projectedTotal).toBe(5000)
+    expect(p.rows.some(r => r.tournamentName === 'ANCIENT')).toBe(false)
   })
 })

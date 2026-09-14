@@ -937,8 +937,15 @@ export interface RankingPlayerDetailCache {
    *  gained their Used-for markers at all — v1 parsed the marker out of a
    *  fixed cell index and so read every BAT doubles row as counting toward
    *  nothing. Those entries can't be repaired in place, so v1 files are
-   *  dropped on read and re-fetched. */
-  version: 2
+   *  dropped on read and re-fetched.
+   *
+   *  v3: rows gained a real `tournamentId`. The parser only ever looked for
+   *  the GUID in the tournament-name anchor, which on BAT carries
+   *  ranking-internal ids — so every v2 row cached `tournamentId: null`. The
+   *  projection now dedupes added results against the official rows by that
+   *  id, and a null reads as "unknown", so v2 files are dropped on read and
+   *  re-fetched rather than silently disabling the projection. */
+  version: 3
   /** Success path. */
   detail?: RankingPlayerDetail
   /** Negative cache for a player whose detail page 404'd. Keyed to the same
