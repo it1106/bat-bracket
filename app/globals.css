@@ -10,6 +10,11 @@
 :root {
   --bg: #f0f2f5;
   --surface: #ffffff;
+  /* One step up from --surface, for a raised strip on top of it (table
+     header rows). MUST be defined in every scope that pins the palette,
+     html.dark included — a light-only value here renders as invisible
+     text in dark mode. */
+  --surface-2: #f3f4f6;
   --fg: #1a1a1a;
   --muted: #888888;
   --border: #e5e7eb;
@@ -34,6 +39,7 @@
 html.dark {
   --bg: #0d1117;
   --surface: #161b22;
+  --surface-2: #21262d;
   --fg: #e6edf3;
   --muted: #7d8590;
   --border: #30363d;
@@ -70,6 +76,7 @@ html, body {
 .ms-share-capture {
   --bg: #f0f2f5;
   --surface: #ffffff;
+  --surface-2: #f3f4f6;
   --fg: #1a1a1a;
   --muted: #888888;
   --border: #e5e7eb;
@@ -3515,7 +3522,7 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .pts-ref-table th, .pts-ref-table td {
   border: 1px solid var(--border); padding: 4px 8px; text-align: right; white-space: nowrap;
 }
-.pts-ref-table thead th { background: var(--surface-2, #f3f4f6); text-align: center; }
+.pts-ref-table thead th { background: var(--surface-2); text-align: center; }
 .pts-ref-table tbody th[scope="row"] { text-align: left; font-weight: 600; }
 
 .pp-ev-chip-pts { color: var(--muted); font-variant-numeric: tabular-nums; }
