@@ -913,6 +913,12 @@ export interface RankingPlayerTournament {
   /** Structured per-target credits parsed from the same marker. Optional
    *  so detail JSONs cached before this change still load. */
   countsTowardRankingsParsed?: RankingTargetCredit[]
+  /** BAT doubles/mixed rows only: the partner played with. A player can hold
+   *  several ranking entries in one doubles event — one per pairing — and the
+   *  partner is the only thing that separates them, so it keys the per-pairing
+   *  section split. Absent on singles rows and on every BWF row (no such
+   *  column upstream). */
+  doublesPartner?: string
 }
 
 export interface RankingPlayerDetail {
@@ -927,7 +933,12 @@ export interface RankingPlayerDetail {
 }
 
 export interface RankingPlayerDetailCache {
-  version: 1
+  /** v2: rows gained `doublesPartner` and, more importantly, doubles rows
+   *  gained their Used-for markers at all — v1 parsed the marker out of a
+   *  fixed cell index and so read every BAT doubles row as counting toward
+   *  nothing. Those entries can't be repaired in place, so v1 files are
+   *  dropped on read and re-fetched. */
+  version: 2
   /** Success path. */
   detail?: RankingPlayerDetail
   /** Negative cache for a player whose detail page 404'd. Keyed to the same

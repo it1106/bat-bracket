@@ -174,27 +174,20 @@ export function dedupePerTournament(
   return Array.from(byKey.values())
 }
 
-function disciplineRowsByPointsDesc(
+/** Rows in this tab that the upstream credits toward no ranking event at
+ *  all — an age group the player has aged out of, or a pairing that has
+ *  dropped off the list. They belong to no section, so they'd otherwise
+ *  vanish from the profile; surfaced as a trailing uncounted block instead. */
+export function uncreditedRowsForTab(
   detail: RankingPlayerDetail,
   discipline: Discipline,
 ): RankingPlayerTournament[] {
-  const inTab = detail.tournaments.filter(
-    (r) => disciplineOf(r.sourceEvent) === discipline,
+  const rows = detail.tournaments.filter(
+    (r) => disciplineOf(r.sourceEvent) === discipline && targetsOf(r).length === 0,
   )
-  if (inTab.length === 0) return []
-  return dedupePerTournament(inTab)
+  return rows
     .slice()
-    .sort((a, b) => b.points - a.points || weekSortKey(b.week).localeCompare(weekSortKey(a.week)))
-}
-
-export function topRowsForTab(detail: RankingPlayerDetail, discipline: Discipline): RankingPlayerTournament[] {
-  return disciplineRowsByPointsDesc(detail, discipline)
-    .slice(0, TOP_N)
     .sort((a, b) => weekSortKey(b.week).localeCompare(weekSortKey(a.week)))
-}
-
-export function otherRowsForTab(detail: RankingPlayerDetail, discipline: Discipline): RankingPlayerTournament[] {
-  return disciplineRowsByPointsDesc(detail, discipline).slice(TOP_N)
 }
 
 /** Like disciplineOf but takes a full ranking event name like
@@ -216,6 +209,15 @@ export interface RankingSectionRow {
 
 export interface RankingSection {
   eventName: string
+  /** Set when this section is one pairing of a doubles event. Two pairings in
+   *  the same event are two independent ranking entries with their own point
+   *  totals, so they must not share a section. */
+  doublesPartner?: string
+  /** True when the provider's overview lists several entries for this
+   *  `eventName` (one per pairing) and we therefore can't tell which rank
+   *  belongs to this section. Callers hide the rank badge rather than show
+   *  another pairing's rank. */
+  rankAmbiguous: boolean
   top: RankingSectionRow[]
   others: RankingSectionRow[]
   topTotal: number
@@ -245,30 +247,41 @@ function ageTierOfEventName(name: string): number {
   return m ? parseInt(m[1], 10) : Number.POSITIVE_INFINITY
 }
 
-/** BWF-only: one section per target ranking event the player has credit
- *  toward, filtered to the active discipline tab. Sorted by age desc. */
-export function bwfSectionsForTab(
+/** One section per ranking entry the player holds in this discipline: per
+ *  target ranking event named by the upstream's Used-for markers, and — for
+ *  doubles — per pairing within that event. Sorted by age desc.
+ *
+ *  Both providers rank by age group in isolation (BAT stopped pooling age
+ *  groups after its Open/Junior split), and the markers already encode that
+ *  split exactly: a BS U15 row is credited to "U15 Boys singles" only. So
+ *  bucketing by marker target — rather than taking a flat top-10 across a
+ *  whole discipline — is what keeps a U17 row out of the U15 total.
+ */
+export function rankingSectionsForTab(
   detail: RankingPlayerDetail,
   discipline: Discipline,
 ): RankingSection[] {
-  // 1. Build per-event row map, filtered to the active discipline.
-  const byEvent = new Map<string, RankingSectionRow[]>()
+  // 1. Build per-(event, pairing) row map, filtered to the active discipline.
+  interface Bucket { eventName: string; doublesPartner?: string; rows: RankingSectionRow[] }
+  const buckets = new Map<string, Bucket>()
   for (const row of detail.tournaments) {
     for (const target of targetsOf(row)) {
       if (disciplineOfEventName(target.eventName) !== discipline) continue
-      const bucket = byEvent.get(target.eventName) ?? []
-      bucket.push({ row, creditInThisSection: target.credit })
-      byEvent.set(target.eventName, bucket)
+      const partner = row.doublesPartner || undefined
+      const key = `${target.eventName}\u0000${partner ?? ''}`
+      const bucket = buckets.get(key) ?? { eventName: target.eventName, doublesPartner: partner, rows: [] }
+      bucket.rows.push({ row, creditInThisSection: target.credit })
+      buckets.set(key, bucket)
     }
   }
 
   // 2. Per-section dedup + sort + top/others split.
   const sections: RankingSection[] = []
-  for (const [eventName, rows] of Array.from(byEvent.entries())) {
+  for (const bucket of Array.from(buckets.values())) {
     const dedupKey = (sr: RankingSectionRow) =>
       `${weekSortKey(sr.row.week)}::${sr.row.tournamentName.trim()}`
     const dedupMap = new Map<string, RankingSectionRow>()
-    for (const sr of rows) {
+    for (const sr of bucket.rows) {
       const key = dedupKey(sr)
       const ex = dedupMap.get(key)
       if (!ex || sr.creditInThisSection > ex.creditInThisSection) dedupMap.set(key, sr)
@@ -283,14 +296,35 @@ export function bwfSectionsForTab(
     )
     const others = sorted.slice(TOP_N)
     const topTotal = top.reduce((sum, sr) => sum + sr.creditInThisSection, 0)
-    sections.push({ eventName, top, others, topTotal })
+    sections.push({
+      eventName: bucket.eventName,
+      ...(bucket.doublesPartner ? { doublesPartner: bucket.doublesPartner } : {}),
+      rankAmbiguous: false,
+      top,
+      others,
+      topTotal,
+    })
   }
 
-  // 3. Section ordering: pure age desc — higher age group first. The
-  //  player's per-event rank is shown in the section header but does
-  //  NOT drive ordering, so a section the player dominates doesn't
-  //  jump above one they're carry-over-ranked in.
-  sections.sort((a, b) => ageTierOfEventName(b.eventName) - ageTierOfEventName(a.eventName))
+  // 3. Section ordering: age desc — higher age group first. The player's
+  //  per-event rank is shown in the section header but does NOT drive
+  //  ordering, so a section the player dominates doesn't jump above one
+  //  they're carry-over-ranked in. Pairings within one event go by points
+  //  desc, matching the order of the upstream's own summary table.
+  sections.sort(
+    (a, b) =>
+      ageTierOfEventName(b.eventName) - ageTierOfEventName(a.eventName) ||
+      a.eventName.localeCompare(b.eventName) ||
+      b.topTotal - a.topTotal,
+  )
+
+  // 4. A split event has several ranking entries upstream but only one is
+  //  findable by slug, so no section in it may claim a rank.
+  const perEvent = new Map<string, number>()
+  for (const sec of sections) perEvent.set(sec.eventName, (perEvent.get(sec.eventName) ?? 0) + 1)
+  for (const sec of sections) {
+    if ((perEvent.get(sec.eventName) ?? 0) > 1) sec.rankAmbiguous = true
+  }
 
   return sections
 }

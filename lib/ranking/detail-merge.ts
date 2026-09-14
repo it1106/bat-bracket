@@ -69,12 +69,15 @@ export function seriesIdsForSlug(ranking: Ranking, slugs: string[]): Set<string>
   return out
 }
 
+// The partner is part of the key: one tournament can yield two BD rows for
+// the same player at the same points with different partners, and collapsing
+// them would merge two separate ranking entries' markers into one row.
 function rowKey(t: RankingPlayerTournament): string {
-  return `${t.tournamentId ?? t.tournamentName}|${t.sourceEvent}|${t.week}|${t.points}`
+  return `${t.tournamentId ?? t.tournamentName}|${t.sourceEvent}|${t.week}|${t.points}|${t.doublesPartner ?? ''}`
 }
 
 /** Union several series' detail pages into one. Rows are keyed on
- *  (tournament, event, week, points); a repeated row keeps the first copy but
+ *  (tournament, event, week, points, partner); a repeated row keeps the first copy but
  *  absorbs the other pages' Used-for markers, so a player's rows carry both
  *  their Open and Junior target categories. */
 export function mergeDetails(details: RankingPlayerDetail[]): RankingPlayerDetail | null {

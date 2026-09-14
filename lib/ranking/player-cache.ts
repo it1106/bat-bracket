@@ -42,7 +42,7 @@ export async function readRankingPlayerDetail(
     const parsed = JSON.parse(
       await fs.readFile(cacheFile(provider, globalPlayerId), 'utf8'),
     ) as RankingPlayerDetailCache
-    if (parsed.version !== 1) return null
+    if (parsed.version !== 2) return null
     return parsed
   } catch {
     return null
@@ -56,7 +56,7 @@ export async function writeRankingPlayerDetail(
   const file = cacheFile(provider, detail.globalPlayerId)
   const tmp = `${file}.tmp`
   await fs.mkdir(path.dirname(file), { recursive: true })
-  const payload: RankingPlayerDetailCache = { version: 1, detail }
+  const payload: RankingPlayerDetailCache = { version: 2, detail }
   await fs.writeFile(tmp, JSON.stringify(payload), 'utf8')
   await fs.rename(tmp, file)
 }
@@ -70,7 +70,7 @@ export async function writeRankingPlayerNotFound(
   const tmp = `${file}.tmp`
   await fs.mkdir(path.dirname(file), { recursive: true })
   const payload: RankingPlayerDetailCache = {
-    version: 1,
+    version: 2,
     notFound: { publishDate, scrapedAt: new Date().toISOString() },
   }
   await fs.writeFile(tmp, JSON.stringify(payload), 'utf8')

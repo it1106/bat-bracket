@@ -1,11 +1,10 @@
 import {
   weekKeyFromPublishDate,
   expiringWithinWeeksCutoff,
-  topRowsForTab,
-  otherRowsForTab,
+  uncreditedRowsForTab,
   disciplineOf,
   dedupePerTournament,
-  bwfSectionsForTab,
+  rankingSectionsForTab,
   disciplineOfEventName,
   countContributingTournaments,
   filterToLowestTwoAgeGroups,
@@ -38,7 +37,7 @@ describe('expiringWithinWeeksCutoff', () => {
   })
 })
 
-describe('topRowsForTab + otherRowsForTab', () => {
+describe('uncreditedRowsForTab', () => {
   const t = (sourceEvent: string, points: number, week = '2026-20'): RankingPlayerTournament => ({
     tournamentName: `T ${sourceEvent} ${points}`,
     tournamentId: null,
@@ -49,23 +48,22 @@ describe('topRowsForTab + otherRowsForTab', () => {
     globalPlayerId: '1', publishDate: '26/5/2569', scrapedAt: 'x', tournaments,
   })
 
-  it('returns top-N by points, newest first', () => {
-    const rows = Array.from({ length: TOP_N + 2 }, (_, i) =>
-      t('BS U15', 1000 - i * 10, `2026-${20 - i}`),
-    )
-    const d = detail(rows)
-    const top = topRowsForTab(d, 'singles')
-    expect(top).toHaveLength(TOP_N)
-    expect(top[0].week >= top[1].week).toBe(true)
+  it('returns only rows credited to no ranking event, newest first', () => {
+    const marked: RankingPlayerTournament = {
+      ...t('BS U15', 1000, '2026-20'),
+      countsTowardRankings: ['U15 Boys singles'],
+      countsTowardRankingsParsed: [{ eventName: 'U15 Boys singles', credit: 1000 }],
+    }
+    const older = t('BS U13', 500, '2025-40')
+    const newer = t('BS U13', 400, '2025-52')
+    const out = uncreditedRowsForTab(detail([marked, older, newer]), 'singles')
+    expect(out.map(r => r.week)).toEqual(['2025-52', '2025-40'])
   })
 
-  it('otherRowsForTab returns rows past top-N by points desc', () => {
-    const rows = Array.from({ length: TOP_N + 3 }, (_, i) =>
-      t('BS U15', 1000 - i, `2026-${20 - i}`),
-    )
-    const others = otherRowsForTab(detail(rows), 'singles')
-    expect(others).toHaveLength(3)
-    expect(others[0].points).toBeGreaterThan(others[1].points)
+  it('filters to the active discipline', () => {
+    const d = detail([t('BS U13', 500), t('BD U13', 600), t('XD U13', 700)])
+    expect(uncreditedRowsForTab(d, 'doubles').map(r => r.sourceEvent)).toEqual(['BD U13'])
+    expect(uncreditedRowsForTab(d, 'mixed').map(r => r.sourceEvent)).toEqual(['XD U13'])
   })
 
   it('classifies discipline by event code prefix', () => {
@@ -96,7 +94,7 @@ describe('disciplineOfEventName', () => {
   })
 })
 
-describe('bwfSectionsForTab', () => {
+describe('rankingSectionsForTab', () => {
   // Helper: a tournament row with a single parsed target.
   const tx = (
     sourceEvent: string,
@@ -123,7 +121,7 @@ describe('bwfSectionsForTab', () => {
       tx('MS-U15', 960, [{ eventName: "Boy's singles U15", credit: 960 }]),
       tx('MS-U15', 800, [{ eventName: "Boy's singles U15", credit: 800 }], '2026-20'),
     ])
-    const sections = bwfSectionsForTab(d, 'singles')
+    const sections = rankingSectionsForTab(d, 'singles')
     expect(sections).toHaveLength(1)
     expect(sections[0].eventName).toBe("Boy's singles U15")
     expect(sections[0].top).toHaveLength(2)
@@ -135,7 +133,7 @@ describe('bwfSectionsForTab', () => {
       tx('MS-U15', 960, [{ eventName: "Boy's singles U15", credit: 960 }], '2026-22', 'MITH YONEX'),
       tx('MS U13', 2125, [{ eventName: "Boy's singles U15", credit: 637.5 }], '2025-45', 'YONEX CP'),
     ])
-    const sections = bwfSectionsForTab(d, 'singles')
+    const sections = rankingSectionsForTab(d, 'singles')
     expect(sections).toHaveLength(1)
     const s = sections[0]
     expect(s.eventName).toBe("Boy's singles U15")
@@ -152,7 +150,7 @@ describe('bwfSectionsForTab', () => {
         { eventName: "Boy's singles U15", credit: 960 },
       ]),
     ])
-    const sections = bwfSectionsForTab(d, 'singles')
+    const sections = rankingSectionsForTab(d, 'singles')
     expect(sections).toHaveLength(2)
     const u15 = sections.find(s => s.eventName === "Boy's singles U15")
     const u17 = sections.find(s => s.eventName === "Boy's singles U17")
@@ -165,7 +163,7 @@ describe('bwfSectionsForTab', () => {
       tx('MS-U15', 500, [{ eventName: "Boy's singles U15", credit: 500 }], '2026-22', 'DupeName'),
       tx('MS-U17', 800, [{ eventName: "Boy's singles U15", credit: 240 }], '2026-22', 'DupeName'),
     ])
-    const s = bwfSectionsForTab(d, 'singles')[0]
+    const s = rankingSectionsForTab(d, 'singles')[0]
     expect(s.top).toHaveLength(1)
     expect(s.top[0].creditInThisSection).toBe(500)
   })
@@ -175,16 +173,16 @@ describe('bwfSectionsForTab', () => {
       tx('MS-U15', 960, [{ eventName: "Boy's singles U15", credit: 960 }]),
       tx('MD-U15', 1750, [{ eventName: "Boy's doubles U15", credit: 1750 }]),
     ])
-    expect(bwfSectionsForTab(d, 'singles')).toHaveLength(1)
-    expect(bwfSectionsForTab(d, 'doubles')).toHaveLength(1)
-    expect(bwfSectionsForTab(d, 'mixed')).toHaveLength(0)
+    expect(rankingSectionsForTab(d, 'singles')).toHaveLength(1)
+    expect(rankingSectionsForTab(d, 'doubles')).toHaveLength(1)
+    expect(rankingSectionsForTab(d, 'mixed')).toHaveLength(0)
   })
 
   it('rows with no parsed targets are silently dropped (BWF semantics)', () => {
     const d = det([
       { ...tx('MS-U15', 0, []), countsTowardRankings: [], countsTowardRankingsParsed: [] },
     ])
-    expect(bwfSectionsForTab(d, 'singles')).toHaveLength(0)
+    expect(rankingSectionsForTab(d, 'singles')).toHaveLength(0)
   })
 
   it('falls back to deriving from raw string when parsed field is absent', () => {
@@ -195,7 +193,7 @@ describe('bwfSectionsForTab', () => {
       countsTowardRankings: ["Boy's singles U17(150)", "Boy's singles U15"],
       // countsTowardRankingsParsed intentionally omitted
     }
-    const sections = bwfSectionsForTab(det([row]), 'singles')
+    const sections = rankingSectionsForTab(det([row]), 'singles')
     expect(sections).toHaveLength(2)
     const u17 = sections.find(s => s.eventName === "Boy's singles U17")
     const u15 = sections.find(s => s.eventName === "Boy's singles U15")
@@ -246,7 +244,7 @@ describe('bwfSectionsForTab', () => {
         { eventName: "Boy's singles U15", credit: 637.5 },
       ], '2025-45'),
     ])
-    const sections = bwfSectionsForTab(d, 'singles')
+    const sections = rankingSectionsForTab(d, 'singles')
     expect(sections.map(s => s.eventName)).toEqual([
       "Boy's singles U17",   // higher age → first
       "Boy's singles U15",

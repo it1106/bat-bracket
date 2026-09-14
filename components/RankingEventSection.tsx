@@ -19,14 +19,24 @@ function lookupRank(current: Ranking | null | undefined, eventName: string, slug
   return ev?.entries.find((e) => e.slug === slug)?.rank ?? null
 }
 
-export default function BwfRankingSection({ slug, section, cutoffs, currentRanking }: Props) {
+export default function RankingEventSection({ slug, section, cutoffs, currentRanking }: Props) {
   const { t } = useLanguage()
-  const myRank = lookupRank(currentRanking, section.eventName, slug)
+  // A doubles event the player holds several pairings in has one overview
+  // entry per pairing but only one is reachable by slug, so showing "its"
+  // rank here would pin another pairing's number on this one.
+  const myRank = section.rankAmbiguous
+    ? null
+    : lookupRank(currentRanking, section.eventName, slug)
   const totalDisplay = Math.round(section.topTotal).toLocaleString()
   return (
     <section className="pp-rd-section-event">
       <h3 className="pp-rd-section-event-header">
-        <span>{section.eventName}</span>
+        <span>
+          {section.eventName}
+          {section.doublesPartner && (
+            <span className="pp-rd-section-event-partner"> / {section.doublesPartner}</span>
+          )}
+        </span>
         <span className="pp-rd-section-event-meta">
           {myRank !== null && <>#{myRank} · </>}
           {totalDisplay} pts

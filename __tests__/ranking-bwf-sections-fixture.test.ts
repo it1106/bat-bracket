@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { parseRankingPlayerPage } from '@/lib/ranking/player-scraper'
-import { bwfSectionsForTab } from '@/lib/ranking/player-view'
+import { rankingSectionsForTab } from '@/lib/ranking/player-view'
 import type { RankingPlayerDetail } from '@/lib/types'
 
 const html = fs.readFileSync(
@@ -16,7 +16,7 @@ function detailFromFixture(): RankingPlayerDetail {
 
 describe("Ravin CHUCHAISRI's BWF sections (real fixture)", () => {
   it("Singles tab has a Boy's singles U15 section totalling 1598 pts", () => {
-    const sections = bwfSectionsForTab(detailFromFixture(), 'singles')
+    const sections = rankingSectionsForTab(detailFromFixture(), 'singles')
     const u15 = sections.find((s) => s.eventName === "Boy's singles U15")
     expect(u15).toBeDefined()
     // Math.round so float drift on 637.5 doesn't fail the assertion.
@@ -24,7 +24,7 @@ describe("Ravin CHUCHAISRI's BWF sections (real fixture)", () => {
   })
 
   it('The U13 row in the U15 section carries discounted credit 637.5', () => {
-    const sections = bwfSectionsForTab(detailFromFixture(), 'singles')
+    const sections = rankingSectionsForTab(detailFromFixture(), 'singles')
     const u15 = sections.find((s) => s.eventName === "Boy's singles U15")!
     const u13Row = u15.top.find((sr) => sr.row.sourceEvent.includes('U13'))
     expect(u13Row).toBeDefined()
@@ -33,7 +33,7 @@ describe("Ravin CHUCHAISRI's BWF sections (real fixture)", () => {
   })
 
   it("Doubles tab has a Boy's doubles U15 section with the carry-over", () => {
-    const sections = bwfSectionsForTab(detailFromFixture(), 'doubles')
+    const sections = rankingSectionsForTab(detailFromFixture(), 'doubles')
     const u15 = sections.find((s) => s.eventName === "Boy's doubles U15")
     expect(u15).toBeDefined()
     // MD-U15 full 1750 + MD U13 discounted 525 = 2275.

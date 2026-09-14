@@ -3,9 +3,8 @@ import { useEffect, useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import { track } from '@/lib/analytics'
 import {
-  topRowsForTab,
-  otherRowsForTab,
-  bwfSectionsForTab,
+  rankingSectionsForTab,
+  uncreditedRowsForTab,
   computeExpiryCutoffs,
   classifyExpiry,
   type Discipline,
@@ -13,7 +12,7 @@ import {
 import { getRankingConfig } from '@/lib/ranking/config'
 import type { Ranking, RankingPlayerDetail, ProviderTag } from '@/lib/types'
 import TournamentRow from './TournamentRow'
-import BwfRankingSection from './BwfRankingSection'
+import RankingEventSection from './RankingEventSection'
 
 interface Props {
   provider: ProviderTag
@@ -37,8 +36,9 @@ type FetchState =
 
 /**
  * Owns: active tab state + the fetch lifecycle when SSR didn't deliver
- * the detail. Renders three tabs; the body of each tab is a flat top-10
- * list (by points) sorted newest-first.
+ * the detail. Renders three tabs; the body of each tab is one block per
+ * ranking entry the player holds in that discipline (per age group, and per
+ * pairing for doubles), each a top-10-by-points list sorted newest-first.
  */
 export default function RankingDetailTabs({ provider, slug, initialDetail, rankingPublishDate, currentRanking }: Props) {
   const { t } = useLanguage()
@@ -114,59 +114,39 @@ export default function RankingDetailTabs({ provider, slug, initialDetail, ranki
     }
     const cutoffs = computeExpiryCutoffs(rankingPublishDate, getRankingConfig(provider).dateFormat)
 
-    if (provider === 'bwf') {
-      const sections = bwfSectionsForTab(fetchState.detail, active)
-      if (sections.length === 0) {
-        return <div className="pp-rd-empty">{t('rankingDetailEmpty')}</div>
-      }
-      return (
-        <>
-          {sections.map((section) => (
-            <BwfRankingSection
-              key={section.eventName}
-              slug={slug}
-              section={section}
-              cutoffs={cutoffs}
-              currentRanking={currentRanking}
-            />
-          ))}
-        </>
-      )
-    }
-
-    // BAT path — unchanged below.
-    const top = topRowsForTab(fetchState.detail, active)
-    if (top.length === 0) {
+    // Both providers rank each age group (and, for BAT doubles, each
+    // pairing) as its own list, so the body is one section per ranking entry
+    // the markers attribute to the player — never a flat top-10 over the
+    // whole discipline, which would pool a U17 row into a U15 total.
+    const sections = rankingSectionsForTab(fetchState.detail, active)
+    const uncredited = uncreditedRowsForTab(fetchState.detail, active)
+    if (sections.length === 0 && uncredited.length === 0) {
       return <div className="pp-rd-empty">{t('rankingDetailEmpty')}</div>
     }
-    const others = otherRowsForTab(fetchState.detail, active)
-    const topTotal = top.reduce((sum, r) => sum + r.points, 0)
     return (
       <>
-        <h3 className="pp-rd-section-header">
-          <span>{t('rankingDetailTopTen')}</span>
-          <span className="pp-rd-section-total">{topTotal.toLocaleString()} pts</span>
-        </h3>
-        {top.map((r, i) => (
-          <TournamentRow
-            key={`top-${r.week}-${r.tournamentName}-${i}`}
-            row={r}
-            expiry={classifyExpiry(r.week, cutoffs)}
+        {sections.map((section) => (
+          <RankingEventSection
+            key={`${section.eventName}::${section.doublesPartner ?? ''}`}
+            slug={slug}
+            section={section}
+            cutoffs={cutoffs}
+            currentRanking={currentRanking}
           />
         ))}
-        {others.length > 0 && (
-          <>
-            <h3 className="pp-rd-section-header pp-rd-section-header--divided">
-              {t('rankingDetailOthersTournaments')}
+        {uncredited.length > 0 && (
+          <section className="pp-rd-section-event">
+            <h3 className="pp-rd-section-event-header">
+              <span>{t('rankingDetailUncounted')}</span>
             </h3>
-            {others.map((r, i) => (
+            {uncredited.map((r, i) => (
               <TournamentRow
-                key={`oth-${r.week}-${r.tournamentName}-${i}`}
+                key={`unc-${r.week}-${r.tournamentName}-${i}`}
                 row={r}
                 expiry={classifyExpiry(r.week, cutoffs)}
               />
             ))}
-          </>
+          </section>
         )}
       </>
     )

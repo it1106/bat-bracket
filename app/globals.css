@@ -3387,6 +3387,10 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
   border-bottom: 1px solid var(--border);
   color: var(--fg);
 }
+.pp-rd-section-event-partner {
+  font-weight: 500;
+  color: var(--muted);
+}
 .pp-rd-section-event-meta {
   font-size: 13px;
   font-weight: 700;

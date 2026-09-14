@@ -15,24 +15,29 @@ function tournamentIdFromHref(href: string): string | null {
   return m ? m[1].toUpperCase() : null
 }
 
-function parseMarkerCategories(cell: string): string[] {
-  const img = cell.match(/<img\b[^>]*title="([^"]+)"[^>]*>/i)
-  if (!img) return []
-  const title = decodeEntities(img[1])
-  const idx = title.indexOf(':')
-  const tail = idx >= 0 ? title.slice(idx + 1) : title
+/** The Used-for marker is an `<img title="Used for: ...">` in the row's last
+ *  cell — but which index that is varies: singles rows have 7 cells, BAT
+ *  doubles rows 8 (a "Doubles partner" column sits between Matches and the
+ *  marker). Anchor on the title text rather than a cell index so both shapes
+ *  parse, and so the row's other imgs (the same icon_new.gif is reused
+ *  elsewhere) can't be mistaken for a marker. */
+function markerTitle(rowHtml: string): string | null {
+  const img = rowHtml.match(/<img\b[^>]*\btitle="Used for:([^"]*)"/i)
+  return img ? decodeEntities(img[1]) : null
+}
+
+function parseMarkerCategories(rowHtml: string): string[] {
+  const tail = markerTitle(rowHtml)
+  if (tail === null) return []
   return tail.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
 }
 
 /** Like parseMarkerCategories but extracts each entry's structured
  *  credit. Entries shaped like `"Boy's singles U17(288)"` yield credit 288;
  *  entries with no parens yield credit = rowPoints. */
-function parseMarkerCredits(rowPoints: number, cell: string): RankingTargetCredit[] {
-  const img = cell.match(/<img\b[^>]*title="([^"]+)"[^>]*>/i)
-  if (!img) return []
-  const title = decodeEntities(img[1])
-  const idx = title.indexOf(':')
-  const tail = idx >= 0 ? title.slice(idx + 1) : title
+function parseMarkerCredits(rowPoints: number, rowHtml: string): RankingTargetCredit[] {
+  const tail = markerTitle(rowHtml)
+  if (tail === null) return []
   return tail.split(',').map((s) => s.trim()).filter((s) => s.length > 0).map((s) => {
     const m = s.match(/^(.+?)\s*\(([\d.]+)\)\s*$/)
     if (m) return { eventName: m[1].trim(), credit: parseFloat(m[2]) }
@@ -64,13 +69,19 @@ function parseRow(rowHtml: string): RankingPlayerTournament | null {
   const points = pointsStr.length ? parseInt(pointsStr, 10) : 0
   if (!Number.isFinite(points)) return null
 
-  const markerCell = tds.length >= 7 ? tds[6] : ''
-  const countsTowardRankings = parseMarkerCategories(markerCell)
-  const countsTowardRankingsParsed = parseMarkerCredits(points, markerCell)
+  const countsTowardRankings = parseMarkerCategories(rowHtml)
+  const countsTowardRankingsParsed = parseMarkerCredits(points, rowHtml)
+
+  // BAT's doubles rows carry the partner's name in the cell after Matches;
+  // singles rows (and every BWF row) have no such column. The partner is
+  // what separates two pairings the player is ranked in under the same
+  // event, so it has to survive into the view layer.
+  const doublesPartner = tds.length >= 8 ? decodeEntities(stripTags(tds[6])) : ''
 
   return {
     tournamentName, tournamentId, sourceEvent, week, result, points,
     countsTowardRankings, countsTowardRankingsParsed,
+    ...(doublesPartner ? { doublesPartner } : {}),
   }
 }
 

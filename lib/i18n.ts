@@ -305,6 +305,7 @@ export type TKey =
   | 'rankingDetailTabMixed'
   | 'rankingDetailTopTen'
   | 'rankingDetailOthersTournaments'
+  | 'rankingDetailUncounted'
   | 'rankingDetailExpiringNext'
   | 'rankingDetailExpiringWithin4Weeks'
   | 'rankingDetailLoadFailed'
@@ -588,6 +589,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     rankingDetailTabMixed: 'Mixed',
     rankingDetailTopTen: 'Top 10 Tournaments',
     rankingDetailOthersTournaments: 'Others Tournaments',
+    rankingDetailUncounted: 'Not counting toward any ranking',
     rankingDetailExpiringNext: 'Will expire next ranking week',
     rankingDetailExpiringWithin4Weeks: 'Will expire within the next 4 ranking weeks',
     rankingDetailLoadFailed: "Couldn't load ranking detail.",
@@ -903,6 +905,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     rankingDetailTabMixed: 'คู่ผสม',
     rankingDetailTopTen: 'ทัวร์นาเมนต์ 10 อันดับแรก',
     rankingDetailOthersTournaments: 'ทัวร์นาเมนต์อื่นๆ',
+    rankingDetailUncounted: 'ไม่นับคะแนนในอันดับใด',
     rankingDetailExpiringNext: 'แต้มจะถูกตัดออกในการประกาศอันดับครั้งถัดไป',
     rankingDetailExpiringWithin4Weeks: 'แต้มจะถูกตัดออกภายใน 4 สัปดาห์ข้างหน้า',
     rankingDetailLoadFailed: 'โหลดรายละเอียดอันดับไม่สำเร็จ',
