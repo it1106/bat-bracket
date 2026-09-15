@@ -176,6 +176,22 @@ export async function register() {
     }
     await renewLease()
     setInterval(renewLease, LEASE_HEARTBEAT_MS)
+
+    // A reload cannot take leadership immediately: the outgoing worker's lease
+    // stays live until it ages past LEASE_TTL_MS, so a fresh worker only wins
+    // ~a minute in. Boot kicks that sampled `amLeader` once at 30-45s therefore
+    // always lost that race, and the first discovery cycle and U15 self-heal
+    // after EVERY deploy were silently skipped — the cohort then waited out a
+    // full 30-minute tick with stale data on the page. Wait for the handover
+    // instead of sampling it. Non-leaders simply give up when it times out.
+    const BOOT_LEADER_WAIT_MS = 2 * LEASE_TTL_MS
+    const waitForLeadership = async (): Promise<boolean> => {
+      const deadline = Date.now() + BOOT_LEADER_WAIT_MS
+      while (!amLeader && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2_000))
+      }
+      return amLeader
+    }
     {
       const deps = buildDefaultDeps()
       const port = process.env.PORT || '3000'
@@ -217,7 +233,7 @@ export async function register() {
           console.warn(`[discovery] tick failed: ${msg}`)
         }
       }
-      setTimeout(tick, 30_000)
+      setTimeout(async () => { if (await waitForLeadership()) await tick() }, 30_000)
       setInterval(tick, 15 * 60 * 1000)
 
       // Ranking weekly refresh — one poll per provider. Each upstream
@@ -312,7 +328,7 @@ export async function register() {
           if (provider === 'bat') await selfHealBat()
         }
         setTimeout(async () => {
-          if (!amLeader) return
+          if (!(await waitForLeadership())) return
           const cached = await readRankingCache(provider)
           const cacheAgeMs = cached ? Date.now() - new Date(cached.scrapedAt).getTime() : null
           const action = decideBootKick({ clock: getBangkokClock(), schedule: cfg.pollSchedule, cacheAgeMs })
