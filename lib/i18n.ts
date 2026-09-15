@@ -103,6 +103,7 @@ export type TKey =
   | 'showAllRounds'
   | 'startPrompt'
   | 'selectDrawPrompt'
+  | 'noBracketPublished'
   | 'noMatchesScheduled'
   | 'eventsEntered'
   | 'matchResults'
@@ -385,6 +386,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     showAllRounds: '↩ Show all rounds',
     startPrompt: 'Select a tournament above to get started.',
     selectDrawPrompt: 'Select a draw to view the bracket.',
+    noBracketPublished: 'No bracket has been published.',
     noMatchesScheduled: 'No matches scheduled for this day.',
     eventsEntered: 'Events Entered',
     matchResults: 'Match Results',
@@ -699,6 +701,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     showAllRounds: '↩ แสดงทุกรอบ',
     startPrompt: 'เลือกรายการแข่งขันด้านบนเพื่อเริ่มต้น',
     selectDrawPrompt: 'เลือกตารางแข่งเพื่อดูสาย',
+    noBracketPublished: 'ยังไม่มีการประกาศสายการแข่งขัน',
     noMatchesScheduled: 'ไม่มีการแข่งขันในวันนี้',
     eventsEntered: 'รายการที่ลงแข่ง',
     matchResults: 'ผลการแข่งขัน',

@@ -11,6 +11,7 @@ import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
 import Link from 'next/link'
 import { useLongPress } from '@/lib/useLongPress'
+import { isAwaitingBracketPublication } from '@/lib/bracket-state'
 import { usePointerReorder } from '@/lib/usePointerReorder'
 import { schedulePollUrl } from '@/lib/schedulePoll'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
@@ -859,6 +860,14 @@ export default function Home() {
     (tn) => tn.done && (!tn.startDateIso || tn.startDateIso >= pastCutoffIso),
   )
 
+  // Tournaments are admitted once their seeded entries appear, which is days
+  // before the draws are made — so "no draws" is a normal, expected state now,
+  // not a failure. It has to be distinguished from the in-flight case, hence
+  // the loading guard; `error` is handled by its own banner.
+  const noBracketPublished = isAwaitingBracketPublication({
+    selectedTournament, loadingDraws, error, drawCount: draws.length,
+  })
+
   // Selected tournament's entry, for the "official page" link next to the
   // selector. officialUrl is absent for BWF events not yet resolved in the
   // sidecar, so the link only renders when a URL is actually known.
@@ -1175,14 +1184,14 @@ export default function Home() {
       )}
 
       {/* Hint banner (bracket view only) */}
-      {viewMode === 'bracket' && (
+      {viewMode === 'bracket' && !noBracketPublished && (
         <div className="px-5 py-1.5 bg-[var(--info-bg)] border-b border-[var(--border)] text-xs text-[var(--info-fg)]">
           {t('bracketRoundHint')}
         </div>
       )}
 
       {/* Legend (bracket view only) */}
-      {viewMode === 'bracket' && (
+      {viewMode === 'bracket' && !noBracketPublished && (
         <div className="flex gap-4 px-5 py-2 bg-[var(--surface)] border-b border-[var(--row-sep)] text-xs text-[var(--muted)]">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-sm bg-green-100 border border-green-300" />
@@ -1262,6 +1271,8 @@ export default function Home() {
             <div className="p-10 text-center text-[var(--muted)] text-sm">
               {!selectedTournament
                 ? t('startPrompt')
+                : noBracketPublished
+                ? t('noBracketPublished')
                 : !selectedDraw
                 ? t('selectDrawPrompt')
                 : t('loading')}
