@@ -3587,11 +3587,11 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
      width and leave aspect-ratio with nothing to do — pin it to the start so
      the box is the artwork's size, not the subtitle's. */
   align-self: flex-start;
-  height: 44px;
+  height: 57px;
   aspect-ratio: 2091 / 701;
   background: url('/logo-batmatch.png') no-repeat left center / contain;
 }
 .dark .app-logo { background-image: url('/logo-batmatch-dark.png'); }
 @media (max-width: 640px) {
-  .app-logo { height: 34px; }
+  .app-logo { height: 44px; }
 }
