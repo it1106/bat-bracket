@@ -396,7 +396,7 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
   const $ = cheerio.load(html, { xmlMode: false })
 
   const bracket = $('.bracket.js-bracket')
-  if (!bracket.length) return { html: '', format: 'unknown' }
+  if (!bracket.length) return { html: '', format: 'unknown', entrantCount: 0 }
 
   const roundNames = bracket.find('.subheading').map((_, el) => $(el).text().trim()).get()
 
@@ -410,7 +410,7 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
     allRounds.push({ name: roundNames[slideIdx], slideIdx, groupCount })
   }
 
-  if (allRounds.length === 0) return { html: '', format: 'unknown' }
+  if (allRounds.length === 0) return { html: '', format: 'unknown', entrantCount: 0 }
 
   // Detect doubles using the original first round (regardless of fromRound)
   const firstSlide = bracket.find('swiper-container > swiper-slide').eq(allRounds[0].slideIdx)
@@ -421,7 +421,7 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
   const clampedFrom = Math.max(0, Math.min(fromRound, allRounds.length - 1))
   const rounds = allRounds.slice(clampedFrom)
 
-  if (rounds.length === 0) return { html: '', format: 'unknown' }
+  if (rounds.length === 0) return { html: '', format: 'unknown', entrantCount: 0 }
 
   const pitchBase = isDoubles ? SLOT_PITCH_BASE_DOUBLES : SLOT_PITCH_BASE_SINGLES
   const slotHeightApprox = isDoubles ? SLOT_HEIGHT_APPROX_DOUBLES : SLOT_HEIGHT_APPROX_SINGLES
@@ -431,6 +431,10 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
   const totalH = Math.ceil(LABEL_OFFSET + (firstRoundGroups * 2 - 1) * pitchBase + slotHeightApprox + 50)
 
   let bkWrapHtml = ''
+  // Named players seen anywhere in the draw. A published-but-unentered draw
+  // parses into a complete slot grid whose every name is empty, so the slots
+  // themselves prove nothing — only the names do.
+  let entrantCount = 0
 
   for (let r = 0; r < rounds.length; r++) {
     const absoluteIdx = clampedFrom + r
@@ -451,6 +455,7 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
       matches.each((mi, matchEl) => {
         const top = mi === 0 ? slot1Top : slot2Top
         const ex = extractMatchEntry($, matchEl)
+        for (const pl of [...ex.team1, ...ex.team2]) if (pl.name.trim()) entrantCount++
         const matchBoxHtml = buildMatchBoxHtml(ex, abbrevRound(roundName))
 
         slotParts.push(
@@ -476,6 +481,7 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
   return {
     html: `<div class="bk-wrap">${bkWrapHtml}</div>`,
     format: 'single-elimination',
+    entrantCount,
   }
 }
 

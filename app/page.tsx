@@ -11,7 +11,7 @@ import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
 import Link from 'next/link'
 import { useLongPress } from '@/lib/useLongPress'
-import { isAwaitingBracketPublication } from '@/lib/bracket-state'
+import { isAwaitingBracketPublication, isDrawWithoutEntries } from '@/lib/bracket-state'
 import { usePointerReorder } from '@/lib/usePointerReorder'
 import { schedulePollUrl } from '@/lib/schedulePoll'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
@@ -151,6 +151,9 @@ export default function Home() {
   const [selectedTournament, setSelectedTournament] = useState('')
   const [selectedDraw, setSelectedDraw] = useState('')
   const [bracketHtml, setBracketHtml] = useState('')
+  // Named players in the drawn bracket; 0 means the draw's slots are published
+  // but empty. Undefined until a bracket is fetched.
+  const [bracketEntrants, setBracketEntrants] = useState<number | undefined>(undefined)
   const [eventBundle, setEventBundle] = useState<EventBundle | null>(null)
   // eventName → playoff drawNum, derived from `draws` once they load.
   // MatchSchedule uses this to deep-link round-robin matches into the bundle.
@@ -448,6 +451,7 @@ export default function Home() {
     setSelectedDraw('')
     setDraws([])
     setBracketHtml('')
+    setBracketEntrants(undefined)
     setError(null)
     setMatchDays([])
     setMatchGroups([])
@@ -630,6 +634,7 @@ export default function Home() {
       const data = await safeJson(res) as BracketData | ApiError
       if (isApiError(data)) throw new Error(data.error)
       setBracketHtml(data.html)
+      setBracketEntrants(data.entrantCount)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
@@ -642,6 +647,7 @@ export default function Home() {
     setError(null)
     setEventBundle(null)
     setBracketHtml('')
+    setBracketEntrants(undefined)
     try {
       const res = await fetch(`/api/event-bundle?tournament=${encodeURIComponent(tournamentId)}&event=${encodeURIComponent(eventName)}`)
       const data = await safeJson(res) as EventBundle | ApiError
@@ -658,6 +664,7 @@ export default function Home() {
   const handleDrawChange = useCallback(async (drawNum: string) => {
     setSelectedDraw(drawNum)
     setBracketHtml('')
+    setBracketEntrants(undefined)
     setEventBundle(null)
     setFromRound(0)
     setFromRoundName('')
@@ -711,6 +718,7 @@ export default function Home() {
     const d = draws.find((d) => d.drawNum === drawNum)
     setDrawName(d?.name ?? drawNum)
     setBracketHtml('')
+    setBracketEntrants(undefined)
     setFromRound(0)
     setFromRoundName('')
     setError(null)
@@ -864,9 +872,11 @@ export default function Home() {
   // before the draws are made — so "no draws" is a normal, expected state now,
   // not a failure. It has to be distinguished from the in-flight case, hence
   // the loading guard; `error` is handled by its own banner.
-  const noBracketPublished = isAwaitingBracketPublication({
-    selectedTournament, loadingDraws, error, drawCount: draws.length,
-  })
+  // Two roads to the same message: the tournament has no draws at all, or the
+  // selected draw was published as an empty shell.
+  const noBracketPublished =
+    isAwaitingBracketPublication({ selectedTournament, loadingDraws, error, drawCount: draws.length }) ||
+    isDrawWithoutEntries({ bracketHtml, entrantCount: bracketEntrants })
 
   // Selected tournament's entry, for the "official page" link next to the
   // selector. officialUrl is absent for BWF events not yet resolved in the
@@ -1027,7 +1037,7 @@ export default function Home() {
             {viewMode === 'bracket' && (
               <button
                 onClick={handleExport}
-                disabled={!bracketHtml || loading}
+                disabled={!bracketHtml || loading || noBracketPublished}
                 className="bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white rounded-md px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors"
               >
                 {t('exportJpg')}
@@ -1309,7 +1319,12 @@ export default function Home() {
               bracketRef={bracketRef}
             />
           )}
-          {!eventBundle && bracketHtml && !loadingBracket && (
+          {!eventBundle && bracketHtml && !loadingBracket && noBracketPublished && (
+            <div className="p-10 text-center text-[var(--muted)] text-sm">
+              {t('noBracketPublished')}
+            </div>
+          )}
+          {!eventBundle && bracketHtml && !loadingBracket && !noBracketPublished && (
             <BracketCanvas
               bracketHtml={bracketHtml}
               playerQuery={playerQuery}

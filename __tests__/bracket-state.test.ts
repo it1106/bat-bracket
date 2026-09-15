@@ -1,4 +1,4 @@
-import { isAwaitingBracketPublication } from '@/lib/bracket-state'
+import { isAwaitingBracketPublication, isDrawWithoutEntries } from '@/lib/bracket-state'
 import { translate } from '@/lib/i18n'
 
 const base = { selectedTournament: 'T1', loadingDraws: false, error: null, drawCount: 0 }
@@ -26,6 +26,29 @@ describe('isAwaitingBracketPublication', () => {
 
   it('is false once draws exist', () => {
     expect(isAwaitingBracketPublication({ ...base, drawCount: 33 })).toBe(false)
+  })
+})
+
+describe('isDrawWithoutEntries', () => {
+  const html = '<div class="bk-wrap">…</div>'
+
+  it('is true for a draw published as an empty shell', () => {
+    // 31 of THE MALL 2026's 33 draws parsed into a full slot grid with no
+    // names in it — a blank page, which reads as no bracket at all.
+    expect(isDrawWithoutEntries({ bracketHtml: html, entrantCount: 0 })).toBe(true)
+  })
+
+  it('is false once the draw holds entries', () => {
+    expect(isDrawWithoutEntries({ bracketHtml: html, entrantCount: 64 })).toBe(false)
+  })
+
+  it('is false when the count is unknown, so old cached brackets still render', () => {
+    // Undefined means "not counted", not "none".
+    expect(isDrawWithoutEntries({ bracketHtml: html })).toBe(false)
+  })
+
+  it('is false before any bracket is fetched', () => {
+    expect(isDrawWithoutEntries({ bracketHtml: '', entrantCount: 0 })).toBe(false)
   })
 })
 

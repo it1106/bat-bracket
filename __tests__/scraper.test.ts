@@ -62,6 +62,29 @@ describe('parseBracket', () => {
     const result = parseBracket('<html><body>not a bracket</body></html>')
     expect(result.html).toBe('')
     expect(result.format).toBe('unknown')
+    expect(result.entrantCount).toBe(0)
+  })
+
+  it('counts the named players in a drawn bracket', () => {
+    // Real BAT BS U9 draw: 25 entries in a 32-slot bracket.
+    const result = parseBracket(fixtureHtml('bracket-bat-bsu9.html'))
+    expect(result.entrantCount).toBeGreaterThan(0)
+  })
+
+  it('does not count byes as entrants', () => {
+    // bracket.html is itself a bye-only shell: its slots carry the literal
+    // "Bye" and no player, which is a draw shape with nobody drawn into it.
+    const result = parseBracket(fixtureHtml('bracket.html'))
+    expect(result.entrantCount).toBe(0)
+  })
+
+  it('reports zero entrants for a draw published without entries', () => {
+    // Real capture: THE MALL 2026 WS, one of the 31 draws upstream published
+    // as a shape with no players in it. It parses into a complete slot grid,
+    // so only the names distinguish it from a real bracket.
+    const result = parseBracket(fixtureHtml('bracket-bat-unentered.html'))
+    expect(result.entrantCount).toBe(0)
+    expect(result.html).toContain('bk-round')   // the shell is still built
   })
 })
 

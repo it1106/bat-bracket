@@ -1,3 +1,22 @@
+/** Has the SELECTED draw been published with entries in it?
+ *
+ *  Upstream publishes a draw's shape before its entries: the bracket parses
+ *  into a complete grid of empty slots, which renders as a blank page. To a
+ *  reader that is indistinguishable from no bracket at all, so it gets the
+ *  same message. THE MALL 2026 showed 33 such draws of which only two (BS U15,
+ *  BS U17) actually held entries — which is also why this is judged per draw
+ *  and never per tournament: calling the whole tournament unpublished would
+ *  have hidden the two real brackets.
+ *
+ *  Undefined `entrantCount` means "not counted" (a bracket object cached
+ *  before the count existed), not "none" — those still render. */
+export function isDrawWithoutEntries(s: {
+  bracketHtml: string
+  entrantCount?: number
+}): boolean {
+  return !!s.bracketHtml && s.entrantCount === 0
+}
+
 /** Is this tournament simply without a published bracket yet?
  *
  *  Since discovery started admitting tournaments as soon as their seeded

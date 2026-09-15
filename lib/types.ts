@@ -47,6 +47,14 @@ export interface TournamentInfo {
 export interface BracketData {
   html: string
   format: 'single-elimination' | 'double-elimination' | 'unknown'
+  /** How many named players the parsed draw contains. Zero means upstream has
+   *  published the draw's SHAPE but not its entries — a full skeleton of empty
+   *  slots, which renders as a blank grid and is, to a reader, the same as no
+   *  bracket at all. (THE MALL 2026 published 33 draws this way, of which only
+   *  BS U15 and BS U17 held entries.) Optional: absent on bracket objects
+   *  cached before this was counted, where the count is unknown rather than
+   *  zero — so only an explicit 0 means empty. */
+  entrantCount?: number
 }
 
 export interface ApiError {
