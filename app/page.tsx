@@ -873,9 +873,10 @@ export default function Home() {
       >
         <div className="flex items-end gap-3 px-5 py-2.5 flex-wrap">
           <div className="flex flex-col whitespace-nowrap mr-2">
-            <span className="font-bold text-[var(--fg)]" style={{fontSize:'1.2rem',lineHeight:'2rem'}}>
-              <span style={{color:'var(--brand-fg)'}}>{t('appTitle1')}</span> <span style={{color:'var(--red)'}}>{t('appTitle2')}</span> {t('appTitle3')}
-            </span>
+            {/* The logo carries the wordmark and the "Unofficial Scoreboard"
+                tagline as artwork, so it replaces the three appTitle spans —
+                but not the subtitle under it, which is the accuracy notice. */}
+            <span className="app-logo" role="img" aria-label={t('appLogoAlt')} />
             <span className="text-[12px] text-[var(--muted)]">{t('appSubtitle')}</span>
           </div>
 

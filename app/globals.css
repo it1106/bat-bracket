@@ -3572,3 +3572,26 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .app-footer a:hover { color: var(--fg); text-decoration: underline; }
 /* Never let the footer ride along in an exported/shared screenshot. */
 .stats-share-capture .app-footer { display: none !important; }
+
+/* App logo in the top bar. Rendered as a CSS background rather than an <img>
+   so only the active theme's file is ever fetched — an <img> pair toggled with
+   display:none downloads both. aspect-ratio matches the artwork (2091x701), so
+   only the height needs setting.
+
+   The dark file is the same logo with its navy wordmark and slate tagline
+   lifted: at their original values they sit at ~1.5:1 against --surface
+   (#161b22) and effectively disappear. */
+.app-logo {
+  display: block;
+  /* The span sits in a flex column, which would stretch it to the column's
+     width and leave aspect-ratio with nothing to do — pin it to the start so
+     the box is the artwork's size, not the subtitle's. */
+  align-self: flex-start;
+  height: 44px;
+  aspect-ratio: 2091 / 701;
+  background: url('/logo-batmatch.png') no-repeat left center / contain;
+}
+.dark .app-logo { background-image: url('/logo-batmatch-dark.png'); }
+@media (max-width: 640px) {
+  .app-logo { height: 34px; }
+}
