@@ -36,14 +36,14 @@ type ProjectedBoardResponse =
   | { ready: true; publishDate: string; event: string; entries: ProjectedEntryRow[] }
   | { ready: false; have: number; total: number };
 
-// The five U15 ranking boards the projection covers, mapping each leaderboard
-// board id to its ranking event code (kept in sync with lib/ranking/u15-cohort).
+// The U15 ranking boards the projection covers, mapping each leaderboard board
+// id to its ranking event code (kept in sync with lib/ranking/u15-cohort's
+// `projected` flag). Doubles and mixed are absent on purpose: BAT ranks those
+// per pairing while the projection still scores per player, which reads ~8x
+// high. No entry here means no "Next Ranking (beta)" checkbox on the board.
 const U15_PROJECTED_BOARDS: Record<string, string> = {
   'ranking-u15_ms': 'U15_MS',
   'ranking-u15_ws': 'U15_WS',
-  'ranking-u15_md': 'U15_MD',
-  'ranking-u15_wd': 'U15_WD',
-  'ranking-u15_mxd': 'U15_MXD',
 };
 // Project over the full 50-player cohort (so a player ranked >30 who surges can
 // still appear), but display only the top 30 projected — matching the official

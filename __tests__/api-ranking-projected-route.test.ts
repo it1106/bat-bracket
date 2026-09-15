@@ -42,11 +42,18 @@ describe('GET /api/ranking/projected', () => {
     expect(res.status).toBe(400)
   })
 
-  it('accepts a valid U15 board event (e.g. doubles)', async () => {
-    const res = await GET(new Request('http://x/api/ranking/projected?provider=bat&event=U15_MD'))
+  it('accepts a served U15 board event', async () => {
+    const res = await GET(new Request('http://x/api/ranking/projected?provider=bat&event=U15_WS'))
     const body = await res.json()
     // Not ready (no details seeded) but the event is accepted, not a 400.
     expect(res.status).toBe(200)
     expect(body).toMatchObject({ ready: false })
+  })
+
+  it.each(['U15_MD', 'U15_WD', 'U15_MXD'])('refuses %s until the projection is pair-aware', async (event) => {
+    // BAT ranks doubles/mixed per pairing; the projection still scores per
+    // player, which reads ~8x high. Withheld rather than served wrong.
+    const res = await GET(new Request(`http://x/api/ranking/projected?provider=bat&event=${event}`))
+    expect(res.status).toBe(400)
   })
 })

@@ -19,19 +19,33 @@ export interface U15Board {
    *  not feed their U15 total — so the tier has to filter rows, not just
    *  select the board. */
   ageTier: number
+  /** Whether the projection is served for this board.
+   *
+   *  False for doubles and mixed. BAT ranks those per PAIRING, but the
+   *  projection scores per PLAYER: buildBaseRows sums a player's doubles rows
+   *  across every partner, while the official entry is one pairing's points.
+   *  That reads ~8x high — พัสกรณ์ วัชระประไพพันธ์ projected 52,349 against an
+   *  official 6,710 — so the boards are withheld until the projection is
+   *  pair-aware. Serving nothing beats serving a number that wrong.
+   *
+   *  These boards stay in the list so the detail backfill keeps covering
+   *  their players; only the serving is switched off. */
+  projected: boolean
 }
 
 /** The five U15 ranking boards the Projected Ranking (beta) pilot covers. */
 export const U15_BOARDS: U15Board[] = [
-  { eventCode: 'U15_MS',  boardId: 'ranking-u15_ms',  discipline: 'singles', ageTier: 15 },
-  { eventCode: 'U15_WS',  boardId: 'ranking-u15_ws',  discipline: 'singles', ageTier: 15 },
-  { eventCode: 'U15_MD',  boardId: 'ranking-u15_md',  discipline: 'doubles', ageTier: 15 },
-  { eventCode: 'U15_WD',  boardId: 'ranking-u15_wd',  discipline: 'doubles', ageTier: 15 },
-  { eventCode: 'U15_MXD', boardId: 'ranking-u15_mxd', discipline: 'mixed',   ageTier: 15 },
+  { eventCode: 'U15_MS',  boardId: 'ranking-u15_ms',  discipline: 'singles', ageTier: 15, projected: true },
+  { eventCode: 'U15_WS',  boardId: 'ranking-u15_ws',  discipline: 'singles', ageTier: 15, projected: true },
+  { eventCode: 'U15_MD',  boardId: 'ranking-u15_md',  discipline: 'doubles', ageTier: 15, projected: false },
+  { eventCode: 'U15_WD',  boardId: 'ranking-u15_wd',  discipline: 'doubles', ageTier: 15, projected: false },
+  { eventCode: 'U15_MXD', boardId: 'ranking-u15_mxd', discipline: 'mixed',   ageTier: 15, projected: false },
 ]
 
+/** Boards whose projection is served. Doubles/mixed are excluded until the
+ *  projection is pair-aware — see `U15Board.projected`. */
 export function u15BoardByEvent(eventCode: string): U15Board | undefined {
-  return U15_BOARDS.find(b => b.eventCode === eventCode)
+  return U15_BOARDS.find(b => b.eventCode === eventCode && b.projected)
 }
 
 export interface CohortPlayer {

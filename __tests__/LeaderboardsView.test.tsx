@@ -163,6 +163,10 @@ describe('Next Ranking (beta) checkbox', () => {
     boards: [
       { id: 'ranking-u15_ms', titleKey: 'U15 Boys singles', icon: '🏸', category: 'ranking',
         entries: [{ rank: 1, slug: 'p0', name: 'P0', primaryClub: 'C', value: 1000, display: '1,000 pts', previousRank: 1 }] },
+      { id: 'ranking-u15_ws', titleKey: 'U15 Girls singles', icon: '🏸', category: 'ranking',
+        entries: [{ rank: 1, slug: 'w0', name: 'W0', primaryClub: 'C', value: 1000, display: '1,000 pts', previousRank: 1 }] },
+      // Doubles is a ranking board but carries no projection — BAT ranks it
+      // per pairing while the projection still scores per player.
       { id: 'ranking-u15_md', titleKey: 'U15 Boys doubles', icon: '🏸', category: 'ranking',
         entries: [{ rank: 1, slug: 'd0', name: 'D0', primaryClub: 'C', value: 1000, display: '1,000 pts', previousRank: 1 }] },
     ],
@@ -178,12 +182,18 @@ describe('Next Ranking (beta) checkbox', () => {
       </LanguageProvider>,
     )
 
-  it('renders a checkbox on every U15 board, disabled with progress when not ready', () => {
+  it('renders a checkbox on every projected U15 board, disabled with progress when not ready', () => {
     renderWith({ ready: false, have: 12, total: 250 })
     const cbs = screen.getAllByLabelText(/Next Ranking/i) as HTMLInputElement[]
-    expect(cbs).toHaveLength(2)            // boys singles + boys doubles boards
+    expect(cbs).toHaveLength(2)            // boys + girls singles; doubles has none
     expect(cbs.every(cb => cb.disabled)).toBe(true)
     expect(screen.getAllByText(/12\/250/).length).toBeGreaterThan(0)
+  })
+
+  it('offers no projection on the doubles board', () => {
+    renderWith({ ready: true, have: 250, total: 250 })
+    const doublesCard = screen.getByText('U15 Boys doubles').closest('.lb-card')!
+    expect(doublesCard.querySelector('input[type="checkbox"]')).toBeNull()
   })
 
   it('is enabled when ready', () => {
