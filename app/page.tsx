@@ -22,7 +22,7 @@ import {
 } from '@/lib/announcements'
 import AlertBell from '@/components/AlertBell'
 import DisclaimerModal from '@/components/DisclaimerModal'
-import { DISCLAIMER_TITLE } from '@/lib/disclaimer'
+import { DISCLAIMER } from '@/lib/disclaimer'
 import {
   getAlerts,
   dismissAlerts,
@@ -1038,8 +1038,8 @@ export default function Home() {
                 setDisclaimerOpen(true)
                 track('disclaimer_opened', { from: 'topbar' })
               }}
-              aria-label={DISCLAIMER_TITLE}
-              title={DISCLAIMER_TITLE}
+              aria-label={DISCLAIMER[lang].title}
+              title={DISCLAIMER[lang].title}
               className="inline-flex items-center justify-center w-[30px] h-[28px] rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] text-sm"
             >ⓘ</button>
             <button

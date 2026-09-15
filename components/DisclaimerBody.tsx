@@ -1,12 +1,18 @@
-import { DISCLAIMER_PARAGRAPHS, BAT_OFFICIAL_URL } from '@/lib/disclaimer'
+'use client'
 
-/** The disclaimer's paragraphs, rendered identically wherever they appear (the
- *  /disclaimer page and the top-bar modal). `lang="th"` so the browser picks
- *  Thai line-breaking rules even when the UI is in English. */
+import { useLanguage } from '@/lib/LanguageContext'
+import { DISCLAIMER, BAT_OFFICIAL_URL } from '@/lib/disclaimer'
+
+/** The disclaimer's paragraphs in the reader's chosen language, rendered
+ *  identically wherever they appear (the /disclaimer page and the top-bar
+ *  modal). The explicit `lang` gives the browser the right line-breaking
+ *  rules — it matters for the Thai copy, which has no inter-word spaces. */
 export default function DisclaimerBody() {
+  const { lang } = useLanguage()
+  const { paragraphs } = DISCLAIMER[lang]
   return (
-    <div lang="th" className="space-y-3 text-sm leading-relaxed text-[var(--fg)]">
-      {DISCLAIMER_PARAGRAPHS.map((p, i) => (
+    <div lang={lang} className="space-y-3 text-sm leading-relaxed text-[var(--fg)]">
+      {paragraphs.map((p, i) => (
         <p key={i}>{p}</p>
       ))}
       <p>

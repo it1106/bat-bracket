@@ -3,8 +3,7 @@ import { LanguageProvider } from '@/lib/LanguageContext'
 import { ThemeProvider } from '@/lib/ThemeContext'
 import { PostHogProvider } from '@/lib/PostHogProvider'
 import IOSInstallBanner from '@/components/IOSInstallBanner'
-import Link from 'next/link'
-import { DISCLAIMER_TITLE } from '@/lib/disclaimer'
+import AppFooter from '@/components/AppFooter'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -50,9 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {/* Sits in the root layout so the disclaimer is reachable from
                   every route — the tournament view, leaderboards, player
                   profiles and the country matrix alike. */}
-              <footer className="app-footer">
-                <Link href="/disclaimer" lang="th">{DISCLAIMER_TITLE}</Link>
-              </footer>
+              <AppFooter />
               <IOSInstallBanner />
             </PostHogProvider>
           </ThemeProvider>
