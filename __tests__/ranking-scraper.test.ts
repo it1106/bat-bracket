@@ -123,3 +123,54 @@ describe('parsePreviousRankingId', () => {
     expect(parsePreviousRankingId('<div>no select here</div>')).toBeNull()
   })
 })
+
+describe('parseCategoryPage — BAT doubles rank per pairing', () => {
+  // Real rows from the live U15 Boys doubles board (rid 53794, category 7737):
+  // rank 1, plus the three rows นครินทร์ พรเกษมสุข holds with three different
+  // partners — the case that made the board unreadable.
+  const html = fix('ranking-category-bat-doubles.html')
+
+  it('keeps both players of a pairing, not just the first', () => {
+    const entries = parseCategoryPage(html)
+    const top = entries.find((e) => e.rank === 1)!
+    expect(top.players).toHaveLength(2)
+    expect(top.players!.map((p) => p.name)).toEqual(['รับชัย ว่องไว', 'นพพร ไชยปา'])
+    expect(top.players!.every((p) => !!p.globalPlayerId)).toBe(true)
+    // Distinct ids, so the pair is identified exactly rather than by name.
+    expect(new Set(top.players!.map((p) => p.globalPlayerId)).size).toBe(2)
+  })
+
+  it('leaves name/slug as the first player, which everything downstream keys on', () => {
+    const top = parseCategoryPage(html).find((e) => e.rank === 1)!
+    expect(top.name).toBe('รับชัย ว่องไว')
+    expect(top.slug).toBe(top.players![0].slug)
+    expect(top.globalPlayerId).toBe(top.players![0].globalPlayerId)
+  })
+
+  it('distinguishes the pairings one player holds several of', () => {
+    const entries = parseCategoryPage(html)
+    const his = entries.filter((e) => e.players?.some((p) => p.name === 'นครินทร์ พรเกษมสุข'))
+    expect(his.length).toBeGreaterThan(1)
+    // Same player, different partners — previously these rows were identical.
+    const partners = his.map((e) => e.players!.find((p) => p.name !== 'นครินทร์ พรเกษมสุข')!.name)
+    expect(new Set(partners).size).toBe(partners.length)
+    // And they are genuinely separate ranks with their own points.
+    expect(new Set(his.map((e) => e.rank)).size).toBe(his.length)
+  })
+})
+
+describe('parseCategoryPage — singles rows are unchanged', () => {
+  it('gives a singles row exactly one player', () => {
+    const html = `<html><body><table class="ruler"><tr>
+      <td class="rank"><div>1</div></td>
+      <td><p><a href="player.aspx?id=53794&player=9687585">เอกฑิต เรียบร้อย</a></p></td>
+      <td class="right rankingpoints">56363</td>
+      <td>17</td>
+      <td><a href="category.aspx?id=1&category=2&ogid=X">Spirit by Maneepong</a></td>
+    </tr></table></body></html>`
+    const [e] = parseCategoryPage(html)
+    expect(e.players).toHaveLength(1)
+    expect(e.name).toBe('เอกฑิต เรียบร้อย')
+    expect(e.slug).toBe(e.players![0].slug)
+  })
+})

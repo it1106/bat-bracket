@@ -3598,3 +3598,11 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 @media (max-width: 640px) {
   .app-logo { width: 220px; }
 }
+
+/* Ranking rows for BAT doubles/mixed, which rank per PAIRING: both names on
+   one row, each linking to its own profile. The row itself can't be a link
+   when it holds two, so give it the same pointer affordance. */
+.lb-row .lb-pair { display: inline; }
+.lb-pair-name { color: inherit; text-decoration: none; }
+.lb-pair-name:hover { text-decoration: underline; }
+.lb-pair-sep { color: var(--muted); }

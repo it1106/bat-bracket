@@ -780,6 +780,9 @@ export interface LeaderboardEntry {
   /** Mirrors RankingEntry.previousRank. Populated only on ranking-category
    *  entries; other categories ignore it. */
   previousRank?: number
+  /** The other players on a per-pairing ranking row (BAT doubles/mixed).
+   *  Absent on singles and on every non-ranking board. */
+  partners?: { name: string; slug: string }[]
 }
 
 export type LeaderboardCategory = 'headline' | 'discipline' | 'character' | 'activity' | 'ranking'
@@ -801,8 +804,19 @@ export interface Leaderboards {
   boards: LeaderboardBoard[]
 }
 
+/** One player on a ranking row. */
+export interface RankingPlayer {
+  name: string
+  slug: string
+  /** Numeric `player=<id>` URL param from the row link. */
+  globalPlayerId?: string
+  countryFlagUrl?: string
+}
+
 export interface RankingEntry {
   rank: number
+  /** First player on the row. Kept as the entry's identity — the projection
+   *  cohort, profile links and the per-event rank lookup all key on it. */
   name: string
   slug: string
   club: string
@@ -822,6 +836,18 @@ export interface RankingEntry {
    *  the same event/provider. Absent when the player wasn't in the prior
    *  snapshot (genuinely new entrant, or first-ever scrape). */
   previousRank?: number
+  /** Every player on the row, in upstream order.
+   *
+   *  BAT ranks doubles and mixed per PAIRING, not per player: a doubles row
+   *  names two players sharing one points total, and one player can hold
+   *  several pairings at once, each with its own rank and points. Showing
+   *  only `name` made those rows indistinguishable — the same player appeared
+   *  two or three times in a board with no clue which partner each row was
+   *  for. Singles rows carry exactly one entry here.
+   *
+   *  Optional so ranking snapshots cached before this field still load; the
+   *  UI falls back to `name` until the next weekly refresh repopulates. */
+  players?: RankingPlayer[]
 }
 
 export interface RankingEvent {

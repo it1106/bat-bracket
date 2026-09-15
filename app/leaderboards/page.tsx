@@ -31,6 +31,11 @@ function rankingEventToBoard(ev: RankingEvent, provider: 'bat' | 'bwf'): Leaderb
     // BAT rows surface the club line instead of a country flag.
     flagUrl: provider === 'bwf' ? e.countryFlagUrl : undefined,
     previousRank: e.previousRank,
+    // Doubles/mixed rows are pairings: everyone after the first player is a
+    // partner, and the row means nothing without them.
+    ...(e.players && e.players.length > 1
+      ? { partners: e.players.slice(1).map((p) => ({ name: p.name, slug: p.slug })) }
+      : {}),
   }))
   return {
     id: `ranking-${ev.eventCode.toLowerCase()}`,

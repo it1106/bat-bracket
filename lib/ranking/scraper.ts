@@ -6,20 +6,36 @@
 //   - rankingdate is BE for BAT, Gregorian for BWF — we keep the raw
 //     string here; the player-view module parses it for week-key math.
 
-import type { Ranking, RankingEntry, RankingEvent, ProviderTag } from '@/lib/types'
+import type { Ranking, RankingEntry, RankingEvent, RankingPlayer, ProviderTag } from '@/lib/types'
 import type { DateFormat } from './config'
 import { nameToSlug } from '@/lib/playerIndex'
 
 function stripTags(s: string): string { return s.replace(/<[^>]+>/g, '').trim() }
 
+/** Every player named on the row, in upstream order.
+ *
+ *  A singles row has exactly one player link; a doubles or mixed row has two,
+ *  because BAT ranks those per pairing rather than per player. Reading only
+ *  the first match — which is what this module used to do — dropped the
+ *  partner from every doubles row and left a player who holds several
+ *  pairings appearing two or three times in a board, identically. */
+function playersFromRow(row: string): RankingPlayer[] {
+  const out: RankingPlayer[] = []
+  const re = /<a\s[^>]*href="player\.aspx\?[^"]*\bplayer=(\d+)"[^>]*>([\s\S]*?)<\/a>/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(row)) !== null) {
+    const name = stripTags(m[2])
+    if (!name) continue
+    out.push({ name, slug: nameToSlug(name), globalPlayerId: m[1] || undefined })
+  }
+  return out
+}
+
+/** Fallback for a row whose player link carries no `player=` id (BWF pages
+ *  always have one; a malformed BAT row might not). */
 function playerLinkText(cell: string): string {
   const m = cell.match(/<a\s[^>]*href="player\.aspx[^"]*"[^>]*>([\s\S]*?)<\/a>/i)
   return m ? stripTags(m[1]) : ''
-}
-
-function playerIdFromCell(cell: string): string {
-  const m = cell.match(/<a\s[^>]*href="player\.aspx\?[^"]*\bplayer=(\d+)/i)
-  return m ? m[1] : ''
 }
 
 /** Extract a country-flag image URL from a BWF row — looks for an
@@ -55,9 +71,13 @@ function parseEntries(html: string, limit = 100): RankingEntry[] {
     const ptsMatch = row.match(/<td\s+class="right rankingpoints"[^>]*>([\s\S]*?)<\/td>/i)
     const points = ptsMatch ? parseInt(ptsMatch[1].replace(/[^\d]/g, ''), 10) : 0
 
-    const name = playerLinkText(row)
+    const players = playersFromRow(row)
+    // `name`/`slug`/`globalPlayerId` stay the FIRST player: they are the
+    // entry's identity everywhere downstream (projection cohort, profile
+    // links, per-event rank lookup). The pair rides alongside in `players`.
+    const name = players[0]?.name ?? playerLinkText(row)
     if (!name) continue
-    const globalPlayerId = playerIdFromCell(row)
+    const globalPlayerId = players[0]?.globalPlayerId ?? ''
     const countryFlagUrl = flagUrlFromCell(row)
 
     const tds = Array.from(row.matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/gi))
@@ -72,6 +92,7 @@ function parseEntries(html: string, limit = 100): RankingEntry[] {
       tournaments,
       globalPlayerId: globalPlayerId || undefined,
       countryFlagUrl: countryFlagUrl || undefined,
+      ...(players.length > 0 ? { players } : {}),
     })
     if (entries.length >= limit) break
   }

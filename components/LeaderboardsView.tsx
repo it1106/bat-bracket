@@ -413,27 +413,68 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
               const hasMore = b.entries.length > BOARD_COLLAPSED_LIMIT
               return (
                 <>
-                  {visibleEntries.map(e => (
-                    <Link key={e.slug} href={`/player/${e.provider ?? lb.provider}/${e.slug}`}
-                      prefetch={false} className={`lb-row${e.extra ? ' lb-row-extra' : ''}${b.category === 'ranking' ? ' lb-row-ranking' : ''}`}>
+                  {visibleEntries.map(e => {
+                    const provider = e.provider ?? lb.provider
+                    const rowClass = `lb-row${e.extra ? ' lb-row-extra' : ''}${b.category === 'ranking' ? ' lb-row-ranking' : ''}`
+                    const rank = (
                       <div className={`lb-rk ${e.rank === 1 ? 'lb-r1' : e.rank === 2 ? 'lb-r2' : e.rank === 3 ? 'lb-r3' : ''}`}>
                         <span className="lb-rk-n">{e.rank}</span>
                         {effectiveActive === 'ranking' && renderRankDelta(e.rank, e.previousRank)}
                       </div>
-                      <div>
-                        <div>
-                          {e.flagUrl && <img className="lb-flag" src={e.flagUrl} alt="" />}
-                          {e.name}
+                    )
+                    {/* Hide the club/country line on rows that carry a flag
+                        (BWF ranking rows) — the country is already conveyed
+                        by the flag icon. */}
+                    const club = !e.flagUrl ? <div className="lb-club">{e.primaryClub}</div> : null
+                    const tail = (
+                      <>
+                        {e.extra && <div className="lb-extra">{e.extra}</div>}
+                        <div className="lb-val">{e.display}</div>
+                      </>
+                    )
+                    // A player can hold several pairings in one doubles board,
+                    // so the slug is not unique here — the rank is.
+                    const key = `${e.rank}-${e.slug}`
+                    // A pairing names two players and the row belongs to both,
+                    // so each name gets its own link. That means the row can't
+                    // itself be a link (nested anchors are invalid), hence the
+                    // split — singles rows keep the whole-row click target.
+                    if (e.partners && e.partners.length > 0) {
+                      return (
+                        <div key={key} className={rowClass}>
+                          {rank}
+                          <div>
+                            <div className="lb-pair">
+                              {e.flagUrl && <img className="lb-flag" src={e.flagUrl} alt="" />}
+                              <Link href={`/player/${provider}/${e.slug}`} prefetch={false} className="lb-pair-name">{e.name}</Link>
+                              {e.partners.map((p, i) => (
+                                <span key={`${i}-${p.slug}`}>
+                                  <span className="lb-pair-sep"> / </span>
+                                  <Link href={`/player/${provider}/${p.slug}`} prefetch={false} className="lb-pair-name">{p.name}</Link>
+                                </span>
+                              ))}
+                            </div>
+                            {club}
+                          </div>
+                          {tail}
                         </div>
-                        {/* Hide the club/country line on rows that carry a
-                            flag (BWF ranking rows) — the country is already
-                            conveyed by the flag icon. */}
-                        {!e.flagUrl && <div className="lb-club">{e.primaryClub}</div>}
-                      </div>
-                      {e.extra && <div className="lb-extra">{e.extra}</div>}
-                      <div className="lb-val">{e.display}</div>
-                    </Link>
-                  ))}
+                      )
+                    }
+                    return (
+                      <Link key={key} href={`/player/${provider}/${e.slug}`}
+                        prefetch={false} className={rowClass}>
+                        {rank}
+                        <div>
+                          <div>
+                            {e.flagUrl && <img className="lb-flag" src={e.flagUrl} alt="" />}
+                            {e.name}
+                          </div>
+                          {club}
+                        </div>
+                        {tail}
+                      </Link>
+                    )
+                  })}
                   {hasMore && (
                     <button
                       type="button"

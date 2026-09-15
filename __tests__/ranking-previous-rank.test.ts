@@ -1,5 +1,5 @@
 import { mergePreviousRanks } from '@/lib/ranking/previous-rank'
-import type { Ranking, RankingEvent } from '@/lib/types'
+import type { Ranking, RankingEntry, RankingEvent } from '@/lib/types'
 
 const ranking = (publishDate: string, events: RankingEvent[]): Ranking => ({
   provider: 'bat',
@@ -63,5 +63,59 @@ describe('mergePreviousRanks', () => {
     const next = [ev('MS', [{ rank: 4, slug: 'shared' }])]
     const merged = mergePreviousRanks(prev, next, '20/5/2569')
     expect(merged[0].entries[0].previousRank).toBe(7)
+  })
+})
+
+describe('mergePreviousRanks — per-pairing doubles rows', () => {
+  const pair = (rank: number, a: string, b: string, aId: string, bId: string): RankingEntry => ({
+    rank, name: a, slug: a, club: '', points: 0, tournaments: 0,
+    globalPlayerId: aId,
+    players: [
+      { name: a, slug: a, globalPlayerId: aId },
+      { name: b, slug: b, globalPlayerId: bId },
+    ],
+  })
+  const evt = (entries: RankingEntry[]) => ({ eventCode: 'U15_MD', eventName: 'U15 Boys doubles', entries })
+
+  it('gives each of one player\'s pairings its own delta', () => {
+    // Nakarin plays with three partners. Keyed on his slug, all three rows
+    // collapsed onto one Map entry and every pairing got the same number.
+    const prev = {
+      provider: 'bat' as const, publishDate: '1/9/2569', scrapedAt: '', rankingId: '1',
+      series: [], events: [evt([
+        pair(5, 'nakarin', 'somchai', '1', '2'),
+        pair(9, 'nakarin', 'anan', '1', '3'),
+        pair(20, 'nakarin', 'chai', '1', '4'),
+      ])],
+    }
+    const next = [evt([
+      pair(4, 'nakarin', 'somchai', '1', '2'),
+      pair(11, 'nakarin', 'anan', '1', '3'),
+      pair(20, 'nakarin', 'chai', '1', '4'),
+    ])]
+    const merged = mergePreviousRanks(prev as never, next, '8/9/2569')
+    expect(merged[0].entries.map((e) => e.previousRank)).toEqual([5, 9, 20])
+  })
+
+  it('matches a pairing whose listed order flipped between publications', () => {
+    const prev = {
+      provider: 'bat' as const, publishDate: '1/9/2569', scrapedAt: '', rankingId: '1',
+      series: [], events: [evt([pair(7, 'somchai', 'nakarin', '2', '1')])],
+    }
+    const next = [evt([pair(3, 'nakarin', 'somchai', '1', '2')])]
+    const merged = mergePreviousRanks(prev as never, next, '8/9/2569')
+    expect(merged[0].entries[0].previousRank).toBe(7)
+  })
+
+  it('still matches singles rows, which carry no players array', () => {
+    const single = (rank: number, slug: string): RankingEntry =>
+      ({ rank, name: slug, slug, club: '', points: 0, tournaments: 0 })
+    const prev = {
+      provider: 'bat' as const, publishDate: '1/9/2569', scrapedAt: '', rankingId: '1',
+      series: [], events: [{ eventCode: 'U15_MS', eventName: 'U15 Boys singles', entries: [single(6, 'ekathit')] }],
+    }
+    const next = [{ eventCode: 'U15_MS', eventName: 'U15 Boys singles', entries: [single(2, 'ekathit')] }]
+    const merged = mergePreviousRanks(prev as never, next, '8/9/2569')
+    expect(merged[0].entries[0].previousRank).toBe(6)
   })
 })
