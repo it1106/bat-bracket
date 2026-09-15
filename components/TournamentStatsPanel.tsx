@@ -676,44 +676,61 @@ interface DramaCardProps {
 // slip through to the popover.
 const stripSeedSuffix = (name: string): string => name.replace(/\s*\[[^\]]*\]\s*$/, '').trim()
 
+// A roster member as the status columns need it: the per-event status that
+// isActive/isMedaled read, plus the name to list in the hover popover.
+type NamedRosterMember = RosterStatusMember & { name: string }
+
 // The Active and Medaled counts for a club/country row, derived from its roster
-// members' per-event status. Renders '—' when the roster (per-player status) is
-// unavailable — e.g. stats blobs cached before status tracking existed.
+// members' per-event status. Each count hovers to the names behind it, the same
+// way the Players count does — a bare number says how many are still in, not
+// who. Renders '—' when the roster (per-player status) is unavailable — e.g.
+// stats blobs cached before status tracking existed.
 function RosterStatusCells({
   roster,
   showActivePct = false,
   showMedaledPct = false,
 }: {
-  roster?: RosterStatusMember[]
+  roster?: NamedRosterMember[]
   showActivePct?: boolean
   showMedaledPct?: boolean
 }) {
   if (!roster) {
     return (<><td className="stats-num">—</td><td className="stats-num">—</td></>)
   }
-  const active = roster.filter(isActive).length
-  const medaled = roster.filter(isMedaled).length
+  const activeNames = roster.filter(isActive).map((m) => m.name)
+  const medaledNames = roster.filter(isMedaled).map((m) => m.name)
   // Country rosters append the active/medaled share (count / roster size), so a
   // small contingent that's mostly still in (or mostly medaled) reads
   // differently from a large one. Guard an empty roster against dividing by zero.
-  const activeCell = showActivePct && roster.length > 0
-    ? `${fmt(active)} (${pct(active / roster.length)})`
-    : fmt(active)
-  const medaledCell = showMedaledPct && roster.length > 0
-    ? `${fmt(medaled)} (${pct(medaled / roster.length)})`
-    : fmt(medaled)
-  return (<><td className="stats-num">{activeCell}</td><td className="stats-num">{medaledCell}</td></>)
+  const label = (n: number, withPct: boolean): string =>
+    withPct && roster.length > 0 ? `${fmt(n)} (${pct(n / roster.length)})` : fmt(n)
+  return (
+    <>
+      <td className="stats-num">
+        <RosterHoverCell label={label(activeNames.length, showActivePct)} names={activeNames} />
+      </td>
+      <td className="stats-num">
+        <RosterHoverCell label={label(medaledNames.length, showMedaledPct)} names={medaledNames} />
+      </td>
+    </>
+  )
 }
 
 function RosterCell({ count, members }: { count: number; members?: string[] }) {
-  // Hover tooltip listing player names (sorted, scrolls when long). Mirrors
-  // MedalCell's keyboard affordances: tabIndex + focus-within for non-mouse.
-  if (!members || members.length === 0) return <>{fmt(count)}</>
+  return <RosterHoverCell label={fmt(count)} names={members} />
+}
+
+// A count that hovers to the player names behind it (sorted upstream, scrolls
+// when long). Mirrors MedalCell's keyboard affordances: tabIndex +
+// focus-within for non-mouse. Falls back to the bare label when there is
+// nobody to list, so an empty popover never opens.
+function RosterHoverCell({ label, names }: { label: string; names?: string[] }) {
+  if (!names || names.length === 0) return <>{label}</>
   return (
     <span className="stats-roster-cell" tabIndex={0}>
-      {fmt(count)}
+      {label}
       <span className="stats-roster-tip" role="tooltip">
-        {members.map((name, i) => (
+        {names.map((name, i) => (
           <span className="stats-roster-tip-row" key={`${i}-${name}`}>{name}</span>
         ))}
       </span>

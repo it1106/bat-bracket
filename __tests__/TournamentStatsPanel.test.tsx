@@ -342,8 +342,46 @@ describe('TournamentStatsPanel — club roster active/medaled counts', () => {
     const row = btn.closest('tr')!
     const nums = Array.from(row.querySelectorAll('.stats-num'))
     expect(nums).toHaveLength(3)
+    // Each cell renders the count followed by its hover popover's names, so
+    // assert the count on the cell's first text node, not the whole subtree.
+    const countOf = (el: Element) => el.querySelector('.stats-roster-cell')?.firstChild?.textContent
     expect(nums[0].textContent).toContain('3') // players (may include tooltip names)
-    expect(nums[1].textContent).toBe('1')      // active
-    expect(nums[2].textContent).toBe('1')      // medaled
+    expect(countOf(nums[1])).toBe('1')         // active
+    expect(countOf(nums[2])).toBe('1')         // medaled
+  })
+
+  test('Active and Medaled hover to the names behind the count', async () => {
+    fetchOnce(statusPayload)
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    const btn = await screen.findByRole('button', { name: 'KBA' })
+    const nums = Array.from(btn.closest('tr')!.querySelectorAll('.stats-num'))
+    const tipNames = (el: Element) =>
+      Array.from(el.querySelectorAll('.stats-roster-tip-row')).map((r) => r.textContent)
+    expect(tipNames(nums[0])).toEqual(['A', 'B', 'C']) // every member
+    expect(tipNames(nums[1])).toEqual(['A'])           // still in
+    expect(tipNames(nums[2])).toEqual(['B'])           // medaled
+  })
+
+  test('a zero count renders bare, with no empty popover to open', async () => {
+    fetchOnce({
+      ...minimalLegacyPayload,
+      clubRosters: [{
+        club: 'KBA',
+        players: 1,
+        members: ['C'],
+        roster: [{ name: 'C', playerId: '3', events: ['MS'], statusByEvent: { MS: 'out' } }],
+      }],
+    })
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    const btn = await screen.findByRole('button', { name: 'KBA' })
+    const nums = Array.from(btn.closest('tr')!.querySelectorAll('.stats-num'))
+    expect(nums[1].textContent).toBe('0')                              // active
+    expect(nums[1].querySelector('.stats-roster-cell')).toBeNull()
+    expect(nums[2].textContent).toBe('0')                              // medaled
+    expect(nums[2].querySelector('.stats-roster-cell')).toBeNull()
   })
 })
