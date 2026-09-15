@@ -42,7 +42,7 @@ export async function runU15Backfill(
   const set = await loadU15BackfillSet()
   if (!set) return { error: 'no ranking cached' }
   const result = await runDetailBackfill(set.gids, {
-    isReady: gid => isCohortPlayerReady(gid, set.publishDate),
+    isReady: gid => isCohortPlayerReady(gid, set.publishDate, set.scrapedAt),
     fetchDetail: gid => fetchDetail(gid, set.rankingId, set.publishDate),
     persistNotFound: gid => writeRankingPlayerNotFound('bat', gid, set.publishDate),
     delayMs: opts.delayMs,
