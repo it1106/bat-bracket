@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { PlayerRecord, PlayerRanks, PlayerStats, WLRecord, OpponentTimeWindow } from '@/lib/types'
@@ -8,6 +8,7 @@ import { getRankingConfig } from '@/lib/ranking/config'
 import { useLanguage } from '@/lib/LanguageContext'
 import RankingDetailTabs from './RankingDetailTabs'
 import { pointsFor, ageGroupFromEvent, pointsRoundFromResult, AGE_GROUPS } from '@/lib/points/bat-points'
+import { resultKey } from '@/lib/ranking/result-label'
 
 interface Props {
   record: PlayerRecord
@@ -60,6 +61,18 @@ const OPPONENT_WINDOWS: Array<{ key: OpponentTimeWindow; labelKey:
 ]
 
 export default function PlayerProfileView({ record, playerRankings, rankingPublishDate, initialDetail, currentRanking, countryFlagUrl, tournamentLevels }: Props) {
+  // Deepest round reached per (tournament, event), from the bracket data we
+  // already hold. The Ranking Detail rows use it for their Result cell: BAT's
+  // own Result column is published empty, so without this the column would be
+  // all dashes. Only covers tournaments we have ingested — the rest stay a
+  // dash rather than a guess.
+  const bestFinishByKey = useMemo(() => {
+    const out: Record<string, string> = {}
+    for (const t of record.tournaments) {
+      for (const e of t.events) out[resultKey(e.tournamentId, e.eventName)] = e.bestFinish
+    }
+    return out
+  }, [record])
   const router = useRouter()
   const { t } = useLanguage()
   const discLabel = (d: 'singles' | 'doubles' | 'mixed') =>
@@ -217,6 +230,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
           initialDetail={initialDetail}
           rankingPublishDate={rankingPublishDate}
           currentRanking={currentRanking}
+          bestFinishByKey={bestFinishByKey}
         />
       )}
       <div className="pp-kpi-row">

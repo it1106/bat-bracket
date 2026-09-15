@@ -25,6 +25,11 @@ interface Props {
   /** Current overview cache for the provider. Used by the BWF section
    *  renderer to look up the player's rank per target event. */
   currentRanking?: Ranking | null
+  /** Deepest round reached per `TOURNAMENTID::event`, from our own index —
+   *  the row's Result cell falls back to this, and upstream currently
+   *  publishes that cell empty. Plain data so it survives the client-side
+   *  detail refetch below, which replaces the detail but not this map. */
+  bestFinishByKey?: Record<string, string>
 }
 
 const DISCIPLINES: Discipline[] = ['singles', 'doubles', 'mixed']
@@ -40,7 +45,7 @@ type FetchState =
  * ranking entry the player holds in that discipline (per age group, and per
  * pairing for doubles), each a top-10-by-points list sorted newest-first.
  */
-export default function RankingDetailTabs({ provider, slug, initialDetail, rankingPublishDate, currentRanking }: Props) {
+export default function RankingDetailTabs({ provider, slug, initialDetail, rankingPublishDate, currentRanking, bestFinishByKey }: Props) {
   const { t } = useLanguage()
   const [active, setActive] = useState<Discipline>('singles')
   const [fetchState, setFetchState] = useState<FetchState>(
@@ -132,6 +137,7 @@ export default function RankingDetailTabs({ provider, slug, initialDetail, ranki
             section={section}
             cutoffs={cutoffs}
             currentRanking={currentRanking}
+            bestFinishByKey={bestFinishByKey}
           />
         ))}
         {uncredited.length > 0 && (
@@ -144,6 +150,7 @@ export default function RankingDetailTabs({ provider, slug, initialDetail, ranki
                 key={`unc-${r.week}-${r.tournamentName}-${i}`}
                 row={r}
                 expiry={classifyExpiry(r.week, cutoffs)}
+                bestFinishByKey={bestFinishByKey}
               />
             ))}
           </section>

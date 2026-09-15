@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useLanguage } from '@/lib/LanguageContext'
 import type { ExpiryTier } from '@/lib/ranking/player-view'
 import type { RankingPlayerTournament } from '@/lib/types'
+import { resultLabelFor } from '@/lib/ranking/result-label'
 
 interface Props {
   row: RankingPlayerTournament
@@ -16,6 +17,10 @@ interface Props {
    *  (e.g. "2125 → 638"). When equal to raw points or undefined, the cell
    *  renders the single number as today. */
   creditOverride?: number
+  /** Deepest round reached, keyed `TOURNAMENTID::sourceEvent`, derived from
+   *  our own index. Consulted only when upstream left its Result cell blank,
+   *  which is currently every row. */
+  bestFinishByKey?: Record<string, string>
 }
 
 /**
@@ -23,7 +28,7 @@ interface Props {
  * to the in-app tournament view when we have a GUID; otherwise renders as
  * plain text. All other fields are display-only.
  */
-export default function TournamentRow({ row, expiry = null, creditOverride }: Props) {
+export default function TournamentRow({ row, expiry = null, creditOverride, bestFinishByKey }: Props) {
   const { t } = useLanguage()
   const cls = expiry === 'next'
     ? 'pp-rd-row pp-rd-row--expiring'
@@ -42,12 +47,18 @@ export default function TournamentRow({ row, expiry = null, creditOverride }: Pr
   const pointsCell = showDiscount
     ? `${row.points.toLocaleString()} → ${Math.round(creditOverride!).toLocaleString()}`
     : row.points.toLocaleString()
+  // The event/age-group cell is gone: the section header already names the
+  // event, and how far the player actually got is the more useful thing to
+  // read next to the points. `title` keeps the source event reachable, since
+  // a section's rows are not always all from its own age group.
+  const resultLabel = resultLabelFor(row, bestFinishByKey)
   return (
     <div className={cls} title={title}>
       <span>{name}</span>
-      <span className="pp-rd-row-event">{row.sourceEvent}</span>
       <span className="pp-rd-row-week">{row.week}</span>
-      <span className="pp-rd-row-result">{row.result}</span>
+      <span className="pp-rd-row-result" title={row.sourceEvent}>
+        {resultLabel ?? '—'}
+      </span>
       <span className="pp-rd-row-pts">{pointsCell}</span>
     </div>
   )

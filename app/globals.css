@@ -3274,7 +3274,9 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 }
 .pp-rd-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  /* name | week | result | points — the event/age-group cell was replaced by
+     the result, which is what a reader wants next to the points. */
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 8px;
   padding: 5px 4px;
   font-size: 12px;
@@ -3283,17 +3285,14 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 }
 .pp-rd-row a { color: var(--fg); text-decoration: none; }
 .pp-rd-row a:hover { color: var(--brand); }
-.pp-rd-row-event {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-  padding: 1px 6px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  white-space: nowrap;
-}
 .pp-rd-row-week { color: var(--muted); white-space: nowrap; }
-.pp-rd-row-result { color: var(--muted); white-space: nowrap; }
+.pp-rd-row-result {
+  color: var(--muted);
+  white-space: nowrap;
+  font-weight: 600;
+  min-width: 4.5em;
+  text-align: right;
+}
 .pp-rd-row-pts { font-weight: 600; text-align: right; white-space: nowrap; }
 .pp-rd-show-more {
   display: block;
