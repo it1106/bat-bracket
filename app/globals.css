@@ -3553,3 +3553,22 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 /* The round columns can total 11+ wide; scroll horizontally on narrow screens
    instead of forcing the whole page to scroll. */
 .stats-eb-scroll { overflow-x: auto; }
+
+/* Global disclaimer footer (root layout — shows on every route). Quiet by
+   design: a legal notice that must always be reachable, never competing with
+   the page. Bottom padding clears the iOS home indicator and the floating
+   scroll-to-top button. */
+.app-footer {
+  padding: 18px 16px calc(24px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  text-align: center;
+}
+.app-footer a {
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+.app-footer a:hover { color: var(--fg); text-decoration: underline; }
+/* Never let the footer ride along in an exported/shared screenshot. */
+.stats-share-capture .app-footer { display: none !important; }

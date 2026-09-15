@@ -21,6 +21,8 @@ import {
   ANN_CUSTOM_TABS_MULTI_TEXT_TH,
 } from '@/lib/announcements'
 import AlertBell from '@/components/AlertBell'
+import DisclaimerModal from '@/components/DisclaimerModal'
+import { DISCLAIMER_TITLE } from '@/lib/disclaimer'
 import {
   getAlerts,
   dismissAlerts,
@@ -142,6 +144,7 @@ type ViewMode = 'overview' | 'bracket' | 'matches' | 'live' | 'custom'
 export default function Home() {
   const { lang, toggleLang, t } = useLanguage()
   const { theme, toggleTheme } = useTheme()
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false)
   const [tournaments, setTournaments] = useState<TournamentInfo[]>([])
   const [draws, setDraws] = useState<DrawInfo[]>([])
   const [selectedTournament, setSelectedTournament] = useState('')
@@ -1032,6 +1035,15 @@ export default function Home() {
             />
             <button
               onClick={() => {
+                setDisclaimerOpen(true)
+                track('disclaimer_opened', { from: 'topbar' })
+              }}
+              aria-label={DISCLAIMER_TITLE}
+              title={DISCLAIMER_TITLE}
+              className="inline-flex items-center justify-center w-[30px] h-[28px] rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] text-sm"
+            >ⓘ</button>
+            <button
+              onClick={() => {
                 const next = theme === 'dark' ? 'light' : 'dark'
                 track('theme_changed', { from: theme, to: next })
                 toggleTheme()
@@ -1438,6 +1450,8 @@ export default function Home() {
             : undefined
         }
       />
+
+      <DisclaimerModal open={disclaimerOpen} onClose={() => setDisclaimerOpen(false)} />
 
       <ScrollToTopButton />
     </>
