@@ -29,6 +29,9 @@ function renderRankDelta(rank: number, previousRank: number | undefined): React.
 // payload (declared locally to keep this client component off server modules).
 interface ProjectedEntryRow {
   slug: string; name: string;
+  // Present on doubles/mixed boards, which rank pairings: one player holds
+  // several pairings, so slug alone is neither the row's identity nor a key.
+  partnerName?: string;
   officialRank: number; officialPoints: number;
   projectedRank: number; projectedPoints: number; delta: number;
 }
@@ -38,12 +41,14 @@ type ProjectedBoardResponse =
 
 // The U15 ranking boards the projection covers, mapping each leaderboard board
 // id to its ranking event code (kept in sync with lib/ranking/u15-cohort's
-// `projected` flag). Doubles and mixed are absent on purpose: BAT ranks those
-// per pairing while the projection still scores per player, which reads ~8x
-// high. No entry here means no "Next Ranking (beta)" checkbox on the board.
+// `projected` flag). No entry here means no "Next Ranking (beta)" checkbox on
+// the board.
 const U15_PROJECTED_BOARDS: Record<string, string> = {
   'ranking-u15_ms': 'U15_MS',
   'ranking-u15_ws': 'U15_WS',
+  'ranking-u15_md': 'U15_MD',
+  'ranking-u15_wd': 'U15_WD',
+  'ranking-u15_mxd': 'U15_MXD',
 };
 // Project over the full 50-player cohort (so a player ranked >30 who surges can
 // still appear), but display only the top 30 projected — matching the official
@@ -381,8 +386,13 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
                     </thead>
                     <tbody>
                       {data.entries.slice(0, PROJECTED_DISPLAY_LIMIT).map((e) => (
-                        <tr key={e.slug}>
-                          <td>{e.name}</td>
+                        <tr key={`${e.slug}::${e.partnerName ?? ''}`}>
+                          <td>
+                            {e.name}
+                            {e.partnerName && (
+                              <span className="lb-projected-partner"> / {e.partnerName}</span>
+                            )}
+                          </td>
                           <td>{e.officialRank}</td>
                           <td>{e.officialPoints.toLocaleString()}</td>
                           <td>{e.projectedRank}</td>

@@ -46,14 +46,12 @@ describe('u15-cohort (all U15 boards)', () => {
     expect(U15_BOARDS.find(b => b.eventCode === 'U15_MXD')).toMatchObject({ discipline: 'mixed' })
   })
 
-  it('resolves only the boards whose projection is served', () => {
-    // Doubles and mixed stay in U15_BOARDS so the detail backfill keeps
-    // covering their players, but they do not resolve for serving: BAT ranks
-    // them per pairing while the projection still scores per player.
-    expect(u15BoardByEvent('U15_MS')).toMatchObject({ discipline: 'singles', projected: true })
-    expect(u15BoardByEvent('U15_WS')).toMatchObject({ discipline: 'singles', projected: true })
-    for (const code of ['U15_MD', 'U15_WD', 'U15_MXD']) {
-      expect(u15BoardByEvent(code)).toBeUndefined()
+  it('resolves every board whose projection is served, and nothing else', () => {
+    // The projection is pair-aware, so all five boards serve. u15BoardByEvent
+    // still filters on `projected`, which is how a board would be withheld
+    // again without losing the detail backfill's coverage of its players.
+    for (const code of ['U15_MS', 'U15_WS', 'U15_MD', 'U15_WD', 'U15_MXD']) {
+      expect(u15BoardByEvent(code)).toMatchObject({ eventCode: code, projected: true })
     }
     expect(u15BoardByEvent('NOPE')).toBeUndefined()
   })

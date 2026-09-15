@@ -50,10 +50,14 @@ describe('GET /api/ranking/projected', () => {
     expect(body).toMatchObject({ ready: false })
   })
 
-  it.each(['U15_MD', 'U15_WD', 'U15_MXD'])('refuses %s until the projection is pair-aware', async (event) => {
-    // BAT ranks doubles/mixed per pairing; the projection still scores per
-    // player, which reads ~8x high. Withheld rather than served wrong.
+  it.each(['U15_MD', 'U15_WD', 'U15_MXD'])('serves %s now that the projection is pair-aware', async (event) => {
     const res = await GET(new Request(`http://x/api/ranking/projected?provider=bat&event=${event}`))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ ready: false })
+  })
+
+  it('still refuses an event that is not a projected board', async () => {
+    const res = await GET(new Request('http://x/api/ranking/projected?provider=bat&event=U15_NOPE'))
     expect(res.status).toBe(400)
   })
 })

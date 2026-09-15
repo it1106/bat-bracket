@@ -3536,6 +3536,10 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .lb-projected-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .lb-projected-table th, .lb-projected-table td { padding: 4px 8px; text-align: right; font-size: 13px; }
 .lb-projected-table th:first-child, .lb-projected-table td:first-child { text-align: left; }
+/* Doubles/mixed project per pairing, so the row names both players. The partner
+   is muted so the cohort member — the name the reader scanned for — still
+   leads the row. */
+.lb-projected-partner { color: var(--muted); }
 .lb-projected-table thead th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border, #ddd); }
 .lb-projected-table .lb-rk-delta-up   { color: var(--win-fg); font-weight: 700; }
 .lb-projected-table .lb-rk-delta-down { color: var(--red);    font-weight: 700; }

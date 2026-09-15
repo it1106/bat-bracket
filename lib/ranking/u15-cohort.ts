@@ -19,17 +19,12 @@ export interface U15Board {
    *  not feed their U15 total — so the tier has to filter rows, not just
    *  select the board. */
   ageTier: number
-  /** Whether the projection is served for this board.
+  /** Whether the projection is served for this board. True for all five: the
+   *  projection is pair-aware, so a doubles/mixed row scores the PAIRING BAT
+   *  ranks rather than the player across every partner (which read ~8x high).
    *
-   *  False for doubles and mixed. BAT ranks those per PAIRING, but the
-   *  projection scores per PLAYER: buildBaseRows sums a player's doubles rows
-   *  across every partner, while the official entry is one pairing's points.
-   *  That reads ~8x high — พัสกรณ์ วัชระประไพพันธ์ projected 52,349 against an
-   *  official 6,710 — so the boards are withheld until the projection is
-   *  pair-aware. Serving nothing beats serving a number that wrong.
-   *
-   *  These boards stay in the list so the detail backfill keeps covering
-   *  their players; only the serving is switched off. */
+   *  Kept as a flag rather than removed so a board can be withheld again
+   *  without dropping it from the backfill's coverage. */
   projected: boolean
 }
 
@@ -37,13 +32,12 @@ export interface U15Board {
 export const U15_BOARDS: U15Board[] = [
   { eventCode: 'U15_MS',  boardId: 'ranking-u15_ms',  discipline: 'singles', ageTier: 15, projected: true },
   { eventCode: 'U15_WS',  boardId: 'ranking-u15_ws',  discipline: 'singles', ageTier: 15, projected: true },
-  { eventCode: 'U15_MD',  boardId: 'ranking-u15_md',  discipline: 'doubles', ageTier: 15, projected: false },
-  { eventCode: 'U15_WD',  boardId: 'ranking-u15_wd',  discipline: 'doubles', ageTier: 15, projected: false },
-  { eventCode: 'U15_MXD', boardId: 'ranking-u15_mxd', discipline: 'mixed',   ageTier: 15, projected: false },
+  { eventCode: 'U15_MD',  boardId: 'ranking-u15_md',  discipline: 'doubles', ageTier: 15, projected: true },
+  { eventCode: 'U15_WD',  boardId: 'ranking-u15_wd',  discipline: 'doubles', ageTier: 15, projected: true },
+  { eventCode: 'U15_MXD', boardId: 'ranking-u15_mxd', discipline: 'mixed',   ageTier: 15, projected: true },
 ]
 
-/** Boards whose projection is served. Doubles/mixed are excluded until the
- *  projection is pair-aware — see `U15Board.projected`. */
+/** Boards whose projection is served — see `U15Board.projected`. */
 export function u15BoardByEvent(eventCode: string): U15Board | undefined {
   return U15_BOARDS.find(b => b.eventCode === eventCode && b.projected)
 }
@@ -54,6 +48,11 @@ export interface CohortPlayer {
   officialRank: number
   officialPoints: number
   name: string
+  /** The other half of the ranked pairing on doubles/mixed boards; null on
+   *  singles (and on the rare doubles entry BAT lists with a single name).
+   *  BAT ranks the PAIR, so this is half of the row's identity: one player
+   *  appears once per pairing, each with its own rank and points. */
+  partnerName: string | null
 }
 
 /** Top-COHORT_SIZE players (by rank) of one U15 board from the current BAT
@@ -75,6 +74,9 @@ export async function loadCohort(eventCode: string): Promise<
     .map(e => ({
       slug: e.slug, globalPlayerId: e.globalPlayerId!, officialRank: e.rank,
       officialPoints: e.points, name: e.name,
+      // `players` lists the pairing in BAT's own order and `name`/`slug`/
+      // `globalPlayerId` track its first entry, so the partner is the second.
+      partnerName: e.players && e.players.length > 1 ? e.players[1].name : null,
     }))
   // U15 lives in the Junior series, whose publication id differs from the
   // snapshot's primary (Open) one — resolve it from the event itself.

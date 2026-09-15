@@ -156,8 +156,8 @@ describe('buildAddedRows', () => {
 describe('assembleProjectedBoard', () => {
   it('re-ranks by projected total and computes delta vs official', async () => {
     const cohort = [
-      { slug: 'a', globalPlayerId: 'ga', officialRank: 1, officialPoints: 5000, name: 'A' },
-      { slug: 'b', globalPlayerId: 'gb', officialRank: 2, officialPoints: 4000, name: 'B' },
+      { slug: 'a', globalPlayerId: 'ga', officialRank: 1, officialPoints: 5000, name: 'A', partnerName: null },
+      { slug: 'b', globalPlayerId: 'gb', officialRank: 2, officialPoints: 4000, name: 'B', partnerName: null },
     ]
     const details: Record<string, RankingPlayerDetail> = {
       ga: { globalPlayerId: 'ga', publishDate: '23/6/2569', scrapedAt: 'now',
@@ -190,11 +190,11 @@ describe('assembleProjectedBoard', () => {
     }
     const board = await assembleProjectedBoard(
       [
-        { slug: 'a', globalPlayerId: 'ga', officialRank: 1, officialPoints: 10000, name: 'A' },
-        { slug: 'b', globalPlayerId: 'gb', officialRank: 2, officialPoints: 10000, name: 'B' },
-        { slug: 'c', globalPlayerId: 'gc', officialRank: 3, officialPoints: 9000, name: 'C' },
-        { slug: 'd', globalPlayerId: 'gd', officialRank: 4, officialPoints: 9000, name: 'D' },
-        { slug: 'e', globalPlayerId: 'ge', officialRank: 5, officialPoints: 8000, name: 'E' },
+        { slug: 'a', globalPlayerId: 'ga', officialRank: 1, officialPoints: 10000, name: 'A', partnerName: null },
+        { slug: 'b', globalPlayerId: 'gb', officialRank: 2, officialPoints: 10000, name: 'B', partnerName: null },
+        { slug: 'c', globalPlayerId: 'gc', officialRank: 3, officialPoints: 9000, name: 'C', partnerName: null },
+        { slug: 'd', globalPlayerId: 'gd', officialRank: 4, officialPoints: 9000, name: 'D', partnerName: null },
+        { slug: 'e', globalPlayerId: 'ge', officialRank: 5, officialPoints: 8000, name: 'E', partnerName: null },
       ],
       {
         publishDate: '23/6/2569', discipline: 'singles', ageTier: 15,
@@ -232,8 +232,8 @@ describe('assembleProjectedBoard', () => {
     }
     const board = await assembleProjectedBoard(
       [
-        { slug: 'a', globalPlayerId: 'ga', officialRank: 1, officialPoints: 5000, name: 'A' },
-        { slug: 'b', globalPlayerId: 'gb', officialRank: 2, officialPoints: 5000, name: 'B' },
+        { slug: 'a', globalPlayerId: 'ga', officialRank: 1, officialPoints: 5000, name: 'A', partnerName: null },
+        { slug: 'b', globalPlayerId: 'gb', officialRank: 2, officialPoints: 5000, name: 'B', partnerName: null },
       ],
       {
         publishDate: '23/6/2569', discipline: 'singles', ageTier: 15,
