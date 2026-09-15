@@ -3583,19 +3583,18 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
    (#161b22) and effectively disappear. */
 .app-logo {
   display: block;
-  /* The span sits in a flex column, which would stretch it to the column's
-     width and leave aspect-ratio with nothing to do — pin it to the start so
-     the box is the artwork's size, not the subtitle's. */
-  align-self: flex-start;
-  height: 75px;
-  aspect-ratio: 2099 / 623;
+  /* Sized by width, with aspect-ratio supplying the height. The explicit
+     width is also what stops the flex column stretching the span to the
+     subtitle's width — stretch only applies to an auto cross-size. */
+  width: 245px;
+  aspect-ratio: 2092 / 628;
   /* ?v= is a cache-buster, not decoration. The filenames are stable, so
      Cloudflare happily serves a previously-cached logo for hours after the
      origin has new bytes — that is exactly what happened when these were
      re-rendered at 768px. Bump it whenever either file's contents change. */
-  background: url('/logo-batmatch.png?v=3') no-repeat left center / contain;
+  background: url('/logo-batmatch.png?v=4') no-repeat left center / contain;
 }
-.dark .app-logo { background-image: url('/logo-batmatch-dark.png?v=3'); }
+.dark .app-logo { background-image: url('/logo-batmatch-dark.png?v=4'); }
 @media (max-width: 640px) {
-  .app-logo { height: 65px; }
+  .app-logo { width: 220px; }
 }
