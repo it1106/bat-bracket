@@ -3589,9 +3589,13 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
   align-self: flex-start;
   height: 74px;
   aspect-ratio: 2091 / 701;
-  background: url('/logo-batmatch.png') no-repeat left center / contain;
+  /* ?v= is a cache-buster, not decoration. The filenames are stable, so
+     Cloudflare happily serves a previously-cached logo for hours after the
+     origin has new bytes — that is exactly what happened when these were
+     re-rendered at 768px. Bump it whenever either file's contents change. */
+  background: url('/logo-batmatch.png?v=2') no-repeat left center / contain;
 }
-.dark .app-logo { background-image: url('/logo-batmatch-dark.png'); }
+.dark .app-logo { background-image: url('/logo-batmatch-dark.png?v=2'); }
 @media (max-width: 640px) {
   .app-logo { height: 57px; }
 }
