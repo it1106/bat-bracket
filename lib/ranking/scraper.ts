@@ -50,6 +50,21 @@ function flagUrlFromCell(cell: string): string {
   return m2 ? m2[1] : ''
 }
 
+/** Every club named in a row's last cell, in player order.
+ *
+ *  Upstream lists one link per DISTINCT club: a pairing from one club gets a
+ *  single link, a pairing from two clubs gets both. (Verified over a full BD
+ *  U15 page: 45 rows with one link, 55 with two, never the same club twice.)
+ *  So the array length is itself the "same club or not" answer the board
+ *  needs — no zip against `players` required, which is just as well since a
+ *  shared club leaves no way to align them. Empty when the cell has no link
+ *  at all; callers fall back to its plain text. */
+function clubLinkTexts(cell: string): string[] {
+  return Array.from(cell.matchAll(/<a\s[^>]*>([\s\S]*?)<\/a>/gi))
+    .map(m => stripTags(m[1]).trim())
+    .filter(Boolean)
+}
+
 function lastLinkText(cell: string): string {
   const matches = Array.from(cell.matchAll(/<a\s[^>]*>([\s\S]*?)<\/a>/gi))
   if (matches.length === 0) return stripTags(cell)
@@ -81,7 +96,13 @@ function parseEntries(html: string, limit = 100): RankingEntry[] {
     const countryFlagUrl = flagUrlFromCell(row)
 
     const tds = Array.from(row.matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/gi))
-    const club = tds.length > 0 ? lastLinkText(tds[tds.length - 1][1]) : ''
+    const clubCell = tds.length > 0 ? tds[tds.length - 1][1] : ''
+    const clubs = clubLinkTexts(clubCell)
+    // `club` is the entry's own club, so it tracks `name` — the FIRST player.
+    // It used to be the last link in the cell, which on a two-club pairing is
+    // the *partner's* club: rank 26 of BD U15 reported BOY'S CLUB, which is
+    // สุวิจักขณ์'s, on a row whose identity player is รวิณ.
+    const club = clubs.length > 0 ? clubs[0] : (clubCell ? lastLinkText(clubCell) : '')
     const tournaments = tds.length >= 2
       ? parseInt(stripTags(tds[tds.length - 2][1]).replace(/[^\d]/g, ''), 10) || 0
       : 0
@@ -93,6 +114,7 @@ function parseEntries(html: string, limit = 100): RankingEntry[] {
       globalPlayerId: globalPlayerId || undefined,
       countryFlagUrl: countryFlagUrl || undefined,
       ...(players.length > 0 ? { players } : {}),
+      ...(clubs.length > 1 ? { clubs } : {}),
     })
     if (entries.length >= limit) break
   }

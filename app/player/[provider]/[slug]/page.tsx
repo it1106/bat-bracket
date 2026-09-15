@@ -4,6 +4,7 @@ import { readRankingCache } from '@/lib/ranking/cache'
 import { detailTargets, readMergedCachedDetail } from '@/lib/ranking/detail-merge'
 import { readPlayerIdEntry } from '@/lib/bat-player-id-map'
 import { countContributingTournaments, filterToLowestTwoAgeGroups } from '@/lib/ranking/player-view'
+import { entriesForPlayer, partnersIn } from '@/lib/ranking/pair-lookup'
 import { rankingSlugAlias } from '@/lib/ranking/aliases'
 import { readMeta } from '@/lib/tournament-meta'
 import { getLevelOverrides } from '@/lib/tournament-level-overrides'
@@ -35,14 +36,25 @@ export default async function PlayerPage({ params }: Props) {
   let bwfGlobalPlayerId = ''
   if (currentRanking) {
     const aliasSlug = rankingSlugAlias(provider, params.slug)
+    const who = { slug: params.slug, aliasSlug }
     for (const ev of currentRanking.events) {
-      const entry = ev.entries.find(e => e.slug === params.slug || e.slug === aliasSlug)
+      // A doubles player holds one entry per pairing, each with its own rank.
+      // The summary shows the best of them — his standing in the event — while
+      // the Ranking Detail panel below breaks it out pairing by pairing.
+      // Matching runs over BOTH names on a row: the entry's own slug is the
+      // first player's, so a `find` on it misses every pairing where this
+      // player is listed second, which is exactly where the best rank tends
+      // to hide.
+      const entry = entriesForPlayer(ev, who)[0]
       if (entry) {
         playerRankings.push({
           eventName: ev.eventName,
           rank: entry.rank,
           points: entry.points,
           tournaments: entry.tournaments,
+          ...(partnersIn(entry, who).length > 0
+            ? { partnerName: partnersIn(entry, who).join(', ') }
+            : {}),
         })
         if (entry.globalPlayerId) bwfGlobalPlayerId = entry.globalPlayerId
         if (!rankingName) rankingName = entry.name

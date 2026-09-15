@@ -778,6 +778,10 @@ export interface LeaderboardEntry {
   slug: string
   name: string
   primaryClub: string
+  /** Both clubs of a pairing whose players belong to different ones, in player
+   *  order. Absent whenever `primaryClub` already covers the row — singles, and
+   *  pairings where both players share a club. */
+  clubs?: string[]
   value: number
   display: string
   qualifier?: string
@@ -828,7 +832,13 @@ export interface RankingEntry {
    *  cohort, profile links and the per-event rank lookup all key on it. */
   name: string
   slug: string
+  /** The entry's own club — the FIRST player's. */
   club: string
+  /** Every club on the row, in player order, when the pairing spans more than
+   *  one. Absent on singles and on same-club pairings, where `club` says it
+   *  all: upstream prints one link per distinct club, so two links means two
+   *  clubs. Absent on caches written before this was parsed. */
+  clubs?: string[]
   points: number
   tournaments: number
   /** Numeric `player=<id>` URL param scraped directly from the row link.
@@ -915,6 +925,11 @@ export interface RankingPlayerRank {
   rank: number
   points: number
   tournaments: number
+  /** The partner(s) this rank was earned with, on doubles/mixed events where
+   *  the ranked unit is the pairing. Absent on singles. The summary shows the
+   *  player's BEST pairing per event, so naming the partner is what keeps the
+   *  number attributable. */
+  partnerName?: string
 }
 
 /** One target ranking event a tournament row contributes to, with the

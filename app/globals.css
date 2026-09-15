@@ -3541,6 +3541,9 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
    leads the row. The separator is CSS rather than markup because it is what
    has to go when the pairing stacks on a phone. */
 .lb-projected-partner { color: var(--muted); }
+/* The partner a ranked pairing was earned with, on the profile's ranking rows
+   and section headers. Muted: the event is what the reader scans for. */
+.pp-ranking-partner { color: var(--muted); font-weight: normal; }
 .lb-projected-partner::before { content: ' / '; }
 @media (max-width: 640px) {
   /* Six columns of Thai names and 5-digit points do not fit 390px: even the

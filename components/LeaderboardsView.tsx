@@ -435,7 +435,12 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
                     {/* Hide the club/country line on rows that carry a flag
                         (BWF ranking rows) — the country is already conveyed
                         by the flag icon. */}
-                    const club = !e.flagUrl ? <div className="lb-club">{e.primaryClub}</div> : null
+                    // A pairing from two clubs names both — the row belongs to
+                    // both players, and showing one club labels the other player
+                    // with a club they are not in.
+                    const club = !e.flagUrl
+                      ? <div className="lb-club">{(e.clubs ?? [e.primaryClub]).join(' · ')}</div>
+                      : null
                     const tail = (
                       <>
                         {e.extra && <div className="lb-extra">{e.extra}</div>}

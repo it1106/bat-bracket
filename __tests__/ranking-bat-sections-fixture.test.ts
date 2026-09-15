@@ -46,12 +46,14 @@ describe("รวิณ ชูชัยศรี's BAT sections (real fixture)", 
     expect(u15.map(s => s.doublesPartner)).toEqual(['สุวิจักขณ์ มีชัย', 'ภาคิน ม่านมุงศิลป์'])
   })
 
-  it('suppresses the rank badge on a split doubles event only', () => {
+  it('names the partner on every doubles section, which is what resolves its rank', () => {
+    // Each pairing looks its own rank up by (player, partner), so the partner
+    // has to be on the section for the badge to be attributable at all.
     const doubles = rankingSectionsForTab(detailFromFixture(), 'doubles')
     expect(doubles.filter(s => s.eventName === 'U15 Boys doubles')
-      .every(s => s.rankAmbiguous)).toBe(true)
+      .every(s => !!s.doublesPartner)).toBe(true)
     const singles = rankingSectionsForTab(detailFromFixture(), 'singles')
-    expect(singles.every(s => s.rankAmbiguous)).toBe(false)
+    expect(singles.every(s => !s.doublesPartner)).toBe(true)
   })
 
   it('mixed tab carries the single XD pairing', () => {
@@ -59,7 +61,6 @@ describe("รวิณ ชูชัยศรี's BAT sections (real fixture)", 
     expect(mixed).toHaveLength(1)
     expect(mixed[0].eventName).toBe('U15 Mixed doubles')
     expect(mixed[0].topTotal).toBe(1718)
-    expect(mixed[0].rankAmbiguous).toBe(false)
   })
 
   it('surfaces the aged-out U13 doubles row as uncredited rather than dropping it', () => {

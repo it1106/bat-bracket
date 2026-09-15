@@ -213,11 +213,6 @@ export interface RankingSection {
    *  the same event are two independent ranking entries with their own point
    *  totals, so they must not share a section. */
   doublesPartner?: string
-  /** True when the provider's overview lists several entries for this
-   *  `eventName` (one per pairing) and we therefore can't tell which rank
-   *  belongs to this section. Callers hide the rank badge rather than show
-   *  another pairing's rank. */
-  rankAmbiguous: boolean
   top: RankingSectionRow[]
   others: RankingSectionRow[]
   topTotal: number
@@ -299,7 +294,6 @@ export function rankingSectionsForTab(
     sections.push({
       eventName: bucket.eventName,
       ...(bucket.doublesPartner ? { doublesPartner: bucket.doublesPartner } : {}),
-      rankAmbiguous: false,
       top,
       others,
       topTotal,
@@ -318,13 +312,10 @@ export function rankingSectionsForTab(
       b.topTotal - a.topTotal,
   )
 
-  // 4. A split event has several ranking entries upstream but only one is
-  //  findable by slug, so no section in it may claim a rank.
-  const perEvent = new Map<string, number>()
-  for (const sec of sections) perEvent.set(sec.eventName, (perEvent.get(sec.eventName) ?? 0) + 1)
-  for (const sec of sections) {
-    if ((perEvent.get(sec.eventName) ?? 0) > 1) sec.rankAmbiguous = true
-  }
+  // NOTE: a split event's sections used to be flagged `rankAmbiguous` here,
+  //  because only one of its upstream entries was findable by slug. Each
+  //  section now resolves its OWN rank by (player, partner) — see
+  //  lib/ranking/pair-lookup — so there is nothing left to suppress.
 
   return sections
 }

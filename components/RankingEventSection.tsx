@@ -1,6 +1,7 @@
 'use client'
 import { useLanguage } from '@/lib/LanguageContext'
 import { classifyExpiry, type ExpiryCutoffs, type RankingSection } from '@/lib/ranking/player-view'
+import { entryForPairing } from '@/lib/ranking/pair-lookup'
 import type { Ranking } from '@/lib/types'
 import TournamentRow from './TournamentRow'
 
@@ -13,20 +14,28 @@ interface Props {
   currentRanking?: Ranking | null
 }
 
-function lookupRank(current: Ranking | null | undefined, eventName: string, slug: string): number | null {
+/** This section's own rank. A section is one PAIRING, and each pairing is a
+ *  separate ranking entry, so the lookup is by player AND partner — matching
+ *  on the player alone would pin whichever pairing happens to be listed first
+ *  on all of them. Null when no entry matches (a pairing below the cached
+ *  depth, or one the two sources spell differently), which just hides the
+ *  badge. */
+function lookupRank(
+  current: Ranking | null | undefined,
+  section: RankingSection,
+  slug: string,
+): number | null {
   if (!current) return null
-  const ev = current.events.find((e) => e.eventName === eventName)
-  return ev?.entries.find((e) => e.slug === slug)?.rank ?? null
+  const ev = current.events.find((e) => e.eventName === section.eventName)
+  if (!ev) return null
+  return entryForPairing(ev, { slug }, section.doublesPartner)?.rank ?? null
 }
 
 export default function RankingEventSection({ slug, section, cutoffs, currentRanking }: Props) {
   const { t } = useLanguage()
-  // A doubles event the player holds several pairings in has one overview
-  // entry per pairing but only one is reachable by slug, so showing "its"
-  // rank here would pin another pairing's number on this one.
-  const myRank = section.rankAmbiguous
-    ? null
-    : lookupRank(currentRanking, section.eventName, slug)
+  // Every pairing carries its own rank now that the lookup can tell them
+  // apart, so `section.rankAmbiguous` no longer gates this.
+  const myRank = lookupRank(currentRanking, section, slug)
   const totalDisplay = Math.round(section.topTotal).toLocaleString()
   return (
     <section className="pp-rd-section-event">

@@ -22,6 +22,9 @@ function rankingEventToBoard(ev: RankingEvent, provider: 'bat' | 'bwf'): Leaderb
     slug: e.slug,
     name: e.name,
     primaryClub: e.club,
+    // A pairing split across two clubs names both; one club (shared, or a
+    // singles row) stays on primaryClub alone.
+    ...(e.clubs && e.clubs.length > 1 ? { clubs: e.clubs } : {}),
     value: e.points,
     display: e.points.toLocaleString() + ' pts',
     // BWF rows have no tournaments-played column on the upstream page, so

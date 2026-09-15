@@ -197,7 +197,10 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
           <div className="pp-ranking-list">
             {playerRankings.map(r => (
               <div key={r.eventName} className="pp-ranking-row">
-                <span className="pp-ranking-event">{r.eventName}</span>
+                <span className="pp-ranking-event">
+                  {r.eventName}
+                  {r.partnerName && <span className="pp-ranking-partner"> / {r.partnerName}</span>}
+                </span>
                 <span className="pp-ranking-pos">#{r.rank}</span>
                 {r.tournaments > 0 && <span className="pp-ranking-tn">{r.tournaments} {t('ppTnAbbr')}</span>}
                 <span className="pp-ranking-pts">{r.points.toLocaleString()} {t('ppPts')}</span>
