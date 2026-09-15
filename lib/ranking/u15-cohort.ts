@@ -60,7 +60,7 @@ export interface CohortPlayer {
  *  when no ranking is cached or the event is missing. Players without a
  *  globalPlayerId are skipped (all have one in practice). */
 export async function loadCohort(eventCode: string): Promise<
-  { rankingId: string; publishDate: string; scrapedAt: string; players: CohortPlayer[] } | null
+  { rankingId: string; publishDate: string; players: CohortPlayer[] } | null
 > {
   const ranking = await readRankingCache('bat')
   if (!ranking) return null
@@ -80,19 +80,14 @@ export async function loadCohort(eventCode: string): Promise<
     }))
   // U15 lives in the Junior series, whose publication id differs from the
   // snapshot's primary (Open) one — resolve it from the event itself.
-  return {
-    rankingId: rankingIdForEvent(ranking, ev),
-    publishDate: ranking.publishDate,
-    scrapedAt: ranking.scrapedAt,
-    players,
-  }
+  return { rankingId: rankingIdForEvent(ranking, ev), publishDate: ranking.publishDate, players }
 }
 
 /** The union of every U15 board's top-50 globalPlayerIds — the set the backfill
  *  fills. A single detail fetch covers all of a player's disciplines, so we pay
  *  per unique player, not per board. */
 export async function loadU15BackfillSet(): Promise<
-  { rankingId: string; publishDate: string; scrapedAt: string; gids: string[] } | null
+  { rankingId: string; publishDate: string; gids: string[] } | null
 > {
   const ranking = await readRankingCache('bat')
   if (!ranking) return null
@@ -111,53 +106,25 @@ export async function loadU15BackfillSet(): Promise<
   return {
     rankingId: rankingId ?? ranking.rankingId,
     publishDate: ranking.publishDate,
-    scrapedAt: ranking.scrapedAt,
     gids: Array.from(gids),
   }
 }
 
 /** A cohort player is ready when their cached detail (or notFound marker) is
- *  for the current publication AND was taken no earlier than the ranking
- *  snapshot it will be read against.
- *
- *  Readiness used to key on `publishDate` ALONE — deliberately, so the cohort
- *  wouldn't decay below 100% the day after each weekly sweep and flap the
- *  "Next Ranking" checkbox off for no benefit. The 24h scrape-freshness TTL
- *  that gates on-demand player pages is still not used here, and shouldn't be.
- *
- *  But publishDate alone cannot see an in-place revision, and those are not as
- *  rare as assumed: BAT added the Ponsana results to the 15/9/2569 edition
- *  hours after we had cached it, so รวิณ ชูชัยศรี's profile listed nine U15
- *  singles tournaments totalling 30,245 under a header reading "10 tn ·
- *  38,437 pts" — the missing row was the 8,192 he won.
- *
- *  `scrapedAt` closes that without heuristics: if the ranking snapshot is
- *  newer than the detail, the detail predates whatever moved and is refetched.
- *  It self-terminates — one refetch makes the detail newer than the snapshot —
- *  and costs nothing on the normal path, where the weekly publication refreshes
- *  the ranking first and the details after it. (Points- or count-based
- *  agreement tests were measured instead and are too noisy to drive fetching:
- *  a doubles player's markers span every pairing they hold, and the counted-
- *  tournament count saturates at ten.) */
-export async function isCohortPlayerReady(
-  gid: string,
-  publishDate: string,
-  rankingScrapedAt?: string,
-): Promise<boolean> {
+ *  for the current publication. Readiness is keyed on `publishDate` ALONE — not
+ *  the 24h scrape-freshness TTL that gates on-demand player pages. A cohort
+ *  detail only feeds the projection's *published base rows*, which change just
+ *  once a week when publishDate moves; the live/new-tournament portion comes
+ *  from the index (rebuilt ~15 min), not this cache. Tying readiness to the 24h
+ *  TTL made the whole cohort decay below 100% the day after each weekly sweep —
+ *  flapping the "Next Ranking" checkbox off for no benefit. publishDate-only
+ *  readiness stays green all week; the weekly publication + self-heal backfill
+ *  keep the data current. (Trade-off: a rare mid-week in-place revision isn't
+ *  reflected until the next publication — acceptable for the beta.) */
+export async function isCohortPlayerReady(gid: string, publishDate: string): Promise<boolean> {
   const cache = await readRankingPlayerDetail('bat', gid)
   if (!cache) return false
-  if (cache.detail) {
-    if (cache.detail.publishDate !== publishDate) return false
-    // Older than the snapshot it is read against → it predates any in-place
-    // revision of that same publication. Absent/unparsable timestamps fall
-    // back to publishDate-only, which is the previous behaviour.
-    if (rankingScrapedAt && cache.detail.scrapedAt) {
-      const detailAt = Date.parse(cache.detail.scrapedAt)
-      const rankingAt = Date.parse(rankingScrapedAt)
-      if (Number.isFinite(detailAt) && Number.isFinite(rankingAt) && detailAt < rankingAt) return false
-    }
-    return true
-  }
+  if (cache.detail) return cache.detail.publishDate === publishDate
   if (cache.notFound) return cache.notFound.publishDate === publishDate
   return false
 }
@@ -169,7 +136,7 @@ export async function cohortReadiness(): Promise<{ ready: boolean; have: number;
   if (!set || set.gids.length === 0) return { ready: false, have: 0, total: set?.gids.length ?? 0 }
   let have = 0
   for (const gid of set.gids) {
-    if (await isCohortPlayerReady(gid, set.publishDate, set.scrapedAt)) have++
+    if (await isCohortPlayerReady(gid, set.publishDate)) have++
   }
   return { ready: have === set.gids.length, have, total: set.gids.length }
 }

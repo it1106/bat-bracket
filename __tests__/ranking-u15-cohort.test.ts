@@ -20,14 +20,12 @@ function eventEntries(prefix: string) {
   }))
 }
 
-const RANKING_SCRAPED_AT = '2026-06-23T10:00:00.000Z'
-
 async function seedRanking(dir: string) {
   const events = U15_BOARDS.map(b => ({
     eventCode: b.eventCode, eventName: b.eventCode, entries: eventEntries(b.eventCode),
   }))
   await fs.writeFile(path.join(dir, 'ranking-bat.json'), JSON.stringify({
-    provider: 'bat', scrapedAt: RANKING_SCRAPED_AT, publishDate: '23/6/2569', rankingId: '52346',
+    provider: 'bat', scrapedAt: 'now', publishDate: '23/6/2569', rankingId: '52346',
     series: [{ seriesId: '189', rankingId: '52346', publishDate: '23/6/2569' }], events,
   }))
 }
@@ -85,43 +83,14 @@ describe('u15-cohort (all U15 boards)', () => {
     expect(await cohortReadiness()).toMatchObject({ ready: true, have: 250, total: 250 })
   })
 
-  it('ignores the 24h freshness TTL — a days-old scrape of the current snapshot stays ready', async () => {
-    // The TTL that gates on-demand player pages must not gate the cohort, or
-    // the checkbox flaps off the day after each weekly sweep. Any detail taken
-    // after the ranking snapshot counts, however long ago.
+  it('keys readiness on publishDate ONLY — a stale-but-current scrape stays ready', async () => {
+    // An ancient scrapedAt would fail the 24h freshness TTL; readiness must
+    // ignore that and gate on publishDate so the checkbox doesn't flap daily.
     const set = await loadU15BackfillSet()
     for (const gid of set!.gids) {
       await writeRankingPlayerDetail('bat', {
         globalPlayerId: gid, publishDate: '23/6/2569',
-        scrapedAt: '2026-06-28T10:00:00.000Z', // 5 days after the snapshot
-        tournaments: [],
-      })
-    }
-    expect(await cohortReadiness()).toMatchObject({ ready: true, have: 250, total: 250 })
-  })
-
-  it('is not ready when the detail predates the ranking snapshot it is read against', async () => {
-    // An in-place revision keeps publishDate but moves the ranking's scrapedAt.
-    // This is how รวิณ ชูชัยศรี's profile came to list nine U15 singles
-    // tournaments under a header reading "10 tn · 38,437 pts": BAT added the
-    // Ponsana row hours after we cached his detail, and publishDate-only
-    // readiness could not see it.
-    const set = await loadU15BackfillSet()
-    for (const gid of set!.gids) {
-      await writeRankingPlayerDetail('bat', {
-        globalPlayerId: gid, publishDate: '23/6/2569',
-        scrapedAt: '2026-06-23T09:00:00.000Z', // an hour BEFORE the snapshot
-        tournaments: [],
-      })
-    }
-    expect(await cohortReadiness()).toMatchObject({ ready: false, have: 0, total: 250 })
-  })
-
-  it('falls back to publishDate-only when a timestamp is unusable', async () => {
-    const set = await loadU15BackfillSet()
-    for (const gid of set!.gids) {
-      await writeRankingPlayerDetail('bat', {
-        globalPlayerId: gid, publishDate: '23/6/2569', scrapedAt: 'not-a-date', tournaments: [],
+        scrapedAt: '2000-01-01T00:00:00.000Z', tournaments: [],
       })
     }
     expect(await cohortReadiness()).toMatchObject({ ready: true, have: 250, total: 250 })
