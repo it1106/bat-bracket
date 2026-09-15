@@ -390,7 +390,7 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
                           <td>
                             {e.name}
                             {e.partnerName && (
-                              <span className="lb-projected-partner"> / {e.partnerName}</span>
+                              <span className="lb-projected-partner">{e.partnerName}</span>
                             )}
                           </td>
                           <td>{e.officialRank}</td>

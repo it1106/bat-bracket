@@ -3538,8 +3538,19 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .lb-projected-table th:first-child, .lb-projected-table td:first-child { text-align: left; }
 /* Doubles/mixed project per pairing, so the row names both players. The partner
    is muted so the cohort member — the name the reader scanned for — still
-   leads the row. */
+   leads the row. The separator is CSS rather than markup because it is what
+   has to go when the pairing stacks on a phone. */
 .lb-projected-partner { color: var(--muted); }
+.lb-projected-partner::before { content: ' / '; }
+@media (max-width: 640px) {
+  /* Six columns of Thai names and 5-digit points do not fit 390px: even the
+     singles board wrapped names across three lines here, and a pairing made it
+     four. Tighten the numerics and give the partner its own line, so a doubles
+     row costs one line more than a singles row rather than doubling it. */
+  .lb-projected-table th, .lb-projected-table td { padding: 3px 4px; font-size: 12px; }
+  .lb-projected-partner { display: block; }
+  .lb-projected-partner::before { content: ''; }
+}
 .lb-projected-table thead th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border, #ddd); }
 .lb-projected-table .lb-rk-delta-up   { color: var(--win-fg); font-weight: 700; }
 .lb-projected-table .lb-rk-delta-down { color: var(--red);    font-weight: 700; }
