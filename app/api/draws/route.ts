@@ -3,6 +3,7 @@ import {
   getCachedOrDisk, TTL_MS, fetchAndCache,
   inBackoff, markBatFailure, clearBatFailure,
 } from '@/lib/draws-cache'
+import { cachedEntrantCounts } from '@/lib/bracket-cache'
 import type { DrawInfo } from '@/lib/types'
 
 export const maxDuration = 60
@@ -18,8 +19,18 @@ export async function GET(request: Request) {
   // Non-grouped Round Robin draws (no eventName) stay hidden by historical
   // convention. Playoff draws now carry eventName + isPlayoff, so they remain
   // visible as the event-level entry.
+  // Stamp each visible draw with its cached entrant count, so the client can
+  // tell "published with nobody in it" from "published" before a draw is
+  // picked. Cache-only: this must not turn a draw list into 30+ upstream
+  // fetches. Draws the cache hasn't seen carry no count and stay unknown.
+  const withEntrants = (draws: DrawInfo[]): DrawInfo[] => {
+    const counts = cachedEntrantCounts(id, draws.map(d => d.drawNum))
+    return draws.map((d, i) =>
+      counts[i] === undefined ? d : { ...d, entrantCount: counts[i] })
+  }
+
   const filter = (draws: DrawInfo[]) =>
-    draws.filter((d) => !d.groupLetter && (d.isPlayoff || d.type !== 'Round Robin'))
+    withEntrants(draws.filter((d) => !d.groupLetter && (d.isPlayoff || d.type !== 'Round Robin')))
 
   // Read mem first, fall through to disk. Disk is the floor that keeps
   // [done] tournaments serviceable across pm2 reloads even if BAT is down

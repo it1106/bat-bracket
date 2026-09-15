@@ -11,7 +11,7 @@ import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
 import Link from 'next/link'
 import { useLongPress } from '@/lib/useLongPress'
-import { isAwaitingBracketPublication, isDrawWithoutEntries } from '@/lib/bracket-state'
+import { areAllDrawsUnentered, isAwaitingBracketPublication, isDrawWithoutEntries } from '@/lib/bracket-state'
 import { usePointerReorder } from '@/lib/usePointerReorder'
 import { schedulePollUrl } from '@/lib/schedulePoll'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
@@ -872,10 +872,17 @@ export default function Home() {
   // before the draws are made — so "no draws" is a normal, expected state now,
   // not a failure. It has to be distinguished from the in-flight case, hence
   // the loading guard; `error` is handled by its own banner.
-  // Two roads to the same message: the tournament has no draws at all, or the
-  // selected draw was published as an empty shell.
+  // Every draw of this tournament is a published shape with nobody in it —
+  // known before any draw is picked, so the Bracket tab can say so on arrival
+  // and the draw dropdown can be disabled rather than offering 33 blank grids.
+  const allDrawsUnentered = !loadingDraws && areAllDrawsUnentered(draws)
+
+  // Three roads to the same message: no draws at all, every draw an empty
+  // shell, or the one selected turning out to be an empty shell (the fallback
+  // for when the server could not tell us up front).
   const noBracketPublished =
     isAwaitingBracketPublication({ selectedTournament, loadingDraws, error, drawCount: draws.length }) ||
+    allDrawsUnentered ||
     isDrawWithoutEntries({ bracketHtml, entrantCount: bracketEntrants })
 
   // Selected tournament's entry, for the "official page" link next to the
@@ -948,11 +955,15 @@ export default function Home() {
               <select
                 value={selectedDraw}
                 onChange={(e) => handleDrawChange(e.target.value)}
-                disabled={!selectedTournament || loadingDraws || draws.length === 0}
+                disabled={!selectedTournament || loadingDraws || draws.length === 0 || allDrawsUnentered}
                 className="border border-[var(--border)] rounded-md px-2.5 py-1.5 text-xs min-w-[160px] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:border-[var(--brand)] disabled:opacity-50"
               >
                 <option value="">
-                  {loadingDraws ? t('loading') : draws.length === 0 && selectedTournament ? t('noDraws') : t('selectDraw')}
+                  {loadingDraws
+                    ? t('loading')
+                    : selectedTournament && (draws.length === 0 || allDrawsUnentered)
+                    ? t('noDraws')
+                    : t('selectDraw')}
                 </option>
                 {draws.map((d) => (
                   <option key={d.drawNum} value={d.drawNum}>

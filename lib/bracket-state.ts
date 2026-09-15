@@ -17,6 +17,22 @@ export function isDrawWithoutEntries(s: {
   return !!s.bracketHtml && s.entrantCount === 0
 }
 
+/** Are ALL of this tournament's draws published with nobody in them?
+ *
+ *  Upstream lists a draw as soon as its shape exists, so "there are draws"
+ *  does not mean "there is a bracket". This answers the question the Bracket
+ *  tab asks before any draw is picked, which is why it must be certain: a
+ *  wrong `true` disables the dropdown and hides brackets that do exist.
+ *
+ *  So it is true only when EVERY draw is known to hold zero entrants. One
+ *  draw with entries, or one whose count the server hasn't cached, makes it
+ *  false — a tournament can publish some of its draws and not others, and an
+ *  unknown count is not a zero. Where coverage is incomplete the reader simply
+ *  gets the per-draw message instead, one selection later. */
+export function areAllDrawsUnentered(draws: Array<{ entrantCount?: number }>): boolean {
+  return draws.length > 0 && draws.every(d => d.entrantCount === 0)
+}
+
 /** Is this tournament simply without a published bracket yet?
  *
  *  Since discovery started admitting tournaments as soon as their seeded

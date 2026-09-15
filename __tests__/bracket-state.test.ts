@@ -1,4 +1,4 @@
-import { isAwaitingBracketPublication, isDrawWithoutEntries } from '@/lib/bracket-state'
+import { areAllDrawsUnentered, isAwaitingBracketPublication, isDrawWithoutEntries } from '@/lib/bracket-state'
 import { translate } from '@/lib/i18n'
 
 const base = { selectedTournament: 'T1', loadingDraws: false, error: null, drawCount: 0 }
@@ -49,6 +49,32 @@ describe('isDrawWithoutEntries', () => {
 
   it('is false before any bracket is fetched', () => {
     expect(isDrawWithoutEntries({ bracketHtml: '', entrantCount: 0 })).toBe(false)
+  })
+})
+
+describe('areAllDrawsUnentered', () => {
+  it('is true when every draw is a published shape with nobody in it', () => {
+    // THE MALL 2026: 33 listed draws, all empty.
+    expect(areAllDrawsUnentered(Array(33).fill({ entrantCount: 0 }))).toBe(true)
+  })
+
+  it('is false when even one draw holds entries', () => {
+    // A tournament can publish some draws and not others; saying "nothing is
+    // published" would disable the dropdown and hide the real bracket.
+    expect(areAllDrawsUnentered([
+      { entrantCount: 0 }, { entrantCount: 0 }, { entrantCount: 64 },
+    ])).toBe(false)
+  })
+
+  it('is false when any count is unknown, since unknown is not zero', () => {
+    expect(areAllDrawsUnentered([{ entrantCount: 0 }, {}])).toBe(false)
+    expect(areAllDrawsUnentered([{}, {}])).toBe(false)
+  })
+
+  it('is false for a tournament with no draws, which is a different case', () => {
+    // That one is isAwaitingBracketPublication's; both end at the same message
+    // but only this one should ever disable an otherwise-populated dropdown.
+    expect(areAllDrawsUnentered([])).toBe(false)
   })
 })
 

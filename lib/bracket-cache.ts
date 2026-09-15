@@ -277,6 +277,22 @@ async function loadBracketStoreFromDisk(): Promise<number> {
   }
 }
 
+/** Entrant counts for a tournament's draws, read from cache ONLY — never
+ *  fetched. `undefined` for a draw the cache has not seen, and for one cached
+ *  before entrant counting existed: not-known is not zero, and the caller must
+ *  not read it as "empty".
+ *
+ *  This is what lets the Bracket tab say "not published yet" before a draw is
+ *  picked. The prewarm walks every draw of every active tournament and the
+ *  store is restored from disk at boot, so coverage is normally complete;
+ *  where it isn't, the caller degrades to saying nothing. */
+export function cachedEntrantCounts(
+  guid: string,
+  drawNums: string[],
+): Array<number | undefined> {
+  return drawNums.map(n => cache.get(makeBracketKey(guid.toLowerCase(), n))?.bracket.entrantCount)
+}
+
 export async function flushBracketCache(): Promise<void> {
   if (!state.dirty) return
   state.dirty = false

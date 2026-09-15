@@ -16,6 +16,12 @@ export interface DrawInfo {
   name: string
   size: string
   type: string
+  /** Named players in this draw, when the server already has the bracket
+   *  cached. Zero means upstream published the draw's shape with nobody in it.
+   *  Absent means not known — the bracket has not been cached yet — and must
+   *  never be read as zero. Stamped by /api/draws; not part of the upstream
+   *  draw list. */
+  entrantCount?: number
   eventName?: string
   groupLetter?: string
   isPlayoff?: boolean
