@@ -385,3 +385,98 @@ describe('TournamentStatsPanel — club roster active/medaled counts', () => {
     expect(nums[2].querySelector('.stats-roster-cell')).toBeNull()
   })
 })
+
+describe('TournamentStatsPanel — club roster sorting', () => {
+  // Arrives in the API's own order (clubs ranked by squad size). Each club's
+  // players/active/medaled deliberately rank differently so a sort on one
+  // column cannot be mistaken for a sort on another.
+  const member = (name: string, status: 'in' | 'gold' | 'out') =>
+    ({ name, playerId: name, events: ['MS'], statusByEvent: { MS: status } })
+  const sortPayload = {
+    ...minimalLegacyPayload,
+    clubRosters: [
+      // players 4, active 1, medaled 0
+      { club: 'Big', players: 4, members: ['b1', 'b2', 'b3', 'b4'],
+        roster: [member('b1', 'in'), member('b2', 'out'), member('b3', 'out'), member('b4', 'out')] },
+      // players 3, active 3, medaled 0
+      { club: 'Mid', players: 3, members: ['m1', 'm2', 'm3'],
+        roster: [member('m1', 'in'), member('m2', 'in'), member('m3', 'in')] },
+      // players 2, active 0, medaled 2
+      { club: 'Small', players: 2, members: ['s1', 's2'],
+        roster: [member('s1', 'gold'), member('s2', 'gold')] },
+    ],
+  }
+
+  async function renderClubs(payload: unknown = sortPayload) {
+    fetchOnce(payload)
+    await act(async () => {
+      render(<TournamentStatsPanel tournamentId="TEST-2026" tournamentName="Test 2026" />)
+    })
+    await screen.findByText('statsSectionClubRosters')
+  }
+
+  const header = (label: string) =>
+    Array.from(document.querySelectorAll('th.stats-th-sort'))
+      .find((th) => (th.textContent ?? '').startsWith(label))!
+
+  const clubOrder = () =>
+    Array.from(document.querySelectorAll('.stats-table'))
+      .find((tbl) => tbl.querySelector('th.stats-th-sort'))!
+      .querySelectorAll('tbody .stats-country-link')
+
+  const clubs = () => Array.from(clubOrder()).map((b) => b.textContent)
+
+  it('leaves the incoming order alone until a header is clicked', async () => {
+    await renderClubs()
+    expect(clubs()).toEqual(['Big', 'Mid', 'Small'])
+    expect(header('statsColPlayers').getAttribute('aria-sort')).toBe('none')
+  })
+
+  it('sorts by players, biggest first, then flips on a second click', async () => {
+    await renderClubs()
+    await act(async () => { fireEvent.click(header('statsColPlayers')) })
+    expect(clubs()).toEqual(['Big', 'Mid', 'Small'])
+    expect(header('statsColPlayers').getAttribute('aria-sort')).toBe('descending')
+    await act(async () => { fireEvent.click(header('statsColPlayers')) })
+    expect(clubs()).toEqual(['Small', 'Mid', 'Big'])
+    expect(header('statsColPlayers').getAttribute('aria-sort')).toBe('ascending')
+  })
+
+  it('sorts by active count, which is not the players order', async () => {
+    await renderClubs()
+    await act(async () => { fireEvent.click(header('statsColActive')) })
+    expect(clubs()).toEqual(['Mid', 'Big', 'Small'])
+    await act(async () => { fireEvent.click(header('statsColActive')) })
+    expect(clubs()).toEqual(['Small', 'Big', 'Mid'])
+  })
+
+  it('sorts by medaled count, which is not the players order either', async () => {
+    await renderClubs()
+    await act(async () => { fireEvent.click(header('statsColMedaled')) })
+    expect(clubs()[0]).toBe('Small')
+  })
+
+  it('moves the arrow to whichever column is sorting', async () => {
+    await renderClubs()
+    await act(async () => { fireEvent.click(header('statsColActive')) })
+    expect(header('statsColActive').getAttribute('aria-sort')).toBe('descending')
+    expect(header('statsColPlayers').getAttribute('aria-sort')).toBe('none')
+    expect(header('statsColMedaled').getAttribute('aria-sort')).toBe('none')
+  })
+
+  it('sorts before the top-10 slice, so the collapsed table shows the real top 10', async () => {
+    // 12 clubs: squad size descending, medal count ascending. Sorting by
+    // medaled must surface clubs that the default top-10 would have cut.
+    const many = Array.from({ length: 12 }, (_, i) => ({
+      club: `C${i}`,
+      players: 12 - i,
+      members: [`p${i}`],
+      roster: [member(`p${i}`, i >= 10 ? 'gold' : 'out')],
+    }))
+    await renderClubs({ ...minimalLegacyPayload, clubRosters: many })
+    expect(clubs()).toHaveLength(10)
+    expect(clubs()).not.toContain('C11')
+    await act(async () => { fireEvent.click(header('statsColMedaled')) })
+    expect(clubs().slice(0, 2).sort()).toEqual(['C10', 'C11'])
+  })
+})

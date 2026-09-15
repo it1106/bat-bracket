@@ -58,6 +58,9 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
   // Country-roster controls: a gender filter and a sortable-header sort spec.
   const [countryGender, setCountryGender] = useState<RosterGender | 'all'>('all')
   const [countrySort, setCountrySort] = useState<RosterSort | null>(null)
+  // Club-roster sort. null keeps the incoming order — clubs arrive ranked by
+  // squad size — so the table looks untouched until a header is clicked.
+  const [clubSort, setClubSort] = useState<RosterSort | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const preparedFileRef = useRef<File | null>(null)
 
@@ -430,19 +433,25 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       </section>
 
       {/* Club / Team rosters */}
-      {(stats.clubRosters ?? []).length > 0 && (
+      {(stats.clubRosters ?? []).length > 0 && (() => {
+        // Sort before the top-10 slice, so the collapsed table shows the top
+        // ten *of the chosen sort* rather than the top ten by squad size
+        // re-ordered among themselves.
+        const sortedClubs = sortRosterRows(stats.clubRosters ?? [], (c) => c.club, clubSort)
+        const onClubSort = (col: RosterSortCol) => setClubSort((prev) => nextRosterSort(prev, col))
+        return (
         <section className="stats-section">
           <h2>{t('statsSectionClubRosters')}</h2>
           <table className="stats-table">
             <thead><tr>
               <th></th>
               <th>{t('statsColClub')}</th>
-              <th className="stats-num">{t('statsColPlayers')}</th>
-              <th className="stats-num">{t('statsColActive')}</th>
-              <th className="stats-num">{t('statsColMedaled')}</th>
+              <SortableTh col="players" label={t('statsColPlayers')} sort={clubSort} onSort={onClubSort} num />
+              <SortableTh col="active" label={t('statsColActive')} sort={clubSort} onSort={onClubSort} num />
+              <SortableTh col="medaled" label={t('statsColMedaled')} sort={clubSort} onSort={onClubSort} num />
             </tr></thead>
             <tbody>
-              {(clubRostersExpanded ? (stats.clubRosters ?? []) : (stats.clubRosters ?? []).slice(0, 10)).map((c, i) => (
+              {(clubRostersExpanded ? sortedClubs : sortedClubs.slice(0, 10)).map((c, i) => (
                 <tr key={c.club}>
                   <td className="stats-rank">{i + 1}</td>
                   <td>
@@ -468,29 +477,14 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
             </button>
           )}
         </section>
-      )}
+        )
+      })()}
 
       {/* Country rosters (BWF: no clubs, players grouped by country code) */}
       {(stats.clubRosters ?? []).length === 0 && (stats.countryRosters ?? []).length > 0 && (() => {
         const filtered = filterCountryRostersByGender(stats.countryRosters ?? [], countryGender)
         const sorted = sortRosterRows(filtered, (c) => c.country, countrySort)
-        const toggleSort = (col: RosterSortCol) =>
-          setCountrySort((prev) =>
-            prev?.col === col
-              ? { col, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-              : { col, dir: col === 'name' ? 'asc' : 'desc' },
-          )
-        const arrow = (col: RosterSortCol) =>
-          countrySort?.col === col ? (countrySort.dir === 'asc' ? ' ▲' : ' ▼') : ''
-        const sortableTh = (col: RosterSortCol, label: string, num = false) => (
-          <th
-            className={`stats-th-sort${num ? ' stats-num' : ''}`}
-            aria-sort={countrySort?.col === col ? (countrySort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-            onClick={() => toggleSort(col)}
-          >
-            {label}{arrow(col)}
-          </th>
-        )
+        const onCountrySort = (col: RosterSortCol) => setCountrySort((prev) => nextRosterSort(prev, col))
         // The Active header is special: first it sorts by active count (number
         // of players), then a click switches to sorting by active % — both
         // highest→lowest. Clicking again cycles back to count.
@@ -520,8 +514,8 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
           <table className="stats-table">
             <thead><tr>
               <th></th>
-              {sortableTh('name', t('statsColCountry'))}
-              {sortableTh('players', t('statsColPlayers'), true)}
+              <SortableTh col="name" label={t('statsColCountry')} sort={countrySort} onSort={onCountrySort} />
+              <SortableTh col="players" label={t('statsColPlayers')} sort={countrySort} onSort={onCountrySort} num />
               <th
                 className="stats-th-sort stats-num"
                 aria-sort={activeMode ? 'descending' : 'none'}
@@ -679,6 +673,36 @@ const stripSeedSuffix = (name: string): string => name.replace(/\s*\[[^\]]*\]\s*
 // A roster member as the status columns need it: the per-event status that
 // isActive/isMedaled read, plus the name to list in the hover popover.
 type NamedRosterMember = RosterStatusMember & { name: string }
+
+/** A clickable column header that sorts the table it heads. `sort` is the
+ *  table's current spec, so the header knows whether the arrow is its own. */
+function SortableTh({
+  col, label, sort, onSort, num = false,
+}: {
+  col: RosterSortCol
+  label: string
+  sort: RosterSort | null
+  onSort: (col: RosterSortCol) => void
+  num?: boolean
+}) {
+  const mine = sort?.col === col
+  return (
+    <th
+      className={`stats-th-sort${num ? ' stats-num' : ''}`}
+      aria-sort={mine ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      onClick={() => onSort(col)}
+    >
+      {label}{mine ? (sort!.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+    </th>
+  )
+}
+
+/** Clicking a new column starts it at its most useful end — counts biggest
+ *  first, names A-Z; clicking the column again flips it. */
+export function nextRosterSort(prev: RosterSort | null, col: RosterSortCol): RosterSort {
+  if (prev?.col === col) return { col, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+  return { col, dir: col === 'name' ? 'asc' : 'desc' }
+}
 
 // The Active and Medaled counts for a club/country row, derived from its roster
 // members' per-event status. Each count hovers to the names behind it, the same
