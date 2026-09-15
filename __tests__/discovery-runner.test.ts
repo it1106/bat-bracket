@@ -10,6 +10,8 @@ function makeDeps(overrides: Partial<DiscoveryDeps>): DiscoveryDeps {
     parseTournamentDraws: () => [],
     fetchDrawContentHtml: async () => '<html></html>',
     bracketHasSeededPlayers: () => false,
+    fetchSeedsHtml: async () => '<html></html>',
+    parseSeedEntries: () => [],
     loadDiscovered: async () => ({ version: 1, entries: [] }),
     saveDiscovered: async () => {},
     captureServerEvent: async () => {},
@@ -305,5 +307,110 @@ describe('runDiscoveryCycle — mutex', () => {
     release()
     await Promise.all([first, second])
     expect(upcomingCalls).toBe(1)
+  })
+})
+
+describe('runDiscoveryCycle — the seeds gate', () => {
+  const seedEvent = { eventName: 'MS - Main Draw', seeds: [{ seed: 1, players: ['A. Player'] }] }
+
+  it('promotes on published seeds while every draw is still empty', async () => {
+    // The THE MALL BADMINTON CHAMPIONSHIP 2026 case: 33 seeded events up,
+    // draws listed but unpopulated. The bracket-only gate kept it out.
+    const saved: DiscoveryStore[] = []
+    const events: { event: string; props: unknown }[] = []
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        parseSeedEntries: () => [seedEvent],
+        parseTournamentDraws: () => [{ drawNum: '1', name: 'X', size: '32', type: 's' }],
+        bracketHasSeededPlayers: () => false,
+        saveDiscovered: async (s) => { saved.push(s) },
+        captureServerEvent: async (event, props) => { events.push({ event, props }) },
+      }),
+    )
+    expect(saved[0].entries[0]).toMatchObject({ id: MOCK_ENTRY.id, hasBracket: true })
+    expect(events).toEqual([
+      { event: 'tournament_auto_added', props: { id: MOCK_ENTRY.id, name: MOCK_ENTRY.name } },
+    ])
+  })
+
+  it('does not touch the draws once seeds have admitted it', async () => {
+    // Seeds are one request; the bracket probe is one plus five. Checking
+    // seeds first has to actually skip the probe, or it costs more, not less.
+    let drawsFetched = 0
+    let drawContentFetched = 0
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        parseSeedEntries: () => [seedEvent],
+        fetchDrawsHtml: async () => { drawsFetched++; return '<html></html>' },
+        fetchDrawContentHtml: async () => { drawContentFetched++; return '<html></html>' },
+      }),
+    )
+    expect(drawsFetched).toBe(0)
+    expect(drawContentFetched).toBe(0)
+  })
+
+  it('still promotes on a populated bracket when nothing is seeded', async () => {
+    // Small events can go straight to a populated draw without ever seeding.
+    const saved: DiscoveryStore[] = []
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        parseSeedEntries: () => [],
+        parseTournamentDraws: () => [{ drawNum: '1', name: 'X', size: '32', type: 's' }],
+        bracketHasSeededPlayers: () => true,
+        saveDiscovered: async (s) => { saved.push(s) },
+      }),
+    )
+    expect(saved[0].entries[0]).toMatchObject({ hasBracket: true })
+  })
+
+  it('holds back a tournament with neither seeds nor a populated bracket', async () => {
+    const saved: DiscoveryStore[] = []
+    const events: unknown[] = []
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        parseSeedEntries: () => [],
+        parseTournamentDraws: () => [{ drawNum: '1', name: 'X', size: '32', type: 's' }],
+        bracketHasSeededPlayers: () => false,
+        saveDiscovered: async (s) => { saved.push(s) },
+        captureServerEvent: async (event, props) => { events.push({ event, props }) },
+      }),
+    )
+    expect(saved[0].entries[0]).toMatchObject({ hasBracket: false })
+    expect(events).toEqual([])
+  })
+
+  it('falls back to the bracket when the seeds page errors', async () => {
+    const saved: DiscoveryStore[] = []
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        fetchSeedsHtml: async () => { throw new Error('HTTP 500') },
+        parseTournamentDraws: () => [{ drawNum: '1', name: 'X', size: '32', type: 's' }],
+        bracketHasSeededPlayers: () => true,
+        saveDiscovered: async (s) => { saved.push(s) },
+      }),
+    )
+    expect(saved[0].entries[0]).toMatchObject({ hasBracket: true })
+  })
+
+  it('re-checks an already-known but unadmitted tournament on the next cycle', async () => {
+    const saved: DiscoveryStore[] = []
+    const existing: DiscoveredEntry = {
+      id: MOCK_ENTRY.id, name: MOCK_ENTRY.name, hasBracket: false,
+      discoveredAt: '2026-05-01T00:00:00Z', lastSeenOnUpcomingAt: '2026-05-06T00:00:00Z',
+    }
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        loadDiscovered: async () => ({ version: 1, entries: [existing] }),
+        parseSeedEntries: () => [seedEvent],
+        saveDiscovered: async (s) => { saved.push(s) },
+      }),
+    )
+    expect(saved[0].entries[0]).toMatchObject({ hasBracket: true, discoveredAt: '2026-05-01T00:00:00Z' })
   })
 })

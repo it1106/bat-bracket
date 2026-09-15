@@ -1,9 +1,9 @@
 import type { UpcomingEntry } from './upcoming-scraper'
 import type { DiscoveredEntry, DiscoveryStore } from './discovery-store'
-import type { DrawInfo } from './types'
+import type { DrawInfo, SeedEvent } from './types'
 import { batFetch } from './bat-fetch'
 import { parseUpcoming } from './upcoming-scraper'
-import { parseTournamentDraws, bracketHasSeededPlayers } from './scraper'
+import { parseTournamentDraws, bracketHasSeededPlayers, parseSeedEntries } from './scraper'
 import { loadDiscovered, saveDiscovered } from './discovery-store'
 import { captureServerEvent } from './posthog-server'
 
@@ -14,6 +14,8 @@ export interface DiscoveryDeps {
   parseTournamentDraws: (html: string) => DrawInfo[]
   fetchDrawContentHtml: (id: string, drawNum: string) => Promise<string>
   bracketHasSeededPlayers: (html: string) => boolean
+  fetchSeedsHtml: (id: string) => Promise<string>
+  parseSeedEntries: (html: string) => SeedEvent[]
   loadDiscovered: () => Promise<DiscoveryStore>
   saveDiscovered: (s: DiscoveryStore) => Promise<void>
   captureServerEvent: (event: string, props: Record<string, unknown>) => Promise<void>
@@ -53,10 +55,10 @@ async function runDiscoveryCycleInner(deps: DiscoveryDeps): Promise<void> {
       existing.lastSeenOnUpcomingAt = nowIso
       existing.name = u.name
       if (existing.hasBracket) continue
-      const promoted = await runBracketGate(deps, u.id)
+      const promoted = await runAdmissionGate(deps, u.id)
       if (promoted) existing.hasBracket = true
     } else {
-      const promoted = await runBracketGate(deps, u.id)
+      const promoted = await runAdmissionGate(deps, u.id)
       const entry: DiscoveredEntry = {
         id: u.id,
         name: u.name,
@@ -112,6 +114,37 @@ async function runDiscoveryCycleInner(deps: DiscoveryDeps): Promise<void> {
 // avoid burning the per-tournament fetch budget on tournaments that genuinely
 // have no entrants yet.
 const BRACKET_GATE_PROBE_CAP = 5
+
+/** Is the tournament ready to show in the app?
+ *
+ *  Seeded entries first: BAT publishes seeding before it populates the draws,
+ *  so this admits a tournament days earlier — and the Overview tab has its
+ *  seed list to show the moment it appears. THE MALL BADMINTON CHAMPIONSHIP
+ *  2026 was the case that prompted this: 33 seeded events published while
+ *  every probed draw was still empty, so the bracket-only gate kept it out.
+ *
+ *  The bracket probe stays as a fallback. Not every tournament seeds — a small
+ *  event can go straight to a populated draw — and dropping the probe would
+ *  shut those out entirely.
+ *
+ *  Seeds cost one request against the bracket probe's one-plus-five, so
+ *  checking them first also makes the common case cheaper. */
+async function runAdmissionGate(deps: DiscoveryDeps, id: string): Promise<boolean> {
+  if (await hasPublishedSeeds(deps, id)) return true
+  return runBracketGate(deps, id)
+}
+
+/** True once BAT publishes any seeded entry. `parseSeedEntries` keeps only
+ *  events that have seeds and only seeds that name players, so a seeds page
+ *  that exists but is still empty — every upcoming tournament has one —
+ *  yields nothing and does not admit. */
+async function hasPublishedSeeds(deps: DiscoveryDeps, id: string): Promise<boolean> {
+  try {
+    return deps.parseSeedEntries(await deps.fetchSeedsHtml(id)).length > 0
+  } catch {
+    return false
+  }
+}
 
 async function runBracketGate(deps: DiscoveryDeps, id: string): Promise<boolean> {
   try {
@@ -175,6 +208,16 @@ export function buildDefaultDeps(): DiscoveryDeps {
       return res.text()
     },
     bracketHasSeededPlayers,
+    fetchSeedsHtml: async (id) => {
+      const res = await batFetch(
+        'discovery-seeds',
+        `https://bat.tournamentsoftware.com/sport/seeds.aspx?id=${id}`,
+        { headers: HEADERS, cache: 'no-store' },
+      )
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res.text()
+    },
+    parseSeedEntries,
     loadDiscovered,
     saveDiscovered,
     captureServerEvent,
