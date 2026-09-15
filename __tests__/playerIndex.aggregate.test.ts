@@ -141,3 +141,44 @@ describe('buildIndex — single tournament', () => {
     expect(p.opponentsByWindow!.all).toEqual(p.opponents)
   })
 })
+
+describe('buildIndex — event partner', () => {
+  const toyota = loadInput('toyota', 'โตโยต้า เยาวชน 2569', '2026-05-01')
+
+  it('records a partner on doubles/mixed events and none on singles', () => {
+    const { index } = buildIndex('bat', [toyota])
+    let doublesSeen = 0
+    for (const p of Object.values(index.players)) {
+      for (const e of p.tournaments.flatMap(t => t.events)) {
+        if (e.discipline === 'singles') {
+          expect(e.partnerName).toBeUndefined()
+        } else {
+          doublesSeen++
+          expect(typeof e.partnerName).toBe('string')
+          expect(e.partnerName!.length).toBeGreaterThan(0)
+        }
+      }
+    }
+    expect(doublesSeen).toBeGreaterThan(0)
+  })
+
+  it('strips the seed marker, so the partner matches the profile display name', () => {
+    const { index } = buildIndex('bat', [toyota])
+    const partners = Object.values(index.players)
+      .flatMap(p => p.tournaments.flatMap(t => t.events.map(e => e.partnerName)))
+    expect(partners.some(Boolean)).toBe(true)
+    for (const name of partners) expect(name ?? '').not.toMatch(/\[\d+\]/)
+  })
+
+  it('agrees with the partner named on that event\'s matches', () => {
+    const { index } = buildIndex('bat', [toyota])
+    for (const p of Object.values(index.players)) {
+      for (const e of p.tournaments.flatMap(t => t.events)) {
+        if (!e.partnerName) continue
+        const matches = p.tournamentMatches?.[`${e.tournamentId}:${e.eventId}`] ?? []
+        const named = new Set(matches.flatMap(m => m.partners))
+        if (named.size > 0) expect(named.has(e.partnerName)).toBe(true)
+      }
+    }
+  })
+})

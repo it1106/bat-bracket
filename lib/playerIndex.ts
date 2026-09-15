@@ -455,6 +455,21 @@ export function buildIndex(
     }
   }
 
+  /** The partner a player played an event with: the most common name across
+   *  the event's match refs (already seed-stripped by the ref builder). Ties
+   *  break toward the earliest-seen name so the result is stable. Empty for
+   *  singles, where no ref has a partner. */
+  function mostCommonPartner(refs: PlayerMatchRef[]): string | undefined {
+    const counts = new Map<string, number>()
+    for (const r of refs) for (const name of r.partners) {
+      if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
+    }
+    let best: string | undefined
+    let bestCount = 0
+    counts.forEach((n, name) => { if (n > bestCount) { best = name; bestCount = n } })
+    return best
+  }
+
   function bestFinishFor(refs: PlayerMatchRef[]): PlayerEventResult['bestFinish'] {
     if (refs.some(r => r.round === 'Final' && (r.outcome === 'W' || r.outcome === 'WO-W' || r.outcome === 'RET-W'))) return 'Champion'
     // refs[].round comes from normalizeRound() which emits the long-form
@@ -526,6 +541,10 @@ export function buildIndex(
           }
         }
         const active = wonDeepest && finish !== 'Champion' && finish !== 'RR'
+        // One pairing plays every match of a doubles event, so the partner is
+        // normally identical across refs; the vote guards the case where two
+        // pairings collapse under one event label (evMap keys on eventName).
+        const partnerName = mostCommonPartner(eventRefs)
         events.push({
           tournamentId: t.tournamentId,
           eventId,
@@ -536,6 +555,7 @@ export function buildIndex(
           ...(drawSize && { drawSize }),
           ...(lostByWalkover && { lostByWalkover: true }),
           ...(active && { active: true }),
+          ...(partnerName && { partnerName }),
         })
         // Persist per-event matches for the Tournament History tooltip,
         // sorted deepest round first. Within the same round (only possible

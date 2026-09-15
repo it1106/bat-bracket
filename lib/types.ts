@@ -634,6 +634,15 @@ export interface PlayerEventResult {
    *  walkover (no-show, WO-L). Such a first-round walkover-loss earns no
    *  ranking points. Optional; absent on older indexes. */
   lostByWalkover?: boolean
+  /** Partner's display name (seed marker stripped) for a doubles/mixed event;
+   *  absent for singles. BAT ranks doubles per PAIRING, so the projection has
+   *  to know which pairing a result belongs to — the partner name is the only
+   *  identifier BAT's ranking rows (`doublesPartner`) and our index agree on.
+   *  Taken as the most common partner across the event's matches: one pairing
+   *  plays every match of an event, so the vote only matters if two pairings
+   *  were ever conflated under one event label. Optional; absent on indexes
+   *  built before schema 15. */
+  partnerName?: string
   /** True when the player won their deepest recorded match and advanced — the
    *  next match isn't played yet (e.g. won the SF, final pending). They are
    *  still alive in the draw, so their points floor is the next round up and
