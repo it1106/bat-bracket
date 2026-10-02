@@ -84,6 +84,8 @@ export type TKey =
   | 'textSizeLarge'
   | 'textSizeLarger'
   | 'onlineTooltip'
+  | 'onlinePeak'
+  | 'onlinePeakTooltip'
   | 'olderEvents'
   | 'showOlderEvents'
   | 'showPast'
@@ -375,6 +377,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     textSizeLarge: 'Large',
     textSizeLarger: 'Larger',
     onlineTooltip: 'People viewing BATMatch right now',
+    onlinePeak: '{n} peak today',
+    onlinePeakTooltip: 'Most people viewing BATMatch at the same time today',
     olderEvents: 'Older Events',
     showOlderEvents: 'Show older events…',
     showPast: 'Show past',
@@ -698,6 +702,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     textSizeLarge: 'ใหญ่',
     textSizeLarger: 'ใหญ่มาก',
     onlineTooltip: 'จำนวนผู้ที่กำลังเปิดดู BATMatch อยู่ในขณะนี้',
+    onlinePeak: 'สูงสุดวันนี้ {n}',
+    onlinePeakTooltip: 'จำนวนผู้ที่เปิดดู BATMatch พร้อมกันสูงสุดของวันนี้',
     olderEvents: 'รายการก่อนหน้า',
     showOlderEvents: 'แสดงรายการก่อนหน้า…',
     showPast: 'แสดงรายการเก่า',

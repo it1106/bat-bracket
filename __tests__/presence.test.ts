@@ -101,3 +101,18 @@ describe('GET /api/presence', () => {
     expect(body.peak).toEqual({ day: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), count: 0, at: null })
   })
 })
+
+describe('POST /api/presence', () => {
+  it("returns today's peak alongside the online count", async () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {})
+    const { POST } = await import('@/app/api/presence/route')
+    const res = await POST(
+      new Request('http://localhost/api/presence', {
+        method: 'POST',
+        body: JSON.stringify({ id: 'device-aaaa' }),
+      }),
+    )
+    expect(await res.json()).toEqual({ online: 1, peak: 1 })
+    log.mockRestore()
+  })
+})

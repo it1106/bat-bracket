@@ -18,9 +18,9 @@ export async function GET() {
   )
 }
 
-// POST /api/presence  { id: <deviceId> }  →  { online: number }
+// POST /api/presence  { id: <deviceId> }  →  { online: number, peak: number }
 // Heartbeat from an open, visible tab. Records the device and returns how
-// many devices are currently online (including this one).
+// many devices are currently online (including this one) and today's peak.
 export async function POST(request: Request) {
   let id: unknown
   try {
@@ -33,8 +33,9 @@ export async function POST(request: Request) {
   }
   const now = Date.now()
   presence.touch(id, now)
+  const online = presence.count(now)
   return NextResponse.json(
-    { online: presence.count(now) },
+    { online, peak: presence.peak(now).count },
     { headers: { 'Cache-Control': 'no-store' } },
   )
 }

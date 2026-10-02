@@ -448,6 +448,12 @@ html.dark .bk-walkover-badge {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   user-select: none;
+  border: 0;
+  cursor: pointer;
+}
+.online-pill-peak {
+  font-size: 0.75em;
+  line-height: 1;
 }
 .online-pill-dot {
   width: 7px;

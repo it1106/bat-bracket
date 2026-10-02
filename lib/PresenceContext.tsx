@@ -5,13 +5,19 @@ import { getDeviceId } from '@/lib/analytics'
 import { HEARTBEAT_MS } from '@/lib/presence'
 
 // Sends the /api/presence heartbeat from every route (it sits in the root
-// layout) and shares the latest online count with whatever shows it. Pings
-// only while the tab is visible, so background tabs drop off the count.
+// layout) and shares the latest online count and today's peak with whatever
+// shows them. Pings only while the tab is visible, so background tabs drop off
+// the count.
 
-const PresenceContext = createContext<number | null>(null)
+export interface Presence {
+  online: number
+  peak: number
+}
+
+const PresenceContext = createContext<Presence | null>(null)
 
 export function PresenceProvider({ children }: { children: React.ReactNode }) {
-  const [online, setOnline] = useState<number | null>(null)
+  const [presence, setPresence] = useState<Presence | null>(null)
 
   useEffect(() => {
     const id = getDeviceId()
@@ -25,8 +31,10 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ id }),
       })
         .then((r) => (r.ok ? r.json() : null))
-        .then((data: { online?: number } | null) => {
-          if (typeof data?.online === 'number') setOnline(data.online)
+        .then((data: { online?: number; peak?: number } | null) => {
+          if (typeof data?.online !== 'number') return
+          const peak = typeof data.peak === 'number' ? data.peak : data.online
+          setPresence({ online: data.online, peak })
         })
         .catch(() => {})
     }
@@ -49,10 +57,11 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  return <PresenceContext.Provider value={online}>{children}</PresenceContext.Provider>
+  return <PresenceContext.Provider value={presence}>{children}</PresenceContext.Provider>
 }
 
-/** Devices online right now, or null until the first heartbeat answers. */
-export function useOnlineCount(): number | null {
+/** Devices online right now and today's peak, or null until the first
+ *  heartbeat answers. */
+export function usePresence(): Presence | null {
   return useContext(PresenceContext)
 }
