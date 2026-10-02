@@ -1,5 +1,11 @@
 import { PresenceStore, ONLINE_WINDOW_MS, isValidDeviceId } from '@/lib/presence'
 
+// Keep the route tests off the real .cache/presence.json.
+jest.mock('../lib/presence-persist', () => ({
+  ensurePresenceLoaded: jest.fn(),
+  schedulePresenceSave: jest.fn(),
+}))
+
 describe('PresenceStore', () => {
   it('counts each device once, however often it pings', () => {
     const s = new PresenceStore()
@@ -68,7 +74,7 @@ describe('PresenceStore peak', () => {
 
   it('reports each new peak once, and not when the count merely repeats', () => {
     const seen: Array<[string, number, number]> = []
-    const s = new PresenceStore((day, count, at) => seen.push([day, count, at]))
+    const s = new PresenceStore({ onNewPeak: (day, count, at) => seen.push([day, count, at]) })
     s.touch('device-aaaa', NOON)
     s.count(NOON)
     s.count(NOON + 1000)
@@ -78,6 +84,61 @@ describe('PresenceStore peak', () => {
       ['2026-10-02', 1, NOON],
       ['2026-10-02', 2, NOON + 2000],
     ])
+  })
+})
+
+describe('PresenceStore users today', () => {
+  const NOON = Date.UTC(2026, 9, 2, 5, 0, 0) // 12:00 Bangkok
+  const MIN = 60_000
+
+  it('counts every device seen today, including ones that have gone offline', () => {
+    const s = new PresenceStore()
+    s.touch('device-aaaa', NOON)
+    s.touch('device-bbbb', NOON)
+    s.touch('device-aaaa', NOON + MIN)
+    expect(s.count(NOON + 30 * MIN)).toBe(0)
+    expect(s.users(NOON + 30 * MIN)).toBe(2)
+  })
+
+  it('starts again at Bangkok midnight, counting the first ping of the new day', () => {
+    const ends: Array<[string, number, number]> = []
+    const s = new PresenceStore({ onDayEnd: (day, users, peak) => ends.push([day, users, peak]) })
+    const beforeMidnight = Date.UTC(2026, 9, 2, 16, 59, 30)
+    s.touch('device-aaaa', beforeMidnight)
+    s.touch('device-bbbb', beforeMidnight)
+    s.count(beforeMidnight)
+    s.touch('device-aaaa', beforeMidnight + MIN) // 00:00:30, Oct 3
+    expect(s.users(beforeMidnight + MIN)).toBe(1)
+    expect(ends).toEqual([['2026-10-02', 2, 2]])
+  })
+
+  it('round-trips the day through a snapshot', () => {
+    const a = new PresenceStore()
+    a.touch('device-aaaa', NOON)
+    a.touch('device-bbbb', NOON)
+    a.count(NOON)
+    const snap = a.snapshot(NOON + MIN)
+    expect(snap).toEqual({
+      day: '2026-10-02',
+      peak: { count: 2, at: NOON },
+      ids: ['device-aaaa', 'device-bbbb'],
+    })
+
+    const b = new PresenceStore()
+    b.touch('device-cccc', NOON + MIN)
+    b.restore(snap, NOON + MIN)
+    expect(b.users(NOON + MIN)).toBe(3)
+    expect(b.peak(NOON + MIN)).toEqual({ day: '2026-10-02', count: 2, at: NOON })
+    expect(b.count(NOON + MIN)).toBe(1) // restored devices are not online
+  })
+
+  it('ignores a snapshot from another day and drops junk ids', () => {
+    const s = new PresenceStore()
+    s.restore({ day: '2026-10-01', peak: { count: 9, at: 1 }, ids: ['device-aaaa'] }, NOON)
+    expect(s.users(NOON)).toBe(0)
+    expect(s.peak(NOON).count).toBe(0)
+    s.restore({ day: '2026-10-02', peak: { count: 0, at: null }, ids: ['device-aaaa', 'bad id', 7 as unknown as string] }, NOON)
+    expect(s.users(NOON)).toBe(1)
   })
 })
 
@@ -99,6 +160,7 @@ describe('GET /api/presence', () => {
     const body = await (await GET()).json()
     expect(body.online).toBe(0)
     expect(body.peak).toEqual({ day: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), count: 0, at: null })
+    expect(body.users).toBe(0)
   })
 })
 
@@ -112,7 +174,7 @@ describe('POST /api/presence', () => {
         body: JSON.stringify({ id: 'device-aaaa' }),
       }),
     )
-    expect(await res.json()).toEqual({ online: 1, peak: 1 })
+    expect(await res.json()).toEqual({ online: 1, peak: 1, users: 1 })
     log.mockRestore()
   })
 })

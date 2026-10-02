@@ -455,6 +455,10 @@ html.dark .bk-walkover-badge {
   font-size: 0.75em;
   line-height: 1;
 }
+.online-pill-users {
+  width: 1em;
+  height: 1em;
+}
 .online-pill-dot {
   width: 7px;
   height: 7px;
