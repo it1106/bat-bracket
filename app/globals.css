@@ -9,13 +9,11 @@
    ────────────────────────────────────────────────────────── */
 :root {
   /* Multiplier for every font size (globals.css and the Tailwind text-*
-     scale). Text only — spacing stays put. It's the device default
-     (--text-base, bumped on phones below, where the 10–13px sizes were too
-     small to read, Thai names especially) times the reader's own choice
-     from the aA text-size button (--text-user, via html[data-text-size]). */
-  --text-base: 1;
+     scale). Text only — spacing stays put. It's the reader's own choice
+     from the aA text-size button (--text-user, via html[data-text-size]);
+     the steps above normal differ on phones, see below. */
   --text-user: 1;
-  --text-scale: calc(var(--text-base) * var(--text-user));
+  --text-scale: var(--text-user);
   --bg: #f0f2f5;
   --surface: #ffffff;
   /* One step up from --surface, for a raised strip on top of it (table
@@ -69,15 +67,17 @@ html.dark {
   --order-pill-next-fg: #0d1117;
 }
 
-/* Phones: scale all text up. Must come after :root so it wins. */
-@media (max-width: 640px) {
-  :root { --text-base: 1.125; }
-}
-
 /* Reader-chosen text size (components/TextSizeButton, applied pre-paint by
    the inline script in layout.tsx). Sizes live in lib/textSize.ts too. */
 :root[data-text-size="large"] { --text-user: 1.15; }
 :root[data-text-size="larger"] { --text-user: 1.3; }
+
+/* Phones: normal is 1 like desktop, with slightly gentler steps above it.
+   Must come after the rules above so it wins. */
+@media (max-width: 640px) {
+  :root[data-text-size="large"] { --text-user: 1.125; }
+  :root[data-text-size="larger"] { --text-user: 1.29; }
+}
 
 html, body {
   background: var(--bg);

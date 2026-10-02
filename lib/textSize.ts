@@ -1,6 +1,6 @@
 // Reader-chosen text size, cycled by the aA toolbar button. Stored per
 // device and applied as html[data-text-size]; globals.css maps each size to a
-// --text-user multiplier on top of the device default (1 desktop, 1.125 phone).
+// --text-user multiplier (normal is 1 everywhere; phones step up more gently).
 
 export const TEXT_SIZES = ['normal', 'large', 'larger'] as const
 export type TextSize = (typeof TEXT_SIZES)[number]
