@@ -80,7 +80,6 @@ export type TKey =
   | 'pastEvents'
   | 'online'
   | 'textSize'
-  | 'textSizeButton'
   | 'textSizeNormal'
   | 'textSizeLarge'
   | 'textSizeLarger'
@@ -372,7 +371,6 @@ const dict: Record<Lang, Record<TKey, string>> = {
     pastEvents: 'Past Month Events',
     online: 'online',
     textSize: 'Text size: {size}',
-    textSizeButton: 'Text size',
     textSizeNormal: 'Normal',
     textSizeLarge: 'Large',
     textSizeLarger: 'Larger',
@@ -696,7 +694,6 @@ const dict: Record<Lang, Record<TKey, string>> = {
     pastEvents: 'รายการเดือนที่ผ่านมา',
     online: 'ออนไลน์',
     textSize: 'ขนาดตัวอักษร: {size}',
-    textSizeButton: 'ขนาดอักษร',
     textSizeNormal: 'ปกติ',
     textSizeLarge: 'ใหญ่',
     textSizeLarger: 'ใหญ่มาก',

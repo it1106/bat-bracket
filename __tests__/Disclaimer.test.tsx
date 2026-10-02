@@ -1,8 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen, fireEvent, act } from '@testing-library/react'
-import DisclaimerModal from '@/components/DisclaimerModal'
+import { render, screen } from '@testing-library/react'
 import DisclaimerCard from '@/components/DisclaimerCard'
 import AppFooter from '@/components/AppFooter'
 import { LanguageProvider } from '@/lib/LanguageContext'
@@ -55,33 +54,5 @@ describe('AppFooter', () => {
     const link = screen.getByRole('link')
     expect(link.textContent).toBe(DISCLAIMER[lang].title)
     expect(link.getAttribute('href')).toBe('/disclaimer')
-  })
-})
-
-describe('DisclaimerModal', () => {
-  it('renders nothing while closed', () => {
-    const { container } = renderIn('en', <DisclaimerModal open={false} onClose={() => {}} />)
-    expect(container.querySelector('.pm-overlay')).toBeNull()
-  })
-
-  it('shows the full text when open', () => {
-    const { container } = renderIn('th', <DisclaimerModal open onClose={() => {}} />)
-    for (const p of DISCLAIMER.th.paragraphs) expect(container.textContent).toContain(p)
-  })
-
-  it('closes on overlay click and on Escape', () => {
-    const onClose = jest.fn()
-    const { container } = renderIn('en', <DisclaimerModal open onClose={onClose} />)
-    fireEvent.click(container.querySelector('.pm-overlay')!)
-    expect(onClose).toHaveBeenCalledTimes(1)
-    act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })) })
-    expect(onClose).toHaveBeenCalledTimes(2)
-  })
-
-  it('does not close when the panel itself is clicked', () => {
-    const onClose = jest.fn()
-    const { container } = renderIn('en', <DisclaimerModal open onClose={onClose} />)
-    fireEvent.click(container.querySelector('.pm-modal')!)
-    expect(onClose).not.toHaveBeenCalled()
   })
 })

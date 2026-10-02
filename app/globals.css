@@ -12,7 +12,7 @@
      scale). Text only — spacing stays put. It's the device default
      (--text-base, bumped on phones below, where the 10–13px sizes were too
      small to read, Thai names especially) times the reader's own choice
-     from the "Text size" button (--text-user, via html[data-text-size]). */
+     from the aA text-size button (--text-user, via html[data-text-size]). */
   --text-base: 1;
   --text-user: 1;
   --text-scale: calc(var(--text-base) * var(--text-user));

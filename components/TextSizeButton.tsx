@@ -1,9 +1,9 @@
 'use client'
 
-// Text-size toolbar button: "aA Text size ▂▄▆", the bars filling for the
-// current step. Cycles Normal → Large → Larger and remembers the choice per
-// device. A bare "A" didn't read as text size, hence the visible label (phones
-// have no hover tooltip). See lib/textSize.ts for how the size is applied.
+// Text-size toolbar button: "aA ▂▄▆", the bars filling for the current step.
+// Cycles Normal → Large → Larger and remembers the choice per device. The aA
+// glyph is the familiar text-size symbol (Safari uses it); a label was dropped
+// to save toolbar space. See lib/textSize.ts for how the size is applied.
 
 import { useEffect, useState } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
@@ -40,13 +40,12 @@ export default function TextSizeButton() {
       }}
       aria-label={label}
       title={label}
-      className="inline-flex items-center gap-1.5 h-[28px] px-2 rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] font-semibold leading-none whitespace-nowrap"
+      className="inline-flex items-center gap-1 h-[28px] px-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--fg)] font-semibold leading-none whitespace-nowrap"
     >
       {/* Fixed px on purpose: the button stays the same size at every setting. */}
       <span aria-hidden="true" style={{ fontSize: 15 }}>
         <span style={{ fontSize: 11 }}>a</span>A
       </span>
-      <span style={{ fontSize: 12 }}>{t('textSizeButton')}</span>
       <span className="text-size-bars" aria-hidden="true">
         {TEXT_SIZES.map((s, i) => (
           <span key={s} className={i <= TEXT_SIZES.indexOf(size) ? 'on' : ''} />
