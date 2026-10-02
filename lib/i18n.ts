@@ -732,7 +732,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     matchHistory: 'ประวัติการพบกัน',
     yob: 'ปีเกิด',
     bye: 'บาย',
-    walkover: 'บาย',
+    walkover: 'ถอนตัว',
     retired: 'ถอน',
     live: 'สด',
     nowPlaying: 'กำลังแข่ง',
