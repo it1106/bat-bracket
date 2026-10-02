@@ -26,5 +26,30 @@
 1BEC8194-C338-4CB0-AA1D-7444C90F5DE6 Trang Yonex Open 2026 Presented by Pumpui [done]
 D5DF6DCC-DBCE-4E78-8B43-E4681BEFE8CC โตโยต้า เยาวชนชิงชนะเลิศแห่งประเทศไทย ประจำปี 2569 [done]
 
+# Backfill: finished tournaments from the past 12 months of BAT ranking rows,
+# added so player profiles and ranking detail can show their results.
+A6CB482E-1FDC-42FA-81F3-6F8A16FE2A98 SAT NSDF Badminton Thai Domestic power 2026 ภาค 4 ภาคใต้ [done]
+0DC0ECBE-2A7E-4EFB-8300-E29715AC0EE2 SAT NSDF Badminton Thai Domestic power 2026 ภาค 2 ภาคกลาง [done]
+F4AF1766-45D5-407E-B66B-0F94F0E6E7F8 SAT NSDF Badminton Thai Domestic power 2026 ภาค 5 ภาคเหนือ [done]
+21390DB9-A470-4E10-98B9-5EE9824C8899 SAT NSDF Badminton Thai Domestic power 2026 ภาคกรุงเทพมหานคร [done]
+41E2B0C7-F1EA-44AD-B56F-660A2DBB2500 SAT NSDF Badminton Thai Domestic power 2026 ภาค 3 ตะวันออกเฉียงเหนือ [done]
+12F0F54A-8D7A-4636-9368-A0137AB74CDA SAT NSDF Badminton Thai Domestic power 2026 ภาค 1 ภาคตะวันออก [done]
+BAAE54A6-7219-4FEB-AE37-B73FEC1D48B5 Starlight Thailand Granular X HNDRD 2026 [done]
+B6D49F44-3F1C-4A1B-8840-8205845247B6 YOUNG – MAESOT MASTER 2026 [done]
+DD728622-DB6B-49FF-839C-20BD64E4E6AD เทศบาลเมืองสุโขทัยธานีคัพ ครั้งที่4 [done]
+418774E7-C060-4AB8-BC3E-008512EC015F กีฬาเยาวชนแห่งชาติ ครั้งที่ 41 รอบคัดภาค 4 จ.ตรัง ปี 2569 ประเภทบุคคล [done]
+3222722C-6358-4A21-8601-59050A17A667 กีฬาเยาวชนแห่งชาติ ครั้งที่ 41 รอบคัดภาค 5 จ.แพร่ ปี 2569 ประเภทบุคคล [done]
+602A303C-A13B-4373-BB64-380CACEFA205 กีฬาเยาวชนแห่งชาติ ครั้งที่ 41 รอบคัดภาค 1 จ.สมุทรปราการ ปี 2569 ประเภทบุคคล [done]
+C5685D0C-E88A-4CEF-8EA1-F57CA64011EF กีฬาเยาวชนแห่งชาติ ครั้งที่ 41 รอบคัดภาค 3 จ.สกลนคร ปี 2569 ประเภทบุคคล [done]
+C5FC18A5-4C52-4C1A-8701-23B82A201BE1 กีฬาเยาวชนแห่งชาติ ครั้งที่ 41 รอบคัดภาค 2 จ.ลพบุรี ปี 2569 ประเภทบุคคล [done]
+A3EE3350-07F2-431D-98A9-6063B28D82CA Jorakay junior badminton 2025 สนาม 3 สนามแบดมินตัน สปิริตอารีน่า อ.คลองหลวง จ.ปทุมธานี [done]
+66B23CDD-6B60-41BB-892B-A2623EFBDC26 Young-Phrae Master 2025 [done]
+28F6EA5A-BC25-4220-BE00-8ED428AD437C โตโยต้าชิงชนะเลิศแห่งประเทศไทย ประจำปี 2568 [done]
+9CED5A7F-A61B-4414-B1F5-F88950CB55E3 YONEX RISING STAR 2025 [done]
+B169A1C1-6C1E-4D84-9CC8-5C6AD417B94E SPONSOR-REDBULL- YONEX-T.THAILAND CHAMPIONSHIPS 2025 [done]
+05487B03-C1D8-49F5-95A0-DAD43762B65C เทศบาลนครนครสวรรค์ - OPEN CHAMPIONSHIP 2025 [done]
+7919535F-6384-4B39-93BA-EFC55EF37178 THE MALL THAILAND BADMINTON CHAMPIONSHIP 2025 [done]
+52787056-8C40-43F7-875B-EDF8CAE6E6D6 BAT Yonex Phitsanulok Cup 2025 [done]
+
 @bwf https://bwfbadminton.com/tournament/5726/mith-yonex-pathumthanee-u13-u15-u17-international-junior-2026/ [done]
 @bwf https://bwfbadminton.com/tournament/5738/yonex-sunrise-pembangunan-jaya-raya-junior-international-grand-prix-2026/
