@@ -51,6 +51,9 @@ import { setPersonProps, track } from '@/lib/analytics'
 import { getTodayIso } from '@/lib/today'
 import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData, MatchEntry, EventBundle, TournamentOverview, SeedEvent } from '@/lib/types'
 
+// Sentinel <option> value for the dropdown's "Show older events…" entry.
+const SHOW_OLDER_VALUE = '__show-older__'
+
 function isApiError(data: unknown): data is ApiError {
   return typeof data === 'object' && data !== null && 'error' in data
 }
@@ -149,6 +152,10 @@ export default function Home() {
   const [tournaments, setTournaments] = useState<TournamentInfo[]>([])
   const [draws, setDraws] = useState<DrawInfo[]>([])
   const [selectedTournament, setSelectedTournament] = useState('')
+  // Done tournaments older than the 30-day window stay out of the dropdown
+  // until asked for via its "Show older events…" entry. Per page load only.
+  const [showOlderPast, setShowOlderPast] = useState(false)
+  const tournamentSelectRef = useRef<HTMLSelectElement>(null)
   const [selectedDraw, setSelectedDraw] = useState('')
   const [bracketHtml, setBracketHtml] = useState('')
   // Named players in the drawn bracket; 0 means the draw's slots are published
@@ -886,11 +893,15 @@ export default function Home() {
   const recentPastTournaments = tournaments.filter(
     (tn) => tn.done && (!tn.startDateIso || tn.startDateIso >= pastCutoffIso),
   )
+  const olderPastTournaments = tournaments.filter(
+    (tn) => tn.done && !recentPastTournaments.includes(tn),
+  )
   // A deep-linked tournament can be older than the 30-day window, or absent
   // from the list entirely. Give it its own option so the dropdown shows what
   // is actually open instead of falling back to the placeholder.
   const selectedOutsideDropdown = !!selectedTournament
-    && !tournaments.some((tn) => tn.id === selectedTournament && (!tn.done || recentPastTournaments.includes(tn)))
+    && !tournaments.some((tn) => tn.id === selectedTournament
+      && (!tn.done || recentPastTournaments.includes(tn) || (showOlderPast && olderPastTournaments.includes(tn))))
   const selectedOutsideLabel = (() => {
     const tn = tournaments.find((x) => x.id === selectedTournament)
     return tn ? tournamentLabel(tn) : tournamentName || selectedTournament
@@ -953,8 +964,21 @@ export default function Home() {
               )}
             </div>
             <select
+              ref={tournamentSelectRef}
               value={selectedTournament}
-              onChange={(e) => handleTournamentChange(e.target.value)}
+              onChange={(e) => {
+                if (e.target.value === SHOW_OLDER_VALUE) {
+                  // Not a tournament: reveal the older group and reopen the
+                  // picker on it. The controlled value snaps back to the
+                  // current selection on re-render.
+                  setShowOlderPast(true)
+                  requestAnimationFrame(() => {
+                    try { tournamentSelectRef.current?.showPicker() } catch {}
+                  })
+                  return
+                }
+                handleTournamentChange(e.target.value)
+              }}
               disabled={loadingTournaments}
               className="border border-[var(--border)] rounded-md px-2.5 py-1.5 text-xs min-w-[220px] max-w-[350px] bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:border-[var(--brand)] disabled:opacity-50"
             >
@@ -970,6 +994,16 @@ export default function Home() {
                     <option key={tn.id} value={tn.id}>{tournamentLabel(tn)}</option>
                   ))}
                 </optgroup>
+              )}
+              {showOlderPast && olderPastTournaments.length > 0 && (
+                <optgroup label={t('olderEvents')}>
+                  {olderPastTournaments.map((tn) => (
+                    <option key={tn.id} value={tn.id}>{tournamentLabel(tn)}</option>
+                  ))}
+                </optgroup>
+              )}
+              {!showOlderPast && olderPastTournaments.length > 0 && (
+                <option value={SHOW_OLDER_VALUE}>{t('showOlderEvents')}</option>
               )}
               {selectedOutsideDropdown && (
                 <optgroup label={t('pastEvents')}>

@@ -78,6 +78,8 @@ export type TKey =
   | 'searchPlaceholder'
   | 'selectTournament'
   | 'pastEvents'
+  | 'olderEvents'
+  | 'showOlderEvents'
   | 'showPast'
   | 'hidePast'
   | 'selectDraw'
@@ -361,6 +363,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     searchPlaceholder: 'Player, club, or event',
     selectTournament: '— Select tournament —',
     pastEvents: 'Past Month Events',
+    olderEvents: 'Older Events',
+    showOlderEvents: 'Show older events…',
     showPast: 'Show past',
     hidePast: 'Hide past',
     selectDraw: '— Select draw —',
@@ -676,6 +680,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     searchPlaceholder: 'ชื่อนักกีฬา ทีม หรือประเภท',
     selectTournament: '— เลือกรายการแข่งขัน —',
     pastEvents: 'รายการเดือนที่ผ่านมา',
+    olderEvents: 'รายการก่อนหน้า',
+    showOlderEvents: 'แสดงรายการก่อนหน้า…',
     showPast: 'แสดงรายการเก่า',
     hidePast: 'ซ่อนรายการเก่า',
     selectDraw: '— เลือกตารางแข่ง —',
