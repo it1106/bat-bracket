@@ -598,7 +598,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
                   </span>
                 )
               })}
-              {m.retired && sets.length > 0 && <span> {t('retired')}</span>}
+              {m.retired && sets.length > 0 && <>{' '}<span className="wo-pill">{t('retired')}</span></>}
               {liveText && sets.length > 0 && <span>, </span>}
               {/* key={liveText} forces a fresh DOM node on every value change so
                   the CSS animation replays from scratch. */}
@@ -633,7 +633,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
                   return <span key={i} className={`ms-board-set${lost ? ' ms-board-set--lost' : ''}`}>{v}</span>
                 })}
                 {currentT1 != null && <span key={currentT1} className="ms-board-set live">{currentT1}</span>}
-                {m.retired && m.winner === 2 && <span className="ms-board-badge">{t('retired')}</span>}
+                {m.retired && <span className={`wo-pill${m.winner === 2 ? '' : ' wo-pill--ghost'}`} aria-hidden={!(m.winner === 2)}>{t('retired')}</span>}
               </>
             )
           }
@@ -655,7 +655,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
                   return <span key={i} className={`ms-board-set${lost ? ' ms-board-set--lost' : ''}`}>{v}</span>
                 })}
                 {currentT2 != null && <span key={currentT2} className="ms-board-set live">{currentT2}</span>}
-                {m.retired && m.winner === 1 && <span className="ms-board-badge">{t('retired')}</span>}
+                {m.retired && <span className={`wo-pill${m.winner === 1 ? '' : ' wo-pill--ghost'}`} aria-hidden={!(m.winner === 1)}>{t('retired')}</span>}
               </>
             )
           }

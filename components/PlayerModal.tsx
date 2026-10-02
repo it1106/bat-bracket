@@ -19,8 +19,8 @@ interface Props {
 function scoreStr(entry: MatchEntry, tr: { walkover: string; vsMatch: string; retired: string }): string {
   if (entry.walkover) return tr.walkover
   if (entry.scores.length === 0) return tr.vsMatch
-  const s = entry.scores.map((s) => `${s.t1}–${s.t2}`).join(', ')
-  return entry.retired ? `${s} ${tr.retired}` : s
+  // A retirement is shown as a pill next to the score, not in this string.
+  return entry.scores.map((s) => `${s.t1}–${s.t2}`).join(', ')
 }
 
 export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick, provider }: Props) {
@@ -200,6 +200,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                       </div>
                       <div className="pm-match-score pm-d">
                         {m.walkover ? <span className="wo-pill">{t('walkover')}</span> : m.scheduledTime && !m.scores.length ? m.scheduledTime : scoreStr(m, scoreTr)}
+                        {m.retired && m.scores.length > 0 && <span className="wo-pill">{t('retired')}</span>}
                       </div>
                       <div className={`pm-match-team pm-d${m.winner === 2 ? ' winner' : ''}`}>
                         {m.team2.length ? m.team2.map((p, pi) => renderName(p, pi, 2)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
@@ -213,7 +214,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                           </div>
                           {m.walkover
                             ? (m.winner === 1 ? <span className="wo-pill">{t('walkover')}</span> : null)
-                            : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="pm-board-badge">{t('retired')}</span>}</>
+                            : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t1}</span>)}{m.retired && <span className={`wo-pill${m.winner === 1 ? '' : ' wo-pill--ghost'}`} aria-hidden={!(m.winner === 1)}>{t('retired')}</span>}</>
                           }
                         </div>
                         <div className={`pm-board-row${m.winner === 2 ? ' winner' : ''}`}>
@@ -222,7 +223,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                           </div>
                           {m.walkover
                             ? (m.winner === 2 ? <span className="wo-pill">{t('walkover')}</span> : null)
-                            : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="pm-board-badge">{t('retired')}</span>}</>
+                            : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t2}</span>)}{m.retired && <span className={`wo-pill${m.winner === 2 ? '' : ' wo-pill--ghost'}`} aria-hidden={!(m.winner === 2)}>{t('retired')}</span>}</>
                           }
                         </div>
                       </div>

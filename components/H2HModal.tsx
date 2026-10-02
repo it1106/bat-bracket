@@ -137,7 +137,7 @@ export default function H2HModal({ data, loading, onClose }: Props) {
                           </span>
                           {m.walkover
                             ? (m.winner === 1 ? <span className="wo-pill">W/O</span> : null)
-                            : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="h2h-board-badge">{t('retired')}</span>}</>
+                            : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t1}</span>)}{m.retired && <span className={`wo-pill${m.winner === 1 ? '' : ' wo-pill--ghost'}`} aria-hidden={!(m.winner === 1)}>{t('retired')}</span>}</>
                           }
                         </div>
                         <div className={`h2h-board-row${m.winner === 2 ? ' winner' : ''}`}>
@@ -146,7 +146,7 @@ export default function H2HModal({ data, loading, onClose }: Props) {
                           </span>
                           {m.walkover
                             ? (m.winner === 2 ? <span className="wo-pill">W/O</span> : null)
-                            : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="h2h-board-badge">{t('retired')}</span>}</>
+                            : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t2}</span>)}{m.retired && <span className={`wo-pill${m.winner === 2 ? '' : ' wo-pill--ghost'}`} aria-hidden={!(m.winner === 2)}>{t('retired')}</span>}</>
                           }
                         </div>
                       </div>

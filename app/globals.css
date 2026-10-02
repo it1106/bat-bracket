@@ -464,8 +464,8 @@ html.dark .bk-walkover-badge {
   .online-pill-dot { animation: none; }
 }
 
-/* Walkover label on match rows — an amber pill so a W/O stands out from
-   plain set scores. */
+/* Walkover and retired labels on match rows — an amber pill so they stand
+   out from plain set scores. */
 .wo-pill {
   display: inline-block;
   padding: 1px 8px;
@@ -482,6 +482,9 @@ html.dark .bk-walkover-badge {
   white-space: nowrap;
 }
 .ms-score .wo-pill { margin-left: 0; }
+/* Invisible twin on the other team's board row: reserves the pill's width so
+   both rows' set scores stay in the same columns. */
+.wo-pill--ghost { visibility: hidden; }
 
 html.dark .wo-pill {
   background: rgba(245, 158, 11, 0.18);
@@ -1221,13 +1224,6 @@ html[lang="th"] .pm-section-title {
     color: var(--fg);
   }
 
-  .pm-board-badge {
-    font-size: calc(14px * var(--text-scale));
-    font-weight: 700;
-    color: var(--win-fg);
-    padding-left: 6px;
-    flex-shrink: 0;
-  }
 
   .pm-board-row.winner .pm-board-players {
     font-weight: 700;
@@ -1428,11 +1424,6 @@ html[lang="th"] .pm-section-title {
   color: var(--win-fg);
 }
 
-.h2h-board-badge {
-  font-size: calc(12px * var(--text-scale));
-  color: var(--muted);
-  font-style: italic;
-}
 
 /* H2H inline pill within ms-meta */
 .ms-h2h-inline {
@@ -2012,13 +2003,6 @@ html.dark .ms-match--next-opp {
 
   .ms-board-set--lost { color: var(--muted); font-weight: 500; }
 
-  .ms-board-badge {
-    font-size: calc(14px * var(--text-scale));
-    font-weight: 700;
-    color: var(--fg);
-    padding-left: 6px;
-    flex-shrink: 0;
-  }
 
   .ms-board-row.winner .ms-board-players {
     font-weight: 700;
@@ -2084,13 +2068,6 @@ html.dark .ms-match--next-opp {
   color: var(--fg);
 }
 .group-card-matches .ms-board-set--lost { color: var(--muted); font-weight: 500; }
-.group-card-matches .ms-board-badge {
-  font-size: calc(12px * var(--text-scale));
-  font-weight: 700;
-  color: var(--fg);
-  padding-left: 6px;
-  flex-shrink: 0;
-}
 .group-card-matches .ms-board-row.winner .ms-board-players {
   font-weight: 700;
   color: var(--win-fg);
@@ -2102,8 +2079,7 @@ html.dark .ms-match--next-opp {
   background: var(--track-bg) !important;
 }
 .group-card-matches .ms-match.tracked .ms-board-players,
-.group-card-matches .ms-match.tracked .ms-board-set,
-.group-card-matches .ms-match.tracked .ms-board-badge {
+.group-card-matches .ms-match.tracked .ms-board-set {
   color: var(--track-fg) !important;
 }
 

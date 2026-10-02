@@ -44,7 +44,7 @@ function MatchRow({ match, onPlayerClick, showDate }: { match: MatchEntry; onPla
                 const setLost = winner !== null && own < opp
                 return <span key={i} className={`ms-board-set${setLost ? ' ms-board-set--lost' : ''}`}>{own}</span>
               })}
-              {match.retired && lost && <span className="ms-board-badge">Ret.</span>}
+              {match.retired && <span className={`wo-pill${lost ? '' : ' wo-pill--ghost'}`} aria-hidden={!lost}>Ret.</span>}
             </>
           )}
       </div>
