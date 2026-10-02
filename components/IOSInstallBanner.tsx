@@ -52,7 +52,7 @@ export default function IOSInstallBanner() {
         display: 'flex',
         alignItems: 'center',
         gap: 10,
-        fontSize: 14,
+        fontSize: 'calc(14px * var(--text-scale))',
         lineHeight: 1.35,
       }}
     >
@@ -79,7 +79,7 @@ export default function IOSInstallBanner() {
           background: 'transparent',
           border: 'none',
           color: 'var(--muted)',
-          fontSize: 20,
+          fontSize: 'calc(20px * var(--text-scale))',
           cursor: 'pointer',
           padding: '4px 8px',
           lineHeight: 1,

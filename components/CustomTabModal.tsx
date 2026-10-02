@@ -90,7 +90,7 @@ export default function CustomTabModal({ open, mode, initial, onClose, onSave, o
                 onMouseLeave={() => setHelpOpen(false)}
                 onClick={() => setHelpOpen((o) => !o)}
                 aria-label={t('searchHelp')}
-                className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[var(--muted)] text-[9px] font-bold text-[var(--muted)] leading-none hover:bg-[var(--border)] hover:text-[var(--fg)] cursor-help"
+                className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[var(--muted)] text-[length:calc(9px*var(--text-scale))] font-bold text-[var(--muted)] leading-none hover:bg-[var(--border)] hover:text-[var(--fg)] cursor-help"
               >?</button>
               {helpOpen && (
                 <div className="absolute left-0 top-full mt-1 z-[60] w-[300px] p-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] text-xs leading-relaxed shadow-lg normal-case tracking-normal font-normal">

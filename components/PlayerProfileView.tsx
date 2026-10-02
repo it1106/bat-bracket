@@ -461,7 +461,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
                         <div className="pp-ppl-met">{o.meetings} {t('ppMeetings')}</div>
                       </div>
                       <div className="pp-ppl-wl"><span className="pp-w">{o.wins}W</span> · <span className="pp-l">{o.losses}L</span></div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{t('ppLast')} {o.lastRound} · {o.lastEvent}</div>
+                      <div style={{ fontSize: 'calc(11px * var(--text-scale))', color: 'var(--muted)' }}>{t('ppLast')} {o.lastRound} · {o.lastEvent}</div>
                     </Link>
                   ))}
                 </div>
@@ -491,7 +491,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
                   <div className="pp-ppl-met">{p.matchesTogether} {t('ppMatchesWord')} · {p.primaryEvent}</div>
                 </div>
                 <div className="pp-ppl-wl"><span className="pp-w">{p.wins}W</span> · <span className="pp-l">{p.losses}L</span></div>
-                <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>{disciplinePct({ wins: p.wins, losses: p.losses })}</div>
+                <div style={{ fontSize: 'calc(11px * var(--text-scale))', color: 'var(--muted)', fontWeight: 600 }}>{disciplinePct({ wins: p.wins, losses: p.losses })}</div>
               </Link>
             ))}
           </div>

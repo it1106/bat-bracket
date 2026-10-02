@@ -149,13 +149,13 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
             aria-label={t('alertsTitle')}
             className="fixed sm:absolute z-50 left-2 right-2 sm:left-auto sm:right-0 top-[60px] sm:top-auto sm:mt-1.5 sm:w-[320px] max-h-[70vh] overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--surface)] shadow-xl"
           >
-            <div className="px-4 pt-3 pb-2 text-[13px] font-semibold text-[var(--fg)] border-b border-[var(--border)]">
+            <div className="px-4 pt-3 pb-2 text-[length:calc(13px*var(--text-scale))] font-semibold text-[var(--fg)] border-b border-[var(--border)]">
               {t('alertsTitle')}
             </div>
 
             {tournamentItems.length > 0 && (
               <>
-                <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wide">
+                <div className="px-4 pt-3 pb-1 text-[length:calc(10px*var(--text-scale))] font-bold text-[var(--muted)] uppercase tracking-wide">
                   {t('alertsNewTournaments')}
                 </div>
                 {tournamentItems.map((a) => (
@@ -163,7 +163,7 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
                     key={a.id}
                     type="button"
                     onClick={handleItemClick}
-                    className="block w-full text-left px-4 py-2.5 text-[13px] text-[var(--fg)] hover:bg-[var(--info-bg)]"
+                    className="block w-full text-left px-4 py-2.5 text-[length:calc(13px*var(--text-scale))] text-[var(--fg)] hover:bg-[var(--info-bg)]"
                   >
                     {a.tournamentName}
                   </button>
@@ -173,7 +173,7 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
 
             {scheduleItems.length > 0 && (
               <>
-                <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wide">
+                <div className="px-4 pt-3 pb-1 text-[length:calc(10px*var(--text-scale))] font-bold text-[var(--muted)] uppercase tracking-wide">
                   {t('alertsNewSchedule')}
                 </div>
                 {scheduleItems.map((a) => (
@@ -181,10 +181,10 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
                     key={a.id}
                     type="button"
                     onClick={handleItemClick}
-                    className="block w-full text-left px-4 py-2.5 text-[13px] text-[var(--fg)] hover:bg-[var(--info-bg)]"
+                    className="block w-full text-left px-4 py-2.5 text-[length:calc(13px*var(--text-scale))] text-[var(--fg)] hover:bg-[var(--info-bg)]"
                   >
                     <div>{a.tournamentName}</div>
-                    <div className="text-[11px] text-[var(--muted)] mt-0.5">
+                    <div className="text-[length:calc(11px*var(--text-scale))] text-[var(--muted)] mt-0.5">
                       {formatAlertDate(a.dateIso, lang)}
                     </div>
                   </button>
@@ -194,7 +194,7 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
 
             {rankingItems.length > 0 && (
               <>
-                <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-[var(--muted)] uppercase tracking-wide">
+                <div className="px-4 pt-3 pb-1 text-[length:calc(10px*var(--text-scale))] font-bold text-[var(--muted)] uppercase tracking-wide">
                   {t('alertsNewRanking')}
                 </div>
                 {rankingItems.map((a) => (
@@ -202,10 +202,10 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
                     key={a.id}
                     href={`/leaderboards?provider=${a.provider}`}
                     onClick={handleItemClick}
-                    className="block w-full text-left px-4 py-2.5 text-[13px] text-[var(--fg)] hover:bg-[var(--info-bg)]"
+                    className="block w-full text-left px-4 py-2.5 text-[length:calc(13px*var(--text-scale))] text-[var(--fg)] hover:bg-[var(--info-bg)]"
                   >
                     <div>{t('alertsRankingTitle')}</div>
-                    <div className="text-[11px] text-[var(--muted)] mt-0.5">
+                    <div className="text-[length:calc(11px*var(--text-scale))] text-[var(--muted)] mt-0.5">
                       {a.provider.toUpperCase()} · {a.publishDate}
                     </div>
                   </a>

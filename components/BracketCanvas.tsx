@@ -193,21 +193,23 @@ export default function BracketCanvas({
           {t('filterMatchCount').replace('{n}', String(matchCount)).replace('{s}', matchCount === 1 ? '' : 'es')}
         </div>
       )}
-      {/* Zoom controls */}
+      {/* Zoom controls. Min-width rather than a fixed width: the column
+          stretches all three to the widest, so "100%" never overflows when
+          text is scaled up on phones. */}
       <div className="absolute top-4 right-4 z-50 flex flex-col gap-1">
         <button
           onClick={zoomIn}
-          className="w-8 h-8 bg-[var(--surface)] border border-[var(--border)] text-[var(--fg)] rounded-md text-sm font-bold shadow-sm hover:bg-[var(--bg)]"
+          className="min-w-[2rem] h-8 px-1 bg-[var(--surface)] border border-[var(--border)] text-[var(--fg)] rounded-md text-sm font-bold shadow-sm hover:bg-[var(--bg)]"
           title="Zoom in"
         >+</button>
         <button
           onClick={zoomOut}
-          className="w-8 h-8 bg-[var(--surface)] border border-[var(--border)] text-[var(--fg)] rounded-md text-sm font-bold shadow-sm hover:bg-[var(--bg)]"
+          className="min-w-[2rem] h-8 px-1 bg-[var(--surface)] border border-[var(--border)] text-[var(--fg)] rounded-md text-sm font-bold shadow-sm hover:bg-[var(--bg)]"
           title="Zoom out"
         >−</button>
         <button
           onClick={resetZoom}
-          className="w-8 h-8 bg-[var(--surface)] border border-[var(--border)] text-[var(--fg)] rounded-md text-xs font-bold shadow-sm hover:bg-[var(--bg)]"
+          className="min-w-[2rem] h-8 px-1 bg-[var(--surface)] border border-[var(--border)] text-[var(--fg)] rounded-md text-xs font-bold shadow-sm hover:bg-[var(--bg)]"
           title="Reset zoom"
         >{Math.round(scale * 100)}%</button>
       </div>

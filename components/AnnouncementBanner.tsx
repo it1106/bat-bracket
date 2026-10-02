@@ -48,7 +48,7 @@ export default function AnnouncementBanner({ id, text, visible = true }: Props) 
         type="button"
         onClick={onClose}
         aria-label="ปิด"
-        className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--border)] text-[11px] leading-none shrink-0"
+        className="inline-flex items-center justify-center w-4 h-4 rounded text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--border)] text-[length:calc(11px*var(--text-scale))] leading-none shrink-0"
       >✕</button>
     </div>
   )

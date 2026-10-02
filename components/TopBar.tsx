@@ -37,7 +37,7 @@ export default function TopBar({
         </span>
 
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+          <label className="text-[length:calc(10px*var(--text-scale))] font-semibold text-gray-400 uppercase tracking-wide">
             Tournament
           </label>
           <select
@@ -55,7 +55,7 @@ export default function TopBar({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+          <label className="text-[length:calc(10px*var(--text-scale))] font-semibold text-gray-400 uppercase tracking-wide">
             Event
           </label>
           <select
@@ -76,7 +76,7 @@ export default function TopBar({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+          <label className="text-[length:calc(10px*var(--text-scale))] font-semibold text-gray-400 uppercase tracking-wide">
             Track Player
           </label>
           <input

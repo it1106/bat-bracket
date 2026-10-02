@@ -942,13 +942,13 @@ export default function Home() {
                 tagline as artwork, so it replaces the three appTitle spans —
                 but not the subtitle under it, which is the accuracy notice. */}
             <span className="app-logo" role="img" aria-label={t('appLogoAlt')} />
-            <span className="text-[12px] text-[var(--muted)]">{t('appSubtitle')}</span>
+            <span className="text-[length:calc(12px*var(--text-scale))] text-[var(--muted)]">{t('appSubtitle')}</span>
           </div>
 
           {/* Tournament selector */}
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between gap-2">
-              <label className="text-[14px] font-semibold uppercase tracking-wide" style={{ color: 'var(--red)' }}>
+              <label className="text-[length:calc(14px*var(--text-scale))] font-semibold uppercase tracking-wide" style={{ color: 'var(--red)' }}>
                 {t('tournament')}
               </label>
               {selectedTournamentInfo?.officialUrl && (
@@ -957,7 +957,7 @@ export default function Home() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title={t('officialPage')}
-                  className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-[var(--brand-fg)] hover:underline whitespace-nowrap"
+                  className="inline-flex items-center gap-0.5 text-[length:calc(10px*var(--text-scale))] font-semibold text-[var(--brand-fg)] hover:underline whitespace-nowrap"
                 >
                   {selectedTournamentInfo.provider === 'bwf' ? 'BWF' : 'BAT'} ↗
                 </a>
@@ -1016,7 +1016,7 @@ export default function Home() {
           {/* Draw selector — only relevant in bracket view */}
           {viewMode === 'bracket' && (
             <div className="flex flex-col gap-1">
-              <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
+              <label className={`${lang === 'th' ? 'text-[length:calc(12px*var(--text-scale))]' : 'text-[length:calc(10px*var(--text-scale))]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
                 {t('draw')}
               </label>
               <select
@@ -1045,7 +1045,7 @@ export default function Home() {
           {viewMode !== 'custom' && viewMode !== 'overview' && selectedTournament && selectedDay !== 'stats' && (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-1.5">
-              <label className={`${lang === 'th' ? 'text-[12px]' : 'text-[10px]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
+              <label className={`${lang === 'th' ? 'text-[length:calc(12px*var(--text-scale))]' : 'text-[length:calc(10px*var(--text-scale))]'} font-semibold text-[var(--muted)] uppercase tracking-wide`}>
                 {t('trackLabel')}
               </label>
               <span className="relative inline-block">
@@ -1055,7 +1055,7 @@ export default function Home() {
                   onMouseEnter={() => setSearchHelpOpen(true)}
                   onMouseLeave={() => setSearchHelpOpen(false)}
                   aria-label={t('searchHelp')}
-                  className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[var(--muted)] text-[9px] font-bold text-[var(--muted)] leading-none hover:bg-[var(--border)] hover:text-[var(--fg)] cursor-help"
+                  className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[var(--muted)] text-[length:calc(9px*var(--text-scale))] font-bold text-[var(--muted)] leading-none hover:bg-[var(--border)] hover:text-[var(--fg)] cursor-help"
                 >?</button>
                 {searchHelpOpen && (
                   <div className="absolute left-0 top-full mt-1 z-[60] w-[min(320px,calc(100vw-24px))] p-2.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] text-xs leading-relaxed shadow-lg normal-case tracking-normal font-normal">
@@ -1079,7 +1079,7 @@ export default function Home() {
                     type="button"
                     onClick={() => setPlayerQuery('')}
                     aria-label={t('clearSearch')}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--border)] text-[11px] leading-none"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--border)] text-[length:calc(11px*var(--text-scale))] leading-none"
                   >✕</button>
                 )}
               </div>
@@ -1109,8 +1109,10 @@ export default function Home() {
           </div>
           )}
 
-          {/* Right-side controls: export (bracket only) + language toggle */}
-          <div className="ml-auto flex items-center gap-2">
+          {/* Right-side controls: export (bracket only) + language toggle. Wraps
+              on phones, where the bracket's Export button pushed the row
+              past the screen edge. */}
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             <DiskCacheBadge visible={diskCache} />
             {viewMode === 'bracket' && (
               <button

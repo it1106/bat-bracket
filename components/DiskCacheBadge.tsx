@@ -19,7 +19,7 @@ export default function DiskCacheBadge({ visible }: Props) {
     <span
       role="status"
       title={t('diskCacheBadgeTooltip')}
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[10px] font-medium text-[var(--muted)] select-none"
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[length:calc(10px*var(--text-scale))] font-medium text-[var(--muted)] select-none"
     >
       {/* Tiny disk-stack icon (database/storage glyph) */}
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
