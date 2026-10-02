@@ -18,6 +18,7 @@ import AnnouncementBanner from '@/components/AnnouncementBanner'
 import StaleCacheBanner from '@/components/StaleCacheBanner'
 import DiskCacheBadge from '@/components/DiskCacheBadge'
 import OnlinePill from '@/components/OnlinePill'
+import TextSizeButton from '@/components/TextSizeButton'
 import {
   ANN_CUSTOM_TABS_MULTI,
   ANN_CUSTOM_TABS_MULTI_TEXT_TH,
@@ -1157,6 +1158,7 @@ export default function Home() {
             >
               {theme === 'dark' ? '☀' : '🌙'}
             </button>
+            <TextSizeButton />
             <button
               onClick={() => {
                 const next = lang === 'en' ? 'th' : 'en'

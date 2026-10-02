@@ -9,9 +9,13 @@
    ────────────────────────────────────────────────────────── */
 :root {
   /* Multiplier for every font size (globals.css and the Tailwind text-*
-     scale). Text only — spacing stays put. Bumped on phones below, where
-     the 10–13px sizes were too small to read, Thai names especially. */
-  --text-scale: 1;
+     scale). Text only — spacing stays put. It's the device default
+     (--text-base, bumped on phones below, where the 10–13px sizes were too
+     small to read, Thai names especially) times the reader's own choice
+     from the A / A+ / A++ button (--text-user, via html[data-text-size]). */
+  --text-base: 1;
+  --text-user: 1;
+  --text-scale: calc(var(--text-base) * var(--text-user));
   --bg: #f0f2f5;
   --surface: #ffffff;
   /* One step up from --surface, for a raised strip on top of it (table
@@ -67,8 +71,13 @@ html.dark {
 
 /* Phones: scale all text up. Must come after :root so it wins. */
 @media (max-width: 640px) {
-  :root { --text-scale: 1.125; }
+  :root { --text-base: 1.125; }
 }
+
+/* Reader-chosen text size (components/TextSizeButton, applied pre-paint by
+   the inline script in layout.tsx). Sizes live in lib/textSize.ts too. */
+:root[data-text-size="large"] { --text-user: 1.15; }
+:root[data-text-size="larger"] { --text-user: 1.3; }
 
 html, body {
   background: var(--bg);
@@ -1185,7 +1194,7 @@ html[lang="th"] .pm-section-title {
 
   .pm-board-set {
     display: inline-block;
-    width: 26px;
+    width: calc(26px * var(--text-scale));
     text-align: right;
     font-variant-numeric: tabular-nums;
     font-weight: 600;
@@ -1393,7 +1402,7 @@ html[lang="th"] .pm-section-title {
   font-size: calc(14px * var(--text-scale));
   font-weight: 600;
   color: var(--muted);
-  min-width: 22px;
+  min-width: calc(22px * var(--text-scale));
   text-align: center;
 }
 
@@ -1974,7 +1983,7 @@ html.dark .ms-match--next-opp {
   /* Each set score cell — fixed width ensures top/bottom alignment */
   .ms-board-set {
     display: inline-block;
-    width: 26px;
+    width: calc(26px * var(--text-scale));
     text-align: right;
     font-variant-numeric: tabular-nums;
     font-weight: 600;
@@ -2048,7 +2057,7 @@ html.dark .ms-match--next-opp {
 .group-card-matches .ms-board-players div + div { padding-top: 2px; }
 .group-card-matches .ms-board-set {
   display: inline-block;
-  width: 22px;
+  width: calc(22px * var(--text-scale));
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -2337,7 +2346,7 @@ html.dark .ms-match--next-opp {
 }
 .stats-rank {
   color: var(--muted);
-  width: 24px;
+  width: calc(24px * var(--text-scale));
 }
 .stats-seed {
   color: var(--muted);
@@ -2699,7 +2708,7 @@ html.dark .ms-match--next-opp {
   display: flex;
 }
 .country-roster-chip-tip-row { display: flex; align-items: baseline; gap: 6px; }
-.ct-round { min-width: 24px; color: var(--muted); }
+.ct-round { min-width: calc(24px * var(--text-scale)); color: var(--muted); }
 .ct-wl { font-weight: 600; }
 .ct-wl--w { color: #2e9e57; }
 .ct-wl--l { color: #c0504d; }
@@ -3068,7 +3077,7 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .pp-ev-chip.pp-ev-chip-has-tip:hover .pp-ev-tip,
 .pp-ev-chip.pp-ev-open .pp-ev-tip { display: block; }
 .pp-form-strip { display: flex; gap: 4px; flex-wrap: wrap; }
-.pp-form-cell { position: relative; width: 28px; height: 28px; border-radius: 6px;
+.pp-form-cell { position: relative; width: calc(28px * var(--text-scale)); height: calc(28px * var(--text-scale)); border-radius: 6px;
   display: grid; place-items: center; font-size: calc(12px * var(--text-scale)); font-weight: 700; color: #fff;
   cursor: pointer; }
 .pp-form-cell.pp-w { background: #16a34a; }

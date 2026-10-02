@@ -79,6 +79,10 @@ export type TKey =
   | 'selectTournament'
   | 'pastEvents'
   | 'online'
+  | 'textSize'
+  | 'textSizeNormal'
+  | 'textSizeLarge'
+  | 'textSizeLarger'
   | 'onlineTooltip'
   | 'olderEvents'
   | 'showOlderEvents'
@@ -366,6 +370,10 @@ const dict: Record<Lang, Record<TKey, string>> = {
     selectTournament: '— Select tournament —',
     pastEvents: 'Past Month Events',
     online: 'online',
+    textSize: 'Text size: {size}',
+    textSizeNormal: 'Normal',
+    textSizeLarge: 'Large',
+    textSizeLarger: 'Larger',
     onlineTooltip: 'People viewing BATMatch right now',
     olderEvents: 'Older Events',
     showOlderEvents: 'Show older events…',
@@ -685,6 +693,10 @@ const dict: Record<Lang, Record<TKey, string>> = {
     selectTournament: '— เลือกรายการแข่งขัน —',
     pastEvents: 'รายการเดือนที่ผ่านมา',
     online: 'ออนไลน์',
+    textSize: 'ขนาดตัวอักษร: {size}',
+    textSizeNormal: 'ปกติ',
+    textSizeLarge: 'ใหญ่',
+    textSizeLarger: 'ใหญ่มาก',
     onlineTooltip: 'จำนวนผู้ที่กำลังเปิดดู BATMatch อยู่ในขณะนี้',
     olderEvents: 'รายการก่อนหน้า',
     showOlderEvents: 'แสดงรายการก่อนหน้า…',

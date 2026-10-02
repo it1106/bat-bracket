@@ -3,6 +3,7 @@ import { LanguageProvider } from '@/lib/LanguageContext'
 import { ThemeProvider } from '@/lib/ThemeContext'
 import { PostHogProvider } from '@/lib/PostHogProvider'
 import { PresenceProvider } from '@/lib/PresenceContext'
+import { TEXT_SIZE_NO_FLASH } from '@/lib/textSize'
 import IOSInstallBanner from '@/components/IOSInstallBanner'
 import AppFooter from '@/components/AppFooter'
 import './globals.css'
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <head>
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH }} />
+        <script dangerouslySetInnerHTML={{ __html: TEXT_SIZE_NO_FLASH }} />
       </head>
       <body>
         <LanguageProvider>
