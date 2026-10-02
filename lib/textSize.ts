@@ -1,4 +1,4 @@
-// Reader-chosen text size, cycled by the A / A+ / A++ toolbar button. Stored per
+// Reader-chosen text size, cycled by the "Text size" toolbar button. Stored per
 // device and applied as html[data-text-size]; globals.css maps each size to a
 // --text-user multiplier on top of the device default (1 desktop, 1.125 phone).
 

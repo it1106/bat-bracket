@@ -12,7 +12,7 @@
      scale). Text only — spacing stays put. It's the device default
      (--text-base, bumped on phones below, where the 10–13px sizes were too
      small to read, Thai names especially) times the reader's own choice
-     from the A / A+ / A++ button (--text-user, via html[data-text-size]). */
+     from the "Text size" button (--text-user, via html[data-text-size]). */
   --text-base: 1;
   --text-user: 1;
   --text-scale: calc(var(--text-base) * var(--text-user));
@@ -414,6 +414,24 @@ html.dark .bk-walkover-badge {
   background: rgba(245, 158, 11, 0.18);
   color: #f59e0b;
 }
+
+/* Level meter in the text-size button: three ascending bars, filled up to
+   the current step (components/TextSizeButton). */
+.text-size-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 11px;
+}
+.text-size-bars > span {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--border);
+}
+.text-size-bars > span:nth-child(1) { height: 5px; }
+.text-size-bars > span:nth-child(2) { height: 8px; }
+.text-size-bars > span:nth-child(3) { height: 11px; }
+.text-size-bars > span.on { background: var(--brand-fg); }
 
 /* Live "N online" count in the home toolbar (components/OnlinePill). */
 .online-pill {
