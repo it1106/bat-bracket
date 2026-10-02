@@ -396,6 +396,37 @@ html.dark .bk-walkover-badge {
   color: #f59e0b;
 }
 
+/* Walkover label on match rows — an amber pill so a W/O stands out from
+   plain set scores. */
+.wo-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  font-style: normal;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: 999px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.ms-score .wo-pill { margin-left: 0; }
+
+html.dark .wo-pill {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.45);
+}
+/* Share captures render light even in dark mode. */
+html.dark .ms-share-capture .wo-pill {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
 .bk-row.winner {
   background: var(--win-bg);
   font-weight: 600;

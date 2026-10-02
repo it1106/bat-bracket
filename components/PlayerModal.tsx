@@ -199,7 +199,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                         {m.team1.length ? m.team1.map((p, pi) => renderName(p, pi, 1)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                       </div>
                       <div className="pm-match-score pm-d">
-                        {m.scheduledTime && !m.scores.length && !m.walkover ? m.scheduledTime : scoreStr(m, scoreTr)}
+                        {m.walkover ? <span className="wo-pill">{t('walkover')}</span> : m.scheduledTime && !m.scores.length ? m.scheduledTime : scoreStr(m, scoreTr)}
                       </div>
                       <div className={`pm-match-team pm-d${m.winner === 2 ? ' winner' : ''}`}>
                         {m.team2.length ? m.team2.map((p, pi) => renderName(p, pi, 2)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
@@ -212,7 +212,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                             {m.team1.length ? m.team1.map((p, pi) => renderName(p, pi, 1)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                           </div>
                           {m.walkover
-                            ? <span className="pm-board-badge">{m.winner === 1 ? t('walkover') : ''}</span>
+                            ? (m.winner === 1 ? <span className="wo-pill">{t('walkover')}</span> : null)
                             : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="pm-board-badge">{t('retired')}</span>}</>
                           }
                         </div>
@@ -221,7 +221,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                             {m.team2.length ? m.team2.map((p, pi) => renderName(p, pi, 2)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                           </div>
                           {m.walkover
-                            ? <span className="pm-board-badge">{m.winner === 2 ? t('walkover') : ''}</span>
+                            ? (m.winner === 2 ? <span className="wo-pill">{t('walkover')}</span> : null)
                             : <>{m.scores.map((s, si) => <span key={si} className="pm-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="pm-board-badge">{t('retired')}</span>}</>
                           }
                         </div>

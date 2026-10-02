@@ -35,7 +35,7 @@ function MatchRow({ match, onPlayerClick, showDate }: { match: MatchEntry; onPla
         </div>
         {winner === teamNum && <span className="ms-board-dot" aria-label="winner" />}
         {match.walkover
-          ? (lost ? <span className="ms-board-badge">W/O</span> : null)
+          ? (lost ? <span className="wo-pill">W/O</span> : null)
           : (
             <>
               {match.scores.map((s, i) => {

@@ -581,7 +581,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       </div>
       <div className="ms-score ms-d">
         {(() => {
-          if (m.walkover) return <span>{t('walkover')}</span>
+          if (m.walkover) return <span className="wo-pill">{t('walkover')}</span>
           const sets = live?.setScores?.length ? liveCompleted : m.scores
           if (sets.length === 0 && !liveText) return <span>{t('vsMatch')}</span>
           return (
@@ -624,7 +624,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           </div>
           {winnerDot(1)}
           {m.walkover
-            ? <span className="ms-board-badge">{m.winner === 2 ? t('walkover') : ''}</span>
+            ? (m.winner === 2 ? <span className="wo-pill">{t('walkover')}</span> : null)
             : (
               <>
                 {boardSets1.map((v, i) => {
@@ -646,7 +646,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           </div>
           {winnerDot(2)}
           {m.walkover
-            ? <span className="ms-board-badge">{m.winner === 1 ? t('walkover') : ''}</span>
+            ? (m.winner === 1 ? <span className="wo-pill">{t('walkover')}</span> : null)
             : (
               <>
                 {boardSets2.map((v, i) => {

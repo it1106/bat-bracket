@@ -136,7 +136,7 @@ export default function H2HModal({ data, loading, onClose }: Props) {
                             {(m.team1.length > 0 ? m.team1 : [data.player1]).join(' / ')}
                           </span>
                           {m.walkover
-                            ? <span className="h2h-board-badge">{m.winner === 1 ? 'W/O' : ''}</span>
+                            ? (m.winner === 1 ? <span className="wo-pill">W/O</span> : null)
                             : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t1}</span>)}{m.retired && m.winner === 1 && <span className="h2h-board-badge">{t('retired')}</span>}</>
                           }
                         </div>
@@ -145,7 +145,7 @@ export default function H2HModal({ data, loading, onClose }: Props) {
                             {(m.team2.length > 0 ? m.team2 : [data.player2]).join(' / ')}
                           </span>
                           {m.walkover
-                            ? <span className="h2h-board-badge">{m.winner === 2 ? 'W/O' : ''}</span>
+                            ? (m.winner === 2 ? <span className="wo-pill">W/O</span> : null)
                             : <>{m.scores.map((s, si) => <span key={si} className="h2h-board-set">{s.t2}</span>)}{m.retired && m.winner === 2 && <span className="h2h-board-badge">{t('retired')}</span>}</>
                           }
                         </div>
