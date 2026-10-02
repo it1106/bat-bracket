@@ -3,6 +3,21 @@ import { presence, isValidDeviceId } from '@/lib/presence'
 
 export const dynamic = 'force-dynamic'
 
+// GET /api/presence  →  { online, peak: { day, count, at } }
+// Read-only: current count plus today's peak (Bangkok day), without
+// registering the caller as online.
+export async function GET() {
+  const now = Date.now()
+  const peak = presence.peak(now)
+  return NextResponse.json(
+    {
+      online: presence.count(now),
+      peak: { ...peak, at: peak.at === null ? null : new Date(peak.at).toISOString() },
+    },
+    { headers: { 'Cache-Control': 'no-store' } },
+  )
+}
+
 // POST /api/presence  { id: <deviceId> }  →  { online: number }
 // Heartbeat from an open, visible tab. Records the device and returns how
 // many devices are currently online (including this one).
