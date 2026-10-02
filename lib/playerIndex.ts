@@ -9,6 +9,9 @@ import type {
   OpponentRecord, OpponentTimeWindow,
 } from './types'
 
+/** How many of a player's most recent matches the profile's form strip shows. */
+export const RECENT_FORM_SIZE = 20
+
 interface PerPlayerScratch {
   refs: PlayerMatchRef[]
   sampleRefDateIso?: string  // tournament date of the currently-stored rec.sampleRef
@@ -612,7 +615,7 @@ export function buildIndex(
 
     rec.recentForm = [...refs]
       .sort((a, b) => (b.scheduledDateIso || '').localeCompare(a.scheduledDateIso || ''))
-      .slice(0, 10)
+      .slice(0, RECENT_FORM_SIZE)
 
     let totalMin = 0, decided = 0, threeSetters = 0, threeWins = 0
     let longest = 0

@@ -3,7 +3,7 @@ import type {
   PlayerIndex, PlayerRecord, Leaderboards, PlayerIdentityMap,
   DisciplineSummary, PlayerMatchRef, OpponentRecord, PartnerRecord,
 } from './types'
-import { buildLeaderboards } from './playerIndex'
+import { buildLeaderboards, RECENT_FORM_SIZE } from './playerIndex'
 
 function mergeDisc(a: DisciplineSummary, b: DisciplineSummary): DisciplineSummary {
   return { wins: a.wins + b.wins, losses: a.losses + b.losses, titles: a.titles + b.titles, finals: a.finals + b.finals, semis: a.semis + b.semis }
@@ -12,7 +12,7 @@ function mergeDisc(a: DisciplineSummary, b: DisciplineSummary): DisciplineSummar
 function mergeRecentForm(a: PlayerMatchRef[], b: PlayerMatchRef[]): PlayerMatchRef[] {
   return [...a, ...b]
     .sort((x, y) => (y.scheduledDateIso || '').localeCompare(x.scheduledDateIso || ''))
-    .slice(0, 10)
+    .slice(0, RECENT_FORM_SIZE)
 }
 
 function mergeMatchCharacter(

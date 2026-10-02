@@ -86,10 +86,10 @@ describe('buildIndex — single tournament', () => {
     expect(champions.length).toBeGreaterThan(0)
   })
 
-  it('populates recentForm sorted newest first, max 10 entries', () => {
+  it('populates recentForm sorted newest first, max 20 entries', () => {
     const { index } = buildIndex('bat', [toyota])
     for (const p of Object.values(index.players)) {
-      expect(p.recentForm.length).toBeLessThanOrEqual(10)
+      expect(p.recentForm.length).toBeLessThanOrEqual(20)
       for (let i = 1; i < p.recentForm.length; i++) {
         const prev = p.recentForm[i-1].scheduledDateIso || ''
         const curr = p.recentForm[i].scheduledDateIso || ''
