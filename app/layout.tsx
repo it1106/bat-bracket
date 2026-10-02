@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { LanguageProvider } from '@/lib/LanguageContext'
 import { ThemeProvider } from '@/lib/ThemeContext'
 import { PostHogProvider } from '@/lib/PostHogProvider'
+import { PresenceProvider } from '@/lib/PresenceContext'
 import IOSInstallBanner from '@/components/IOSInstallBanner'
 import AppFooter from '@/components/AppFooter'
 import './globals.css'
@@ -45,12 +46,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LanguageProvider>
           <ThemeProvider>
             <PostHogProvider>
-              {children}
-              {/* Sits in the root layout so the disclaimer is reachable from
-                  every route — the tournament view, leaderboards, player
-                  profiles and the country matrix alike. */}
-              <AppFooter />
-              <IOSInstallBanner />
+              <PresenceProvider>
+                {children}
+                {/* Sits in the root layout so the disclaimer is reachable from
+                    every route — the tournament view, leaderboards, player
+                    profiles and the country matrix alike. */}
+                <AppFooter />
+                <IOSInstallBanner />
+              </PresenceProvider>
             </PostHogProvider>
           </ThemeProvider>
         </LanguageProvider>

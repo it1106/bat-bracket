@@ -29,19 +29,26 @@ function genDeviceId(): string {
   return 'dev_' + Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
-export function identifyDevice(): void {
-  if (!isLoaded()) return
-  if (typeof window === 'undefined') return
-  let id: string | null = null
+/** This browser's persistent device id, created on first use. Null when
+ *  localStorage is unavailable (private mode, blocked storage). */
+export function getDeviceId(): string | null {
+  if (typeof window === 'undefined') return null
   try {
-    id = localStorage.getItem(DEVICE_ID_KEY)
+    let id = localStorage.getItem(DEVICE_ID_KEY)
     if (!id) {
       id = genDeviceId()
       localStorage.setItem(DEVICE_ID_KEY, id)
     }
+    return id
   } catch {
-    return
+    return null
   }
+}
+
+export function identifyDevice(): void {
+  if (!isLoaded()) return
+  const id = getDeviceId()
+  if (!id) return
   posthog.identify(id)
 }
 

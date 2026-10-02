@@ -17,6 +17,7 @@ import { schedulePollUrl } from '@/lib/schedulePoll'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import StaleCacheBanner from '@/components/StaleCacheBanner'
 import DiskCacheBadge from '@/components/DiskCacheBadge'
+import OnlinePill from '@/components/OnlinePill'
 import {
   ANN_CUSTOM_TABS_MULTI,
   ANN_CUSTOM_TABS_MULTI_TEXT_TH,
@@ -1113,6 +1114,7 @@ export default function Home() {
               on phones, where the bracket's Export button pushed the row
               past the screen edge. */}
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <OnlinePill />
             <DiskCacheBadge visible={diskCache} />
             {viewMode === 'bracket' && (
               <button
