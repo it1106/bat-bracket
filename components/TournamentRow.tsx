@@ -41,7 +41,7 @@ export default function TournamentRow({ row, expiry = null, creditOverride, best
       ? t('rankingDetailExpiringWithin4Weeks')
       : undefined
   const name = row.tournamentId
-    ? <Link href={`/?tournament=${row.tournamentId}`}>{row.tournamentName}</Link>
+    ? <Link href={`/?tournament=${row.tournamentId}&name=${encodeURIComponent(row.tournamentName)}`}>{row.tournamentName}</Link>
     : <span>{row.tournamentName}</span>
   const showDiscount = creditOverride != null && Math.round(creditOverride) !== row.points
   const pointsCell = showDiscount

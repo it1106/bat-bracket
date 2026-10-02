@@ -566,12 +566,31 @@ export default function Home() {
     }
   }, [tournaments])
 
-  // Restore previously selected tournament from localStorage once the list is known
+  // Pick the initial tournament once the list is known: a `?tournament=` deep
+  // link (e.g. from a player's ranking detail) wins, else restore the last
+  // selection from localStorage.
   useEffect(() => {
     if (autoSelectedTournamentRef.current) return
     if (loadingTournaments || tournaments.length === 0) return
     autoSelectedTournamentRef.current = true
     if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    const linked = url.searchParams.get('tournament')
+    if (linked) {
+      // Consume the param so a reload or a later dropdown change isn't pulled
+      // back to the linked tournament. Linked ids may be older than the list
+      // (ranking rows span a year), so an unlisted id is opened as-is.
+      const linkedName = url.searchParams.get('name')
+      url.searchParams.delete('tournament')
+      url.searchParams.delete('name')
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
+      const match = tournaments.find((t) => t.id.toUpperCase() === linked.toUpperCase())
+      handleTournamentChange(match ? match.id : linked.toUpperCase())
+      // handleTournamentChange names an unlisted id after itself; the link
+      // carries the real name, so use that instead of a bare GUID.
+      if (!match && linkedName) setTournamentName(linkedName)
+      return
+    }
     const saved = localStorage.getItem('selectedTournament')
     if (saved) {
       const match = tournaments.find((t) => t.id === saved)
@@ -867,6 +886,15 @@ export default function Home() {
   const recentPastTournaments = tournaments.filter(
     (tn) => tn.done && (!tn.startDateIso || tn.startDateIso >= pastCutoffIso),
   )
+  // A deep-linked tournament can be older than the 30-day window, or absent
+  // from the list entirely. Give it its own option so the dropdown shows what
+  // is actually open instead of falling back to the placeholder.
+  const selectedOutsideDropdown = !!selectedTournament
+    && !tournaments.some((tn) => tn.id === selectedTournament && (!tn.done || recentPastTournaments.includes(tn)))
+  const selectedOutsideLabel = (() => {
+    const tn = tournaments.find((x) => x.id === selectedTournament)
+    return tn ? tournamentLabel(tn) : tournamentName || selectedTournament
+  })()
 
   // Tournaments are admitted once their seeded entries appear, which is days
   // before the draws are made — so "no draws" is a normal, expected state now,
@@ -941,6 +969,11 @@ export default function Home() {
                   {recentPastTournaments.map((tn) => (
                     <option key={tn.id} value={tn.id}>{tournamentLabel(tn)}</option>
                   ))}
+                </optgroup>
+              )}
+              {selectedOutsideDropdown && (
+                <optgroup label={t('pastEvents')}>
+                  <option value={selectedTournament}>{selectedOutsideLabel}</option>
                 </optgroup>
               )}
             </select>
