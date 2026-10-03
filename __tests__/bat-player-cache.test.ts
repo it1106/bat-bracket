@@ -73,3 +73,38 @@ describe('bat-player-cache', () => {
     expect(await readBatPlayer('ABC', '1')).toBeNull()
   })
 })
+
+describe('bat-player-cache — concurrent writes', () => {
+  it('keeps every player when many writes to one tournament overlap', async () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {})
+    const ids = Array.from({ length: 40 }, (_, i) => String(1000 + i))
+    await Promise.all(ids.map((id) => writeBatPlayer('ABC', id, { ...PROFILE, playerId: id }, false)))
+
+    const missing: string[] = []
+    for (const id of ids) if (!(await readBatPlayer('ABC', id))) missing.push(id)
+    expect(missing).toEqual([])
+    expect(log).not.toHaveBeenCalledWith(expect.stringContaining('write failed'))
+    expect(await fs.readdir(tmp)).toEqual(['abc.json'])
+    log.mockRestore()
+  })
+})
+
+describe('bat-player-cache — repeated reads', () => {
+  it('parses the tournament file once for many lookups, and again after it changes', async () => {
+    await writeBatPlayer('ABC', '1', { ...PROFILE, playerId: '1' }, false)
+    __setBatPlayerRootForTesting(tmp) // drop anything remembered from the write
+    const read = jest.spyOn(fs, 'readFile')
+
+    for (let i = 0; i < 10; i++) expect(await readBatPlayer('ABC', '1')).not.toBeNull()
+    expect(read).toHaveBeenCalledTimes(1)
+
+    // Another process rewrites the file: the next lookup must see it.
+    const file = path.join(tmp, 'abc.json')
+    const changed = JSON.parse(await fs.readFile(file, 'utf8'))
+    changed.players['2'] = changed.players['1']
+    await fs.writeFile(file, JSON.stringify(changed), 'utf8')
+    await fs.utimes(file, new Date(), new Date(Date.now() + 5000))
+    expect(await readBatPlayer('ABC', '2')).not.toBeNull()
+    read.mockRestore()
+  })
+})

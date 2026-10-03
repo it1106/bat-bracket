@@ -32,6 +32,23 @@ export async function fetchBatPlayerProfile(
     }
   }
 
+  // Requests that miss the cache for the same player at the same time share
+  // one scrape instead of each hitting BAT.
+  const key = `${tournamentId.toLowerCase()}:${playerId}`
+  const pending = inFlight.get(key)
+  if (pending) return pending
+  const scrape = scrapeBatPlayerProfile(tournamentId, playerId).finally(() => inFlight.delete(key))
+  inFlight.set(key, scrape)
+  return scrape
+}
+
+const inFlight = new Map<string, Promise<BatPlayerResult>>()
+
+async function scrapeBatPlayerProfile(
+  tournamentId: string,
+  playerId: string,
+): Promise<BatPlayerResult> {
+
   const tournamentUrl = `https://bat.tournamentsoftware.com/sport/player.aspx?id=${tournamentId}&player=${playerId}`
   const res = await batFetch('player-tournament', tournamentUrl, { headers: HEADERS })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
