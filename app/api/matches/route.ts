@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings, parseBracketFeeders } from '@/lib/scraper'
-import { cache as bracketCache, fetchAndCache, rawHtmlCache, siblingLookupCache, feederLookupCache, makeBracketKey } from '@/lib/bracket-cache'
+import { cache as bracketCache, fetchAndCache, rawHtmlCache, siblingLookupCache, feederLookupCache, makeBracketKey, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
 import { readDayCache, writeDayCache, isDayComplete, shouldMemcacheDayResult, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
@@ -124,6 +124,10 @@ async function enrichBracketContext(
 
   const siblingByDraw = new Map<string, Map<string, string>>()
   const feederByDraw = new Map<string, Map<string, MatchPlayer[][][]>>()
+
+  // A finished tournament's brackets live on disk until someone opens it;
+  // without this the lookups below would refetch every draw from BAT.
+  await ensureBracketsLoaded(tournamentId)
 
   await Promise.all(
     Array.from(drawNums).map(async (drawNum) => {

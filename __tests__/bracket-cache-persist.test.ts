@@ -5,14 +5,16 @@ import { promises as fs } from 'fs'
 jest.mock('../lib/providers/resolve', () => ({ providerFor: jest.fn() }))
 jest.mock('../lib/tournaments-registry', () => ({ resolveRef: jest.fn() }))
 jest.mock('../lib/scraper', () => ({
-  parseBracket: (html: string) => ({ html: `<parsed>${html}</parsed>` }),
+  parseBracket: (html: string) => ({ html: `<parsed>${html}</parsed>`, entrantCount: html.length }),
   parsePlayersPage: () => [],
 }))
 
 import {
-  cache, rawHtmlCache, makeBracketKey, markBracketDirty,
-  flushBracketCache, loadBracketStoreFromDisk,
+  cache, rawHtmlCache, playerClubCache, makeBracketKey, markBracketDirty,
+  flushBracketCache, loadBracketStoreFromDisk, ensureBracketsLoaded,
+  cachedEntrantCounts, __resetBracketStoreForTesting,
 } from '../lib/bracket-cache'
+import { cache as drawsCache } from '../lib/draws-cache'
 
 const A = 'aaaaaaaa-0000-0000-0000-000000000001'
 const B = 'bbbbbbbb-0000-0000-0000-000000000002'
@@ -28,6 +30,18 @@ function put(guid: string, drawNum: string, html: string, ts = 1000) {
   markBracketDirty(guid)
 }
 
+/** Marks a tournament as still being played, so its brackets stay in memory. */
+const live = (guid: string) => drawsCache.set(guid.toUpperCase(), { draws: [], ts: 1 })
+const finished = (guid: string) => drawsCache.set(guid.toUpperCase(), { draws: [], ts: 1, done: true })
+
+/** Simulates a restart: nothing in memory, files left as they are. */
+function restart() {
+  cache.clear()
+  rawHtmlCache.clear()
+  playerClubCache.clear()
+  __resetBracketStoreForTesting()
+}
+
 const storeDir = () => path.join(tmp, '.cache', 'brackets')
 const readStore = async (guid: string) =>
   JSON.parse(await fs.readFile(path.join(storeDir(), `${guid}.json`), 'utf8'))
@@ -36,8 +50,8 @@ beforeEach(async () => {
   cwd = process.cwd()
   tmp = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'bracket-cache-')))
   process.chdir(tmp)
-  cache.clear()
-  rawHtmlCache.clear()
+  drawsCache.clear()
+  restart()
   log = jest.spyOn(console, 'log').mockImplementation(() => {})
 })
 afterEach(async () => {
@@ -84,12 +98,13 @@ describe('bracket cache persistence', () => {
     expect((await readStore(A)).entries).toHaveLength(2)
   })
 
-  it('restores every tournament from its file', async () => {
+  it('restores every live tournament from its file', async () => {
+    live(A)
+    live(B)
     put(A, '1', 'a1', 111)
     put(B, '7', 'b7', 222)
     await flushBracketCache()
-    cache.clear()
-    rawHtmlCache.clear()
+    restart()
 
     expect(await loadBracketStoreFromDisk()).toBe(2)
     expect(rawHtmlCache.get(`${A}:1`)).toBe('a1')
@@ -109,6 +124,7 @@ describe('bracket cache persistence', () => {
       ],
     }), 'utf8')
 
+    live(A)
     expect(await loadBracketStoreFromDisk()).toBe(3)
     expect(cache.get(`${A.toUpperCase()}:2`)).toMatchObject({ ts: 112, done: true })
     expect((await fs.readdir(storeDir())).sort()).toEqual([`${A}.json`, `${B}.json`])
@@ -117,12 +133,129 @@ describe('bracket cache persistence', () => {
       .toEqual(['bracket-cache.json.migrated', 'brackets'])
 
     // A second boot reads the per-tournament files.
-    cache.clear()
-    rawHtmlCache.clear()
+    restart()
     expect(await loadBracketStoreFromDisk()).toBe(3)
   })
 
   it('starts empty when nothing has been saved', async () => {
     expect(await loadBracketStoreFromDisk()).toBe(0)
+  })
+})
+
+describe('finished tournaments stay on disk', () => {
+  const C = 'cccccccc-0000-0000-0000-000000000003'
+  const D = 'dddddddd-0000-0000-0000-000000000004'
+  const E = 'eeeeeeee-0000-0000-0000-000000000005'
+  const row = (id: string, club: string) =>
+    `<div class="match__row"><span class="match__row-entrant-info-club">${club}</span><a data-player-id="${id}">Player ${id}</a></div>`
+
+  /** Saves the given tournaments' brackets, then restarts with them finished. */
+  async function savedAndRestarted(...guids: string[]) {
+    for (const g of guids) { live(g); put(g, '1', row('7', `Club ${g[0]}`), 500); put(g, '2', `${g[0]}2`, 500) }
+    await flushBracketCache()
+    drawsCache.clear()
+    for (const g of guids) finished(g)
+    restart()
+    await loadBracketStoreFromDisk()
+  }
+
+  it('does not hold a finished tournament in memory after a restart', async () => {
+    await savedAndRestarted(A)
+    expect(cache.size).toBe(0)
+    expect(rawHtmlCache.size).toBe(0)
+  })
+
+  it('treats a tournament with a pinned full schedule as finished', async () => {
+    put(A, '1', 'a1')
+    put(B, '1', 'b1')
+    await flushBracketCache()
+    // Discovery-found tournaments are unknown to the draws cache at boot; the
+    // pinned schedule is what says this one is over.
+    await fs.mkdir(path.join(tmp, '.cache', 'full'), { recursive: true })
+    await fs.writeFile(path.join(tmp, '.cache', 'full', `${A}.json`), '{}', 'utf8')
+    restart()
+    await loadBracketStoreFromDisk()
+    expect(Array.from(cache.keys())).toEqual([`${B}:1`])
+  })
+
+  it('keeps a tournament it knows nothing about in memory', async () => {
+    put(A, '1', 'a1')
+    await flushBracketCache()
+    restart()
+    await loadBracketStoreFromDisk()
+    expect(rawHtmlCache.get(`${A}:1`)).toBe('a1')
+  })
+
+  it('still knows its player clubs and entrant counts without loading it', async () => {
+    await savedAndRestarted(A)
+    expect(playerClubCache.get(`${A}:7`)).toBe('Club a')
+    expect(cachedEntrantCounts(A, ['1', '2', '99'])).toEqual([row('7', 'Club a').length, 2, undefined])
+    expect(cache.size).toBe(0)
+  })
+
+  it('loads it from its file when someone opens it', async () => {
+    await savedAndRestarted(A, B)
+    await ensureBracketsLoaded(A.toUpperCase())
+    expect(rawHtmlCache.get(`${A}:2`)).toBe('a2')
+    expect(cache.get(`${A}:2`)).toMatchObject({ ts: 500, bracket: { html: '<parsed>a2</parsed>' } })
+    expect(cache.has(`${B}:1`)).toBe(false)
+  })
+
+  it('reads the file once while it stays in memory', async () => {
+    await savedAndRestarted(A)
+    const read = jest.spyOn(fs, 'readFile')
+    await Promise.all([ensureBracketsLoaded(A), ensureBracketsLoaded(A)])
+    await ensureBracketsLoaded(A)
+    expect(read).toHaveBeenCalledTimes(1)
+    read.mockRestore()
+  })
+
+  it('keeps only the three most recently opened ones in memory', async () => {
+    await savedAndRestarted(A, B, C, D)
+    await ensureBracketsLoaded(A)
+    await ensureBracketsLoaded(B)
+    await ensureBracketsLoaded(C)
+    await ensureBracketsLoaded(A) // A is now the most recent; B is the oldest
+    await ensureBracketsLoaded(D)
+
+    expect(cache.has(`${B}:1`)).toBe(false)
+    expect(rawHtmlCache.has(`${B}:1`)).toBe(false)
+    for (const g of [A, C, D]) expect(cache.has(`${g}:1`)).toBe(true)
+
+    await ensureBracketsLoaded(B) // and it comes back when opened again
+    expect(rawHtmlCache.get(`${B}:2`)).toBe('b2')
+  })
+
+  it('never loads a live tournament out of memory', async () => {
+    await savedAndRestarted(B, C, D, E)
+    live(A)
+    put(A, '1', 'a1')
+    for (const g of [B, C, D, E]) await ensureBracketsLoaded(g)
+    expect(rawHtmlCache.get(`${A}:1`)).toBe('a1')
+  })
+
+  it('keeps the other draws on disk when one draw of an unloaded tournament is refetched', async () => {
+    await savedAndRestarted(A)
+    put(A, '2', 'a2-refetched', 900) // fetched without the tournament being loaded
+    await flushBracketCache()
+
+    const saved = (await readStore(A)).entries
+    expect(saved.map((e: { key: string }) => e.key).sort()).toEqual([`${A}:1`, `${A}:2`])
+    expect(saved.find((e: { key: string }) => e.key === `${A}:2`)).toMatchObject({ ts: 900, html: 'a2-refetched' })
+    expect(cache.size).toBe(0) // and it goes back to disk-only
+
+    await ensureBracketsLoaded(A)
+    expect(rawHtmlCache.get(`${A}:2`)).toBe('a2-refetched')
+  })
+
+  it('does not drop a loaded tournament that still has unsaved changes', async () => {
+    await savedAndRestarted(A, B, C, D)
+    await ensureBracketsLoaded(A)
+    put(A, '2', 'a2-unsaved', 900)
+    for (const g of [B, C, D]) await ensureBracketsLoaded(g)
+    expect(rawHtmlCache.get(`${A}:2`)).toBe('a2-unsaved')
+
+    await flushBracketCache()
+    expect((await readStore(A)).entries.find((e: { key: string }) => e.key === `${A}:2`).html).toBe('a2-unsaved')
   })
 })

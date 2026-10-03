@@ -7,6 +7,7 @@ import {
   fetchBracket,
   fetchTournamentPlayerClubs,
   makeBracketKey,
+  ensureBracketsLoaded,
 } from '@/lib/bracket-cache'
 
 export const maxDuration = 60
@@ -42,6 +43,9 @@ export async function GET(request: Request) {
     // those were populated by the prewarm and have already extracted
     // their player→club entries into playerClubCache. Only the missing
     // ones cost a BAT round-trip.
+    // Finished tournaments keep their brackets on disk; load them so the walk
+    // below skips draws we already have instead of refetching each from BAT.
+    await ensureBracketsLoaded(tid)
     const BATCH = 5
     let allFetched = true
     for (let i = 0; i < draws.length; i += BATCH) {

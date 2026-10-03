@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { cache, ttlMsFor, makeBracketKey, fetchAndCache, fetchBracketFromRound, rawHtmlCache } from '@/lib/bracket-cache'
+import { cache, ttlMsFor, makeBracketKey, fetchAndCache, fetchBracketFromRound, rawHtmlCache, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { parseBracket } from '@/lib/scraper'
 
 export const maxDuration = 60
@@ -41,6 +41,8 @@ export async function GET(request: Request) {
   }
 
   const key = makeBracketKey(guid, drawNum)
+  // A finished tournament's brackets live on disk until someone opens one.
+  await ensureBracketsLoaded(guid)
 
   // fromRound > 0: re-parse/rebuild from a specific round without re-caching
   if (fromRound > 0) {
