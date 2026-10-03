@@ -51,7 +51,8 @@ describe('DisclaimerCard', () => {
 describe('AppFooter', () => {
   it.each(['en', 'th'] as const)('labels the %s link with that language\'s title', (lang) => {
     renderIn(lang, <AppFooter />)
-    const link = screen.getByRole('link')
+    // The footer also links to the privacy notice, so pick this link by name.
+    const link = screen.getByRole('link', { name: DISCLAIMER[lang].title })
     expect(link.textContent).toBe(DISCLAIMER[lang].title)
     expect(link.getAttribute('href')).toBe('/disclaimer')
   })

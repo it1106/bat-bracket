@@ -3696,6 +3696,8 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
   text-decoration: none;
 }
 .app-footer a:hover { color: var(--fg); text-decoration: underline; }
+.app-footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 8px; }
+.app-footer-sep { color: var(--muted); font-size: calc(12px * var(--text-scale)); }
 /* Never let the footer ride along in an exported/shared screenshot. */
 .stats-share-capture .app-footer { display: none !important; }
 
