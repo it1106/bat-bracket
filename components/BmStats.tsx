@@ -6,6 +6,7 @@
 // logged-in session, so a 401 from the API swaps the page for the login form.
 
 import { useCallback, useEffect, useState } from 'react'
+import { setSearchAliases } from '@/lib/searchAliases'
 
 const REFRESH_MS = 10_000
 
@@ -160,6 +161,125 @@ function MinuteChart({ perMinute, generatedAt }: { perMinute: number[]; generate
         <span>{minuteAt(perMinute.length - 1)}</span>
       </div>
     </div>
+  )
+}
+
+// Short names visitors can type in the search box, each standing for a longer
+// name: typing "ren" also finds "รวิณ". Saved on the server; every visitor's
+// search picks the list up on their next page load.
+function AliasEditor() {
+  const [aliases, setAliases] = useState<Record<string, string> | null>(null)
+  const [key, setKey] = useState('')
+  const [value, setValue] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const apply = async (res: Response) => {
+    const data = (await res.json().catch(() => null)) as { aliases?: Record<string, string>; error?: string } | null
+    if (res.ok && data?.aliases) {
+      setAliases(data.aliases)
+      setSearchAliases(data.aliases)
+      setError(null)
+      return true
+    }
+    setError(data?.error ?? 'Could not save. Try again.')
+    return false
+  }
+
+  useEffect(() => {
+    fetch('/api/bmstats/aliases', { cache: 'no-store' }).then(apply).catch(() => setError('Could not load the aliases.'))
+  }, [])
+
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (busy) return
+    setBusy(true)
+    try {
+      const res = await fetch('/api/bmstats/aliases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value }),
+      })
+      if (await apply(res)) {
+        setKey('')
+        setValue('')
+      }
+    } catch {
+      setError('Could not reach the server. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const remove = async (k: string) => {
+    if (busy) return
+    setBusy(true)
+    try {
+      await apply(await fetch(`/api/bmstats/aliases?key=${encodeURIComponent(k)}`, { method: 'DELETE' }))
+    } catch {
+      setError('Could not reach the server. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const rows = aliases ? Object.entries(aliases).sort(([a], [b]) => a.localeCompare(b)) : []
+  return (
+    <Card title="Search aliases">
+      <p className="bms-note">
+        Typing the short name in the search box also finds the full name. Typing just the first letters works too
+        (2 or more). Changes reach visitors the next time they load the page.
+      </p>
+      {aliases && (
+        rows.length === 0 ? (
+          <p className="bms-note">No aliases yet.</p>
+        ) : (
+          <table className="bms-table bms-alias-table">
+            <thead>
+              <tr>
+                <th scope="col" className="bms-th">Short name</th>
+                <th scope="col" className="bms-th">Finds</th>
+                <td />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(([k, v]) => (
+                <tr key={k}>
+                  <th scope="row">{k}</th>
+                  <td className="bms-alias-value">{v}</td>
+                  <td>
+                    <button type="button" className="bms-logout" disabled={busy} onClick={() => remove(k)} aria-label={`Remove ${k}`}>
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      )}
+      <form className="bms-alias-form" onSubmit={add}>
+        <input
+          className="bms-login-input"
+          aria-label="Short name"
+          placeholder="Short name, e.g. ren"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+        />
+        <span className="bms-alias-arrow" aria-hidden="true">→</span>
+        <input
+          className="bms-login-input"
+          aria-label="Full name it finds"
+          placeholder="Finds, e.g. รวิณ"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+        <button className="bms-login-button" type="submit" disabled={busy || !key.trim() || !value.trim()}>
+          Add
+        </button>
+      </form>
+      {error && <p className="bms-login-error" role="alert">{error}</p>}
+    </Card>
   )
 }
 
@@ -320,6 +440,8 @@ export default function BmStats() {
           </table>
         )}
       </Card>
+
+      <AliasEditor />
 
       <Card title="Worker">
         <div className="bms-grid">

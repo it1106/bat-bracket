@@ -3828,3 +3828,10 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
   cursor: pointer;
 }
 .bms-login-button:disabled { opacity: 0.55; cursor: default; }
+
+.bms-alias-table th { font-weight: 500; }
+.bms-alias-table td { width: 1%; }
+.bms-alias-table td.bms-alias-value { width: auto; text-align: left; white-space: normal; word-break: break-word; padding-left: 0; }
+.bms-alias-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.bms-alias-form .bms-login-input { flex: 1 1 140px; min-width: 0; }
+.bms-alias-arrow { color: var(--muted); }

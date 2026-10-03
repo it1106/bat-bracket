@@ -6,6 +6,7 @@ import { PresenceProvider } from '@/lib/PresenceContext'
 import { TEXT_SIZE_NO_FLASH } from '@/lib/textSize'
 import IOSInstallBanner from '@/components/IOSInstallBanner'
 import AppFooter from '@/components/AppFooter'
+import SearchAliasesLoader from '@/components/SearchAliasesLoader'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ThemeProvider>
             <PostHogProvider>
               <PresenceProvider>
+                <SearchAliasesLoader />
                 {children}
                 {/* Sits in the root layout so the disclaimer is reachable from
                     every route — the tournament view, leaderboards, player

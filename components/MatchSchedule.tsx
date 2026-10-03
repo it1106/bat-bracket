@@ -6,7 +6,7 @@ import { matchLiveCourt, type CourtLive } from '@/lib/live-score'
 import { useLanguage } from '@/lib/LanguageContext'
 import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
 import { computePlayingOrder } from '@/lib/playingOrder'
-import { expandSearchQuery, parseSearchQuery } from '@/lib/searchAliases'
+import { expandSearchQuery, parseSearchQuery, useSearchAliasesVersion } from '@/lib/searchAliases'
 import { abbrevRoundL, longRoundL } from '@/lib/i18n'
 import { queryMatchesCountry } from '@/lib/countryCodes'
 import { track } from '@/lib/analytics'
@@ -432,6 +432,9 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Subscribing re-renders the schedule when the alias table is replaced, so
+  // the filtering and highlighting below pick up the new aliases.
+  useSearchAliasesVersion()
   const queries = expandSearchQuery(playerQuery)
   const nameCls = (p: { name: string; playerId: string }) => {
     const cls: string[] = []

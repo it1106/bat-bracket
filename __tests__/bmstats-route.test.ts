@@ -77,3 +77,56 @@ describe('/api/bmstats access', () => {
     process.env.BMSTATS_PASSWORD = PW
   })
 })
+
+describe('search aliases API', () => {
+  const session = async () => cookieOf(await login(PW))
+  const admin = async (method: string, cookie?: string, body?: unknown, query = '') => {
+    const mod = await import('@/app/api/bmstats/aliases/route')
+    const handler = mod[method as 'GET' | 'POST' | 'DELETE']
+    return handler(new Request(`http://localhost/api/bmstats/aliases${query}`, {
+      method,
+      headers: cookie ? { cookie } : {},
+      ...(body !== undefined && { body: JSON.stringify(body) }),
+    }))
+  }
+  const publicList = async () => {
+    const { GET } = await import('@/app/api/search-aliases/route')
+    return (await (await GET()).json()).aliases as Record<string, string>
+  }
+
+  it('lets anyone read the aliases, since every visitor\'s search uses them', async () => {
+    expect((await publicList()).ren).toBe('รวิณ')
+  })
+
+  it('refuses changes without a login', async () => {
+    expect((await admin('POST', undefined, { key: 'smash', value: 'ทีมสแมช' })).status).toBe(401)
+    expect((await admin('DELETE', undefined, undefined, '?key=ren')).status).toBe(401)
+    expect((await admin('GET')).status).toBe(401)
+    expect('smash' in (await publicList())).toBe(false)
+  })
+
+  it('adds, replaces and removes an alias when logged in', async () => {
+    const cookie = await session()
+    const added = await admin('POST', cookie, { key: ' Smash ', value: 'ทีมสแมช' })
+    expect(added.status).toBe(200)
+    expect((await added.json()).aliases.smash).toBe('ทีมสแมช')
+    expect((await publicList()).smash).toBe('ทีมสแมช')
+
+    await admin('POST', cookie, { key: 'smash', value: 'สแมช' })
+    expect((await publicList()).smash).toBe('สแมช')
+
+    const removed = await admin('DELETE', cookie, undefined, '?key=smash')
+    expect(removed.status).toBe(200)
+    expect('smash' in (await publicList())).toBe(false)
+  })
+
+  it('explains why an alias was rejected', async () => {
+    const res = await admin('POST', await session(), { key: 'x', value: 'y' })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/at least 2/)
+  })
+
+  it('says so when asked to remove an alias that does not exist', async () => {
+    expect((await admin('DELETE', await session(), undefined, '?key=nobody')).status).toBe(404)
+  })
+})

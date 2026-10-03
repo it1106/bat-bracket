@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { MatchScheduleGroup, MatchEntry, MatchPlayer } from './types'
-import { parseSearchQuery } from './searchAliases'
+import { parseSearchQuery, useSearchAliasesVersion } from './searchAliases'
 import { queryMatchesCountry } from './countryCodes'
 
 function playerMatches(p: MatchPlayer, queries: string[], clubMap?: Record<string, string>): boolean {
@@ -53,9 +53,12 @@ export function useFirstUnplayed(
   playerQuery: string,
   clubMap?: Record<string, string>,
 ): UseFirstUnplayedResult {
+  const aliasVersion = useSearchAliasesVersion()
   const target = useMemo(
     () => findFirstUnplayed(groups, playerQuery, clubMap),
-    [groups, playerQuery, clubMap],
+    // aliasVersion: the search re-runs when the alias table is replaced.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [groups, playerQuery, clubMap, aliasVersion],
   )
   const targetKey = target ? `${target.gi}-${target.mi}` : null
 

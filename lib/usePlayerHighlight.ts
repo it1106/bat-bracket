@@ -1,6 +1,6 @@
 'use client'
 import { useEffect } from 'react'
-import { expandSearchQuery } from './searchAliases'
+import { expandSearchQuery, useSearchAliasesVersion } from './searchAliases'
 import { countryCodesForTerm } from './countryCodes'
 
 export function applyPlayerHighlight(
@@ -75,8 +75,9 @@ export function usePlayerHighlight(
   playerClubMap: Record<string, string> | undefined,
   rerunKey: unknown,
 ): void {
+  const aliasVersion = useSearchAliasesVersion()
   useEffect(() => {
     if (!containerRef.current) return
     applyPlayerHighlight(containerRef.current, playerQuery, playerClubMap)
-  }, [containerRef, playerQuery, playerClubMap, rerunKey])
+  }, [containerRef, playerQuery, playerClubMap, rerunKey, aliasVersion])
 }

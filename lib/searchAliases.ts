@@ -1,13 +1,40 @@
+import { useSyncExternalStore } from 'react'
+
+import { DEFAULT_ALIASES } from './searchAliasDefaults'
+
 // Short codes the user can type in the player-search box that also match
-// a longer expanded term (typically a club name). Keys are lowercase.
-const ALIASES: Record<string, string> = {
-  kba: 'เกษมศักดิ์ Badminton Academy',
-  bty: 'บ้านทองหยอด',
-  ren: 'รวิณ',
-  aston: 'นริศ',
-  trilert: 'ตรีเลิศ',
-  pharmacy: 'เภสัชพลัส',
-  rlc: 'รีแลกซ์คอร์ทหนองคาย'
+// a longer expanded term (typically a club or player name). Keys are lowercase.
+//
+// The built-in ones live in ./searchAliasDefaults. The live list is managed on
+// the /bmstats page and kept on the server; SearchAliasesLoader fetches it at
+// page load and swaps it in with setSearchAliases(). Until then (and if the
+// fetch fails) the built-ins apply.
+export { DEFAULT_ALIASES }
+
+let ALIASES: Record<string, string> = { ...DEFAULT_ALIASES }
+let version = 0
+const listeners = new Set<() => void>()
+
+/** Replaces the alias table. Entries that are not text are dropped. */
+export function setSearchAliases(next: Readonly<Record<string, string>>): void {
+  const clean: Record<string, string> = {}
+  for (const [key, value] of Object.entries(next)) {
+    if (typeof value === 'string' && value.trim()) clean[key.trim().toLowerCase()] = value.trim()
+  }
+  ALIASES = clean
+  version++
+  listeners.forEach((notify) => notify())
+}
+
+function subscribe(notify: () => void): () => void {
+  listeners.add(notify)
+  return () => listeners.delete(notify)
+}
+
+/** Changes whenever the alias table is replaced. Read it in a component (or
+ *  put it in a hook's dependency list) so searches re-run with the new table. */
+export function useSearchAliasesVersion(): number {
+  return useSyncExternalStore(subscribe, () => version, () => 0)
 }
 
 const MIN_PREFIX = 2
