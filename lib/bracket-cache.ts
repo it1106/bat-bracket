@@ -37,6 +37,8 @@ interface BracketCacheState {
   coldLoads: Map<string, Promise<void>>
   // Entrant count per bracket key (lowercased), kept for tournaments left on disk.
   entrantCounts: Map<string, number>
+  // Draws of an on-demand tournament whose raw HTML is loaded but not yet parsed.
+  unparsed: Map<string, { ts: number; done?: true }>
   flushTimer: NodeJS.Timeout | null
 }
 
@@ -57,6 +59,7 @@ const state: BracketCacheState = globalState.__bracketCacheState ??= {
   warmGuids: [],
   coldLoads: new Map(),
   entrantCounts: new Map(),
+  unparsed: new Map(),
   flushTimer: null,
 }
 
@@ -331,7 +334,7 @@ async function migrateLegacyStore(): Promise<void> {
   console.log(`[bracket-cache] split legacy store into ${byGuid.size} tournament files`)
 }
 
-function restoreEntry(entry: PersistedEntry): boolean {
+function restoreEntry(entry: PersistedEntry, opts: { indexClubs: boolean } = { indexClubs: true }): boolean {
   const guid = guidOfKey(entry.key)
   if (!guid) return false
   try {
@@ -345,7 +348,7 @@ function restoreEntry(entry: PersistedEntry): boolean {
       ...(entry.done && { done: true as const }),
       ...(isStatic && { static: true as const }),
     })
-    extractPlayerClubs(entry.html, guid)
+    if (opts.indexClubs) extractPlayerClubs(entry.html, guid)
     return true
   } catch {
     return false // skip corrupt entry
@@ -391,7 +394,8 @@ function indexColdEntry(entry: PersistedEntry): boolean {
 }
 
 function keysOfGuid(guid: string): string[] {
-  return Array.from(cache.keys()).filter((key) => guidOfKey(key)?.toLowerCase() === guid)
+  const keys = new Set<string>([...Array.from(cache.keys()), ...Array.from(rawHtmlCache.keys())])
+  return Array.from(keys).filter((key) => guidOfKey(key)?.toLowerCase() === guid)
 }
 
 function dropFromMemory(guid: string): void {
@@ -400,50 +404,70 @@ function dropFromMemory(guid: string): void {
     if (count !== undefined) state.entrantCounts.set(key.toLowerCase(), count)
     cache.delete(key)
     rawHtmlCache.delete(key)
+    state.unparsed.delete(key)
     siblingLookupCache.delete(key)
     feederLookupCache.delete(key)
   }
   state.coldGuids.add(guid)
 }
 
+// Loads a finished tournament's raw HTML without parsing it: parsing every
+// draw of a large tournament takes seconds and blocks the worker. Draws are
+// parsed one at a time, when one is actually opened.
+async function loadColdTournament(g: string): Promise<void> {
+  for (const entry of await readStoreFile(g)) {
+    // Anything already in memory was fetched after the file was written.
+    if (cache.has(entry.key) || rawHtmlCache.has(entry.key)) continue
+    rawHtmlCache.set(entry.key, entry.html)
+    state.unparsed.set(entry.key, { ts: entry.ts, ...(entry.done && { done: true as const }) })
+  }
+  state.coldGuids.delete(g)
+  if (!state.warmGuids.includes(g)) state.warmGuids.push(g)
+  while (state.warmGuids.length > MAX_WARM_TOURNAMENTS) {
+    // Unsaved brackets must reach disk before their tournament is dropped.
+    const victim = state.warmGuids.find((w) => w !== g && !state.dirtyGuids.has(w))
+    if (!victim) break
+    state.warmGuids.splice(state.warmGuids.indexOf(victim), 1)
+    dropFromMemory(victim)
+  }
+}
+
 /** Makes sure a tournament's brackets are in memory before the caller reads
- *  `cache` / `rawHtmlCache`. A no-op for live tournaments; loads a finished one
+ *  `rawHtmlCache`, and — when `drawNum` is given — that draw's parsed entry in
+ *  `cache`. A no-op for tournaments that are not finished; loads a finished one
  *  from its file and keeps the few most recently opened. */
-export async function ensureBracketsLoaded(guid: string): Promise<void> {
+export async function ensureBracketsLoaded(guid: string, drawNum?: string): Promise<void> {
   const g = guid.toLowerCase()
-  if (!state.coldGuids.has(g)) {
+  if (state.coldGuids.has(g)) {
+    let load = state.coldLoads.get(g)
+    if (!load) {
+      load = loadColdTournament(g).finally(() => state.coldLoads.delete(g))
+      state.coldLoads.set(g, load)
+    }
+    await load
+  } else {
     const i = state.warmGuids.indexOf(g)
     if (i >= 0) state.warmGuids.push(...state.warmGuids.splice(i, 1))
-    return
   }
-  let load = state.coldLoads.get(g)
-  if (!load) {
-    load = (async () => {
-      for (const entry of await readStoreFile(g)) {
-        // Anything already in memory was fetched after the file was written.
-        if (!cache.has(entry.key)) restoreEntry(entry)
-      }
-      state.coldGuids.delete(g)
-      if (!state.warmGuids.includes(g)) state.warmGuids.push(g)
-      while (state.warmGuids.length > MAX_WARM_TOURNAMENTS) {
-        // Unsaved brackets must reach disk before their tournament is dropped.
-        const victim = state.warmGuids.find((w) => w !== g && !state.dirtyGuids.has(w))
-        if (!victim) break
-        state.warmGuids.splice(state.warmGuids.indexOf(victim), 1)
-        dropFromMemory(victim)
-      }
-    })().finally(() => state.coldLoads.delete(g))
-    state.coldLoads.set(g, load)
-  }
-  await load
+  if (drawNum === undefined) return
+  const key = makeBracketKey(guid, drawNum)
+  const meta = state.unparsed.get(key)
+  const html = rawHtmlCache.get(key)
+  if (!meta || !html) return
+  state.unparsed.delete(key)
+  // Clubs were indexed from this HTML at boot; only the bracket is needed now.
+  restoreEntry({ key, html, ...meta }, { indexClubs: false })
 }
 
 export function __resetBracketStoreForTesting(): void {
+  if (state.flushTimer) clearInterval(state.flushTimer)
+  state.flushTimer = null
   state.dirtyGuids.clear()
   state.coldGuids.clear()
   state.warmGuids.length = 0
   state.coldLoads.clear()
   state.entrantCounts.clear()
+  state.unparsed.clear()
   siblingLookupCache.clear()
   feederLookupCache.clear()
 }
@@ -506,12 +530,14 @@ export async function flushBracketCache(): Promise<void> {
   const dirty = Array.from(state.dirtyGuids)
   state.dirtyGuids.clear()
   const byGuid = new Map<string, PersistedEntry[]>(dirty.map((g) => [g, []]))
-  for (const [key, value] of Array.from(cache.entries())) {
+  for (const [key, html] of Array.from(rawHtmlCache.entries())) {
     const list = byGuid.get(guidOfKey(key)?.toLowerCase() ?? '')
-    if (!list) continue
-    const html = rawHtmlCache.get(key)
-    if (!html) continue
-    list.push({ key, ts: value.ts, ...(value.done && { done: true as const }), html })
+    if (!list || !html) continue
+    // Parsed draws carry their own ts/done; draws of an on-demand tournament
+    // that nobody opened are still unparsed and must be written back too.
+    const meta = cache.get(key) ?? state.unparsed.get(key)
+    if (!meta) continue
+    list.push({ key, ts: meta.ts, ...(meta.done && { done: true as const }), html })
   }
   let entryCount = 0
   let fileCount = 0
@@ -549,11 +575,20 @@ export async function flushBracketCache(): Promise<void> {
 export async function prewarmBracketCache(): Promise<void> {
   const restored = await loadBracketStoreFromDisk()
   if (restored > 0) console.log(`[bracket-cache] restored ${restored} entries from disk`)
-  if (!state.flushTimer) state.flushTimer = setInterval(() => { void flushBracketCache() }, FLUSH_INTERVAL_MS)
+  if (!state.flushTimer) {
+    state.flushTimer = setInterval(() => { void flushBracketCache() }, FLUSH_INTERVAL_MS)
+    state.flushTimer.unref?.()
+  }
 
   for (const [tournamentId, entry] of Array.from(drawsCache.entries())) {
     if (entry.done) {
       console.log(`[bracket-cache] skipped (done): ${tournamentId}`)
+      continue
+    }
+    // Finished by its pinned schedule even though the draws cache has not
+    // marked it done: its brackets are on disk, so there is nothing to fetch.
+    if (state.coldGuids.has(tournamentId.toLowerCase())) {
+      console.log(`[bracket-cache] skipped (on disk): ${tournamentId}`)
       continue
     }
     for (const draw of entry.draws) {

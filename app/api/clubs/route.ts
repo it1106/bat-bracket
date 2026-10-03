@@ -4,6 +4,7 @@ import {
   playerClubCache,
   playerNameCache,
   cache as bracketCache,
+  rawHtmlCache,
   fetchBracket,
   fetchTournamentPlayerClubs,
   makeBracketKey,
@@ -51,7 +52,8 @@ export async function GET(request: Request) {
     for (let i = 0; i < draws.length; i += BATCH) {
       const results = await Promise.allSettled(
         draws.slice(i, i + BATCH).map(async d => {
-          if (bracketCache.has(makeBracketKey(tid, d.drawNum))) return
+          const key = makeBracketKey(tid, d.drawNum)
+          if (bracketCache.has(key) || rawHtmlCache.has(key)) return
           await fetchBracket(tid, d.drawNum)
         })
       )

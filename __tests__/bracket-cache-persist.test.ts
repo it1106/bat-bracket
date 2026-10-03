@@ -4,16 +4,19 @@ import { promises as fs } from 'fs'
 
 jest.mock('../lib/providers/resolve', () => ({ providerFor: jest.fn() }))
 jest.mock('../lib/tournaments-registry', () => ({ resolveRef: jest.fn() }))
+jest.mock('../lib/bat-fetch', () => ({ batFetch: jest.fn() }))
 jest.mock('../lib/scraper', () => ({
-  parseBracket: (html: string) => ({ html: `<parsed>${html}</parsed>`, entrantCount: html.length }),
+  parseBracket: jest.fn((html: string) => ({ html: `<parsed>${html}</parsed>`, entrantCount: html.length })),
   parsePlayersPage: () => [],
 }))
 
 import {
   cache, rawHtmlCache, playerClubCache, makeBracketKey, markBracketDirty,
   flushBracketCache, loadBracketStoreFromDisk, ensureBracketsLoaded,
-  cachedEntrantCounts, __resetBracketStoreForTesting,
+  cachedEntrantCounts, prewarmBracketCache, __resetBracketStoreForTesting,
 } from '../lib/bracket-cache'
+import { batFetch } from '../lib/bat-fetch'
+import { parseBracket } from '../lib/scraper'
 import { cache as drawsCache } from '../lib/draws-cache'
 
 const A = 'aaaaaaaa-0000-0000-0000-000000000001'
@@ -195,10 +198,28 @@ describe('finished tournaments stay on disk', () => {
 
   it('loads it from its file when someone opens it', async () => {
     await savedAndRestarted(A, B)
-    await ensureBracketsLoaded(A.toUpperCase())
+    await ensureBracketsLoaded(A.toUpperCase()) // the guid's casing does not matter for loading
+    await ensureBracketsLoaded(A, '2')
     expect(rawHtmlCache.get(`${A}:2`)).toBe('a2')
     expect(cache.get(`${A}:2`)).toMatchObject({ ts: 500, bracket: { html: '<parsed>a2</parsed>' } })
-    expect(cache.has(`${B}:1`)).toBe(false)
+    expect(rawHtmlCache.has(`${B}:1`)).toBe(false)
+  })
+
+  it('parses only the draw that was opened, not the whole tournament', async () => {
+    await savedAndRestarted(A)
+    ;(parseBracket as jest.Mock).mockClear()
+    await ensureBracketsLoaded(A, '2')
+
+    expect(parseBracket).toHaveBeenCalledTimes(1)
+    expect(cache.has(`${A}:2`)).toBe(true)
+    expect(cache.has(`${A}:1`)).toBe(false)
+    expect(rawHtmlCache.has(`${A}:1`)).toBe(true) // raw HTML is there for the schedule's lookups
+
+    await ensureBracketsLoaded(A, '1') // a second draw of the loaded tournament
+    expect(cache.get(`${A}:1`)).toMatchObject({ ts: 500 })
+    expect(parseBracket).toHaveBeenCalledTimes(2)
+    await ensureBracketsLoaded(A, '1')
+    expect(parseBracket).toHaveBeenCalledTimes(2)
   })
 
   it('reads the file once while it stays in memory', async () => {
@@ -218,9 +239,8 @@ describe('finished tournaments stay on disk', () => {
     await ensureBracketsLoaded(A) // A is now the most recent; B is the oldest
     await ensureBracketsLoaded(D)
 
-    expect(cache.has(`${B}:1`)).toBe(false)
     expect(rawHtmlCache.has(`${B}:1`)).toBe(false)
-    for (const g of [A, C, D]) expect(cache.has(`${g}:1`)).toBe(true)
+    for (const g of [A, C, D]) expect(rawHtmlCache.has(`${g}:1`)).toBe(true)
 
     await ensureBracketsLoaded(B) // and it comes back when opened again
     expect(rawHtmlCache.get(`${B}:2`)).toBe('b2')
@@ -256,6 +276,40 @@ describe('finished tournaments stay on disk', () => {
     expect(rawHtmlCache.get(`${A}:2`)).toBe('a2-unsaved')
 
     await flushBracketCache()
-    expect((await readStore(A)).entries.find((e: { key: string }) => e.key === `${A}:2`).html).toBe('a2-unsaved')
+    const saved = (await readStore(A)).entries
+    expect(saved.find((e: { key: string }) => e.key === `${A}:2`).html).toBe('a2-unsaved')
+    // The draw nobody opened was never parsed, and must still be written back.
+    expect(saved.find((e: { key: string }) => e.key === `${A}:1`)).toMatchObject({ ts: 500 })
+  })
+})
+
+describe('boot pre-warm', () => {
+  const mockFetch = batFetch as jest.Mock
+  beforeEach(() => {
+    mockFetch.mockReset()
+    mockFetch.mockResolvedValue({ ok: true, text: async () => 'fetched' })
+  })
+
+  it('does not refetch a finished tournament the draws cache still lists as open', async () => {
+    put(A, '1', 'a1')
+    await flushBracketCache()
+    await fs.mkdir(path.join(tmp, '.cache', 'full'), { recursive: true })
+    await fs.writeFile(path.join(tmp, '.cache', 'full', `${A}.json`), '{}', 'utf8')
+    restart()
+    drawsCache.set(A.toUpperCase(), { draws: [{ drawNum: '1' }, { drawNum: '2' }] as never, ts: 1 })
+
+    await prewarmBracketCache()
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('still fetches the draws a live tournament is missing', async () => {
+    put(A.toUpperCase(), '1', 'a1') // pre-warm keys use the draws cache's upper-case id
+    await flushBracketCache()
+    restart()
+    drawsCache.set(A.toUpperCase(), { draws: [{ drawNum: '1' }, { drawNum: '2' }] as never, ts: 1 })
+
+    await prewarmBracketCache()
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(rawHtmlCache.get(`${A.toUpperCase()}:2`)).toBe('fetched')
   })
 })
