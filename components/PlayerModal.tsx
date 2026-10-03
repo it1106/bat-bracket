@@ -184,7 +184,12 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                         <span className="pm-match-draw">{m.draw}</span>
                         <span className="pm-match-round">{abbrevRound(m.round)}</span>
                         {m.winner !== null && m.duration && <span className="pm-match-duration">{m.duration}</span>}
-                        {m.nowPlaying && <span className="ms-now-playing" title={t('nowPlaying')} />}
+                        {m.nowPlaying && (
+                          <span className="ms-now-playing-wrap">
+                            <span className="ms-now-playing" title={t('nowPlaying')} />
+                            <span className="ms-now-playing-pill">{t('nowPlaying')}</span>
+                          </span>
+                        )}
                         {m.h2hUrl && onH2HClick && m.team1.length > 0 && m.team2.length > 0 && (
                           <button
                             className="ms-h2h-inline"

@@ -420,7 +420,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     walkover: 'Walkover',
     retired: 'Ret.',
     live: 'LIVE',
-    nowPlaying: 'Now playing',
+    nowPlaying: 'Now Playing',
     noPlayerMatches: 'No match data available yet.',
     noH2HData: 'No H2H data available.',
     noH2HDiscipline: 'No matches for this discipline.',

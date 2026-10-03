@@ -553,7 +553,12 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
               }
               return <span className="ms-seq">{label}</span>
             })()}
-        {m.nowPlaying && !isLive && <span className="ms-now-playing" title={t('nowPlaying')} />}
+        {m.nowPlaying && !isLive && (
+          <span className="ms-now-playing-wrap">
+            <span className="ms-now-playing" title={t('nowPlaying')} />
+            <span className="ms-now-playing-pill">{t('nowPlaying')}</span>
+          </span>
+        )}
         {m.h2hUrl && onH2HClick && m.team1.length > 0 && m.team2.length > 0 && (
           <button
             className="ms-h2h-inline"

@@ -1709,6 +1709,28 @@ html[lang="th"] .pm-section-title {
   50% { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); }
 }
 
+/* The LED and its text label, kept side by side in both the stacked desktop
+   meta column and the single-row phone layout. */
+.ms-now-playing-wrap {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.ms-now-playing-pill {
+  display: inline-block;
+  font-size: calc(12px * var(--text-scale));
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--win-bg);
+  color: var(--win-fg);
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
 .ms-order-pill {
   display: inline-block;
   font-size: calc(12px * var(--text-scale));
@@ -1967,6 +1989,8 @@ html.dark .ms-match--next-opp {
     margin-top: 0;
     margin-left: auto;
   }
+
+  .ms-now-playing-wrap { align-self: center; }
 
   /* Right-justify the playing-order pill on mobile. When H2H sits to its
      left, H2H's own auto-margin already pushes the cluster — drop the
