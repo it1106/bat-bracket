@@ -3,6 +3,7 @@ import { getServerStatus } from '@/lib/server-status'
 import { getBatFetchStats } from '@/lib/bat-fetch-stats'
 import { presence } from '@/lib/presence'
 import { ensurePresenceLoaded } from '@/lib/presence-persist'
+import { isLoggedIn } from '@/lib/bmstats-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,8 +11,14 @@ export const dynamic = 'force-dynamic'
 const MAX_ONLINE_IDS = 200
 
 // GET /api/bmstats  →  host, worker, BAT request and visitor figures for the
-// /bmstats status page. Read-only.
-export async function GET() {
+// /bmstats status page. Read-only, and only for a logged-in session.
+export async function GET(request: Request) {
+  if (!isLoggedIn(request)) {
+    return NextResponse.json(
+      { error: 'login required' },
+      { status: 401, headers: { 'Cache-Control': 'no-store' } },
+    )
+  }
   ensurePresenceLoaded()
   const server = await getServerStatus()
   const now = Date.now()

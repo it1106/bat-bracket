@@ -3790,3 +3790,39 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .bms-table .bms-th { font-size: 12px; font-weight: 600; color: var(--muted); padding-top: 0; }
 .bms-table .bms-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; word-break: break-all; }
 .bms-table td { white-space: nowrap; }
+
+.bms-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bms-logout {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+}
+.bms-logout:hover { background: var(--surface-2); }
+.bms-login { max-width: 340px; margin: 24px auto 0; gap: 10px; }
+.bms-login-label { font-size: 13px; color: var(--muted); }
+.bms-login-input {
+  font-size: 16px; /* 16px stops iOS zooming the page on focus */
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.bms-login-input:focus-visible { outline: 2px solid var(--brand-fg); outline-offset: 1px; }
+.bms-login-error { font-size: 13px; color: var(--red); }
+.bms-login-button {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--brand);
+  color: #fff;
+  cursor: pointer;
+}
+.bms-login-button:disabled { opacity: 0.55; cursor: default; }

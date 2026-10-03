@@ -27,6 +27,8 @@ yarn-error.log*
 
 # local env files
 .env*.local
+# holds BMSTATS_PASSWORD on the server — never commit it
+.env.production
 
 # vercel
 .vercel

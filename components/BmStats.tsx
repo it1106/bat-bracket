@@ -2,9 +2,10 @@
 
 // The /bmstats status page: host CPU, memory and disk, the worker process,
 // requests to the BAT server (today and the past 60 minutes) and visitors.
-// Polls /api/bmstats; all times are shown in Bangkok time.
+// Polls /api/bmstats; all times are shown in Bangkok time. The figures need a
+// logged-in session, so a 401 from the API swaps the page for the login form.
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 const REFRESH_MS = 10_000
 
@@ -162,29 +163,96 @@ function MinuteChart({ perMinute, generatedAt }: { perMinute: number[]; generate
   )
 }
 
+function LoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/bmstats/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+      if (res.ok) {
+        onLoggedIn()
+        return
+      }
+      setError(
+        res.status === 401 ? 'Wrong password.'
+          : res.status === 429 ? 'Too many wrong attempts. Wait a minute and try again.'
+          : res.status === 503 ? 'No password has been set on the server.'
+          : 'Could not log in. Try again.',
+      )
+    } catch {
+      setError('Could not reach the server. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className="bms-card bms-login" onSubmit={submit}>
+      <h1 className="bms-title">Server status</h1>
+      <label className="bms-login-label" htmlFor="bms-password">Password</label>
+      <input
+        id="bms-password"
+        className="bms-login-input"
+        type="password"
+        autoComplete="current-password"
+        autoFocus
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      {error && <p className="bms-login-error" role="alert">{error}</p>}
+      <button className="bms-login-button" type="submit" disabled={busy || password.length === 0}>
+        {busy ? 'Logging in…' : 'Log in'}
+      </button>
+    </form>
+  )
+}
+
 export default function BmStats() {
   const [status, setStatus] = useState<Status | null>(null)
   const [failed, setFailed] = useState(false)
+  const [needsLogin, setNeedsLogin] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
-    const load = () => {
-      fetch('/api/bmstats', { cache: 'no-store' })
-        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-        .then((data: Status) => {
-          if (cancelled) return
-          setStatus(data)
-          setFailed(false)
-        })
-        .catch(() => { if (!cancelled) setFailed(true) })
-    }
-    load()
-    const timer = setInterval(load, REFRESH_MS)
-    return () => {
-      cancelled = true
-      clearInterval(timer)
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/bmstats', { cache: 'no-store' })
+      if (res.status === 401) {
+        setNeedsLogin(true)
+        setStatus(null)
+        return
+      }
+      if (!res.ok) throw new Error(String(res.status))
+      setStatus((await res.json()) as Status)
+      setNeedsLogin(false)
+      setFailed(false)
+    } catch {
+      setFailed(true)
     }
   }, [])
+
+  useEffect(() => {
+    if (needsLogin) return
+    load()
+    const timer = setInterval(load, REFRESH_MS)
+    return () => clearInterval(timer)
+  }, [load, needsLogin])
+
+  const logout = async () => {
+    await fetch('/api/bmstats/logout', { method: 'POST' }).catch(() => {})
+    setStatus(null)
+    setNeedsLogin(true)
+  }
+
+  if (needsLogin) return <LoginForm onLoggedIn={() => setNeedsLogin(false)} />
 
   if (!status) {
     return <p className="bms-note" role="status">{failed ? 'Could not load the server status.' : 'Loading…'}</p>
@@ -194,7 +262,10 @@ export default function BmStats() {
   return (
     <div className="bms">
       <header className="bms-header">
-        <h1 className="bms-title">Server status</h1>
+        <div className="bms-header-row">
+          <h1 className="bms-title">Server status</h1>
+          <button type="button" className="bms-logout" onClick={logout}>Log out</button>
+        </div>
         <p className="bms-note" role="status">
           {failed
             ? `Not responding — showing figures from ${clock(status.generatedAt, true)}`
