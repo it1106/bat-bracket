@@ -633,7 +633,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
         <h2>{t('statsSectionIntegrity')}</h2>
         <div className="stats-grid-2">
           <div className="stats-integrity-col">
-            <div>{lang === 'th' ? 'ถอนตัว' : 'W.O.'}: <b>{stats.kpis.walkovers}</b> · {lang === 'th' ? 'เจ็บ' : 'Retired'}: <b>{stats.kpis.retired}</b></div>
+            <div>{lang === 'th' ? 'ถอนตัว' : 'W.O.'}: <b>{stats.kpis.walkovers}</b> · {lang === 'th' ? 'รีไทร์' : 'Retired'}: <b>{stats.kpis.retired}</b></div>
             {stats.integrity.walkoverByEvent.slice(0, 4).map((w) => (
               <div key={w.event}>{w.event}: {w.walkovers} · {pct(w.rate)}</div>
             ))}

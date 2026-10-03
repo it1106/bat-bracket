@@ -745,7 +745,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     yob: 'ปีเกิด',
     bye: 'บาย',
     walkover: 'ถอนตัว',
-    retired: 'เจ็บ',
+    retired: 'รีไทร์',
     live: 'สด',
     nowPlaying: 'กำลังแข่ง',
     noPlayerMatches: 'ยังไม่มีข้อมูลการแข่งขัน',
