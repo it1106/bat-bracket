@@ -63,3 +63,48 @@ describe('player-index-cache', () => {
     expect(out?.matches[1].override).toBe(true)
   })
 })
+
+describe('player-index-cache — large index writes', () => {
+  let dir: string
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pic-big-')); __setPlayersRootForTesting(dir) })
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }) })
+
+  function indexWith(n: number, sourceVersion = 'v1') {
+    const idx = emptyIndex('bat')
+    idx.sourceVersion = sourceVersion
+    const players: Record<string, unknown> = {}
+    for (let i = 0; i < n; i++) {
+      players[`slug-${i}`] = { key: `k${i}`, name: `ผู้เล่น "${i}"\n`, club: undefined, matches: [{ n: i }] }
+    }
+    idx.players = players as typeof idx.players
+    idx.totalPlayers = n
+    return idx
+  }
+
+  it('writes the same JSON as a plain stringify, without serialising the index in one piece', async () => {
+    const idx = indexWith(500)
+    const stringify = jest.spyOn(JSON, 'stringify')
+    await writeIndexCache(idx)
+    const wholeIndexCalls = stringify.mock.calls.filter(([v]) => v === idx || v === idx.players)
+    stringify.mockRestore()
+
+    const onDisk = fs.readFileSync(path.join(dir, 'index-bat.json'), 'utf8')
+    expect(JSON.parse(onDisk)).toEqual(JSON.parse(JSON.stringify(idx)))
+    expect(wholeIndexCalls).toEqual([])
+    expect(fs.readdirSync(dir)).toEqual(['index-bat.json'])
+  })
+
+  it('writes an index with no players', async () => {
+    await writeIndexCache(indexWith(0))
+    expect((await readIndexCache('bat'))?.players).toEqual({})
+  })
+
+  it('serves the new index straight after a rewrite', async () => {
+    await writeIndexCache(indexWith(3, 'old'))
+    expect((await readIndexCache('bat'))?.sourceVersion).toBe('old')
+    await writeIndexCache(indexWith(4, 'new'))
+    const out = await readIndexCache('bat')
+    expect(out?.sourceVersion).toBe('new')
+    expect(Object.keys(out!.players)).toHaveLength(4)
+  })
+})

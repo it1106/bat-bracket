@@ -46,8 +46,56 @@ export async function readIndexCache(provider: ProviderTag): Promise<PlayerIndex
   return out
 }
 
+// The index has grown to ~130 MB of JSON. Serialising it in one piece builds a
+// single string twice that size in memory, on top of the index itself, which
+// is what pushed the worker past its limit on every rebuild. Write it one
+// player at a time instead; the bytes on disk are the same JSON.
+const WRITE_CHUNK_CHARS = 1 << 20
+let tmpSeq = 0
+
 export async function writeIndexCache(idx: PlayerIndex): Promise<void> {
-  await writeJson(indexPath(idx.provider), idx)
+  const file = indexPath(idx.provider)
+  const tmp = `${file}.${process.pid}.${++tmpSeq}.tmp`
+  try {
+    await fs.mkdir(path.dirname(file), { recursive: true })
+    const fh = await fs.open(tmp, 'w')
+    try {
+      let buf = '{'
+      const drain = async (force: boolean) => {
+        if (!force && buf.length < WRITE_CHUNK_CHARS) return
+        await fh.write(buf)
+        buf = ''
+      }
+      let firstKey = true
+      for (const [key, value] of Object.entries(idx)) {
+        if (value === undefined) continue
+        buf += `${firstKey ? '' : ','}${JSON.stringify(key)}:`
+        firstKey = false
+        if (key !== 'players') { buf += JSON.stringify(value); continue }
+        buf += '{'
+        let firstPlayer = true
+        for (const [slug, record] of Object.entries(idx.players)) {
+          if (record === undefined) continue
+          buf += `${firstPlayer ? '' : ','}${JSON.stringify(slug)}:${JSON.stringify(record)}`
+          firstPlayer = false
+          await drain(false)
+        }
+        buf += '}'
+      }
+      buf += '}'
+      await drain(true)
+    } finally {
+      await fh.close()
+    }
+    await fs.rename(tmp, file)
+    // Drop the previous parse now so it can be freed before the next index is
+    // built, instead of lingering until some later read notices the new mtime.
+    parseMemo.delete(file)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    console.log(`[player-index-cache] write failed file=${file} err=${msg}`)
+    try { await fs.unlink(tmp) } catch { /* ignore */ }
+  }
 }
 
 export async function readLeaderboardsCache(provider: ProviderTag): Promise<Leaderboards | null> {
