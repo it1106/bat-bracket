@@ -3,9 +3,12 @@
 // so PM2 can fork via the Node cluster module — npm-spawned children would
 // each try to bind port 3000 independently and the second would EADDRINUSE.
 //
-// max_memory_restart: the LXC container is capped at 3 GB; restart a worker
-// before it can OOM-kill the whole pm2 daemon (which takes the app fully
-// offline — recovery requires a container reboot).
+// max_memory_restart: the LXC container has 6 GB. Restart a worker before it
+// can OOM-kill the whole pm2 daemon (which takes the app fully offline —
+// recovery requires a container reboot), but keep the limit above Node's own
+// ~2.2 GB heap ceiling: at 2000M, PM2 was restarting the worker on spikes that
+// Node would have collected. Leave room for a build plus a second worker
+// starting up during a reload.
 module.exports = {
   apps: [{
     name: "bat-bracket",
@@ -14,7 +17,7 @@ module.exports = {
     cwd: "/root/app",
     instances: 2,
     exec_mode: "cluster",
-    max_memory_restart: "2000M",
+    max_memory_restart: "3000M",
     env: { NODE_ENV: "production" },
   }],
 }
