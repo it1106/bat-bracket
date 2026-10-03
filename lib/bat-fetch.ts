@@ -15,6 +15,8 @@
 // would abort `res.text()` mid-stream, falsely flagging BAT as unreachable.
 // Callers can override via `timeoutMs`, or supply their own `signal`
 // (their signal wins outright and gates the whole exchange).
+import { recordBatFetch } from './bat-fetch-stats'
+
 const DEFAULT_TIMEOUT_MS = 30_000
 
 export async function batFetch(
@@ -56,12 +58,14 @@ export async function batFetch(
     }
     const ms = Date.now() - start
     console.log(`[bat-fetch] kind=${kind} status=${res.status} ms=${ms} url=${url}`)
+    recordBatFetch(kind, res.ok)
     return res
   } catch (err) {
     if (timer) clearTimeout(timer)
     const ms = Date.now() - start
     const msg = err instanceof Error ? err.message : 'unknown'
     console.log(`[bat-fetch] kind=${kind} status=ERR ms=${ms} err=${msg} url=${url}`)
+    recordBatFetch(kind, false)
     throw err
   }
 }

@@ -3732,3 +3732,57 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .lb-pair-name { color: inherit; text-decoration: none; }
 .lb-pair-name:hover { text-decoration: underline; }
 .lb-pair-sep { color: var(--muted); }
+
+/* ── /bmstats server status page ── */
+.bms { display: flex; flex-direction: column; gap: 16px; }
+.bms-header { display: flex; flex-direction: column; gap: 2px; }
+.bms-title { font-size: 20px; font-weight: 700; color: var(--fg); }
+.bms-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bms-card-title { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.bms-subtitle { font-size: 13px; font-weight: 600; color: var(--fg); margin-top: 4px; }
+.bms-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; }
+.bms-note { font-size: 12px; color: var(--muted); }
+.bms-tile-label, .bms-meter-label { font-size: 13px; color: var(--muted); }
+.bms-tile-value, .bms-meter-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.bms-meter-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bms-meter-state { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--fg); }
+.bms-dot { width: 8px; height: 8px; border-radius: 999px; }
+.bms-track { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 6px 0; }
+.bms-fill { height: 100%; border-radius: 999px; transition: width 300ms ease-out; }
+
+.bms-chart-readout { font-size: 12px; color: var(--fg); font-variant-numeric: tabular-nums; min-height: 18px; }
+.bms-chart {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: 110px;
+  margin-top: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.bms-chart-max { position: absolute; top: 0; left: 0; font-size: 11px; color: var(--muted); pointer-events: none; }
+/* The column is the hover target; the bar inside it is the mark. */
+.bms-col { flex: 1 1 0; min-width: 0; display: flex; align-items: flex-end; padding: 0 1px; }
+.bms-col--on { background: var(--surface-2); }
+.bms-bar { width: 100%; background: var(--brand-fg); border-radius: 2px 2px 0 0; opacity: 0.85; }
+.bms-col--on .bms-bar { opacity: 1; }
+.bms-chart-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+.bms-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.bms-table th { text-align: left; font-weight: 500; color: var(--fg); padding: 5px 0; }
+.bms-table td { text-align: right; color: var(--fg); padding: 5px 0 5px 12px; }
+.bms-table tr + tr { border-top: 1px solid var(--row-sep); }
+.bms-table .bms-share { color: var(--muted); width: 56px; }
