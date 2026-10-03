@@ -27,7 +27,8 @@ interface BracketCacheState {
     string,
     { lookup: Map<string, import('./types').MatchPlayer[][][]>; ts: number }
   >
-  dirty: boolean
+  // Tournaments (lowercased guid) with brackets fetched since the last flush.
+  dirtyGuids: Set<string>
   flushTimer: NodeJS.Timeout | null
 }
 
@@ -43,7 +44,7 @@ const state: BracketCacheState = globalState.__bracketCacheState ??= {
   playerNameCache: new Map(),
   siblingLookupCache: new Map(),
   feederLookupCache: new Map(),
-  dirty: false,
+  dirtyGuids: new Set(),
   flushTimer: null,
 }
 
@@ -224,13 +225,24 @@ export async function fetchAndCache(guid: string, drawNum: string): Promise<Brac
     ...(done && { done: true }),
     ...(isStatic && { static: true }),
   })
-  state.dirty = true
+  markBracketDirty(guid)
   return bracket
+}
+
+/** Queues a tournament's brackets to be saved on the next flush. */
+export function markBracketDirty(guid: string): void {
+  state.dirtyGuids.add(guid.toLowerCase())
 }
 
 // Disk persistence: survives restarts so cold boots don't re-hit BAT for every
 // known draw. Raw HTML is the source of truth — bracket data, club lookups,
 // and sibling lookups are all re-derived from it on load.
+//
+// One file per tournament (.cache/brackets/<guid>.json). The store used to be
+// a single file holding every tournament, rewritten whole on every flush; once
+// it passed ~200 MB, building that one JSON string pushed the worker over its
+// memory limit every few minutes. Per-tournament files keep each save and each
+// load down to one tournament's brackets.
 interface PersistedEntry {
   key: string
   ts: number
@@ -238,43 +250,118 @@ interface PersistedEntry {
   html: string
 }
 
-const STORE_PATH = () => path.join(process.cwd(), '.cache', 'bracket-cache.json')
+interface PersistedFile {
+  version?: number
+  savedAt?: number
+  entries?: PersistedEntry[]
+}
+
+const STORE_DIR = () => path.join(process.cwd(), '.cache', 'brackets')
+const LEGACY_STORE_PATH = () => path.join(process.cwd(), '.cache', 'bracket-cache.json')
 const FLUSH_INTERVAL_MS = 5 * 60 * 1000
 
-async function loadBracketStoreFromDisk(): Promise<number> {
+function guidOfKey(key: string): string | null {
+  const colon = key.indexOf(':')
+  return colon < 0 ? null : key.slice(0, colon)
+}
+
+function storeFile(guid: string): string {
+  return path.join(STORE_DIR(), `${guid.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}.json`)
+}
+
+let tmpSeq = 0
+
+async function writeStoreFile(guid: string, entries: PersistedEntry[]): Promise<void> {
+  const file = storeFile(guid)
+  const tmp = `${file}.${process.pid}.${++tmpSeq}.tmp`
   try {
-    const buf = await fs.readFile(STORE_PATH(), 'utf8')
-    const parsed = JSON.parse(buf) as { version?: number; entries?: PersistedEntry[] }
-    if (parsed?.version !== 1 || !Array.isArray(parsed.entries)) return 0
-    let loaded = 0
-    for (const entry of parsed.entries) {
-      const colon = entry.key.indexOf(':')
-      if (colon < 0) continue
-      const guid = entry.key.slice(0, colon)
-      try {
-        const bracket = parseBracket(entry.html)
-        if (!bracket.html) continue
-        const isStatic = isBracketStatic(bracket.html)
-        rawHtmlCache.set(entry.key, entry.html)
-        cache.set(entry.key, {
-          bracket,
-          ts: entry.ts,
-          ...(entry.done && { done: true as const }),
-          ...(isStatic && { static: true as const }),
-        })
-        extractPlayerClubs(entry.html, guid)
-        loaded++
-      } catch {
-        // skip corrupt entry
-      }
-    }
-    return loaded
+    await fs.mkdir(path.dirname(file), { recursive: true })
+    await fs.writeFile(tmp, JSON.stringify({ version: 1, savedAt: Date.now(), entries }), 'utf8')
+    await fs.rename(tmp, file)
+  } catch (err) {
+    try { await fs.unlink(tmp) } catch { /* ignore */ }
+    throw err
+  }
+}
+
+// One-time split of the old single-file store. The old file is authoritative
+// for as long as it exists, so a boot that dies part-way simply redoes the
+// split; it is renamed (kept as a backup) only once every tournament is written.
+async function migrateLegacyStore(): Promise<void> {
+  const legacy = LEGACY_STORE_PATH()
+  let parsed: PersistedFile
+  try {
+    parsed = JSON.parse(await fs.readFile(legacy, 'utf8')) as PersistedFile
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return
+    const msg = err instanceof Error ? err.message : 'unknown'
+    console.warn(`[bracket-cache] legacy store unreadable, left in place: ${msg}`)
+    return
+  }
+  if (parsed?.version !== 1 || !Array.isArray(parsed.entries)) return
+  const byGuid = new Map<string, PersistedEntry[]>()
+  for (const entry of parsed.entries) {
+    const guid = guidOfKey(entry.key)?.toLowerCase()
+    if (!guid) continue
+    const list = byGuid.get(guid)
+    if (list) list.push(entry)
+    else byGuid.set(guid, [entry])
+  }
+  for (const [guid, entries] of Array.from(byGuid)) await writeStoreFile(guid, entries)
+  await fs.rename(legacy, `${legacy}.migrated`)
+  console.log(`[bracket-cache] split legacy store into ${byGuid.size} tournament files`)
+}
+
+function restoreEntry(entry: PersistedEntry): boolean {
+  const guid = guidOfKey(entry.key)
+  if (!guid) return false
+  try {
+    const bracket = parseBracket(entry.html)
+    if (!bracket.html) return false
+    const isStatic = isBracketStatic(bracket.html)
+    rawHtmlCache.set(entry.key, entry.html)
+    cache.set(entry.key, {
+      bracket,
+      ts: entry.ts,
+      ...(entry.done && { done: true as const }),
+      ...(isStatic && { static: true as const }),
+    })
+    extractPlayerClubs(entry.html, guid)
+    return true
+  } catch {
+    return false // skip corrupt entry
+  }
+}
+
+export async function loadBracketStoreFromDisk(): Promise<number> {
+  try {
+    await migrateLegacyStore()
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    console.warn(`[bracket-cache] legacy split failed: ${msg}`)
+  }
+  let names: string[]
+  try {
+    names = (await fs.readdir(STORE_DIR())).filter((n) => n.endsWith('.json'))
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return 0
     const msg = err instanceof Error ? err.message : 'unknown'
     console.warn(`[bracket-cache] load failed: ${msg}`)
     return 0
   }
+  let loaded = 0
+  // One file at a time, so only one tournament's JSON is in memory at once.
+  for (const name of names) {
+    try {
+      const parsed = JSON.parse(await fs.readFile(path.join(STORE_DIR(), name), 'utf8')) as PersistedFile
+      if (parsed?.version !== 1 || !Array.isArray(parsed.entries)) continue
+      for (const entry of parsed.entries) if (restoreEntry(entry)) loaded++
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'unknown'
+      console.warn(`[bracket-cache] load failed for ${name}: ${msg}`)
+    }
+  }
+  return loaded
 }
 
 /** Entrant counts for a tournament's draws, read from cache ONLY — never
@@ -294,26 +381,33 @@ export function cachedEntrantCounts(
 }
 
 export async function flushBracketCache(): Promise<void> {
-  if (!state.dirty) return
-  state.dirty = false
-  const entries: PersistedEntry[] = []
+  if (state.dirtyGuids.size === 0) return
+  const dirty = Array.from(state.dirtyGuids)
+  state.dirtyGuids.clear()
+  const byGuid = new Map<string, PersistedEntry[]>(dirty.map((g) => [g, []]))
   for (const [key, value] of Array.from(cache.entries())) {
+    const list = byGuid.get(guidOfKey(key)?.toLowerCase() ?? '')
+    if (!list) continue
     const html = rawHtmlCache.get(key)
     if (!html) continue
-    entries.push({ key, ts: value.ts, ...(value.done && { done: true as const }), html })
+    list.push({ key, ts: value.ts, ...(value.done && { done: true as const }), html })
   }
-  const file = STORE_PATH()
-  const tmp = `${file}.tmp`
-  try {
-    await fs.mkdir(path.dirname(file), { recursive: true })
-    await fs.writeFile(tmp, JSON.stringify({ version: 1, savedAt: Date.now(), entries }), 'utf8')
-    await fs.rename(tmp, file)
-    console.log(`[bracket-cache] persisted ${entries.length} entries`)
-  } catch (err) {
-    state.dirty = true
-    const msg = err instanceof Error ? err.message : 'unknown'
-    console.warn(`[bracket-cache] persist failed: ${msg}`)
-    try { await fs.unlink(tmp) } catch { /* ignore */ }
+  let entryCount = 0
+  let fileCount = 0
+  for (const [guid, entries] of Array.from(byGuid)) {
+    if (entries.length === 0) continue
+    try {
+      await writeStoreFile(guid, entries)
+      entryCount += entries.length
+      fileCount++
+    } catch (err) {
+      state.dirtyGuids.add(guid)
+      const msg = err instanceof Error ? err.message : 'unknown'
+      console.warn(`[bracket-cache] persist failed for ${guid}: ${msg}`)
+    }
+  }
+  if (fileCount > 0) {
+    console.log(`[bracket-cache] persisted ${entryCount} entries in ${fileCount} tournament file(s)`)
   }
 }
 
