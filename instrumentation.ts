@@ -4,7 +4,7 @@ export async function register() {
     dns.setDefaultResultOrder('ipv4first')
 
     const { prewarmDrawsCache } = await import('./lib/draws-cache')
-    const { prewarmBracketCache } = await import('./lib/bracket-cache')
+    const { prewarmBracketCache, restoreBracketStore } = await import('./lib/bracket-cache')
     const { prewarmEventBundleCache } = await import('./lib/event-bundle-cache')
     const { prewarmMatchesFullCache, warmActiveFullSchedules } = await import('./lib/matches-full-cache')
     const { setMatchesFull } = await import('./lib/matches-full-memcache')
@@ -16,6 +16,13 @@ export async function register() {
     const { rebuildAll, makeOriginDayFetcher } = await import('./lib/player-index-rebuild')
 
     ;(async () => {
+      // Saved brackets first: the schedule pre-warm below looks up each live
+      // draw's bracket and would otherwise refetch them all from BAT.
+      try {
+        await restoreBracketStore()
+      } catch (err) {
+        console.warn('[bracket-cache] early restore failed:', err)
+      }
       const { activeData: bootActiveData } = await prewarmMatchesFullCache()
       // Seed the route's in-memory full-schedule cache from the schedules
       // prewarm just fetched, so the first user request to this worker doesn't

@@ -13,7 +13,7 @@ jest.mock('../lib/scraper', () => ({
 import {
   cache, rawHtmlCache, playerClubCache, makeBracketKey, markBracketDirty,
   flushBracketCache, loadBracketStoreFromDisk, ensureBracketsLoaded,
-  cachedEntrantCounts, prewarmBracketCache, __resetBracketStoreForTesting,
+  cachedEntrantCounts, prewarmBracketCache, restoreBracketStore, __resetBracketStoreForTesting,
 } from '../lib/bracket-cache'
 import { batFetch } from '../lib/bat-fetch'
 import { parseBracket } from '../lib/scraper'
@@ -311,5 +311,31 @@ describe('boot pre-warm', () => {
     await prewarmBracketCache()
     expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(rawHtmlCache.get(`${A.toUpperCase()}:2`)).toBe('fetched')
+  })
+})
+
+describe('restoring the store early in boot', () => {
+  it('makes saved brackets available before the pre-warm runs', async () => {
+    live(A)
+    put(A, '1', 'a1')
+    await flushBracketCache()
+    restart()
+
+    await restoreBracketStore()
+    expect(rawHtmlCache.get(`${A}:1`)).toBe('a1')
+  })
+
+  it('is not repeated by the pre-warm that follows', async () => {
+    live(A)
+    put(A, '1', 'a1')
+    await flushBracketCache()
+    restart()
+
+    await restoreBracketStore()
+    const read = jest.spyOn(fs, 'readFile')
+    await prewarmBracketCache()
+    await restoreBracketStore()
+    expect(read).not.toHaveBeenCalled()
+    read.mockRestore()
   })
 })

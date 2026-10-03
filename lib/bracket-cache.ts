@@ -39,6 +39,8 @@ interface BracketCacheState {
   entrantCounts: Map<string, number>
   // Draws of an on-demand tournament whose raw HTML is loaded but not yet parsed.
   unparsed: Map<string, { ts: number; done?: true }>
+  // The one-time restore from disk, shared by whoever asks for it first.
+  storeRestore: Promise<void> | null
   flushTimer: NodeJS.Timeout | null
 }
 
@@ -60,6 +62,7 @@ const state: BracketCacheState = globalState.__bracketCacheState ??= {
   coldLoads: new Map(),
   entrantCounts: new Map(),
   unparsed: new Map(),
+  storeRestore: null,
   flushTimer: null,
 }
 
@@ -468,6 +471,7 @@ export function __resetBracketStoreForTesting(): void {
   state.coldLoads.clear()
   state.entrantCounts.clear()
   state.unparsed.clear()
+  state.storeRestore = null
   siblingLookupCache.clear()
   feederLookupCache.clear()
 }
@@ -569,12 +573,25 @@ export async function flushBracketCache(): Promise<void> {
   }
 }
 
+/** Restores the saved brackets from disk, once per process. Boot calls this
+ *  before anything else touches BAT: the schedule pre-warm looks up each live
+ *  draw's bracket, and with the store not yet loaded it refetched every one of
+ *  them from BAT on every restart. */
+export function restoreBracketStore(): Promise<void> {
+  return (state.storeRestore ??= (async () => {
+    const started = Date.now()
+    const restored = await loadBracketStoreFromDisk()
+    if (restored > 0) {
+      console.log(`[bracket-cache] restored ${restored} entries from disk in ${Date.now() - started}ms`)
+    }
+  })())
+}
+
 // Pre-warm all brackets for all cached tournaments (called after draws pre-warm).
 // Restores from disk first so only genuinely new draws hit BAT; skips tournaments
 // marked done — finished brackets don't change.
 export async function prewarmBracketCache(): Promise<void> {
-  const restored = await loadBracketStoreFromDisk()
-  if (restored > 0) console.log(`[bracket-cache] restored ${restored} entries from disk`)
+  await restoreBracketStore()
   if (!state.flushTimer) {
     state.flushTimer = setInterval(() => { void flushBracketCache() }, FLUSH_INTERVAL_MS)
     state.flushTimer.unref?.()
