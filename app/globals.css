@@ -3786,3 +3786,7 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .bms-table td { text-align: right; color: var(--fg); padding: 5px 0 5px 12px; }
 .bms-table tr + tr { border-top: 1px solid var(--row-sep); }
 .bms-table .bms-share { color: var(--muted); width: 56px; }
+
+.bms-table .bms-th { font-size: 12px; font-weight: 600; color: var(--muted); padding-top: 0; }
+.bms-table .bms-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; word-break: break-all; }
+.bms-table td { white-space: nowrap; }

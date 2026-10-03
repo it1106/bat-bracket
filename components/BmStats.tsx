@@ -31,7 +31,13 @@ interface Status {
     lastHour: number
     perMinute: number[]
   }
-  visitors: { online: number; peak: number; peakAt: string | null; users: number }
+  visitors: {
+    online: number
+    peak: number
+    peakAt: string | null
+    users: number
+    onlineIds?: Array<{ id: string; lastSeenAt: string }>
+  }
 }
 
 const num = (n: number) => n.toLocaleString('en-US')
@@ -57,6 +63,11 @@ function clock(iso: string | number, withSeconds = false): string {
     minute: '2-digit',
     ...(withSeconds && { second: '2-digit' }),
   })
+}
+
+function ago(nowIso: string, thenIso: string): string {
+  const seconds = Math.max(0, Math.round((new Date(nowIso).getTime() - new Date(thenIso).getTime()) / 1000))
+  return seconds < 60 ? `${seconds}s ago` : `${Math.floor(seconds / 60)}m ${seconds % 60}s ago`
 }
 
 // Status is carried by the word, not only the colour.
@@ -254,6 +265,35 @@ export default function BmStats() {
           <Tile label="Peak today" value={num(visitors.peak)} note={visitors.peakAt ? `at ${clock(visitors.peakAt)}` : undefined} />
           <Tile label="Users today" value={num(visitors.users)} />
         </div>
+        <h3 className="bms-subtitle">Online now</h3>
+        {!visitors.onlineIds || visitors.onlineIds.length === 0 ? (
+          <p className="bms-note">Nobody online.</p>
+        ) : (
+          <>
+            <table className="bms-table">
+              <thead>
+                <tr>
+                  <th scope="col" className="bms-th">Visitor ID</th>
+                  <td className="bms-th">Last seen</td>
+                </tr>
+              </thead>
+              <tbody>
+                {visitors.onlineIds.map(({ id, lastSeenAt }) => (
+                  <tr key={id}>
+                    <th scope="row" className="bms-id">{id}</th>
+                    <td>{ago(status.generatedAt, lastSeenAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {visitors.onlineIds.length < visitors.online && (
+              <p className="bms-note">Showing the {visitors.onlineIds.length} most recent of {num(visitors.online)}.</p>
+            )}
+            <p className="bms-note">
+              The ID is the one each browser sends to PostHog. A visitor stays listed for two minutes after their last ping.
+            </p>
+          </>
+        )}
       </Card>
     </div>
   )

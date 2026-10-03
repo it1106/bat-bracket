@@ -76,6 +76,12 @@ export class PresenceStore {
     return online
   }
 
+  /** The devices online right now, most recently seen first. */
+  online(now: number): Array<{ id: string; lastSeen: number }> {
+    this.count(now)
+    return Array.from(this.lastSeen, ([id, lastSeen]) => ({ id, lastSeen })).reverse()
+  }
+
   /** Highest count seen so far today. */
   peak(now: number): PresencePeak {
     this.count(now)

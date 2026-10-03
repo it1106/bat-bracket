@@ -33,6 +33,26 @@ describe('PresenceStore', () => {
   })
 })
 
+describe('PresenceStore online list', () => {
+  it('lists the devices online right now, most recently seen first', () => {
+    const s = new PresenceStore()
+    s.touch('device-aaaa', 1000)
+    s.touch('device-bbbb', 2000)
+    s.touch('device-aaaa', 3000)
+    expect(s.online(3000)).toEqual([
+      { id: 'device-aaaa', lastSeen: 3000 },
+      { id: 'device-bbbb', lastSeen: 2000 },
+    ])
+  })
+
+  it('leaves out devices that have dropped off', () => {
+    const s = new PresenceStore()
+    s.touch('device-aaaa', 0)
+    s.touch('device-bbbb', 60_000)
+    expect(s.online(ONLINE_WINDOW_MS + 1)).toEqual([{ id: 'device-bbbb', lastSeen: 60_000 }])
+  })
+})
+
 describe('PresenceStore peak', () => {
   // 2026-10-02 12:00 in Bangkok (UTC+7).
   const NOON = Date.UTC(2026, 9, 2, 5, 0, 0)
