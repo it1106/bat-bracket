@@ -12,6 +12,7 @@ import { queryMatchesCountry } from '@/lib/countryCodes'
 import { track } from '@/lib/analytics'
 import { buildNextOppMap } from '@/lib/nextOpp'
 import { useLongPress } from '@/lib/useLongPress'
+import { fetchBatYobs, loadStoredYobs } from '@/lib/yobClient'
 import TeamScheduleButton from '@/components/TeamScheduleButton'
 import { buildTeamSchedule } from '@/lib/teamSchedule'
 import { buildFilename, captureMatchImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
@@ -272,10 +273,12 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     return () => { cancelled = true }
   }, [bwfIdsKey])
 
-  // BAT: no country and YOB isn't batch-available, so we scrape it. To stay
-  // polite (and under the request timeout) we fetch only ids we haven't tried
-  // yet, in small sequential chunks — the server scrapes cache-misses serially
-  // with a gap. Tooltips fill in progressively; results cache forever.
+  // BAT: no country, and YOB isn't batch-available upstream, so the server
+  // scrapes it and caches it for good. This browser also remembers every year
+  // it has been told (lib/yobClient), so a repeat view asks for nothing; what
+  // is missing is asked for in one request for the whole day, repeated only
+  // while the server still has players to look up. Tooltips fill in as
+  // answers arrive.
   const batIdsKey = useMemo(() => {
     if (!tournamentId) return ''
     const ids = new Set<string>()
@@ -290,30 +293,27 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   }, [groups, tournamentId])
   useEffect(() => {
     if (!batIdsKey || !tournamentId) return
-    const pending = batIdsKey.split(',').filter((id) => !yobAttempted.current.has(id))
+    const ids = batIdsKey.split(',')
+    // Birth years this browser was already told, on this or an earlier visit.
+    const known = loadStoredYobs(tournamentId)
+    const have: Record<string, string> = {}
+    for (const id of ids) {
+      if (known[id]) {
+        have[id] = known[id]
+        yobAttempted.current.add(id)
+      }
+    }
+    if (Object.keys(have).length) setYobByPid((prev) => ({ ...prev, ...have }))
+
+    const pending = ids.filter((id) => !yobAttempted.current.has(id))
     if (pending.length === 0) return
     let cancelled = false
-    const CHUNK = 15
-    ;(async () => {
-      for (let i = 0; i < pending.length && !cancelled; i += CHUNK) {
-        const chunk = pending.slice(i, i + CHUNK)
-        // Mark per-chunk (not all upfront): if a day switch cancels the loop,
-        // the chunks we never reached stay unattempted and get picked up next
-        // time, instead of being stranded without a YOB.
-        chunk.forEach((id) => yobAttempted.current.add(id))
-        try {
-          const res = await fetch(`/api/bat/player-ages?tournament=${encodeURIComponent(tournamentId)}&ids=${encodeURIComponent(chunk.join(','))}`)
-          if (!res.ok) continue
-          const data = (await res.json()) as Record<string, { yob: string | null }>
-          if (cancelled) return
-          const map: Record<string, string> = {}
-          for (const [id, info] of Object.entries(data)) {
-            if (info?.yob) map[id] = info.yob
-          }
-          if (Object.keys(map).length) setYobByPid((prev) => ({ ...prev, ...map }))
-        } catch { /* skip this chunk; ids stay marked attempted */ }
-      }
-    })()
+    // Ids are marked attempted only once the server has answered for them, so
+    // a day switch that cancels this leaves the rest to be asked for next time.
+    fetchBatYobs(tournamentId, pending, {
+      onYears: (years) => setYobByPid((prev) => ({ ...prev, ...years })),
+      isCancelled: () => cancelled,
+    }).then((attempted) => attempted.forEach((id) => yobAttempted.current.add(id)))
     return () => { cancelled = true }
   }, [batIdsKey, tournamentId])
 

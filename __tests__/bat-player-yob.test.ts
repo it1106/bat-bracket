@@ -75,3 +75,33 @@ describe('getBatPlayerYobs', () => {
     expect(out).toEqual({ b: '2013' }) // 'a' failed → omitted, 'b' resolved
   })
 })
+
+describe('POST /api/bat/player-ages', () => {
+  const post = async (body: unknown) => {
+    const { POST } = await import('@/app/api/bat/player-ages/route')
+    return POST(new Request('http://localhost/api/bat/player-ages', { method: 'POST', body: JSON.stringify(body) }))
+  }
+
+  it('answers for a whole list of players in one request', async () => {
+    mockRead.mockImplementation(async (_t, id) => ({ profile: { yob: `20${id}` }, ts: Date.now() }) as never)
+    const res = await post({ tournament: 'T1', ids: ['11', '12', '13'] })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ '11': { yob: '2011' }, '12': { yob: '2012' }, '13': { yob: '2013' } })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('rejects a request without a tournament or with a malformed list', async () => {
+    expect((await post({ ids: ['1'] })).status).toBe(400)
+    expect((await post({ tournament: 'T1', ids: 'nope' })).status).toBe(400)
+    expect(await (await post({ tournament: 'T1', ids: [] })).json()).toEqual({})
+  })
+
+  it('ignores ids that are not plain player numbers and caps the list', async () => {
+    mockRead.mockImplementation(async () => ({ profile: { yob: '2010' }, ts: Date.now() }) as never)
+    const ids = ['1', 'x y', 7, '../etc', ...Array.from({ length: 3000 }, (_, i) => String(100 + i))]
+    const out = await (await post({ tournament: 'T1', ids })).json()
+    expect(Object.keys(out)).toContain('1')
+    expect(Object.keys(out)).not.toContain('x y')
+    expect(Object.keys(out).length).toBeLessThanOrEqual(2000)
+  })
+})
