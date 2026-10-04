@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { dayOf } from './presence'
 import { observeHigh } from './records'
+import { noteDaily } from './daily-history'
 
 // Counts upstream BAT requests for the /bmstats status page: today's total
 // (midnight to midnight, Bangkok), by kind, failures, and the past 60 minutes
@@ -248,6 +249,8 @@ export function recordBatFetch(kind: string, ok: boolean): void {
   observeHigh('batDay', today)
   observeHigh('batHour', lastHour)
   observeHigh('batFailedDay', failedToday)
+  noteDaily('bat', today)
+  noteDaily('batFailed', failedToday)
 }
 
 export function getBatFetchStats(): BatFetchStats {

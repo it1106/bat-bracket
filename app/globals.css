@@ -3838,3 +3838,11 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 
 .bms-high { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .bms-high b { font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; }
+
+.bms-flag { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--fg); }
+.bms-flag .bms-meter-state { flex-shrink: 0; padding-top: 1px; }
+.bms-flag b { font-variant-numeric: tabular-nums; }
+.bms-scroll { overflow-x: auto; }
+.bms-history { min-width: 520px; }
+.bms-history th { white-space: nowrap; font-weight: 500; }
+.bms-today { color: var(--muted); font-weight: 400; }

@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import type { PlayerProfile } from './types'
+import { recordPlayerCacheWrite } from './player-cache-stats'
 
 // Per-tournament JSON files keyed by playerId. A single bat-player.json shared
 // across every tournament would grow to many MB once a few seasons accumulate;
@@ -105,7 +106,9 @@ async function writeNow(
     await fs.writeFile(tmp, JSON.stringify(file), 'utf8')
     await fs.rename(tmp, dest)
     parsed.set(dest, { mtimeMs: (await fs.stat(dest)).mtimeMs, file })
+    recordPlayerCacheWrite(true)
   } catch (err) {
+    recordPlayerCacheWrite(false)
     const msg = err instanceof Error ? err.message : 'unknown'
     console.log(`[bat-player-cache] write failed tournament=${tournamentId} player=${playerId} err=${msg}`)
     try { await fs.unlink(tmp) } catch { /* ignore */ }

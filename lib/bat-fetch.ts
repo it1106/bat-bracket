@@ -16,6 +16,7 @@
 // Callers can override via `timeoutMs`, or supply their own `signal`
 // (their signal wins outright and gates the whole exchange).
 import { recordBatFetch } from './bat-fetch-stats'
+import { recordBatLatency } from './bat-latency'
 
 const DEFAULT_TIMEOUT_MS = 30_000
 
@@ -59,6 +60,7 @@ export async function batFetch(
     const ms = Date.now() - start
     console.log(`[bat-fetch] kind=${kind} status=${res.status} ms=${ms} url=${url}`)
     recordBatFetch(kind, res.ok)
+    recordBatLatency(ms)
     return res
   } catch (err) {
     if (timer) clearTimeout(timer)

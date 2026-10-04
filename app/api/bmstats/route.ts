@@ -3,6 +3,10 @@ import { getServerStatus } from '@/lib/server-status'
 import { getBatFetchStats } from '@/lib/bat-fetch-stats'
 import { getPageviewStats } from '@/lib/pageview-stats'
 import { getAllTimeHighs } from '@/lib/records'
+import { getDailyHistory } from '@/lib/daily-history'
+import { getBatLatency } from '@/lib/bat-latency'
+import { getRestartInfo, memoryLimitBytes } from '@/lib/pm2-restarts'
+import { getPlayerCacheStats } from '@/lib/player-cache-stats'
 import { presence } from '@/lib/presence'
 import { ensurePresenceLoaded } from '@/lib/presence-persist'
 import { isLoggedIn } from '@/lib/bmstats-auth'
@@ -11,6 +15,7 @@ export const dynamic = 'force-dynamic'
 
 // Enough for any realistic crowd; keeps the response small if ids are sprayed.
 const MAX_ONLINE_IDS = 200
+const HISTORY_DAYS = 30
 
 // GET /api/bmstats  →  host, worker, BAT request and visitor figures for the
 // /bmstats status page. Read-only, and only for a logged-in session.
@@ -32,6 +37,11 @@ export async function GET(request: Request) {
       bat: getBatFetchStats(),
       pages: getPageviewStats(),
       highs: getAllTimeHighs(),
+      history: getDailyHistory(HISTORY_DAYS),
+      latency: getBatLatency(),
+      restarts: getRestartInfo(),
+      memoryLimitBytes: memoryLimitBytes(),
+      playerCache: getPlayerCacheStats(),
       visitors: {
         online: presence.count(now),
         peak: peak.count,

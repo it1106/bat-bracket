@@ -1,5 +1,6 @@
 import { sharedCounter, type BatFetchStats } from './bat-fetch-stats'
 import { observeHigh } from './records'
+import { noteDaily } from './daily-history'
 
 // Page loads, for the /bmstats status page: how many times a browser loaded a
 // page of the site today (midnight to midnight, Bangkok) and in the past 60
@@ -25,6 +26,7 @@ export function recordPageLoad(kind: string): void {
   const { today, lastHour } = pageLoads.totals()
   observeHigh('pagesDay', today)
   observeHigh('pagesHour', lastHour)
+  noteDaily('pages', today)
 }
 
 export function getPageviewStats(): BatFetchStats {

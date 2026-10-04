@@ -41,6 +41,17 @@ interface Status {
     perMinute: number[]
   }
   highs?: Partial<Record<HighKey, { value: number; at: string }>>
+  history?: Array<{ day: string; users?: number; peak?: number; pages?: number; bat?: number; batFailed?: number }>
+  latency?: { count: number; medianMs: number | null; p95Ms: number | null; maxMs: number | null; slow: number }
+  restarts?: {
+    starts: number
+    reloads: number
+    memory: number
+    crashes: number
+    last: { at: string; reason: 'reload' | 'memory' | 'crash' } | null
+  } | null
+  memoryLimitBytes?: number | null
+  playerCache?: { writesToday: number; failedToday: number }
   visitors: {
     online: number
     peak: number
@@ -66,6 +77,14 @@ function bytes(n: number): string {
   const gb = n / 1024 ** 3
   return gb >= 1 ? `${gb.toFixed(gb >= 10 ? 0 : 1)} GB` : `${Math.round(n / 1024 ** 2)} MB`
 }
+
+/** "850 ms" or "2.1 s". */
+function millis(ms: number | null): string {
+  if (ms === null) return '–'
+  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`
+}
+
+const RESTART_REASON = { reload: 'deploy or reload', memory: 'memory limit', crash: 'crash' } as const
 
 function duration(seconds: number): string {
   const d = Math.floor(seconds / 86400)
@@ -415,8 +434,10 @@ export default function BmStats() {
     return <p className="bms-note" role="status">{failed ? 'Could not load the server status.' : 'Loading…'}</p>
   }
 
-  const { cpu, memory, disk, worker, bat, pages, visitors } = status
+  const { cpu, memory, disk, worker, bat, pages, visitors, latency, restarts, playerCache } = status
   const highs = status.highs ?? {}
+  const history = status.history ?? []
+  const memoryLimit = status.memoryLimitBytes ?? null
   return (
     <div className="bms">
       <header className="bms-header">
@@ -459,6 +480,38 @@ export default function BmStats() {
           <Tile label="Past 60 minutes" value={num(bat.lastHour)} note={`${num(bat.perMinute[bat.perMinute.length - 1])} in the current minute`} high={highs.batHour} highWithTime />
           <Tile label="Failed today" value={num(bat.failedToday)} note="errors and non-200 responses" high={highs.batFailedDay} />
         </div>
+        {latency && (
+          <>
+            <h3 className="bms-subtitle">How fast BAT answered, past 60 minutes</h3>
+            <div className="bms-grid">
+              <Tile label="Typical" value={millis(latency.medianMs)} note="half of requests were faster" />
+              <Tile label="Slowest 5%" value={millis(latency.p95Ms)} note={`slowest ${millis(latency.maxMs)}`} />
+              <Tile
+                label="Over 5 seconds"
+                value={num(latency.slow)}
+                note={`of ${num(latency.count)} request${latency.count === 1 ? '' : 's'}`}
+              />
+            </div>
+          </>
+        )}
+        {playerCache && (
+          <div className="bms-flag">
+            <span className="bms-meter-state">
+              <span
+                className="bms-dot"
+                style={{ background: playerCache.failedToday === 0 ? 'var(--win-fg)' : 'var(--red)' }}
+                aria-hidden="true"
+              />
+              {playerCache.failedToday === 0 ? 'OK' : 'Problem'}
+            </span>
+            <span>
+              Player cache failures today: <b>{num(playerCache.failedToday)}</b> of {num(playerCache.writesToday)} saves.
+              {playerCache.failedToday === 0
+                ? ' It should stay at 0.'
+                : ' Players are not being remembered, so they are fetched from BAT again.'}
+            </span>
+          </div>
+        )}
         <h3 className="bms-subtitle">Per minute, past 60 minutes</h3>
         <MinuteChart perMinute={bat.perMinute} generatedAt={status.generatedAt} noun="request" label="Requests to BAT" />
         <h3 className="bms-subtitle">Today by type</h3>
@@ -518,9 +571,35 @@ export default function BmStats() {
       <Card title="Worker">
         <div className="bms-grid">
           <Tile label="Uptime" value={duration(worker.uptimeSeconds)} note={`started ${clock(worker.startedAt)}`} />
-          <Tile label="Starts today" value={num(bat.startsToday)} note="times the worker has started since midnight" />
-          <Tile label="Memory" value={bytes(worker.rssBytes)} note={`peak ${bytes(worker.peakRssBytes)} · heap ${bytes(worker.heapUsedBytes)}`} />
+          {memoryLimit ? (
+            <Meter
+              label="Memory against its limit"
+              percent={(worker.rssBytes / memoryLimit) * 100}
+              detail={`${bytes(worker.rssBytes)} of ${bytes(memoryLimit)} · peak ${bytes(worker.peakRssBytes)}`}
+            />
+          ) : (
+            <Tile label="Memory" value={bytes(worker.rssBytes)} note={`peak ${bytes(worker.peakRssBytes)} · heap ${bytes(worker.heapUsedBytes)}`} />
+          )}
         </div>
+        <h3 className="bms-subtitle">Starts today</h3>
+        {restarts ? (
+          <>
+            <div className="bms-grid">
+              <Tile label="Deploys and reloads" value={num(restarts.reloads)} note="started on purpose" />
+              <Tile label="Memory limit" value={num(restarts.memory)} note="restarted for using too much memory" />
+              <Tile label="Crashes" value={num(restarts.crashes)} note="stopped on its own" />
+            </div>
+            <p className="bms-note">
+              {restarts.last
+                ? `Last start ${restarts.last.at.slice(11, 16)}: ${RESTART_REASON[restarts.last.reason]}.`
+                : 'No starts today; the worker has been running since before midnight.'}
+            </p>
+          </>
+        ) : (
+          <div className="bms-grid">
+            <Tile label="Starts today" value={num(bat.startsToday)} note="times the worker has started since midnight" />
+          </div>
+        )}
         <p className="bms-note">Node {worker.node} · pid {worker.pid}</p>
       </Card>
 
@@ -560,6 +639,39 @@ export default function BmStats() {
           </>
         )}
       </Card>
+
+      {history.length > 0 && (
+        <Card title="Past 30 days">
+          <div className="bms-scroll">
+            <table className="bms-table bms-history">
+              <thead>
+                <tr>
+                  <th scope="col" className="bms-th">Day</th>
+                  <td className="bms-th">Users</td>
+                  <td className="bms-th">Peak online</td>
+                  <td className="bms-th">Page loads</td>
+                  <td className="bms-th">BAT requests</td>
+                  <td className="bms-th">BAT failed</td>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((row) => (
+                  <tr key={row.day}>
+                    <th scope="row">
+                      {dateOf(`${row.day}T12:00:00+07:00`, false)}
+                      {row.day === bat.day && <span className="bms-today"> so far</span>}
+                    </th>
+                    {([row.users, row.peak, row.pages, row.bat, row.batFailed] as const).map((value, i) => (
+                      <td key={i}>{value === undefined ? '–' : num(value)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="bms-note">A dash means that figure was not being counted on that day.</p>
+        </Card>
+      )}
 
       <AliasEditor />
     </div>
