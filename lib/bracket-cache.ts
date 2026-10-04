@@ -186,8 +186,12 @@ export function ttlMsFor(entry: BracketCacheEntry): number {
 
 const TIMEOUT_MS = 50000
 
+// Lower-cased: the schedule asks with the upper-case id and the bracket view
+// with the lower-case one from its URL, and both must land on the same entry.
+// Kept apart, the schedule's copy was never refreshed by anyone opening the
+// bracket and went on answering from the HTML fetched at boot.
 export function makeBracketKey(guid: string, drawNum: string) {
-  return `${guid}:${drawNum}`
+  return `${guid.toLowerCase()}:${drawNum}`
 }
 
 export async function fetchBracket(guid: string, drawNum: string): Promise<BracketData> {
@@ -251,6 +255,30 @@ export function fetchAndCache(guid: string, drawNum: string): Promise<BracketDat
     inFlightFetches.set(key, pending)
   }
   return pending
+}
+
+/** The bracket HTML the schedule reads its siblings, feeders and next-match
+ *  times from. Fetches only when there is none at all; one that has outlived
+ *  its TTL is served as it is and refreshed in the background, so the schedule
+ *  never waits on BAT for it and each draw costs at most one fetch per TTL.
+ *  The refresh matters: a later round's pairing and time only appear in the
+ *  bracket once the earlier round is played and scheduled. */
+export async function bracketHtmlForSchedule(guid: string, drawNum: string): Promise<string | undefined> {
+  const key = makeBracketKey(guid, drawNum)
+  const html = rawHtmlCache.get(key)
+  if (!html) {
+    await fetchAndCache(guid, drawNum)
+    return rawHtmlCache.get(key)
+  }
+  // A finished tournament read back from disk sits in `unparsed`: final. HTML
+  // with no entry at all (the clubs walk stores only the HTML) has no age to
+  // go by, so it is refreshed.
+  const entry = cache.get(key)
+  const final = entry?.done || state.unparsed.has(key)
+  if (!final && (!entry || Date.now() - entry.ts >= ttlMsFor(entry))) {
+    fetchAndCache(guid, drawNum).catch(() => {}) // the old copy keeps serving
+  }
+  return html
 }
 
 async function fetchAndCacheNow(guid: string, drawNum: string): Promise<BracketData> {
@@ -378,10 +406,22 @@ function restoreEntry(entry: PersistedEntry, opts: { indexClubs: boolean } = { i
   }
 }
 
+// Files saved before keys were lower-cased can hold a draw twice, once per
+// casing of the tournament id. One entry per draw comes back, the newest.
+function normalizeEntries(entries: PersistedEntry[]): PersistedEntry[] {
+  const byKey = new Map<string, PersistedEntry>()
+  for (const entry of entries) {
+    const key = entry.key.toLowerCase()
+    const kept = byKey.get(key)
+    if (!kept || entry.ts > kept.ts) byKey.set(key, { ...entry, key })
+  }
+  return Array.from(byKey.values())
+}
+
 async function readStoreFile(guid: string): Promise<PersistedEntry[]> {
   try {
     const parsed = JSON.parse(await fs.readFile(storeFile(guid), 'utf8')) as PersistedFile
-    return parsed?.version === 1 && Array.isArray(parsed.entries) ? parsed.entries : []
+    return parsed?.version === 1 && Array.isArray(parsed.entries) ? normalizeEntries(parsed.entries) : []
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
       const msg = err instanceof Error ? err.message : 'unknown'

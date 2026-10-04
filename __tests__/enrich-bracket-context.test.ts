@@ -161,3 +161,20 @@ describe('parseBracketContext', () => {
     expect(context.feeders.length).toBeGreaterThan(0)
   })
 })
+
+describe('next match of a later-round pairing (THE MALL 2026, BD U17)', () => {
+  // Captured the evening before the round of 32, once the round of 64 had
+  // settled who meets whom. กฤตยชญ์ / ดลธาดา (322, 323) play 632 / 634 at
+  // 11:05 and, if they win, the round of 16 at 19:50 the same day. A bracket
+  // fetched before the round of 64 finished does not have this pairing at all.
+  it('says the winner of the round-of-32 match plays again at 19:50', () => {
+    const html = fs.readFileSync(
+      path.join(process.cwd(), 'fixtures', 'bracket-bat-themall-bdu17.html'),
+      'utf-8',
+    )
+    const next = parseBracketContext(html).nextMatches.find(
+      (e) => e.players.join(',') === '322,323,632,634',
+    )
+    expect(next).toMatchObject({ nextTime: '19:50', sameDay: true })
+  })
+})

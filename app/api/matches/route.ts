@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketContext } from '@/lib/scraper'
-import { cache as bracketCache, fetchAndCache, rawHtmlCache, siblingLookupCache, feederLookupCache, nextLookupCache, makeBracketKey, ensureBracketsLoaded } from '@/lib/bracket-cache'
+import { cache as bracketCache, bracketHtmlForSchedule, siblingLookupCache, feederLookupCache, nextLookupCache, makeBracketKey, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
 import { readDayCache, writeDayCache, isDayComplete, shouldMemcacheDayResult, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
@@ -134,15 +134,11 @@ async function enrichBracketContext(
     Array.from(drawNums).map(async (drawNum) => {
       try {
         const key = makeBracketKey(tournamentId, drawNum)
-        // Only fetch if we have no HTML at all (cold start, never prewarmed).
-        // Sibling pairings don't track scores, so a 15-min-stale bracket gives
-        // the same answer — refetching here would multiply BAT load on every
-        // SignalR-triggered /api/matches?fresh=1.
-        let html = rawHtmlCache.get(key)
-        if (!html) {
-          await fetchAndCache(tournamentId, drawNum)
-          html = rawHtmlCache.get(key)
-        }
+        // Waits on BAT only when there is no HTML at all (cold start, never
+        // prewarmed); an old bracket is used as it is and refreshed behind the
+        // request, so a SignalR-triggered /api/matches?fresh=1 costs BAT at
+        // most one fetch per draw per TTL.
+        const html = await bracketHtmlForSchedule(tournamentId, drawNum)
         if (!html) return
 
         const bracketTs = bracketCache.get(key)?.ts ?? 0

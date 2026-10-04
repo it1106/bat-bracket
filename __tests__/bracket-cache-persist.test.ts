@@ -14,6 +14,7 @@ import {
   cache, rawHtmlCache, playerClubCache, makeBracketKey, markBracketDirty,
   flushBracketCache, loadBracketStoreFromDisk, ensureBracketsLoaded,
   cachedEntrantCounts, prewarmBracketCache, restoreBracketStore, __resetBracketStoreForTesting,
+  bracketHtmlForSchedule, LIVE_TTL_MS,
 } from '../lib/bracket-cache'
 import { batFetch } from '../lib/bat-fetch'
 import { parseBracket } from '../lib/scraper'
@@ -129,7 +130,7 @@ describe('bracket cache persistence', () => {
 
     live(A)
     expect(await loadBracketStoreFromDisk()).toBe(3)
-    expect(cache.get(`${A.toUpperCase()}:2`)).toMatchObject({ ts: 112, done: true })
+    expect(cache.get(`${A}:2`)).toMatchObject({ ts: 112, done: true })
     expect((await fs.readdir(storeDir())).sort()).toEqual([`${A}.json`, `${B}.json`])
     expect((await readStore(A)).entries).toHaveLength(2)
     expect((await fs.readdir(path.join(tmp, '.cache'))).sort())
@@ -310,7 +311,7 @@ describe('boot pre-warm', () => {
 
     await prewarmBracketCache()
     expect(mockFetch).toHaveBeenCalledTimes(1)
-    expect(rawHtmlCache.get(`${A.toUpperCase()}:2`)).toBe('fetched')
+    expect(rawHtmlCache.get(makeBracketKey(A, '2'))).toBe('fetched')
   })
 })
 
@@ -359,3 +360,105 @@ describe('fetching a bracket', () => {
     expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('bracket keys ignore the casing of the tournament id', () => {
+  it('gives one key for either casing', () => {
+    expect(makeBracketKey(A.toUpperCase(), '3')).toBe(makeBracketKey(A, '3'))
+  })
+
+  it('keeps the newer copy when a saved file holds a draw under both casings', async () => {
+    // Files written before keys were normalised: the schedule's upper-case
+    // copy went stale while the bracket view kept the lower-case one fresh.
+    await fs.mkdir(storeDir(), { recursive: true })
+    await fs.writeFile(path.join(storeDir(), `${A}.json`), JSON.stringify({
+      version: 1,
+      savedAt: 1,
+      entries: [
+        { key: `${A}:1`, ts: 900, html: 'fresh1' },
+        { key: `${A.toUpperCase()}:1`, ts: 100, html: 'stale1' },
+        { key: `${A.toUpperCase()}:2`, ts: 100, html: 'stale2' },
+        { key: `${A}:2`, ts: 900, html: 'fresh2' },
+      ],
+    }), 'utf8')
+
+    live(A)
+    expect(await loadBracketStoreFromDisk()).toBe(2)
+    for (const id of [A, A.toUpperCase()]) {
+      expect(rawHtmlCache.get(makeBracketKey(id, '1'))).toBe('fresh1')
+      expect(rawHtmlCache.get(makeBracketKey(id, '2'))).toBe('fresh2')
+      expect(cache.get(makeBracketKey(id, '2'))).toMatchObject({ ts: 900 })
+    }
+    expect(rawHtmlCache.size).toBe(2)
+  })
+})
+
+describe('bracketHtmlForSchedule', () => {
+  const respond = (html: string) =>
+    (batFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => html })
+  const settle = () => new Promise((r) => setImmediate(r))
+
+  beforeEach(() => (batFetch as jest.Mock).mockReset())
+
+  it('fetches a bracket it has never seen', async () => {
+    respond('new')
+    expect(await bracketHtmlForSchedule(A, '1')).toBe('new')
+    expect(batFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('serves a recent bracket without asking BAT', async () => {
+    put(A, '1', 'recent', Date.now() - 60_000)
+    expect(await bracketHtmlForSchedule(A.toUpperCase(), '1')).toBe('recent')
+    await settle()
+    expect(batFetch).not.toHaveBeenCalled()
+  })
+
+  it('serves an old bracket at once and refreshes it for the next reader', async () => {
+    respond('refreshed')
+    put(A, '1', 'old', Date.now() - LIVE_TTL_MS - 1)
+    expect(await bracketHtmlForSchedule(A.toUpperCase(), '1')).toBe('old')
+    await settle()
+    expect(batFetch).toHaveBeenCalledTimes(1)
+    expect(await bracketHtmlForSchedule(A, '1')).toBe('refreshed')
+  })
+
+  it('keeps serving the old bracket when the refresh fails', async () => {
+    (batFetch as jest.Mock).mockResolvedValue({ ok: false, status: 503 })
+    put(A, '1', 'old', Date.now() - LIVE_TTL_MS - 1)
+    expect(await bracketHtmlForSchedule(A, '1')).toBe('old')
+    await settle()
+    expect(rawHtmlCache.get(makeBracketKey(A, '1'))).toBe('old')
+  })
+
+  it('refreshes a bracket held only as HTML, with no age on record', async () => {
+    respond('refreshed')
+    rawHtmlCache.set(makeBracketKey(A, '1'), 'html-only')
+    expect(await bracketHtmlForSchedule(A, '1')).toBe('html-only')
+    await settle()
+    expect(batFetch).toHaveBeenCalledTimes(1)
+    expect(cache.get(makeBracketKey(A, '1'))).toBeDefined()
+  })
+
+  it('leaves a finished tournament loaded from disk alone', async () => {
+    live(A)
+    put(A, '1', 'a1', 500)
+    await flushBracketCache()
+    restart()
+    finished(A)
+    await loadBracketStoreFromDisk()
+    await ensureBracketsLoaded(A)
+
+    expect(await bracketHtmlForSchedule(A, '1')).toBe('a1')
+    await settle()
+    expect(batFetch).not.toHaveBeenCalled()
+  })
+
+  it('leaves a finished tournament alone however old its bracket is', async () => {
+    const key = makeBracketKey(A, '1')
+    rawHtmlCache.set(key, 'final')
+    cache.set(key, { bracket: { html: 'final' } as never, ts: 1, done: true })
+    expect(await bracketHtmlForSchedule(A, '1')).toBe('final')
+    await settle()
+    expect(batFetch).not.toHaveBeenCalled()
+  })
+})
+
