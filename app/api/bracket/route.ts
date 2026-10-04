@@ -4,6 +4,14 @@ import { parseBracket } from '@/lib/scraper'
 
 export const maxDuration = 60
 
+// After BAT fails for a bracket we already hold, serve that copy without
+// asking again for this long — the same breaker /api/matches uses, so a BAT
+// outage does not make every bracket view wait on a request sure to fail.
+const BAT_BACKOFF_MS = 30_000
+const batFailureAt = new Map<string, number>()
+
+const staleHeaders = { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' }
+
 function extractIds(url: string): { guid: string; drawNum: string } | null {
   const m = url.match(/\/tournament\/([0-9a-f-]{36})\/draw\/(\d+)/i)
   return m ? { guid: m[1].toLowerCase(), drawNum: m[2] } : null
@@ -59,8 +67,17 @@ export async function GET(request: Request) {
     return NextResponse.json(fromRound > 0 ? parseBracket(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket)
   }
 
+  // Past its TTL but still the bracket as BAT last gave it.
+  const held = () =>
+    cached && NextResponse.json(
+      fromRound > 0 ? parseBracket(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket,
+      { headers: staleHeaders },
+    )
+  if (cached && Date.now() - (batFailureAt.get(key) ?? 0) < BAT_BACKOFF_MS) return held() as NextResponse
+
   try {
     const bracket = await fetchAndCache(guid, drawNum)
+    batFailureAt.delete(key)
     if (!bracket.html) {
       return NextResponse.json(
         { error: 'Bracket data could not be parsed — the draw may not be published yet' },
@@ -69,6 +86,12 @@ export async function GET(request: Request) {
     }
     return NextResponse.json(bracket)
   } catch (err) {
+    // BAT is down or timing out: an older bracket beats an error page.
+    if (cached) {
+      batFailureAt.set(key, Date.now())
+      console.log(`[bracket] stale fallback tournament=${guid} draw=${drawNum}`)
+      return held() as NextResponse
+    }
     const message = err instanceof Error
       ? err.name === 'AbortError' ? 'Request timed out — try again' : err.message
       : 'Unknown error'

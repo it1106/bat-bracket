@@ -659,6 +659,9 @@ export default function Home() {
     if (round > 0) params.set('fromRound', String(round))
     try {
       const res = await fetch(`/api/bracket?${params}`)
+      // A bracket served from cache because BAT is down raises the banner; a
+      // normal answer says nothing about BAT, so it never lowers it.
+      if (readStaleFlag(res)) setStaleCache(true)
       const data = await safeJson(res) as BracketData | ApiError
       if (isApiError(data)) throw new Error(data.error)
       setBracketHtml(data.html)
