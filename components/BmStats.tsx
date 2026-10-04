@@ -52,6 +52,19 @@ interface Status {
   } | null
   memoryLimitBytes?: number | null
   playerCache?: { writesToday: number; failedToday: number }
+  site?: {
+    count: number
+    medianMs: number | null
+    p95Ms: number | null
+    slow: number
+    errors: number
+    today: number
+    errorsToday: number
+    byRoute: Array<{ route: string; count: number; medianMs: number; p95Ms: number; errors: number }>
+  }
+  browser?: { processes: number; rssBytes: number; cpuPercent: number } | null
+  bwf?: { today: number; failedToday: number; lastHour: number }
+  diskEntries?: Array<{ name: string; bytes: number }>
   visitors: {
     online: number
     peak: number
@@ -61,7 +74,7 @@ interface Status {
   }
 }
 
-type HighKey = 'batDay' | 'batHour' | 'batFailedDay' | 'pagesDay' | 'pagesHour' | 'peakOnline' | 'usersDay'
+type HighKey = 'batDay' | 'batHour' | 'batFailedDay' | 'pagesDay' | 'pagesHour' | 'peakOnline' | 'usersDay' | 'diskUsed'
 
 const num = (n: number) => n.toLocaleString('en-US')
 
@@ -437,6 +450,8 @@ export default function BmStats() {
   const { cpu, memory, disk, worker, bat, pages, visitors, latency, restarts, playerCache } = status
   const highs = status.highs ?? {}
   const history = status.history ?? []
+  const { site, browser, bwf } = status
+  const diskEntries = status.diskEntries ?? []
   const memoryLimit = status.memoryLimitBytes ?? null
   return (
     <div className="bms">
@@ -472,7 +487,72 @@ export default function BmStats() {
             />
           )}
         </div>
+        {disk && diskEntries.length > 0 && (
+          <>
+            <h3 className="bms-subtitle">What is using the disk</h3>
+            <table className="bms-table">
+              <tbody>
+                {diskEntries.map(({ name, bytes: size }) => (
+                  <tr key={name}>
+                    <th scope="row" className="bms-path">{name}</th>
+                    <td>{bytes(size)}</td>
+                    <td className="bms-share">{Math.round((size / disk.usedBytes) * 100)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="bms-note">
+              The app&apos;s folders and PM2&apos;s logs; the rest of the disk is the operating system. Percentages are of
+              the space in use. Measured every ten minutes.
+              {highs.diskUsed && ` Most ever used: ${bytes(highs.diskUsed.value)} on ${dateOf(highs.diskUsed.at, false)}.`}
+            </p>
+          </>
+        )}
       </Card>
+
+      {site && (
+        <Card title="Site requests">
+          <p className="bms-note">
+            What visitors&apos; pages ask this server for: schedules, brackets, players and so on. This is how fast the
+            site feels to them. Heartbeats and this page are left out.
+          </p>
+          <div className="bms-grid">
+            <Tile label="Past 60 minutes" value={num(site.count)} note={`${num(site.today)} today`} />
+            <Tile label="Typical" value={millis(site.medianMs)} note="half of requests were faster" />
+            <Tile label="Slowest 5%" value={millis(site.p95Ms)} note={`${num(site.slow)} took over 3 seconds`} />
+            <Tile label="Errors" value={num(site.errors)} note={`${num(site.errorsToday)} today · server errors only`} />
+          </div>
+          {site.byRoute.length > 0 && (
+            <>
+              <h3 className="bms-subtitle">By type, past 60 minutes</h3>
+              <div className="bms-scroll">
+                <table className="bms-table bms-routes">
+                  <thead>
+                    <tr>
+                      <th scope="col" className="bms-th">Request</th>
+                      <td className="bms-th">Count</td>
+                      <td className="bms-th">Typical</td>
+                      <td className="bms-th">Slowest 5%</td>
+                      <td className="bms-th">Errors</td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {site.byRoute.map((r) => (
+                      <tr key={r.route}>
+                        <th scope="row">{r.route}</th>
+                        <td>{num(r.count)}</td>
+                        <td>{millis(r.medianMs)}</td>
+                        <td>{millis(r.p95Ms)}</td>
+                        <td>{num(r.errors)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </Card>
+      )}
 
       <Card title="Requests to BAT">
         <div className="bms-grid">
@@ -602,6 +682,32 @@ export default function BmStats() {
         )}
         <p className="bms-note">Node {worker.node} · pid {worker.pid}</p>
       </Card>
+
+      {(browser || bwf) && (
+        <Card title="BWF browser">
+          <p className="bms-note">
+            The headless browser the server runs to fetch BWF data. It is separate from the worker, so its memory and
+            CPU are not in the Worker figures above.
+          </p>
+          {browser && (
+            <div className="bms-grid">
+              <Tile label="Memory" value={browser.processes > 0 ? bytes(browser.rssBytes) : '–'} note="added up over its processes" />
+              <Tile label="CPU" value={browser.processes > 0 ? `${Math.round(browser.cpuPercent)}%` : '–'} note="of one core, right now" />
+              <Tile label="Processes" value={num(browser.processes)} note={browser.processes === 0 ? 'not running' : 'running'} />
+            </div>
+          )}
+          {bwf && (
+            <>
+              <h3 className="bms-subtitle">Requests to BWF</h3>
+              <div className="bms-grid">
+                <Tile label="Today" value={num(bwf.today)} />
+                <Tile label="Past 60 minutes" value={num(bwf.lastHour)} />
+                <Tile label="Failed today" value={num(bwf.failedToday)} />
+              </div>
+            </>
+          )}
+        </Card>
+      )}
 
       <Card title="Visitors">
         <div className="bms-grid">

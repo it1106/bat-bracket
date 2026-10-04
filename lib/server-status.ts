@@ -50,7 +50,7 @@ async function availableMemoryBytes(): Promise<number> {
   return os.freemem()
 }
 
-const CPU_SAMPLE_MS = 250
+export const CPU_SAMPLE_MS = 250
 
 export async function getServerStatus(): Promise<ServerStatus> {
   const before = cpuTimes()

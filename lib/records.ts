@@ -13,6 +13,7 @@ export const RECORD_KEYS = [
   'pagesHour',     // page loads in any 60 minutes
   'peakOnline',    // visitors online at the same moment
   'usersDay',      // unique users in one day
+  'diskUsed',      // bytes used on the disk
 ] as const
 export type RecordKey = (typeof RECORD_KEYS)[number]
 

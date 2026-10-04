@@ -1,4 +1,10 @@
 export async function register() {
+  // Time every request the server answers, for the status page. Installed in
+  // every Node deployment, before anything else can start serving.
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { installRequestTimer } = await import('./lib/request-timer')
+    installRequestTimer()
+  }
   if (process.env.NEXT_RUNTIME === 'nodejs' && !process.env.VERCEL) {
     const dns = await import('dns')
     dns.setDefaultResultOrder('ipv4first')

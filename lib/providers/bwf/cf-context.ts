@@ -1,4 +1,5 @@
 import { extractTokenFromHtml } from './url-resolver'
+import { recordBwfFetch } from '@/lib/bwf-fetch-stats'
 
 export interface ChromiumDriver {
   launch(): Promise<DriverContext>
@@ -232,10 +233,12 @@ export async function request<T = unknown>(
   if (res.status >= 400) {
     const ms = Date.now() - start
     console.log(`[bwf-fetch] path=${path} status=${res.status} ms=${ms} FAIL`)
+    recordBwfFetch(path, false)
     throw new Error(`BWF API ${res.status} for ${path}`)
   }
   const ms = Date.now() - start
   console.log(`[bwf-fetch] path=${path} status=${res.status} ms=${ms}`)
+  recordBwfFetch(path, true)
   return res.data as T
 }
 

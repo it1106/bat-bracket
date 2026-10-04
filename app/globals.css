@@ -3846,3 +3846,7 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .bms-history { min-width: 520px; }
 .bms-history th { white-space: nowrap; font-weight: 500; }
 .bms-today { color: var(--muted); font-weight: 400; }
+
+.bms-table .bms-path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all; }
+.bms-routes { min-width: 420px; }
+.bms-routes th { white-space: nowrap; }
