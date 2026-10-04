@@ -29,6 +29,8 @@ interface BracketCacheState {
     { lookup: Map<string, import('./types').MatchPlayer[][][]>; ts: number }
   >
   // Tournaments (lowercased guid) with brackets fetched since the last flush.
+  // Per draw: a match's player key → the same-day time its winner plays next.
+  nextLookupCache: Map<string, { lookup: Map<string, string>; ts: number }>
   dirtyGuids: Set<string>
   // Finished tournaments whose brackets are on disk but not in the Maps above.
   coldGuids: Set<string>
@@ -56,6 +58,7 @@ const state: BracketCacheState = globalState.__bracketCacheState ??= {
   playerNameCache: new Map(),
   siblingLookupCache: new Map(),
   feederLookupCache: new Map(),
+  nextLookupCache: new Map(),
   dirtyGuids: new Set(),
   coldGuids: new Set(),
   warmGuids: [],
@@ -145,6 +148,8 @@ export const rawHtmlCache = state.rawHtmlCache
 // at the moment the lookup was built.
 export const siblingLookupCache = state.siblingLookupCache
 export const feederLookupCache = state.feederLookupCache
+// A globalThis state object that predates this field (a hot reload) won't have it.
+export const nextLookupCache = (state.nextLookupCache ??= new Map())
 // Tiered TTLs by draw activity.
 //   live   = at least one match still has no winner → poll on a tight cycle
 //            so users see results soon after a match finishes.
@@ -410,6 +415,7 @@ function dropFromMemory(guid: string): void {
     state.unparsed.delete(key)
     siblingLookupCache.delete(key)
     feederLookupCache.delete(key)
+    nextLookupCache.delete(key)
   }
   state.coldGuids.add(guid)
 }
@@ -474,6 +480,7 @@ export function __resetBracketStoreForTesting(): void {
   state.storeRestore = null
   siblingLookupCache.clear()
   feederLookupCache.clear()
+  nextLookupCache.clear()
 }
 
 export async function loadBracketStoreFromDisk(): Promise<number> {

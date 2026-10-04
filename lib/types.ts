@@ -111,6 +111,9 @@ export interface MatchEntry {
   // match has no players yet (waiting on a previous-round match to resolve).
   // Length 1 means the other prior-round side was a bye or itself TBD.
   tbdOpponents?: MatchPlayer[][]
+  // "HH:MM" of the next-round match this match's winner would play, set only
+  // when that match is on the same day — "plays again today if they win".
+  winnerNextTime?: string
 }
 
 export interface H2HRecord {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings, parseBracketFeeders } from '@/lib/scraper'
-import { cache as bracketCache, fetchAndCache, rawHtmlCache, siblingLookupCache, feederLookupCache, makeBracketKey, ensureBracketsLoaded } from '@/lib/bracket-cache'
+import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings, parseBracketFeeders, parseBracketNextMatches } from '@/lib/scraper'
+import { cache as bracketCache, fetchAndCache, rawHtmlCache, siblingLookupCache, feederLookupCache, nextLookupCache, makeBracketKey, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
 import { readDayCache, writeDayCache, isDayComplete, shouldMemcacheDayResult, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
@@ -124,6 +124,7 @@ async function enrichBracketContext(
 
   const siblingByDraw = new Map<string, Map<string, string>>()
   const feederByDraw = new Map<string, Map<string, MatchPlayer[][][]>>()
+  const nextByDraw = new Map<string, Map<string, string>>()
 
   // A finished tournament's brackets live on disk until someone opens it;
   // without this the lookups below would refetch every draw from BAT.
@@ -171,6 +172,18 @@ async function enrichBracketContext(
           if (feederLookup.size > 0) feederLookupCache.set(key, { lookup: feederLookup, ts: bracketTs })
         }
         if (feederLookup.size > 0) feederByDraw.set(drawNum, feederLookup)
+
+        // When each match's winner plays next, kept only for same-day cases.
+        const cachedNext = nextLookupCache.get(key)
+        let nextLookup = cachedNext && cachedNext.ts === bracketTs ? cachedNext.lookup : null
+        if (!nextLookup) {
+          nextLookup = new Map<string, string>()
+          for (const e of parseBracketNextMatches(html)) {
+            if (e.sameDay) nextLookup.set(e.players.join(','), e.nextTime)
+          }
+          nextLookupCache.set(key, { lookup: nextLookup, ts: bracketTs })
+        }
+        if (nextLookup.size > 0) nextByDraw.set(drawNum, nextLookup)
       } catch {
         // ignore — this draw just won't have sibling/feeder info
       }
@@ -188,6 +201,10 @@ async function enrichBracketContext(
         const sibling = siblingLookup.get(key)
         if (sibling) m.siblingPlayerIds = sibling
       }
+
+      // Only a match still to be decided has a "next if they win".
+      const nextTime = m.winner === null ? nextByDraw.get(m.drawNum)?.get(key) : undefined
+      if (nextTime) m.winnerNextTime = nextTime
 
       const feederLookup = feederByDraw.get(m.drawNum)
       if (feederLookup) {

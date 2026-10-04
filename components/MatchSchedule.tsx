@@ -12,6 +12,8 @@ import { queryMatchesCountry } from '@/lib/countryCodes'
 import { track } from '@/lib/analytics'
 import { buildNextOppMap } from '@/lib/nextOpp'
 import { useLongPress } from '@/lib/useLongPress'
+import TeamScheduleButton from '@/components/TeamScheduleButton'
+import { buildTeamSchedule } from '@/lib/teamSchedule'
 import { buildFilename, captureMatchImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
 import JumpToNextButton from '@/components/JumpToNextButton'
 import TournamentStatsPanel from '@/components/TournamentStatsPanel'
@@ -34,6 +36,9 @@ interface Props {
   liveByCourt?: Map<string, CourtLive>
   tournamentId?: string
   tournamentName?: string
+  /** Who the current search stands for, for the schedule picture: a custom
+   *  tab's name. Defaults to the search text. */
+  teamLabel?: string
 }
 
 // Extracts the completed sets and the in-progress set from a live record.
@@ -145,6 +150,27 @@ export function summarizeSearchResults(
   return { total: matches.length, won, lost, unplayed }
 }
 
+/** "Sun 4 Oct 2026" for the schedule picture, from the day's ISO date; falls
+ *  back to the day tab's own label when the date is missing or malformed. */
+export function scheduleDateLabel(day: MatchDay | undefined, fallback: string): string {
+  const date = day?.dateIso ? new Date(`${day.dateIso.slice(0, 10)}T12:00:00Z`) : null
+  if (!date || Number.isNaN(date.getTime())) return day?.label ?? fallback
+  // Some runtimes put a comma after the weekday; drop it so the label is the same everywhere.
+  return date.toLocaleDateString('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).replace(',', '')
+}
+
+/** Does this side of a match satisfy the whole search? Mirrors matchesQuery,
+ *  one side at a time. */
+export function sideMatchesQuery(
+  team: MatchPlayer[],
+  entry: MatchEntry,
+  query: string,
+  clubMap?: Record<string, string>,
+): boolean {
+  const groups = parseSearchQuery(query)
+  return groups.length > 0 && groups.every((g) => sideMatchesGroup(team, entry, g, clubMap))
+}
+
 export function matchesQuery(entry: MatchEntry, query: string, clubMap?: Record<string, string>): boolean {
   const groups = parseSearchQuery(query)
   if (groups.length === 0) return true
@@ -187,7 +213,7 @@ function playerMatchesQuery(
   return nameOrClub || queryMatchesCountry(queries, p.country)
 }
 
-export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, highlightMatches = true, showJumpToNext = true, onEventClick, eventToPlayoffDrawNum, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId, tournamentName }: Props) {
+export default function MatchSchedule({ groups, days, selectedDay, onDayChange, loading, playerQuery, excludeCompleted = false, highlightMatches = true, showJumpToNext = true, onEventClick, eventToPlayoffDrawNum, playerClubMap, onPlayerClick, onH2HClick, liveByCourt, tournamentId, tournamentName, teamLabel }: Props) {
   const { t, longRound } = useLanguage()
 
   // Court-based "Followed by" schedules can be re-sorted by match number: the
@@ -813,6 +839,17 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           return (
             <>
               <div className="match-schedule__filter-count">
+                {playerQuery.trim() !== '' && (
+                  <TeamScheduleButton
+                    getRows={() => buildTeamSchedule(displayGroups, {
+                      matches: (m) => matchesQuery(m, playerQuery, playerClubMap),
+                      sideMatches: (team, m) => sideMatchesQuery(team, m, playerQuery, playerClubMap),
+                    })}
+                    tournamentName={tournamentName ?? ''}
+                    teamLabel={teamLabel?.trim() || playerQuery.trim()}
+                    dateLabel={scheduleDateLabel(days.find((d) => d.date === selectedDay), selectedDay)}
+                  />
+                )}
                 {countLabel}
                 {summary && (
                   <>

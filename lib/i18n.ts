@@ -72,6 +72,10 @@ export type TKey =
   | 'appSubtitle'
   | 'appLogoAlt'
   | 'appLogoRefresh'
+  | 'teamScheduleSave'
+  | 'teamScheduleShare'
+  | 'teamScheduleDownload'
+  | 'teamSchedulePlaysAgain'
   | 'tournament'
   | 'officialPage'
   | 'draw'
@@ -368,6 +372,10 @@ const dict: Record<Lang, Record<TKey, string>> = {
     appSubtitle: 'Check BAT official website for accuracy',
     appLogoAlt: 'BatMatch — Unofficial Scoreboard',
     appLogoRefresh: 'Refresh the page',
+    teamScheduleSave: 'Save this schedule as a picture',
+    teamScheduleShare: 'Share',
+    teamScheduleDownload: 'Download',
+    teamSchedulePlaysAgain: 'If wins, plays again',
     tournament: 'Tournament',
     officialPage: 'Official page',
     draw: 'Draw',
@@ -696,6 +704,10 @@ const dict: Record<Lang, Record<TKey, string>> = {
     appSubtitle: 'กรุณาตรวจสอบความถูกต้องจากเว็บไซต์ BAT อีกครั้ง',
     appLogoAlt: 'BatMatch — Unofficial Scoreboard',
     appLogoRefresh: 'รีเฟรชหน้านี้',
+    teamScheduleSave: 'บันทึกตารางแข่งนี้เป็นรูปภาพ',
+    teamScheduleShare: 'แชร์',
+    teamScheduleDownload: 'ดาวน์โหลด',
+    teamSchedulePlaysAgain: 'ผ่านได้มีแข่งต่อ',
     tournament: 'รายการแข่งขัน',
     officialPage: 'หน้าเว็บอย่างเป็นทางการ',
     draw: 'ตารางแข่ง',

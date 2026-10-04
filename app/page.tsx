@@ -200,6 +200,9 @@ export default function Home() {
   const bracketRef = useRef<HTMLDivElement>(null)
   const playerSearchRef = useRef<HTMLInputElement>(null)
   const lastScrollY = useRef(0)
+  // Counts day switches, so an answer for a day the reader has already moved
+  // on from can be told apart from the one they are waiting for.
+  const dayRequestRef = useRef(0)
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
   const autoSelectedTournamentRef = useRef(false)
   const [headerVisible, setHeaderVisible] = useState(true)
@@ -813,15 +816,22 @@ export default function Home() {
   const handleDayChange = useCallback(async (date: string) => {
     if (!selectedTournament) return
     setSelectedDay(date)
+    // Any earlier day request is now out of date, including when this switch
+    // is to the stats tab and makes no request of its own.
+    const request = ++dayRequestRef.current
     if (date === 'stats') return
     setLoadingMatches(true)
     try {
       const res = await fetch(`/api/matches?tournament=${encodeURIComponent(selectedTournament)}&date=${date}`)
+      const data = await safeJson(res)
+      // Days can answer out of order (one may need brackets fetched first).
+      // A late answer for a day the reader has left must not replace the
+      // matches of the day now selected.
+      if (request !== dayRequestRef.current) return
       const stale = readStaleFlag(res)
       if (stale !== null) setStaleCache(stale)
       const disk = readDiskCacheFlag(res)
       if (disk !== null) setDiskCache(disk)
-      const data = await safeJson(res)
       if (!isApiError(data)) {
         const md = data as Pick<MatchesData, 'groups'>
         setMatchGroups(md.groups)
@@ -835,7 +845,8 @@ export default function Home() {
         })
       }
     } catch {}
-    finally { setLoadingMatches(false) }
+    // Only the request the reader is waiting on may end the loading state.
+    finally { if (request === dayRequestRef.current) setLoadingMatches(false) }
   }, [selectedTournament, tournaments])
 
   const handleExport = useCallback(() => {
@@ -1450,6 +1461,7 @@ export default function Home() {
             onDayChange={handleDayChange}
             loading={loadingMatches}
             playerQuery={active.keyword}
+            teamLabel={active.nickname}
             excludeCompleted={false}
             highlightMatches={false}
             onEventClick={handleOpenBracketAtRound}

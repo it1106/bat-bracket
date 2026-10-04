@@ -91,3 +91,59 @@ describe('enrichBracketContext (worked example via selectTbdCandidates)', () => 
     expect(flatIds).toEqual([RONAKORN_ID, RYAN_ID].sort())
   })
 })
+
+import { parseBracketNextMatches } from '@/lib/scraper'
+
+describe('parseBracketNextMatches', () => {
+  // A minimal two-round bracket: two semi-finals feeding one final.
+  const footer = (when: string) =>
+    `<div class="match__footer"><ul class="match__footer-list"><li class="match__footer-list-item"><span class="nav-link__value">${when}</span></li></ul></div>`
+  const row = (id: string) =>
+    `<div class="match__row"><a href="/sport/player.aspx?id=X&player=${id}">P${id}</a></div>`
+  const game = (ids: string[], when: string) => `<div class="match">${ids.map(row).join('')}${footer(when)}</div>`
+  const bracket = (semi1: string, semi2: string, final: string) => `
+    <div class="bracket js-bracket"><swiper-container>
+      <swiper-slide><div class="bracket-round__match-group-wrapper">${semi1}${semi2}</div></swiper-slide>
+      <swiper-slide><div class="bracket-round__match-group-wrapper">${final}</div></swiper-slide>
+    </swiper-container></div>`
+
+  it('gives each match the time of the next-round match its winner plays', () => {
+    const html = bracket(
+      game(['2', '1'], 'อา. 4/10/2569 9:00'),
+      game(['3', '4'], 'อา. 4/10/2569 9:30'),
+      game([], 'อา. 4/10/2569 16:05'),
+    )
+    expect(parseBracketNextMatches(html)).toEqual([
+      { players: ['1', '2'], nextTime: '16:05', nextDate: '4/10/2569', sameDay: true },
+      { players: ['3', '4'], nextTime: '16:05', nextDate: '4/10/2569', sameDay: true },
+    ])
+  })
+
+  it('says when the next match is on a later day', () => {
+    const html = bracket(
+      game(['1', '2'], 'ส. 3/10/2569 9:00'),
+      game(['3', '4'], 'ส. 3/10/2569 9:30'),
+      game([], 'อา. 4/10/2569 10:00'),
+    )
+    expect(parseBracketNextMatches(html).map((e) => e.sameDay)).toEqual([false, false])
+  })
+
+  it('leaves out matches whose next round has no time yet, and empty slots', () => {
+    expect(parseBracketNextMatches(bracket(game(['1', '2'], 'อา. 4/10/2569 9:00'), game(['3', '4'], 'อา. 4/10/2569 9:30'), game([], '')))).toEqual([])
+    const html = bracket(game(['1', '2'], 'อา. 4/10/2569 9:00'), game([], ''), game([], 'อา. 4/10/2569 16:05'))
+    expect(parseBracketNextMatches(html).map((e) => e.players)).toEqual([['1', '2']])
+  })
+
+  it('reads a real BAT bracket', () => {
+    const html = fs.readFileSync(path.join(process.cwd(), 'fixtures', 'bracket-bat-ysb-bsu13.html'), 'utf-8')
+    const entries = parseBracketNextMatches(html)
+    expect(entries.length).toBeGreaterThan(50)
+    expect(entries.find((e) => e.players.join(',') === '3147,3289')).toEqual({
+      players: ['3147', '3289'], nextTime: '11:30', nextDate: '20/6/2569', sameDay: false,
+    })
+    for (const e of entries) {
+      expect(e.nextTime).toMatch(/^\d{1,2}:\d{2}$/)
+      expect(e.nextDate).toMatch(/^\d{1,2}\/\d{1,2}\/\d{4}$/)
+    }
+  })
+})

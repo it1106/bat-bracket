@@ -3854,3 +3854,37 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .bms-table .bms-path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all; }
 .bms-routes { min-width: 420px; }
 .bms-routes th { white-space: nowrap; }
+
+/* ── Team schedule picture (calendar button on a searched schedule) ── */
+.match-schedule__filter-count { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; }
+.ts-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 26px;
+  padding: 0 7px;
+  margin-right: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+}
+.ts-button:hover { background: var(--bg); }
+.ts-button:disabled { opacity: 0.6; cursor: default; }
+.ts-busy { font-size: 12px; }
+.ts-modal { max-width: 640px; padding: 44px 14px 14px; }
+.ts-preview { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; }
+.ts-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.ts-action {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--fg);
+  text-decoration: none;
+  cursor: pointer;
+}
+.ts-action--primary { background: var(--brand); border-color: var(--brand); color: #fff; }

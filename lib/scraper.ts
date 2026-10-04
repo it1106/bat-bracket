@@ -671,6 +671,68 @@ export function parseBracketFeeders(
   return result
 }
 
+// When and where the bracket says a match is scheduled, read from its footer:
+// "ศ. 19/6/2569 13:30" → { date: '19/6/2569', time: '13:30' }. The year is
+// Buddhist-era, as BAT prints it; the date is only ever compared for equality.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractMatchSchedule($: cheerio.CheerioAPI, matchEl: any): { date: string; time: string } | null {
+  let found: { date: string; time: string } | null = null
+  $(matchEl).find('.match__footer-list-item').each((_, item) => {
+    if (found) return
+    const text = $(item).text().replace(/\s+/g, ' ').trim()
+    const date = text.match(/\d{1,2}\/\d{1,2}\/\d{4}/)
+    if (!date) return
+    const time = text.match(/\b(\d{1,2}:\d{2})\b/)
+    found = { date: date[0], time: time ? time[1] : '' }
+  })
+  return found
+}
+
+// For each match in a bracket, when its winner plays next: the schedule of
+// the next-round match it feeds. `players` is the sorted flat list of the
+// match's player IDs, the same join key the sibling and feeder lookups use.
+// `sameDay` says whether that next match is on the same day as this one —
+// the "plays again today if they win" case. Matches whose next round has no
+// time yet are left out.
+export function parseBracketNextMatches(
+  html: string,
+): Array<{ players: string[]; nextTime: string; nextDate: string; sameDay: boolean }> {
+  const $ = cheerio.load(html, { xmlMode: false })
+  const bracket = $('.bracket.js-bracket')
+  if (!bracket.length) return []
+
+  const slides = bracket.find('swiper-container > swiper-slide').filter(
+    (_, slide) => $(slide).find('.bracket-round__match-group-wrapper').length > 0,
+  )
+
+  const result: Array<{ players: string[]; nextTime: string; nextDate: string; sameDay: boolean }> = []
+  for (let r = 0; r < slides.length - 1; r++) {
+    // Same pairing as parseBracketFeeders: wrapper `gi` in round R holds the
+    // two matches whose winners meet in round R+1's match `gi`.
+    const nextMatches = slides.eq(r + 1).find('.bracket-round__match-group-wrapper .match')
+    slides.eq(r).find('.bracket-round__match-group-wrapper').each((gi, group) => {
+      const children = $(group).find('.match')
+      if (children.length !== 2) return
+      const next = nextMatches.eq(gi)
+      if (!next.length) return
+      const nextSchedule = extractMatchSchedule($, next[0])
+      if (!nextSchedule || !nextSchedule.time) return
+      children.each((_, child) => {
+        const players = extractFlatPlayerIds($, child).slice().sort()
+        if (players.length === 0) return
+        const own = extractMatchSchedule($, child)
+        result.push({
+          players,
+          nextTime: nextSchedule.time,
+          nextDate: nextSchedule.date,
+          sameDay: !!own && own.date === nextSchedule.date,
+        })
+      })
+    })
+  }
+  return result
+}
+
 // Splits a "Duration: 23m | Main Location - 5" tooltip into its parts.
 // Either segment may be missing; venue-address-only tooltips fall through
 // as `court` (caller decides whether to keep that or discard it).
