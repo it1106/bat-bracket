@@ -49,38 +49,60 @@ export function parseRestarts(log: string, day: string, appName: string): Restar
   return info
 }
 
-interface Pm2Env { name?: string; max_memory_restart?: number }
+export interface Pm2Settings {
+  /** PM2's home directory, where pm2.log lives. */
+  home: string
+  /** This app's name in PM2. */
+  name: string
+  /** Bytes at which PM2 restarts the worker, or null if no limit is set. */
+  memoryLimit: number | null
+}
 
-function pm2Env(): Pm2Env | null {
-  try {
-    return process.env.pm2_env ? (JSON.parse(process.env.pm2_env) as Pm2Env) : null
-  } catch {
-    return null
+/** What PM2 told this worker about itself, or null when not running under
+ *  PM2. PM2 starts a worker with one JSON variable, `pm2_env`, then spreads
+ *  its fields into the environment as individual variables and deletes the
+ *  original — so the worker normally sees `name`, `pm_id` and
+ *  `max_memory_restart` directly. */
+export function pm2Settings(env: Record<string, string | undefined>): Pm2Settings | null {
+  const home = env.PM2_HOME
+  if (!home) return null
+  let name: string | undefined
+  let limit: unknown
+  if (env.pm_id !== undefined) {
+    name = env.name
+    limit = env.max_memory_restart
+  } else if (env.pm2_env) {
+    try {
+      const parsed = JSON.parse(env.pm2_env) as { name?: string; max_memory_restart?: unknown }
+      name = parsed.name
+      limit = parsed.max_memory_restart
+    } catch { /* not PM2's JSON */ }
   }
+  if (!name) return null
+  const bytes = Number(limit)
+  return { home, name, memoryLimit: limit !== undefined && bytes > 0 ? bytes : null }
 }
 
 /** The memory limit PM2 restarts this worker at, in bytes, if it has one. */
 export function memoryLimitBytes(): number | null {
-  const limit = pm2Env()?.max_memory_restart
-  return typeof limit === 'number' && limit > 0 ? limit : null
+  return pm2Settings(process.env)?.memoryLimit ?? null
 }
 
 // The log is small, but only its tail is needed and it grows for ever.
 const TAIL_BYTES = 512 * 1024
 
 export function getRestartInfo(): RestartInfo | null {
-  const home = process.env.PM2_HOME
-  const name = pm2Env()?.name
-  if (!home || !name) return null
+  const pm2 = pm2Settings(process.env)
+  if (!pm2) return null
   try {
-    const file = path.join(home, 'pm2.log')
+    const file = path.join(pm2.home, 'pm2.log')
     const size = fs.statSync(file).size
     const fd = fs.openSync(file, 'r')
     try {
       const length = Math.min(size, TAIL_BYTES)
       const buf = Buffer.alloc(length)
       fs.readSync(fd, buf, 0, length, size - length)
-      return parseRestarts(buf.toString('utf8'), dayOf(Date.now()), name)
+      return parseRestarts(buf.toString('utf8'), dayOf(Date.now()), pm2.name)
     } finally {
       fs.closeSync(fd)
     }

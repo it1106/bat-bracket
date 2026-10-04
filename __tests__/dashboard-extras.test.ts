@@ -109,3 +109,27 @@ describe('parseRestarts', () => {
     expect(parseRestarts(log, '2026-10-03', 'bat-bracket').last).toEqual({ at: '2026-10-03T23:59:00', reason: 'reload' })
   })
 })
+
+describe('pm2Settings', () => {
+  // Imported lazily: the module reads the real environment at call time only.
+  const { pm2Settings } = jest.requireActual('../lib/pm2-restarts') as typeof import('../lib/pm2-restarts')
+
+  it('reads the settings PM2 flattens into the worker\'s environment', () => {
+    expect(pm2Settings({ PM2_HOME: '/root/.pm2', pm_id: '1', name: 'bat-bracket', max_memory_restart: '3145728000' }))
+      .toEqual({ home: '/root/.pm2', name: 'bat-bracket', memoryLimit: 3145728000 })
+  })
+
+  it('also accepts the single JSON variable PM2 starts the process with', () => {
+    expect(pm2Settings({ PM2_HOME: '/h', pm2_env: '{"name":"app","max_memory_restart":1000}' }))
+      .toEqual({ home: '/h', name: 'app', memoryLimit: 1000 })
+  })
+
+  it('reports no limit when PM2 has none set', () => {
+    expect(pm2Settings({ PM2_HOME: '/h', pm_id: '0', name: 'app' })).toEqual({ home: '/h', name: 'app', memoryLimit: null })
+  })
+
+  it('is null outside PM2, even if something else sets a "name" variable', () => {
+    expect(pm2Settings({ name: 'not-pm2' })).toBeNull()
+    expect(pm2Settings({})).toBeNull()
+  })
+})
