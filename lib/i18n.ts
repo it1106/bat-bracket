@@ -109,6 +109,7 @@ export type TKey =
   | 'tournamentInformation'
   | 'seededEntries'
   | 'staleCacheBanner'
+  | 'staleCacheBannerSince'
   | 'diskCacheBadge'
   | 'diskCacheBadgeTooltip'
   | 'bracket'
@@ -408,7 +409,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     overview: 'Overview',
     tournamentInformation: 'Tournament Information',
     seededEntries: 'Seeded Entries',
-    staleCacheBanner: 'BAT is unreachable — serving from cache. Data may be a few minutes behind.',
+    staleCacheBanner: 'BAT server is down — serving from cache. Data may be behind.',
+    staleCacheBannerSince: 'BAT server is down since {time} — serving from cache. Data may be behind.',
     diskCacheBadge: 'Cached',
     diskCacheBadgeTooltip: 'Served from disk cache (immutable past data). No live BAT call was made for this page.',
     bracket: 'Bracket',
@@ -740,7 +742,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     overview: 'ภาพรวม',
     tournamentInformation: 'ข้อมูลการแข่งขัน',
     seededEntries: 'การวางมือ',
-    staleCacheBanner: 'เชื่อมต่อ BAT ไม่ได้ — กำลังแสดงข้อมูลจากแคช ข้อมูลอาจล่าช้าไปสองสามนาที',
+    staleCacheBanner: 'เซิร์ฟเวอร์ BAT ล่ม — กำลังแสดงข้อมูลจากแคช ข้อมูลอาจไม่เป็นปัจจุบัน',
+    staleCacheBannerSince: 'เซิร์ฟเวอร์ BAT ล่มตั้งแต่ {time} — กำลังแสดงข้อมูลจากแคช ข้อมูลอาจไม่เป็นปัจจุบัน',
     diskCacheBadge: 'จากแคช',
     diskCacheBadgeTooltip: 'ข้อมูลจากแคชดิสก์ (ข้อมูลในอดีตที่ไม่เปลี่ยนแปลง) หน้านี้ไม่ได้ดึงข้อมูลสดจาก BAT',
     bracket: 'สายแข่ง',

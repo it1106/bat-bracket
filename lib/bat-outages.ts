@@ -280,6 +280,13 @@ export function getBatOutages(limit: number): BatOutageStatus {
   }
 }
 
+/** ISO time the outage in progress began, or null when BAT is not down. */
+export function batDownSince(): string | null {
+  ensureLoaded()
+  const current = shared.tracker.current()
+  return current ? new Date(current.start).toISOString() : null
+}
+
 /** How often BAT is probed while it is down or looks it, and how long it may
  *  go unasked otherwise before a probe goes out. */
 export const PROBE_WHEN_DOWN_MS = 60_000

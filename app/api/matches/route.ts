@@ -4,6 +4,7 @@ import { cache as bracketCache, bracketHtmlForSchedule, siblingLookupCache, feed
 import { batFetch } from '@/lib/bat-fetch'
 import { readDayCache, writeDayCache, isDayComplete, shouldMemcacheDayResult, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
+import { staleHeaders } from '@/lib/stale-headers'
 import { readLastGoodDay, writeLastGoodDay, readLastGoodFull, writeLastGoodFull } from '@/lib/schedule-last-good'
 import { providerFor } from '@/lib/providers/resolve'
 import { getTodayIso } from '@/lib/today'
@@ -73,10 +74,6 @@ function markBatFailure(key: string): void {
 
 function clearBatFailure(key: string): void {
   batFailureAt.delete(key)
-}
-
-function staleHeaders(): Record<string, string> {
-  return { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' }
 }
 
 // BAT uses Buddhist-year YYYYMMDD ("25690504"). Some callers may pass ISO

@@ -16,6 +16,7 @@ import { usePointerReorder } from '@/lib/usePointerReorder'
 import { schedulePollUrl } from '@/lib/schedulePoll'
 import AnnouncementBanner from '@/components/AnnouncementBanner'
 import StaleCacheBanner from '@/components/StaleCacheBanner'
+import { noteBatDownSince } from '@/lib/batDownSince'
 import DiskCacheBadge from '@/components/DiskCacheBadge'
 import OnlinePill from '@/components/OnlinePill'
 import TextSizeButton from '@/components/TextSizeButton'
@@ -80,6 +81,7 @@ async function safeJson(res: Response): Promise<unknown> {
 // pretend BAT is fine just because our route returned 500.
 function readStaleFlag(res: Response): boolean | null {
   if (!res.ok) return null
+  noteBatDownSince(res)
   return res.headers.get('X-Stale-Cache') === '1'
 }
 

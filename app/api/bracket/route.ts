@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cache, ttlMsFor, makeBracketKey, fetchAndCache, fetchBracketFromRound, rawHtmlCache, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { parseBracket } from '@/lib/scraper'
+import { staleHeaders } from '@/lib/stale-headers'
 
 export const maxDuration = 60
 
@@ -10,7 +11,6 @@ export const maxDuration = 60
 const BAT_BACKOFF_MS = 30_000
 const batFailureAt = new Map<string, number>()
 
-const staleHeaders = { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' }
 
 function extractIds(url: string): { guid: string; drawNum: string } | null {
   const m = url.match(/\/tournament\/([0-9a-f-]{36})\/draw\/(\d+)/i)
@@ -71,7 +71,7 @@ export async function GET(request: Request) {
   const held = () =>
     cached && NextResponse.json(
       fromRound > 0 ? parseBracket(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket,
-      { headers: staleHeaders },
+      { headers: staleHeaders() },
     )
   if (cached && Date.now() - (batFailureAt.get(key) ?? 0) < BAT_BACKOFF_MS) return held() as NextResponse
 

@@ -5,6 +5,7 @@ import {
 } from '@/lib/draws-cache'
 import { cachedEntrantCounts } from '@/lib/bracket-cache'
 import type { DrawInfo } from '@/lib/types'
+import { staleHeaders } from '@/lib/stale-headers'
 
 export const maxDuration = 60
 
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
   // could fire — see the same pattern in /api/matches.
   if (cached && inBackoff(id)) {
     return NextResponse.json(filter(cached.draws), {
-      headers: { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' },
+      headers: staleHeaders(),
     })
   }
 
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
       const message = err instanceof Error ? err.message : 'unknown'
       console.log(`[draws] stale fallback id=${id} err=${message}`)
       return NextResponse.json(filter(cached.draws), {
-        headers: { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' },
+        headers: staleHeaders(),
       })
     }
     const message = err instanceof Error

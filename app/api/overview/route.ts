@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cache, TTL_MS, fetchAndCache } from '@/lib/overview-cache'
+import { staleHeaders } from '@/lib/stale-headers'
 
 export const maxDuration = 60
 
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
       // No-store so neither the browser nor CDN pins the stale copy past this
       // request — the next call still hits the route and retries upstream.
       return NextResponse.json(data, {
-        headers: { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' },
+        headers: staleHeaders(),
       })
     }
     return NextResponse.json(data)
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
       const message = err instanceof Error ? err.message : 'unknown'
       console.log(`[overview] stale fallback (exception path) id=${id} err=${message}`)
       return NextResponse.json(prev.data, {
-        headers: { 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' },
+        headers: staleHeaders(),
       })
     }
     const message = err instanceof Error ? err.message : 'Unknown error'

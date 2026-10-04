@@ -7,6 +7,7 @@
 // clears automatically when the next request succeeds without the header.
 
 import { useLanguage } from '@/lib/LanguageContext'
+import { useBatDownSince, formatDownSince } from '@/lib/batDownSince'
 
 interface Props {
   visible: boolean
@@ -14,7 +15,13 @@ interface Props {
 
 export default function StaleCacheBanner({ visible }: Props) {
   const { t } = useLanguage()
+  const since = useBatDownSince()
   if (!visible) return null
+  // The server names the time once it has seen enough failures to call it an
+  // outage; until then the banner goes without one.
+  const text = since
+    ? t('staleCacheBannerSince').replace('{time}', formatDownSince(since, Date.now()))
+    : t('staleCacheBanner')
   return (
     <div
       role="status"
@@ -22,7 +29,7 @@ export default function StaleCacheBanner({ visible }: Props) {
       className="flex items-center gap-2 px-5 py-1.5 bg-red-600 border-b border-red-700 text-xs text-white font-medium"
     >
       <span aria-hidden="true">⚠</span>
-      <span>{t('staleCacheBanner')}</span>
+      <span>{text}</span>
     </div>
   )
 }
