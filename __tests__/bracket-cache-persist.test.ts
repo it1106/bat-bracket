@@ -339,3 +339,23 @@ describe('restoring the store early in boot', () => {
     read.mockRestore()
   })
 })
+
+describe('fetching a bracket', () => {
+  const mockFetch = batFetch as jest.Mock
+
+  it('asks BAT once when several readers want the same draw at the same moment', async () => {
+    mockFetch.mockReset()
+    mockFetch.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 20))
+      return { ok: true, text: async () => 'fetched' }
+    })
+    const { fetchAndCache } = await import('../lib/bracket-cache')
+    const results = await Promise.all([fetchAndCache(A, '5'), fetchAndCache(A, '5'), fetchAndCache(A, '5')])
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(results.map((r) => r.html)).toEqual(Array(3).fill('<parsed>fetched</parsed>'))
+
+    // Once it has finished, a later request fetches again.
+    await fetchAndCache(A, '5')
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+  })
+})

@@ -23,6 +23,7 @@ interface Status {
     rssBytes: number
     peakRssBytes: number
     heapUsedBytes: number
+    heapLimitBytes?: number
   }
   bat: {
     day: string
@@ -680,7 +681,10 @@ export default function BmStats() {
             <Tile label="Starts today" value={num(bat.startsToday)} note="times the worker has started since midnight" />
           </div>
         )}
-        <p className="bms-note">Node {worker.node} · pid {worker.pid}</p>
+        <p className="bms-note">
+          Node {worker.node} · pid {worker.pid}
+          {worker.heapLimitBytes ? ` · heap ${bytes(worker.heapUsedBytes)} of a ${bytes(worker.heapLimitBytes)} ceiling` : ''}
+        </p>
       </Card>
 
       {(browser || bwf) && (

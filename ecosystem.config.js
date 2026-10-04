@@ -18,6 +18,17 @@ module.exports = {
     instances: 2,
     exec_mode: "cluster",
     max_memory_restart: "3000M",
+    // Node's own heap ceiling, set above max_memory_restart so that PM2
+    // replaces a bloated worker gracefully before Node aborts on its own
+    // (which drops the requests in flight). At the default ~2.2 GB the worker
+    // was aborting during startup and index rebuilds. If it ever does abort,
+    // the report says why — PM2 loses a dying worker's last output.
+    node_args: [
+      "--max-old-space-size=3584",
+      "--report-on-fatalerror",
+      "--report-compact",
+      "--report-directory=/root/app/.cache/crash-reports",
+    ],
     env: { NODE_ENV: "production" },
   }],
 }

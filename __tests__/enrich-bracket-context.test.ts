@@ -147,3 +147,17 @@ describe('parseBracketNextMatches', () => {
     }
   })
 })
+
+import { parseBracketContext, parseBracketSiblings } from '@/lib/scraper'
+
+describe('parseBracketContext', () => {
+  it('gives the same three answers as the separate parsers, from one parse', () => {
+    const html = fs.readFileSync(path.join(process.cwd(), 'fixtures', 'bracket-bat-ysb-bsu13.html'), 'utf-8')
+    const context = parseBracketContext(html)
+    expect(context.siblings).toEqual(parseBracketSiblings(html))
+    expect(context.feeders).toEqual(parseBracketFeeders(html))
+    expect(context.nextMatches).toEqual(parseBracketNextMatches(html))
+    expect(context.siblings.length).toBeGreaterThan(0)
+    expect(context.feeders.length).toBeGreaterThan(0)
+  })
+})

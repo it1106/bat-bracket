@@ -43,6 +43,7 @@ jest.mock('../lib/scraper', () => ({
   })),
   parseBracketSiblings: jest.fn(() => []),
   parseBracketFeeders: jest.fn(() => []),
+  parseBracketContext: jest.fn(() => ({ siblings: [], feeders: [], nextMatches: [] })),
 }))
 
 import { batFetch } from '@/lib/bat-fetch'

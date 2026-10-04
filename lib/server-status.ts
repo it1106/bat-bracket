@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs'
 import os from 'os'
+import v8 from 'v8'
 
 // Host and worker figures for the /bmstats status page. Server-only.
 
@@ -15,6 +16,8 @@ export interface ServerStatus {
     rssBytes: number
     peakRssBytes: number
     heapUsedBytes: number
+    /** The most heap Node will use before it aborts (--max-old-space-size). */
+    heapLimitBytes: number
   }
 }
 
@@ -81,6 +84,7 @@ export async function getServerStatus(): Promise<ServerStatus> {
       // maxRSS is reported in kilobytes.
       peakRssBytes: process.resourceUsage().maxRSS * 1024,
       heapUsedBytes: mem.heapUsed,
+      heapLimitBytes: v8.getHeapStatistics().heap_size_limit,
     },
   }
 }

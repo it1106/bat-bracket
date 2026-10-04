@@ -238,7 +238,22 @@ export async function fetchBracketFromRound(guid: string, drawNum: string, fromR
   return providerFor(ref).getBracket(ref, drawNum, fromRound)
 }
 
-export async function fetchAndCache(guid: string, drawNum: string): Promise<BracketData> {
+// Fetches in flight, by bracket key. A freshly started server gets the same
+// draw asked for by several readers at once; they share one request to BAT
+// instead of each making (and parsing) their own.
+const inFlightFetches = new Map<string, Promise<BracketData>>()
+
+export function fetchAndCache(guid: string, drawNum: string): Promise<BracketData> {
+  const key = makeBracketKey(guid, drawNum)
+  let pending = inFlightFetches.get(key)
+  if (!pending) {
+    pending = fetchAndCacheNow(guid, drawNum).finally(() => inFlightFetches.delete(key))
+    inFlightFetches.set(key, pending)
+  }
+  return pending
+}
+
+async function fetchAndCacheNow(guid: string, drawNum: string): Promise<BracketData> {
   const bracket = await fetchBracket(guid, drawNum)
   const done = getCachedDraws(guid)?.done
   const isStatic = isBracketStatic(bracket.html)

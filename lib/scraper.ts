@@ -583,7 +583,10 @@ export function extractFlatPlayerIds($: cheerio.CheerioAPI, matchEl: any): strin
 // entry per match, with `players` = sorted player IDs of that match and
 // `siblingPlayers` = sorted player IDs of its sibling.
 export function parseBracketSiblings(html: string): Array<{ players: string[]; siblingPlayers: string[] }> {
-  const $ = cheerio.load(html, { xmlMode: false })
+  return siblingsFrom(cheerio.load(html, { xmlMode: false }))
+}
+
+function siblingsFrom($: cheerio.CheerioAPI): Array<{ players: string[]; siblingPlayers: string[] }> {
   const bracket = $('.bracket.js-bracket')
   if (!bracket.length) return []
 
@@ -628,7 +631,10 @@ export function parseBracketSiblings(html: string): Array<{ players: string[]; s
 export function parseBracketFeeders(
   html: string,
 ): Array<{ players: string[]; childMatches: MatchPlayer[][][] }> {
-  const $ = cheerio.load(html, { xmlMode: false })
+  return feedersFrom(cheerio.load(html, { xmlMode: false }))
+}
+
+function feedersFrom($: cheerio.CheerioAPI): Array<{ players: string[]; childMatches: MatchPlayer[][][] }> {
   const bracket = $('.bracket.js-bracket')
   if (!bracket.length) return []
 
@@ -697,7 +703,26 @@ function extractMatchSchedule($: cheerio.CheerioAPI, matchEl: any): { date: stri
 export function parseBracketNextMatches(
   html: string,
 ): Array<{ players: string[]; nextTime: string; nextDate: string; sameDay: boolean }> {
+  return nextMatchesFrom(cheerio.load(html, { xmlMode: false }))
+}
+
+/** Everything the schedule wants from a bracket — siblings, feeders and next
+ *  matches — from a single parse of its HTML. Parsing is the expensive part
+ *  (a bracket is ~100 KB of markup), and the schedule needs all three for
+ *  every draw on the day, so doing it once per draw instead of three times
+ *  matters most on a freshly started server answering many readers at once. */
+export function parseBracketContext(html: string): {
+  siblings: ReturnType<typeof parseBracketSiblings>
+  feeders: ReturnType<typeof parseBracketFeeders>
+  nextMatches: ReturnType<typeof parseBracketNextMatches>
+} {
   const $ = cheerio.load(html, { xmlMode: false })
+  return { siblings: siblingsFrom($), feeders: feedersFrom($), nextMatches: nextMatchesFrom($) }
+}
+
+function nextMatchesFrom(
+  $: cheerio.CheerioAPI,
+): Array<{ players: string[]; nextTime: string; nextDate: string; sameDay: boolean }> {
   const bracket = $('.bracket.js-bracket')
   if (!bracket.length) return []
 

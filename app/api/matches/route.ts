@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { parseMatchesFull, parseMatchesPartial, parseBracketSiblings, parseBracketFeeders, parseBracketNextMatches } from '@/lib/scraper'
+import { parseMatchesFull, parseMatchesPartial, parseBracketContext } from '@/lib/scraper'
 import { cache as bracketCache, fetchAndCache, rawHtmlCache, siblingLookupCache, feederLookupCache, nextLookupCache, makeBracketKey, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
 import { readDayCache, writeDayCache, isDayComplete, shouldMemcacheDayResult, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
@@ -148,42 +148,30 @@ async function enrichBracketContext(
         const bracketTs = bracketCache.get(key)?.ts ?? 0
 
         // Siblings (existing).
-        const cachedSibling = siblingLookupCache.get(key)
-        let siblingLookup =
-          cachedSibling && cachedSibling.ts === bracketTs ? cachedSibling.lookup : null
-        if (!siblingLookup) {
-          const pairs = parseBracketSiblings(html)
-          siblingLookup = new Map<string, string>()
-          for (const p of pairs) {
-            siblingLookup.set(p.players.join(','), p.siblingPlayers.join(','))
+        // Siblings, feeders and same-day next matches all come out of one
+        // parse of the bracket, redone only when the bracket itself changes
+        // (its `ts` moves). Results are remembered even when empty, so a draw
+        // with nothing to offer is not parsed again on every request.
+        let sibling = siblingLookupCache.get(key)
+        let feeder = feederLookupCache.get(key)
+        let next = nextLookupCache.get(key)
+        if (sibling?.ts !== bracketTs || feeder?.ts !== bracketTs || next?.ts !== bracketTs) {
+          const context = parseBracketContext(html)
+          sibling = { lookup: new Map<string, string>(), ts: bracketTs }
+          for (const p of context.siblings) sibling.lookup.set(p.players.join(','), p.siblingPlayers.join(','))
+          feeder = { lookup: new Map<string, MatchPlayer[][][]>(), ts: bracketTs }
+          for (const e of context.feeders) feeder.lookup.set(e.players.join(','), e.childMatches)
+          next = { lookup: new Map<string, string>(), ts: bracketTs }
+          for (const e of context.nextMatches) {
+            if (e.sameDay) next.lookup.set(e.players.join(','), e.nextTime)
           }
-          if (siblingLookup.size > 0) siblingLookupCache.set(key, { lookup: siblingLookup, ts: bracketTs })
+          siblingLookupCache.set(key, sibling)
+          feederLookupCache.set(key, feeder)
+          nextLookupCache.set(key, next)
         }
-        if (siblingLookup.size > 0) siblingByDraw.set(drawNum, siblingLookup)
-
-        // Feeders (new).
-        const cachedFeeder = feederLookupCache.get(key)
-        let feederLookup =
-          cachedFeeder && cachedFeeder.ts === bracketTs ? cachedFeeder.lookup : null
-        if (!feederLookup) {
-          const entries = parseBracketFeeders(html)
-          feederLookup = new Map<string, MatchPlayer[][][]>()
-          for (const e of entries) feederLookup.set(e.players.join(','), e.childMatches)
-          if (feederLookup.size > 0) feederLookupCache.set(key, { lookup: feederLookup, ts: bracketTs })
-        }
-        if (feederLookup.size > 0) feederByDraw.set(drawNum, feederLookup)
-
-        // When each match's winner plays next, kept only for same-day cases.
-        const cachedNext = nextLookupCache.get(key)
-        let nextLookup = cachedNext && cachedNext.ts === bracketTs ? cachedNext.lookup : null
-        if (!nextLookup) {
-          nextLookup = new Map<string, string>()
-          for (const e of parseBracketNextMatches(html)) {
-            if (e.sameDay) nextLookup.set(e.players.join(','), e.nextTime)
-          }
-          nextLookupCache.set(key, { lookup: nextLookup, ts: bracketTs })
-        }
-        if (nextLookup.size > 0) nextByDraw.set(drawNum, nextLookup)
+        if (sibling.lookup.size > 0) siblingByDraw.set(drawNum, sibling.lookup)
+        if (feeder.lookup.size > 0) feederByDraw.set(drawNum, feeder.lookup)
+        if (next.lookup.size > 0) nextByDraw.set(drawNum, next.lookup)
       } catch {
         // ignore — this draw just won't have sibling/feeder info
       }
