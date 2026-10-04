@@ -19,6 +19,17 @@ export interface RestartInfo {
   crashes: number
   /** The most recent start: local time as PM2 logged it, and why. */
   last: { at: string; reason: RestartReason } | null
+  /** Every start today, oldest first. */
+  events: RestartEvent[]
+}
+
+export interface RestartEvent {
+  /** Local time as PM2 logged it, "YYYY-MM-DDTHH:MM:SS". */
+  at: string
+  reason: RestartReason
+  /** What PM2 recorded about it: memory used against the limit, or the
+   *  signal and exit code of a crash. Empty for a reload. */
+  detail: string
 }
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -30,20 +41,27 @@ export function parseRestarts(log: string, day: string, appName: string): Restar
   // A reload stops the previous worker as "_old_N"; a worker that exits under
   // its own id died on its own.
   const died = new RegExp(`App \\[${app}:\\d+\\] exited with code`)
-  const info: RestartInfo = { starts: 0, reloads: 0, memory: 0, crashes: 0, last: null }
-  let pending: RestartReason | null = null
+  const info: RestartInfo = { starts: 0, reloads: 0, memory: 0, crashes: 0, last: null, events: [] }
+  const megabytes = (bytes: string) => Math.round(Number(bytes) / (1024 * 1024))
+  let pending: { reason: RestartReason; detail: string } | null = null
   for (const line of log.split('\n')) {
     if (!line.startsWith(day)) continue
-    if (line.includes('exceeds --max-memory-restart')) pending = 'memory'
-    else if (died.test(line)) pending = 'crash'
-    else if (started.test(line)) {
-      const reason = pending ?? 'reload'
+    if (line.includes('exceeds --max-memory-restart')) {
+      const m = line.match(/current_memory=(\d+) max_memory_limit=(\d+)/)
+      pending = { reason: 'memory', detail: m ? `used ${megabytes(m[1])} MB, limit ${megabytes(m[2])} MB` : '' }
+    } else if (died.test(line)) {
+      const m = line.match(/exited with code \[(\d+)\] via signal \[(\w+)\]/)
+      pending = { reason: 'crash', detail: m ? `signal ${m[2]}, exit code ${m[1]}` : '' }
+    } else if (started.test(line)) {
+      const { reason, detail } = pending ?? { reason: 'reload' as const, detail: '' }
       pending = null
       info.starts++
       if (reason === 'memory') info.memory++
       else if (reason === 'crash') info.crashes++
       else info.reloads++
-      info.last = { at: line.slice(0, 19), reason }
+      const at = line.slice(0, 19)
+      info.last = { at, reason }
+      info.events.push({ at, reason, detail })
     }
   }
   return info

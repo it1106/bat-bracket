@@ -50,6 +50,7 @@ interface Status {
     memory: number
     crashes: number
     last: { at: string; reason: 'reload' | 'memory' | 'crash' } | null
+    events?: Array<{ at: string; reason: 'reload' | 'memory' | 'crash'; detail: string }>
   } | null
   memoryLimitBytes?: number | null
   playerCache?: { writesToday: number; failedToday: number }
@@ -99,6 +100,13 @@ function millis(ms: number | null): string {
 }
 
 const RESTART_REASON = { reload: 'deploy or reload', memory: 'memory limit', crash: 'crash' } as const
+// What each kind of start is called in the list of today's starts, and what
+// it means. A planned one reads green; one nobody asked for reads red.
+const RESTART_LABEL = {
+  reload: { title: 'Planned restart', meaning: 'a deploy or a manual reload' },
+  memory: { title: 'Memory limit', meaning: 'PM2 replaced the worker for using too much memory' },
+  crash: { title: 'Crash', meaning: 'the worker stopped on its own' },
+} as const
 
 function duration(seconds: number): string {
   const d = Math.floor(seconds / 86400)
@@ -675,6 +683,21 @@ export default function BmStats() {
                 ? `Last start ${restarts.last.at.slice(11, 16)}: ${RESTART_REASON[restarts.last.reason]}.`
                 : 'No starts today; the worker has been running since before midnight.'}
             </p>
+            {restarts.events && restarts.events.length > 0 && (
+              <ol className="bms-events" aria-label="Starts today, most recent first">
+                {[...restarts.events].reverse().map((event, i) => (
+                  <li key={`${event.at}-${i}`} className={`bms-event bms-event--${event.reason === 'reload' ? 'planned' : 'problem'}`}>
+                    <span className="bms-event-time">{event.at.slice(11, 19)}</span>
+                    <span className="bms-event-what">
+                      <b>{RESTART_LABEL[event.reason].title}</b>
+                      {' — '}
+                      {RESTART_LABEL[event.reason].meaning}
+                      {event.detail && ` (${event.detail})`}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
           </>
         ) : (
           <div className="bms-grid">

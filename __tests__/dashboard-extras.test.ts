@@ -90,7 +90,7 @@ describe('parseRestarts', () => {
   ].join('\n')
 
   it('splits today\'s starts into reloads, memory-limit restarts and crashes', () => {
-    expect(parseRestarts(log, '2026-10-04', 'bat-bracket')).toEqual({
+    expect(parseRestarts(log, '2026-10-04', 'bat-bracket')).toMatchObject({
       starts: 3,
       reloads: 1,
       memory: 1,
@@ -99,9 +99,27 @@ describe('parseRestarts', () => {
     })
   })
 
+  it('lists each start with its time and what caused it, oldest first', () => {
+    expect(parseRestarts(log, '2026-10-04', 'bat-bracket').events).toEqual([
+      { at: '2026-10-04T07:31:05', reason: 'reload', detail: '' },
+      { at: '2026-10-04T09:12:55', reason: 'memory', detail: 'used 3052 MB, limit 3000 MB' },
+      { at: '2026-10-04T11:40:02', reason: 'crash', detail: 'signal SIGABRT, exit code 0' },
+    ])
+  })
+
+  it('describes a crash that exited with an error code and no signal', () => {
+    const crashed = [
+      '2026-10-04T08:00:00: PM2 log: App [bat-bracket:1] exited with code [1] via signal [SIGINT]',
+      '2026-10-04T08:00:00: PM2 log: App [bat-bracket:1] starting in -cluster mode-',
+    ].join('\n')
+    expect(parseRestarts(crashed, '2026-10-04', 'bat-bracket').events).toEqual([
+      { at: '2026-10-04T08:00:00', reason: 'crash', detail: 'signal SIGINT, exit code 1' },
+    ])
+  })
+
   it('reports a quiet day as zeroes', () => {
     expect(parseRestarts(log, '2026-10-05', 'bat-bracket')).toEqual({
-      starts: 0, reloads: 0, memory: 0, crashes: 0, last: null,
+      starts: 0, reloads: 0, memory: 0, crashes: 0, last: null, events: [],
     })
   })
 
