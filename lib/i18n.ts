@@ -707,7 +707,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     teamScheduleSave: 'บันทึกตารางแข่งนี้เป็นรูปภาพ',
     teamScheduleShare: 'แชร์',
     teamScheduleDownload: 'ดาวน์โหลด',
-    teamSchedulePlaysAgain: 'ผ่านได้มีแข่งต่อ',
+    teamSchedulePlaysAgain: 'ถ้าผ่านมีแข่งต่อ',
     tournament: 'รายการแข่งขัน',
     officialPage: 'หน้าเว็บอย่างเป็นทางการ',
     draw: 'ตารางแข่ง',
