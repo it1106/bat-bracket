@@ -139,16 +139,18 @@ export async function register() {
     }
     setInterval(warmTick, 4 * 60 * 1000)
 
-    // BAT outage probe: asks BAT for one small page when nothing else has
+    // BAT outage probe: asks BAT for its front page when nothing else has
     // asked it lately (every minute while it is down, every five when the
     // site is quiet), so /bmstats sees an outage at a quiet hour and times its
-    // end. Normal traffic resets the clock, so a busy site never probes.
+    // end. Normal traffic resets the clock, so a busy site never probes. The
+    // front page, because it is served by the same application as the
+    // tournament pages: robots.txt kept answering 200 during an outage.
     const { probeDue } = await import('./lib/bat-outages')
     const { batFetch } = await import('./lib/bat-fetch')
     const probeTick = async () => {
       if (!probeDue(Date.now())) return
       try {
-        const res = await batFetch('probe', 'https://bat.tournamentsoftware.com/robots.txt', { timeoutMs: 15_000 })
+        const res = await batFetch('probe', 'https://bat.tournamentsoftware.com/', { timeoutMs: 15_000 })
         await res.arrayBuffer()
       } catch { /* batFetch has already recorded the failure */ }
     }
