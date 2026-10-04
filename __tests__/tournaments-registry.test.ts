@@ -46,8 +46,44 @@ describe('tournaments registry', () => {
     const all = listAllTournaments()
     expect(all).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'BBBB2222-2222-3333-4444-555555555555', provider: 'bat', done: false }),
-      expect.objectContaining({ id: 'AAAA1111-2222-3333-4444-555555555555', provider: 'bwf', done: false }),
+      // Its end date (24 May 2026) is long past, so it counts as finished.
+      expect.objectContaining({ id: 'AAAA1111-2222-3333-4444-555555555555', provider: 'bwf', done: true }),
     ]))
+  })
+
+  describe('BWF tournaments finish by their end date', () => {
+    const DAY = 24 * 60 * 60_000
+    // Calendar day in Bangkok, the way the site counts days.
+    const bangkokDay = (t: number) => new Date(t + 7 * 60 * 60_000).toISOString().slice(0, 10)
+    const CODE = 'CCCC9999-2222-3333-4444-555555555555'
+
+    function bwfEnding(endDateIso: string, listedInTxt: boolean) {
+      const url = 'https://bwfbadminton.com/tournament/9999/y/'
+      saveSidecarEntry(url, {
+        tmtId: 9999, tournamentCode: CODE, slug: 'y', name: 'Y',
+        startDateIso: '2026-01-01', endDateIso, resolvedAt: 'x',
+      })
+      fs.writeFileSync(path.join(tmpDir, 'public', 'tournaments.txt'), listedInTxt ? `@bwf ${url}\n` : '')
+      _refreshRegistryForTesting(tmpDir)
+      return listAllTournaments().find((t) => t.id === CODE)
+    }
+
+    it.each([true, false])('is still active on its last day and the day after (listed in tournaments.txt: %s)', (listed) => {
+      expect(bwfEnding(bangkokDay(Date.now()), listed)?.done).toBe(false)
+      expect(bwfEnding(bangkokDay(Date.now() - DAY), listed)?.done).toBe(false)
+    })
+
+    it.each([true, false])('is finished two days after its last day (listed in tournaments.txt: %s)', (listed) => {
+      expect(bwfEnding(bangkokDay(Date.now() - 2 * DAY), listed)?.done).toBe(true)
+    })
+
+    it('is active while it is still to come', () => {
+      expect(bwfEnding(bangkokDay(Date.now() + 5 * DAY), false)?.done).toBe(false)
+    })
+
+    it('is treated as active when its end date is missing', () => {
+      expect(bwfEnding('', false)?.done).toBe(false)
+    })
   })
 
   it('returns bat by default for unknown IDs (backward-compat)', () => {
