@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { LiveScoreClient, type CourtLive, type State } from './live-score'
 import { track } from './analytics'
+import { isLiveScoreAbsent, noteLiveScoreAbsent } from './liveScoreAbsent'
 
 export function useLiveScore(
   tournamentId: string | null,
@@ -25,6 +26,7 @@ export function useLiveScore(
 
     const start = () => {
       if (clientRef.current) return
+      if (isLiveScoreAbsent(tournamentId)) return
       const client = new LiveScoreClient()
       clientRef.current = client
       prevState = null
@@ -38,6 +40,9 @@ export function useLiveScore(
         if (state === 'active' && prevState !== 'active') {
           track('live_view_active', { tournament_id: tournamentId })
         }
+        // Joined the scoreboard and no court came: the tournament has no
+        // live scoring. A failure before joining says nothing about it.
+        if (state === 'disabled' && prevState === 'subscribed') noteLiveScoreAbsent(tournamentId)
         prevState = state
       })
       client.on('scoreboard', (courts) => {

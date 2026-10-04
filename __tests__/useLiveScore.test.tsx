@@ -47,6 +47,7 @@ describe('useLiveScore', () => {
     mocked.__client.on.mockClear()
     mocked.__client._reset()
     trackMock.mockClear()
+    localStorage.clear()
   })
 
   it('does not connect when tournamentId is null', () => {
@@ -153,5 +154,69 @@ describe('useLiveScore', () => {
     expect(mocked.__client.disconnect).toHaveBeenCalled()
     expect(mocked.__client.connect).toHaveBeenCalledTimes(2)
     jest.useRealTimers()
+  })
+
+  describe('a tournament with no live scoring', () => {
+    const mount = (id: string) => renderHook(({ id, gate }) => useLiveScore(id, gate),
+      { initialProps: { id: id as string | null, gate: true } })
+    const comeBackToTab = () => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+      Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+    }
+    /** Joined the scoreboard, and no court ever arrived. */
+    const comesUpEmpty = () => {
+      act(() => { mocked.__client.emit('state', 'negotiating') })
+      act(() => { mocked.__client.emit('state', 'subscribed') })
+      act(() => { mocked.__client.emit('state', 'disabled') })
+    }
+
+    afterEach(() => jest.useRealTimers())
+
+    it('is not tried again when the reader comes back to the tab', () => {
+      mount('T1')
+      comesUpEmpty()
+      comeBackToTab()
+      expect(mocked.__client.connect).toHaveBeenCalledTimes(1)
+    })
+
+    it('is not tried again on the next page load, in either letter case', () => {
+      mount('T1').unmount()
+      mount('T1')
+      comesUpEmpty()
+      mocked.__client.connect.mockClear()
+      mocked.__client._reset()
+      mount('t1')
+      expect(mocked.__client.connect).not.toHaveBeenCalled()
+    })
+
+    it('does not stop another tournament from connecting', () => {
+      mount('T1')
+      comesUpEmpty()
+      mocked.__client.connect.mockClear()
+      mount('T2')
+      expect(mocked.__client.connect).toHaveBeenCalledWith('T2')
+    })
+
+    it('is tried again after half an hour, in case scoring has been switched on', () => {
+      jest.useFakeTimers()
+      mount('T1')
+      comesUpEmpty()
+      jest.advanceTimersByTime(29 * 60_000)
+      comeBackToTab()
+      expect(mocked.__client.connect).toHaveBeenCalledTimes(1)
+      jest.advanceTimersByTime(2 * 60_000)
+      comeBackToTab()
+      expect(mocked.__client.connect).toHaveBeenCalledTimes(2)
+    })
+
+    it('is not assumed when the live-score service itself could not be reached', () => {
+      mount('T1')
+      act(() => { mocked.__client.emit('state', 'negotiating') })
+      act(() => { mocked.__client.emit('state', 'disabled') })
+      comeBackToTab()
+      expect(mocked.__client.connect).toHaveBeenCalledTimes(2)
+    })
   })
 })
