@@ -66,6 +66,12 @@ interface Status {
   }
   browser?: { processes: number; rssBytes: number; cpuPercent: number } | null
   bwf?: { today: number; failedToday: number; lastHour: number }
+  outages?: {
+    since: string | null
+    current: { start: string; kind: OutageKind; detail: string; failed: number } | null
+    recent: Array<{ start: string; end: string | null; kind: OutageKind; detail: string; failed: number }>
+    downMinutes: Record<string, number>
+  }
   diskEntries?: Array<{ name: string; bytes: number }>
   visitors: {
     online: number
@@ -88,6 +94,11 @@ function dateOf(iso: string, withTime: boolean): string {
   return withTime ? `${date}, ${clock(iso)}` : date
 }
 
+/** The Bangkok calendar day (YYYY-MM-DD) of a moment. */
+function dayOfBangkok(iso: string): string {
+  return new Date(new Date(iso).getTime() + 7 * 3600_000).toISOString().slice(0, 10)
+}
+
 function bytes(n: number): string {
   const gb = n / 1024 ** 3
   return gb >= 1 ? `${gb.toFixed(gb >= 10 ? 0 : 1)} GB` : `${Math.round(n / 1024 ** 2)} MB`
@@ -97,6 +108,14 @@ function bytes(n: number): string {
 function millis(ms: number | null): string {
   if (ms === null) return '–'
   return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`
+}
+
+type OutageKind = 'error' | 'blocked' | 'unreachable'
+// What each kind of BAT outage looked like from here.
+const OUTAGE_LABEL: Record<OutageKind, string> = {
+  error: 'BAT answered with errors',
+  blocked: 'BAT refused our requests',
+  unreachable: 'No answer from BAT',
 }
 
 const RESTART_REASON = { reload: 'deploy or reload', memory: 'memory limit', crash: 'crash' } as const
@@ -459,7 +478,13 @@ export default function BmStats() {
   const { cpu, memory, disk, worker, bat, pages, visitors, latency, restarts, playerCache } = status
   const highs = status.highs ?? {}
   const history = status.history ?? []
-  const { site, browser, bwf } = status
+  const { site, browser, bwf, outages } = status
+  const nowMs = new Date(status.generatedAt).getTime()
+  const lasted = (start: string, end: string | null) =>
+    duration(Math.max(0, Math.round(((end ? new Date(end).getTime() : nowMs) - new Date(start).getTime()) / 1000)))
+  // A day gets a down-time figure only from the day tracking began.
+  const downOn = (day: string): number | undefined =>
+    outages?.since && day >= dayOfBangkok(outages.since) ? outages.downMinutes[day] ?? 0 : undefined
   const diskEntries = status.diskEntries ?? []
   const memoryLimit = status.memoryLimitBytes ?? null
   return (
@@ -564,6 +589,31 @@ export default function BmStats() {
       )}
 
       <Card title="Requests to BAT">
+        {outages && (
+          <div className="bms-flag" role="status">
+            <span className="bms-meter-state">
+              <span
+                className="bms-dot"
+                style={{ background: outages.current ? 'var(--red)' : 'var(--win-fg)' }}
+                aria-hidden="true"
+              />
+              {outages.current ? 'Down' : 'OK'}
+            </span>
+            <span>
+              {outages.current ? (
+                <>
+                  BAT has been down since <b>{clock(outages.current.start)}</b> ({lasted(outages.current.start, null)}).
+                  {' '}{OUTAGE_LABEL[outages.current.kind]} ({outages.current.detail});
+                  {' '}<b>{num(outages.current.failed)}</b> requests have failed. Visitors are seeing saved copies.
+                </>
+              ) : (
+                <>BAT is answering.{outages.recent[0]?.end
+                  ? ` Last outage ended ${dateOf(outages.recent[0].end, true)}.`
+                  : ' No outage on record.'}</>
+              )}
+            </span>
+          </div>
+        )}
         <div className="bms-grid">
           <Tile label="Today" value={num(bat.today)} note={`since midnight, ${bat.day}`} high={highs.batDay} />
           <Tile label="Past 60 minutes" value={num(bat.lastHour)} note={`${num(bat.perMinute[bat.perMinute.length - 1])} in the current minute`} high={highs.batHour} highWithTime />
@@ -773,6 +823,46 @@ export default function BmStats() {
         )}
       </Card>
 
+      {outages && (
+        <Card title="BAT outages">
+          {outages.recent.length === 0 ? (
+            <p className="bms-note">
+              None recorded{outages.since ? ` since tracking began on ${dateOf(outages.since, true)}` : ''}.
+            </p>
+          ) : (
+            <div className="bms-scroll">
+              <table className="bms-table bms-history">
+                <thead>
+                  <tr>
+                    <th scope="col" className="bms-th">Started</th>
+                    <td className="bms-th">Ended</td>
+                    <td className="bms-th">Lasted</td>
+                    <td className="bms-th">Failed requests</td>
+                    <td className="bms-th">What happened</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {outages.recent.map((outage) => (
+                    <tr key={outage.start}>
+                      <th scope="row">{dateOf(outage.start, true)}</th>
+                      <td>{outage.end ? clock(outage.end) : <span className="bms-today">still down</span>}</td>
+                      <td>{lasted(outage.start, outage.end)}</td>
+                      <td>{num(outage.failed)}</td>
+                      <td>{OUTAGE_LABEL[outage.kind]} ({outage.detail})</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="bms-note">
+            An outage is five or more BAT requests failing in a row over at least 30 seconds; it ends at the first of
+            three answers in a row. This is BAT as seen from this server, so a break in the server&apos;s own
+            connection shows here too.
+          </p>
+        </Card>
+      )}
+
       {history.length > 0 && (
         <Card title="Past 30 days">
           <div className="bms-scroll">
@@ -785,6 +875,7 @@ export default function BmStats() {
                   <td className="bms-th">Page loads</td>
                   <td className="bms-th">BAT requests</td>
                   <td className="bms-th">BAT failed</td>
+                  <td className="bms-th">BAT down</td>
                 </tr>
               </thead>
               <tbody>
@@ -797,6 +888,7 @@ export default function BmStats() {
                     {([row.users, row.peak, row.pages, row.bat, row.batFailed] as const).map((value, i) => (
                       <td key={i}>{value === undefined ? '–' : num(value)}</td>
                     ))}
+                    <td>{downOn(row.day) === undefined ? '–' : `${num(downOn(row.day) as number)} min`}</td>
                   </tr>
                 ))}
               </tbody>

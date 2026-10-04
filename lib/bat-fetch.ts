@@ -17,6 +17,7 @@
 // (their signal wins outright and gates the whole exchange).
 import { recordBatFetch } from './bat-fetch-stats'
 import { recordBatLatency } from './bat-latency'
+import { recordBatOutcome } from './bat-outages'
 
 const DEFAULT_TIMEOUT_MS = 30_000
 
@@ -61,6 +62,7 @@ export async function batFetch(
     console.log(`[bat-fetch] kind=${kind} status=${res.status} ms=${ms} url=${url}`)
     recordBatFetch(kind, res.ok)
     recordBatLatency(ms)
+    recordBatOutcome(res.status)
     return res
   } catch (err) {
     if (timer) clearTimeout(timer)
@@ -68,6 +70,7 @@ export async function batFetch(
     const msg = err instanceof Error ? err.message : 'unknown'
     console.log(`[bat-fetch] kind=${kind} status=ERR ms=${ms} err=${msg} url=${url}`)
     recordBatFetch(kind, false)
+    recordBatOutcome(null)
     throw err
   }
 }

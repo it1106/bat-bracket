@@ -11,6 +11,7 @@ import { getSiteStats } from '@/lib/site-requests'
 import { getBrowserUsage } from '@/lib/browser-usage'
 import { getBwfFetchStats } from '@/lib/bwf-fetch-stats'
 import { getDiskUsage } from '@/lib/disk-usage'
+import { getBatOutages } from '@/lib/bat-outages'
 import { observeHigh } from '@/lib/records'
 import { CPU_SAMPLE_MS } from '@/lib/server-status'
 import { presence } from '@/lib/presence'
@@ -23,6 +24,7 @@ export const dynamic = 'force-dynamic'
 const MAX_ONLINE_IDS = 200
 const HISTORY_DAYS = 30
 const MAX_DISK_ENTRIES = 10
+const MAX_OUTAGES = 50
 
 // GET /api/bmstats  →  host, worker, BAT request and visitor figures for the
 // /bmstats status page. Read-only, and only for a logged-in session.
@@ -57,6 +59,7 @@ export async function GET(request: Request) {
       site: getSiteStats(),
       browser,
       bwf: getBwfFetchStats(),
+      outages: getBatOutages(MAX_OUTAGES),
       diskEntries: diskEntries.slice(0, MAX_DISK_ENTRIES),
       visitors: {
         online: presence.count(now),

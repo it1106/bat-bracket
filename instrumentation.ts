@@ -139,6 +139,21 @@ export async function register() {
     }
     setInterval(warmTick, 4 * 60 * 1000)
 
+    // BAT outage probe: asks BAT for one small page when nothing else has
+    // asked it lately (every minute while it is down, every five when the
+    // site is quiet), so /bmstats sees an outage at a quiet hour and times its
+    // end. Normal traffic resets the clock, so a busy site never probes.
+    const { probeDue } = await import('./lib/bat-outages')
+    const { batFetch } = await import('./lib/bat-fetch')
+    const probeTick = async () => {
+      if (!probeDue(Date.now())) return
+      try {
+        const res = await batFetch('probe', 'https://bat.tournamentsoftware.com/robots.txt', { timeoutMs: 15_000 })
+        await res.arrayBuffer()
+      } catch { /* batFetch has already recorded the failure */ }
+    }
+    setInterval(probeTick, 60 * 1000).unref?.()
+
     // BWF Chromium recycle heartbeat — PER-WORKER, deliberately NOT leader-gated.
     // A browser is a per-process resource and primeIfNeeded() can launch one on
     // ANY worker (boot prime + lazy per-request prime), so every worker must
