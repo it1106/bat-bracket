@@ -40,6 +40,7 @@ interface Status {
     lastHour: number
     perMinute: number[]
   }
+  highs?: Partial<Record<HighKey, { value: number; at: string }>>
   visitors: {
     online: number
     peak: number
@@ -49,7 +50,17 @@ interface Status {
   }
 }
 
+type HighKey = 'batDay' | 'batHour' | 'batFailedDay' | 'pagesDay' | 'pagesHour' | 'peakOnline' | 'usersDay'
+
 const num = (n: number) => n.toLocaleString('en-US')
+
+/** "3 Oct 2026", or "3 Oct 2026, 16:52" for figures reached at a moment. */
+function dateOf(iso: string, withTime: boolean): string {
+  const date = new Date(iso).toLocaleDateString('en-GB', {
+    timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric',
+  })
+  return withTime ? `${date}, ${clock(iso)}` : date
+}
 
 function bytes(n: number): string {
   const gb = n / 1024 ** 3
@@ -122,12 +133,24 @@ function Meter({ label, percent, detail }: { label: string; percent: number; det
   )
 }
 
-function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
+function Tile({ label, value, note, high, highWithTime = false }: {
+  label: string
+  value: string
+  note?: string
+  /** The all-time high for this figure, if one has been recorded. */
+  high?: { value: number; at: string }
+  highWithTime?: boolean
+}) {
   return (
     <div className="bms-tile">
       <div className="bms-tile-label">{label}</div>
       <div className="bms-tile-value">{value}</div>
       {note && <div className="bms-note">{note}</div>}
+      {high && (
+        <div className="bms-high">
+          All-time high <b>{num(high.value)}</b> · {dateOf(high.at, highWithTime)}
+        </div>
+      )}
     </div>
   )
 }
@@ -393,6 +416,7 @@ export default function BmStats() {
   }
 
   const { cpu, memory, disk, worker, bat, pages, visitors } = status
+  const highs = status.highs ?? {}
   return (
     <div className="bms">
       <header className="bms-header">
@@ -431,9 +455,9 @@ export default function BmStats() {
 
       <Card title="Requests to BAT">
         <div className="bms-grid">
-          <Tile label="Today" value={num(bat.today)} note={`since midnight, ${bat.day}`} />
-          <Tile label="Past 60 minutes" value={num(bat.lastHour)} note={`${num(bat.perMinute[bat.perMinute.length - 1])} in the current minute`} />
-          <Tile label="Failed today" value={num(bat.failedToday)} note="errors and non-200 responses" />
+          <Tile label="Today" value={num(bat.today)} note={`since midnight, ${bat.day}`} high={highs.batDay} />
+          <Tile label="Past 60 minutes" value={num(bat.lastHour)} note={`${num(bat.perMinute[bat.perMinute.length - 1])} in the current minute`} high={highs.batHour} highWithTime />
+          <Tile label="Failed today" value={num(bat.failedToday)} note="errors and non-200 responses" high={highs.batFailedDay} />
         </div>
         <h3 className="bms-subtitle">Per minute, past 60 minutes</h3>
         <MinuteChart perMinute={bat.perMinute} generatedAt={status.generatedAt} noun="request" label="Requests to BAT" />
@@ -462,8 +486,8 @@ export default function BmStats() {
             close. Moving between tournaments, days and tabs inside a page is not a page load.
           </p>
           <div className="bms-grid">
-            <Tile label="Today" value={num(pages.today)} note={`since midnight, ${pages.day}`} />
-            <Tile label="Past 60 minutes" value={num(pages.lastHour)} note={`${num(pages.perMinute[pages.perMinute.length - 1])} in the current minute`} />
+            <Tile label="Today" value={num(pages.today)} note={`since midnight, ${pages.day}`} high={highs.pagesDay} />
+            <Tile label="Past 60 minutes" value={num(pages.lastHour)} note={`${num(pages.perMinute[pages.perMinute.length - 1])} in the current minute`} high={highs.pagesHour} highWithTime />
             <Tile
               label="Per user today"
               value={visitors.users > 0 ? (pages.today / visitors.users).toFixed(1) : '–'}
@@ -491,12 +515,10 @@ export default function BmStats() {
         </Card>
       )}
 
-      <AliasEditor />
-
       <Card title="Worker">
         <div className="bms-grid">
           <Tile label="Uptime" value={duration(worker.uptimeSeconds)} note={`started ${clock(worker.startedAt)}`} />
-          <Tile label="Starts today" value={num(bat.startsToday)} note="1 means no restarts" />
+          <Tile label="Starts today" value={num(bat.startsToday)} note="times the worker has started since midnight" />
           <Tile label="Memory" value={bytes(worker.rssBytes)} note={`peak ${bytes(worker.peakRssBytes)} · heap ${bytes(worker.heapUsedBytes)}`} />
         </div>
         <p className="bms-note">Node {worker.node} · pid {worker.pid}</p>
@@ -505,8 +527,8 @@ export default function BmStats() {
       <Card title="Visitors">
         <div className="bms-grid">
           <Tile label="Online now" value={num(visitors.online)} />
-          <Tile label="Peak today" value={num(visitors.peak)} note={visitors.peakAt ? `at ${clock(visitors.peakAt)}` : undefined} />
-          <Tile label="Users today" value={num(visitors.users)} />
+          <Tile label="Peak today" value={num(visitors.peak)} note={visitors.peakAt ? `at ${clock(visitors.peakAt)}` : undefined} high={highs.peakOnline} highWithTime />
+          <Tile label="Users today" value={num(visitors.users)} high={highs.usersDay} />
         </div>
         <h3 className="bms-subtitle">Online now</h3>
         {!visitors.onlineIds || visitors.onlineIds.length === 0 ? (
@@ -538,6 +560,8 @@ export default function BmStats() {
           </>
         )}
       </Card>
+
+      <AliasEditor />
     </div>
   )
 }

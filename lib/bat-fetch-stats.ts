@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { dayOf } from './presence'
+import { observeHigh } from './records'
 
 // Counts upstream BAT requests for the /bmstats status page: today's total
 // (midnight to midnight, Bangkok), by kind, failures, and the past 60 minutes
@@ -54,6 +55,14 @@ export class BatFetchCounter {
   recordStart(now: number): void {
     this.roll(now)
     this.starts++
+  }
+
+  /** The headline figures only, for callers that check them on every request. */
+  totals(now: number): { today: number; failedToday: number; lastHour: number } {
+    this.roll(now)
+    let lastHour = 0
+    this.minutes.forEach((count) => { lastHour += count })
+    return { today: this.total, failedToday: this.failed, lastHour }
   }
 
   stats(now: number): BatFetchStats {
@@ -168,7 +177,11 @@ export function sharedCounter(
   globalKey: string,
   fileName: string,
   opts: { countStarts: boolean },
-): { record(kind: string, ok: boolean): void; stats(): BatFetchStats } {
+): {
+  record(kind: string, ok: boolean): void
+  stats(): BatFetchStats
+  totals(): { today: number; failedToday: number; lastHour: number }
+} {
   const g = globalThis as unknown as Record<string, Shared | undefined>
   const shared: Shared = g[globalKey] ??= {
     counter: new BatFetchCounter(),
@@ -219,6 +232,10 @@ export function sharedCounter(
       ensureLoaded()
       return shared.counter.stats(Date.now())
     },
+    totals() {
+      ensureLoaded()
+      return shared.counter.totals(Date.now())
+    },
   }
 }
 
@@ -227,6 +244,10 @@ const batFetches = sharedCounter('__batFetchStats', 'bat-fetch-stats.json', { co
 /** Called by lib/bat-fetch for every upstream request. */
 export function recordBatFetch(kind: string, ok: boolean): void {
   batFetches.record(kind, ok)
+  const { today, failedToday, lastHour } = batFetches.totals()
+  observeHigh('batDay', today)
+  observeHigh('batHour', lastHour)
+  observeHigh('batFailedDay', failedToday)
 }
 
 export function getBatFetchStats(): BatFetchStats {

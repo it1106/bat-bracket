@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { presence, isValidDeviceId } from '@/lib/presence'
 import { ensurePresenceLoaded, schedulePresenceSave } from '@/lib/presence-persist'
+import { observeHigh } from '@/lib/records'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,8 +41,11 @@ export async function POST(request: Request) {
   presence.touch(id, now)
   const online = presence.count(now)
   schedulePresenceSave()
+  const users = presence.users(now)
+  observeHigh('peakOnline', online)
+  observeHigh('usersDay', users)
   return NextResponse.json(
-    { online, peak: presence.peak(now).count, users: presence.users(now) },
+    { online, peak: presence.peak(now).count, users },
     { headers: { 'Cache-Control': 'no-store' } },
   )
 }
