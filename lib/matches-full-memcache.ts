@@ -34,6 +34,8 @@ export function getMatchesFull(tournamentId: string): FullEntry | undefined {
   return matchesFullCache.get(cacheKey(tournamentId))
 }
 
-export function setMatchesFull(tournamentId: string, data: MatchesData): void {
-  matchesFullCache.set(cacheKey(tournamentId), { data, ts: Date.now() })
+/** `ts` is when the data was fetched; pass 0 for a copy of unknown age (one
+ *  read back from disk), so it is never mistaken for fresh. */
+export function setMatchesFull(tournamentId: string, data: MatchesData, ts = Date.now()): void {
+  matchesFullCache.set(cacheKey(tournamentId), { data, ts })
 }

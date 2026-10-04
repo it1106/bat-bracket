@@ -20,6 +20,12 @@ jest.mock('../lib/providers/resolve', () => ({
   providerFor: jest.fn(),
 }))
 jest.mock('../lib/tournament-meta', () => ({ persistMetaIfChanged: jest.fn() }))
+jest.mock('../lib/schedule-last-good', () => ({
+  readLastGoodDay: jest.fn().mockResolvedValue(null),
+  writeLastGoodDay: jest.fn().mockResolvedValue(undefined),
+  readLastGoodFull: jest.fn().mockResolvedValue(null),
+  writeLastGoodFull: jest.fn().mockResolvedValue(undefined),
+}))
 jest.mock('../lib/today', () => ({ getTodayIso: jest.fn(() => '2026-06-02') }))
 // enrichWithSiblings would otherwise trigger bracket-cache + sibling fetches.
 // The route imports parseBracketSiblings + makeBracketKey etc — stub the
@@ -48,6 +54,7 @@ jest.mock('../lib/scraper', () => ({
 
 import { batFetch } from '@/lib/bat-fetch'
 import { GET } from '@/app/api/matches/route'
+import { readLastGoodDay, writeLastGoodDay, readLastGoodFull, writeLastGoodFull } from '@/lib/schedule-last-good'
 
 const okHtmlResponse = () => ({
   ok: true,
@@ -207,3 +214,73 @@ describe('GET /api/matches stale-on-error fallback', () => {
     expect((batFetch as jest.Mock).mock.calls.length).toBe(callsBefore) // no new call
   })
 })
+
+// After a restart during a BAT outage there is nothing in memory to fall back
+// on; the copy kept on disk is served instead, marked stale.
+describe('GET /api/matches falls back to the copy on disk', () => {
+  const savedDay = { groups: [{ type: 'time', time: '09:00', matches: [] }] }
+  const savedFull = { days: [{ date: '25690602' }], currentDate: '25690602', groups: [] }
+
+  beforeEach(() => {
+    ;(batFetch as jest.Mock).mockReset()
+    ;(readLastGoodDay as jest.Mock).mockReset().mockResolvedValue(null)
+    ;(readLastGoodFull as jest.Mock).mockReset().mockResolvedValue(null)
+    ;(writeLastGoodDay as jest.Mock).mockClear()
+    ;(writeLastGoodFull as jest.Mock).mockClear()
+  })
+
+  it('day branch: serves the saved day, stale, when BAT fails and memory is empty', async () => {
+    const id = nextTid()
+    ;(readLastGoodDay as jest.Mock).mockResolvedValue(savedDay)
+    ;(batFetch as jest.Mock).mockRejectedValue(new Error('HTTP 500'))
+    const res = await GET(dayReq(id))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('X-Stale-Cache')).toBe('1')
+    expect(await res.json()).toEqual(savedDay)
+    expect(readLastGoodDay).toHaveBeenCalledWith(id, '2026-06-02')
+
+    // The breaker then serves it without asking BAT or the disk again.
+    const again = await GET(dayReq(id))
+    expect(again.headers.get('X-Stale-Cache')).toBe('1')
+    expect(batFetch).toHaveBeenCalledTimes(1)
+    expect(readLastGoodDay).toHaveBeenCalledTimes(1)
+  })
+
+  it('full branch: serves the saved schedule, stale, when BAT fails and memory is empty', async () => {
+    const id = nextTid()
+    ;(readLastGoodFull as jest.Mock).mockResolvedValue(savedFull)
+    ;(batFetch as jest.Mock).mockRejectedValue(new Error('HTTP 500'))
+    const res = await GET(fullReq(id))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('X-Stale-Cache')).toBe('1')
+    expect(await res.json()).toEqual(savedFull)
+
+    // Still stale on the next request: a copy off the disk is never "fresh".
+    const again = await GET(fullReq(id))
+    expect(again.headers.get('X-Stale-Cache')).toBe('1')
+  })
+
+  it('asks BAT again once the breaker has lapsed, and takes its answer', async () => {
+    const id = nextTid()
+    ;(readLastGoodFull as jest.Mock).mockResolvedValue(savedFull)
+    ;(batFetch as jest.Mock).mockRejectedValueOnce(new Error('HTTP 500'))
+    await GET(fullReq(id))
+    jest.useFakeTimers()
+    jest.setSystemTime(Date.now() + 31_000)
+    ;(batFetch as jest.Mock).mockResolvedValueOnce(okHtmlResponse())
+    const res = await GET(fullReq(id))
+    jest.useRealTimers()
+    expect(res.headers.get('X-Stale-Cache')).toBeNull()
+    expect((await res.json()).days).toHaveLength(1)
+  })
+
+  it('saves each good answer for next time', async () => {
+    const id = nextTid()
+    ;(batFetch as jest.Mock).mockResolvedValue(okHtmlResponse())
+    await GET(dayReq(id))
+    await GET(fullReq(id))
+    expect(writeLastGoodDay).toHaveBeenCalledWith(id, '2026-06-02', expect.objectContaining({ groups: expect.any(Array) }))
+    expect(writeLastGoodFull).toHaveBeenCalledWith(id, expect.objectContaining({ days: expect.any(Array) }))
+  })
+})
+

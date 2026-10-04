@@ -4,6 +4,7 @@ import { cache as bracketCache, bracketHtmlForSchedule, siblingLookupCache, feed
 import { batFetch } from '@/lib/bat-fetch'
 import { readDayCache, writeDayCache, isDayComplete, shouldMemcacheDayResult, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
+import { readLastGoodDay, writeLastGoodDay, readLastGoodFull, writeLastGoodFull } from '@/lib/schedule-last-good'
 import { providerFor } from '@/lib/providers/resolve'
 import { getTodayIso } from '@/lib/today'
 import { persistMetaIfChanged } from '@/lib/tournament-meta'
@@ -310,11 +311,20 @@ export async function GET(request: Request) {
         // view. The X-Stale-Cache header tells the client to surface the
         // "BAT is unreachable" banner.
         markBatFailure(memKey)
+        const message = err instanceof Error ? err.message : 'unknown'
         const stale = matchesDayCache.get(memKey)
         if (stale) {
-          const message = err instanceof Error ? err.message : 'unknown'
           console.log(`[matches] stale fallback day tournament=${tournamentId} date=${dateIso} err=${message}`)
           return NextResponse.json(stale.data, { headers: staleHeaders() })
+        }
+        // Nothing in memory (the app restarted during the outage): the copy
+        // kept on disk. Held in memory from here with ts 0 — always past its
+        // TTL — so the breaker above serves it and BAT is still retried.
+        const saved = await readLastGoodDay(tournamentId, dateIso)
+        if (saved) {
+          matchesDayCache.set(memKey, { data: saved, ts: 0 })
+          console.log(`[matches] disk fallback day tournament=${tournamentId} date=${dateIso} err=${message}`)
+          return NextResponse.json(saved, { headers: staleHeaders() })
         }
         throw err
       }
@@ -326,6 +336,7 @@ export async function GET(request: Request) {
       // cache, not this in-process Map).
       if (shouldMemcacheDayResult(data, dateIso, todayIso)) {
         matchesDayCache.set(memKey, { data, ts: Date.now() })
+        void writeLastGoodDay(tournamentId, dateIso, data)
       }
 
       // Persist days that are fully resolved. Only past days are eligible:
@@ -400,11 +411,18 @@ export async function GET(request: Request) {
         // so the client surfaces the unreachable banner. Disk-pinned past
         // tournaments already short-circuit above; this guards active ones.
         markBatFailure(tournamentId)
+        const message = err instanceof Error ? err.message : 'unknown'
         const stale = getMatchesFull(tournamentId)
         if (stale) {
-          const message = err instanceof Error ? err.message : 'unknown'
           console.log(`[matches] stale fallback full tournament=${tournamentId} err=${message}`)
           return NextResponse.json(stale.data, { headers: staleHeaders() })
+        }
+        // As in the day branch: the copy on disk, for a restart mid-outage.
+        const saved = await readLastGoodFull(tournamentId)
+        if (saved) {
+          setMatchesFull(tournamentId, saved, 0)
+          console.log(`[matches] disk fallback full tournament=${tournamentId} err=${message}`)
+          return NextResponse.json(saved, { headers: staleHeaders() })
         }
         throw err
       }
@@ -413,6 +431,7 @@ export async function GET(request: Request) {
       // client backfills siblings by immediately fetching the per-day endpoint
       // for `currentDate`, which does run enrichBracketContext.
       setMatchesFull(tournamentId, data)
+      void writeLastGoodFull(tournamentId, data)
       void persistMetaIfChanged(tournamentId, data)
 
       if (isAllPast(data, todayIso)) {
