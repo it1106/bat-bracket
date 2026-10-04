@@ -71,6 +71,7 @@ export function abbrevRoundL(name: string, lang: Lang = 'en'): string {
 export type TKey =
   | 'appSubtitle'
   | 'appLogoAlt'
+  | 'appLogoRefresh'
   | 'tournament'
   | 'officialPage'
   | 'draw'
@@ -366,6 +367,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
   en: {
     appSubtitle: 'Check BAT official website for accuracy',
     appLogoAlt: 'BatMatch — Unofficial Scoreboard',
+    appLogoRefresh: 'Refresh the page',
     tournament: 'Tournament',
     officialPage: 'Official page',
     draw: 'Draw',
@@ -693,6 +695,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
   th: {
     appSubtitle: 'กรุณาตรวจสอบความถูกต้องจากเว็บไซต์ BAT อีกครั้ง',
     appLogoAlt: 'BatMatch — Unofficial Scoreboard',
+    appLogoRefresh: 'รีเฟรชหน้านี้',
     tournament: 'รายการแข่งขัน',
     officialPage: 'หน้าเว็บอย่างเป็นทางการ',
     draw: 'ตารางแข่ง',

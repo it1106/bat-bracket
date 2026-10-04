@@ -940,7 +940,15 @@ export default function Home() {
             {/* The logo carries the wordmark and the "Unofficial Scoreboard"
                 tagline as artwork, so it replaces the three appTitle spans —
                 but not the subtitle under it, which is the accuracy notice. */}
-            <span className="app-logo" role="img" aria-label={t('appLogoAlt')} />
+            {/* A button: tapping the logo reloads the page, the way a site's
+                logo usually takes you back to a fresh start. */}
+            <button
+              type="button"
+              className="app-logo"
+              aria-label={`${t('appLogoAlt')} — ${t('appLogoRefresh')}`}
+              title={t('appLogoRefresh')}
+              onClick={() => window.location.reload()}
+            />
             <span className="text-[length:calc(12px*var(--text-scale))] text-[var(--muted)]">{t('appSubtitle')}</span>
           </div>
 

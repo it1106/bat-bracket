@@ -3721,6 +3721,10 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
      origin has new bytes — that is exactly what happened when these were
      re-rendered at 768px. Bump it whenever either file's contents change. */
   background: url('/logo-batmatch.png?v=4') no-repeat left center / contain;
+  /* It is a button (tap to reload); none of a button's own look should show. */
+  border: 0;
+  padding: 0;
+  cursor: pointer;
 }
 .dark .app-logo { background-image: url('/logo-batmatch-dark.png?v=4'); }
 @media (max-width: 640px) {
