@@ -33,6 +33,13 @@ interface Status {
     lastHour: number
     perMinute: number[]
   }
+  pages?: {
+    day: string
+    today: number
+    byKind: Array<{ kind: string; count: number }>
+    lastHour: number
+    perMinute: number[]
+  }
   visitors: {
     online: number
     peak: number
@@ -125,7 +132,14 @@ function Tile({ label, value, note }: { label: string; value: string; note?: str
   )
 }
 
-function MinuteChart({ perMinute, generatedAt }: { perMinute: number[]; generatedAt: string }) {
+function MinuteChart({ perMinute, generatedAt, noun, label }: {
+  perMinute: number[]
+  generatedAt: string
+  /** What one unit is, singular: "request", "page load". */
+  noun: string
+  /** What the chart shows, for screen readers. */
+  label: string
+}) {
   const [hovered, setHovered] = useState<number | null>(null)
   const max = Math.max(1, ...perMinute)
   const end = new Date(generatedAt).getTime()
@@ -133,14 +147,14 @@ function MinuteChart({ perMinute, generatedAt }: { perMinute: number[]; generate
   const peakIndex = perMinute.indexOf(Math.max(...perMinute))
   const readout = hovered === null
     ? `Busiest minute: ${num(perMinute[peakIndex])} at ${minuteAt(peakIndex)}`
-    : `${minuteAt(hovered)} — ${num(perMinute[hovered])} request${perMinute[hovered] === 1 ? '' : 's'}`
+    : `${minuteAt(hovered)} — ${num(perMinute[hovered])} ${noun}${perMinute[hovered] === 1 ? '' : 's'}`
   return (
     <div>
       <div className="bms-chart-readout" aria-live="off">{readout}</div>
       <div
         className="bms-chart"
         role="img"
-        aria-label={`Requests to BAT per minute over the past 60 minutes. ${readout}.`}
+        aria-label={`${label} per minute over the past 60 minutes. ${readout}.`}
         onMouseLeave={() => setHovered(null)}
       >
         <span className="bms-chart-max">{num(max)}</span>
@@ -378,7 +392,7 @@ export default function BmStats() {
     return <p className="bms-note" role="status">{failed ? 'Could not load the server status.' : 'Loading…'}</p>
   }
 
-  const { cpu, memory, disk, worker, bat, visitors } = status
+  const { cpu, memory, disk, worker, bat, pages, visitors } = status
   return (
     <div className="bms">
       <header className="bms-header">
@@ -422,7 +436,7 @@ export default function BmStats() {
           <Tile label="Failed today" value={num(bat.failedToday)} note="errors and non-200 responses" />
         </div>
         <h3 className="bms-subtitle">Per minute, past 60 minutes</h3>
-        <MinuteChart perMinute={bat.perMinute} generatedAt={status.generatedAt} />
+        <MinuteChart perMinute={bat.perMinute} generatedAt={status.generatedAt} noun="request" label="Requests to BAT" />
         <h3 className="bms-subtitle">Today by type</h3>
         {bat.byKind.length === 0 ? (
           <p className="bms-note">No requests yet today.</p>
@@ -440,6 +454,42 @@ export default function BmStats() {
           </table>
         )}
       </Card>
+
+      {pages && (
+        <Card title="Page loads">
+          <p className="bms-note">
+            Each time a browser loads a page of the site. This is what PostHog calls a page view, so the two should be
+            close. Moving between tournaments, days and tabs inside a page is not a page load.
+          </p>
+          <div className="bms-grid">
+            <Tile label="Today" value={num(pages.today)} note={`since midnight, ${pages.day}`} />
+            <Tile label="Past 60 minutes" value={num(pages.lastHour)} note={`${num(pages.perMinute[pages.perMinute.length - 1])} in the current minute`} />
+            <Tile
+              label="Per user today"
+              value={visitors.users > 0 ? (pages.today / visitors.users).toFixed(1) : '–'}
+              note="page loads ÷ users today"
+            />
+          </div>
+          <h3 className="bms-subtitle">Per minute, past 60 minutes</h3>
+          <MinuteChart perMinute={pages.perMinute} generatedAt={status.generatedAt} noun="page load" label="Page loads" />
+          <h3 className="bms-subtitle">Today by page</h3>
+          {pages.byKind.length === 0 ? (
+            <p className="bms-note">No page loads counted yet today.</p>
+          ) : (
+            <table className="bms-table">
+              <tbody>
+                {pages.byKind.map(({ kind, count }) => (
+                  <tr key={kind}>
+                    <th scope="row">{kind}</th>
+                    <td>{num(count)}</td>
+                    <td className="bms-share">{Math.round((count / pages.today) * 100)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+      )}
 
       <AliasEditor />
 

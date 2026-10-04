@@ -141,7 +141,7 @@ export function saveBatFetchStats(counter: BatFetchCounter, file: string, now: n
   fs.renameSync(tmp, file)
 }
 
-// ── Process-wide counter ────────────────────────────────────────────────────
+// ── Process-wide counters ───────────────────────────────────────────────────
 
 const SAVE_DELAY_MS = 10_000
 
@@ -153,62 +153,82 @@ interface Shared {
   warned: boolean
 }
 
-// On globalThis so instrumentation (dynamic import) and the API routes (static
-// import) count into the same object even when Next bundles this module into
-// separate chunks — see the same note in lib/bracket-cache.
-const g = globalThis as typeof globalThis & { __batFetchStats?: Shared }
-const shared: Shared = g.__batFetchStats ??= {
-  counter: new BatFetchCounter(),
-  loaded: false,
-  timer: null,
-  dirty: false,
-  warned: false,
-}
-
-// Tests exercise BatFetchCounter directly; the shared counter stays in memory
+// Tests exercise BatFetchCounter directly; shared counters stay in memory
 // there so a test run never touches this repo's .cache.
 const PERSIST = process.env.NODE_ENV !== 'test'
 
-function statsFile(): string {
-  return path.join(process.cwd(), '.cache', 'bat-fetch-stats.json')
-}
+/** A counter shared by the whole process and saved to `.cache/<fileName>`.
+ *
+ *  The state lives on globalThis so instrumentation (dynamic import) and the
+ *  API routes (static import) count into the same object even when Next
+ *  bundles this module into separate chunks — see the same note in
+ *  lib/bracket-cache. `countStarts` adds one worker start each time the
+ *  process first uses the counter. */
+export function sharedCounter(
+  globalKey: string,
+  fileName: string,
+  opts: { countStarts: boolean },
+): { record(kind: string, ok: boolean): void; stats(): BatFetchStats } {
+  const g = globalThis as unknown as Record<string, Shared | undefined>
+  const shared: Shared = g[globalKey] ??= {
+    counter: new BatFetchCounter(),
+    loaded: false,
+    timer: null,
+    dirty: false,
+    warned: false,
+  }
+  const file = () => path.join(process.cwd(), '.cache', fileName)
 
-function ensureLoaded(): void {
-  if (shared.loaded) return
-  shared.loaded = true
-  const now = Date.now()
-  if (PERSIST) loadBatFetchStats(shared.counter, statsFile(), now)
-  shared.counter.recordStart(now)
-  scheduleSave()
-}
+  const scheduleSave = () => {
+    shared.dirty = true
+    if (!PERSIST || shared.timer) return
+    shared.timer = setTimeout(() => {
+      shared.timer = null
+      if (!shared.dirty) return
+      shared.dirty = false
+      try {
+        saveBatFetchStats(shared.counter, file(), Date.now())
+      } catch (err) {
+        if (shared.warned) return
+        shared.warned = true
+        const msg = err instanceof Error ? err.message : 'unknown'
+        console.log(`[stats] save failed file=${fileName} err=${msg}`)
+      }
+    }, SAVE_DELAY_MS)
+    shared.timer.unref?.()
+  }
 
-function scheduleSave(): void {
-  shared.dirty = true
-  if (!PERSIST || shared.timer) return
-  shared.timer = setTimeout(() => {
-    shared.timer = null
-    if (!shared.dirty) return
-    shared.dirty = false
-    try {
-      saveBatFetchStats(shared.counter, statsFile(), Date.now())
-    } catch (err) {
-      if (shared.warned) return
-      shared.warned = true
-      const msg = err instanceof Error ? err.message : 'unknown'
-      console.log(`[bat-fetch-stats] save failed err=${msg}`)
+  const ensureLoaded = () => {
+    if (shared.loaded) return
+    shared.loaded = true
+    const now = Date.now()
+    if (PERSIST) loadBatFetchStats(shared.counter, file(), now)
+    if (opts.countStarts) {
+      shared.counter.recordStart(now)
+      scheduleSave()
     }
-  }, SAVE_DELAY_MS)
-  shared.timer.unref?.()
+  }
+
+  return {
+    record(kind, ok) {
+      ensureLoaded()
+      shared.counter.record(kind, ok, Date.now())
+      scheduleSave()
+    },
+    stats() {
+      ensureLoaded()
+      return shared.counter.stats(Date.now())
+    },
+  }
 }
+
+const batFetches = sharedCounter('__batFetchStats', 'bat-fetch-stats.json', { countStarts: true })
 
 /** Called by lib/bat-fetch for every upstream request. */
 export function recordBatFetch(kind: string, ok: boolean): void {
-  ensureLoaded()
-  shared.counter.record(kind, ok, Date.now())
-  scheduleSave()
+  batFetches.record(kind, ok)
 }
 
 export function getBatFetchStats(): BatFetchStats {
-  ensureLoaded()
-  return shared.counter.stats(Date.now())
+  return batFetches.stats()
 }

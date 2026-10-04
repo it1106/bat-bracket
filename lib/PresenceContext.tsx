@@ -20,6 +20,18 @@ const PresenceContext = createContext<Presence | null>(null)
 export function PresenceProvider({ children }: { children: React.ReactNode }) {
   const [presence, setPresence] = useState<Presence | null>(null)
 
+  // One page-load report per full page load, visible or not, for the page
+  // count on /bmstats. This provider sits in the root layout, so it mounts
+  // exactly once per load and not on in-app navigation.
+  useEffect(() => {
+    fetch('/api/pageview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: window.location.pathname }),
+      keepalive: true,
+    }).catch(() => {})
+  }, [])
+
   useEffect(() => {
     const id = getDeviceId()
     if (!id) return

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerStatus } from '@/lib/server-status'
 import { getBatFetchStats } from '@/lib/bat-fetch-stats'
+import { getPageviewStats } from '@/lib/pageview-stats'
 import { presence } from '@/lib/presence'
 import { ensurePresenceLoaded } from '@/lib/presence-persist'
 import { isLoggedIn } from '@/lib/bmstats-auth'
@@ -28,6 +29,7 @@ export async function GET(request: Request) {
       generatedAt: new Date(now).toISOString(),
       ...server,
       bat: getBatFetchStats(),
+      pages: getPageviewStats(),
       visitors: {
         online: presence.count(now),
         peak: peak.count,
