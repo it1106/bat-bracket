@@ -20,6 +20,9 @@ export async function register() {
     const { listAllTournaments } = await import('./lib/tournaments-registry')
 
     const { rebuildAll, makeOriginDayFetcher } = await import('./lib/player-index-rebuild')
+    const { shouldRebuildIndex } = await import('./lib/index-rebuild-policy')
+    // When this worker last rebuilt the player index (boot or tick).
+    let lastIndexRebuildAt: number | null = null
 
     ;(async () => {
       // Saved brackets first: the schedule pre-warm below looks up each live
@@ -47,6 +50,7 @@ export async function register() {
         const port = process.env.PORT || '3000'
         const origin = `http://127.0.0.1:${port}`
         const result = await rebuildAll({ ensureDay: makeOriginDayFetcher(origin), activeData: bootActiveData })
+        lastIndexRebuildAt = Date.now()
         console.log(`[player-index] boot rebuild: ${JSON.stringify(result)}`)
       } catch (err) {
         console.warn('[player-index] boot rebuild failed:', err)
@@ -221,15 +225,23 @@ export async function register() {
           // Pin any tournament that has just finished (every match-day now in
           // the past) and rebuild the player index, so completed events appear
           // in profiles and leaderboards without waiting for a redeploy. This
-          // runs on the discovery cadence (every 15 min, modulo the overnight
-          // quiet window). rebuildAll is skipped unless something newly pinned,
-          // and is itself a no-op when the source version is unchanged.
+          // is checked on the discovery cadence (every 15 min, modulo the
+          // overnight quiet window); rebuildAll is itself a no-op when the
+          // source version is unchanged.
           const { newlyPinned, activeData } = await prewarmMatchesFullCache()
-          if (newlyPinned.length > 0 || activeData.size > 0) {
-            if (newlyPinned.length > 0) {
-              console.log(`[auto-rebuild] tournaments completed: ${newlyPinned.join(', ')}`)
-            }
+          if (newlyPinned.length > 0) {
+            console.log(`[auto-rebuild] tournaments completed: ${newlyPinned.join(', ')}`)
+          }
+          // Straight away when a tournament finishes; otherwise at most hourly
+          // while one is in play (see lib/index-rebuild-policy).
+          if (shouldRebuildIndex({
+            newlyFinished: newlyPinned.length,
+            liveTournaments: activeData.size,
+            lastRebuildAt: lastIndexRebuildAt,
+            now: Date.now(),
+          })) {
             const result = await rebuildAll({ ensureDay: makeOriginDayFetcher(origin), activeData })
+            lastIndexRebuildAt = Date.now()
             console.log(`[auto-rebuild] player index rebuilt: ${JSON.stringify(result)}`)
           }
           // Newly-pinned tournaments: preload their stats so the first user
