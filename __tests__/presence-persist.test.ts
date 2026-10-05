@@ -57,7 +57,7 @@ describe('presence persistence', () => {
     savePresence(storeWith(['device-cccc'], NOON + DAY), file, NOON + DAY)
 
     const saved = JSON.parse(readFileSync(file, 'utf8'))
-    expect(saved).toEqual({ day: '2026-10-03', peak: { count: 1, at: NOON + DAY }, ids: ['device-cccc'] })
+    expect(saved).toEqual({ day: '2026-10-03', peak: { count: 1, at: NOON + DAY }, ids: ['device-cccc'], countries: [''] })
   })
 
   it("does not restore yesterday's file", () => {

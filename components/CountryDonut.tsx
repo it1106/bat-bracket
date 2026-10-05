@@ -15,17 +15,21 @@ const GAP = 0.7
 /** A sliver is still drawn this long, so a country with a few requests shows. */
 const MIN_ARC = 0.5
 
-/** Today's site requests by the visitor's country: a donut for the share at a
- *  glance, beside the figures it is drawn from. */
-export default function CountryDonut({ countries }: { countries: Array<{ country: string; count: number }> }) {
+/** Today's site requests, or users, by the visitor's country: a donut for the
+ *  share at a glance, beside the figures it is drawn from. */
+export default function CountryDonut({ countries, noun = 'request' }: {
+  countries: Array<{ country: string; count: number }>
+  /** What one unit is, singular: "request", "user". */
+  noun?: string
+}) {
   const [hovered, setHovered] = useState<string | null>(null)
   const slices = countrySlices(countries)
   if (slices.length === 0) return null
   const total = slices.reduce((sum, s) => sum + s.count, 0)
   const shown = slices.find((s) => s.key === hovered) ?? null
   const readout = shown
-    ? `${shown.name} — ${num(shown.count)} request${shown.count === 1 ? '' : 's'} (${percentLabel(shown.percent)})`
-    : `${slices[0].name} is ${percentLabel(slices[0].percent)} of ${num(total)} requests`
+    ? `${shown.name} — ${num(shown.count)} ${noun}${shown.count === 1 ? '' : 's'} (${percentLabel(shown.percent)})`
+    : `${slices[0].name} is ${percentLabel(slices[0].percent)} of ${num(total)} ${noun}${total === 1 ? '' : 's'}`
 
   let start = 0
   const arcs = slices.map((s) => {
@@ -42,7 +46,7 @@ export default function CountryDonut({ countries }: { countries: Array<{ country
         <svg
           viewBox={`0 0 ${SIZE} ${SIZE}`}
           role="img"
-          aria-label={`Site requests today by country. ${slices.map((s) => `${s.name} ${percentLabel(s.percent)}`).join(', ')}.`}
+          aria-label={`Today's ${noun}s by country. ${slices.map((s) => `${s.name} ${percentLabel(s.percent)}`).join(', ')}.`}
         >
           <g transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}>
             {arcs.map((a) => (
@@ -72,7 +76,7 @@ export default function CountryDonut({ countries }: { countries: Array<{ country
           <thead>
             <tr>
               <th scope="col" className="bms-th">Country</th>
-              <td className="bms-th">Requests</td>
+              <td className="bms-th">{noun.charAt(0).toUpperCase() + noun.slice(1)}s</td>
               <td className="bms-th">Share</td>
             </tr>
           </thead>

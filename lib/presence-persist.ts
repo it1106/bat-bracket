@@ -66,7 +66,10 @@ export function schedulePresenceSave(): void {
     timer = null
     const now = Date.now()
     const peak = presence.peak(now)
-    const state = `${peak.day}:${presence.users(now)}:${peak.count}`
+    // Countries too: a visitor seen before their country was known changes
+    // nothing else when it arrives.
+    const byCountry = presence.usersByCountry(now).map((c) => `${c.country}${c.count}`).join(',')
+    const state = `${peak.day}:${presence.users(now)}:${peak.count}:${byCountry}`
     if (state === lastSaved) return
     try {
       savePresence(presence, presenceFile(), now)

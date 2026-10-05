@@ -67,6 +67,7 @@ export async function GET(request: Request) {
         peak: peak.count,
         peakAt: peak.at === null ? null : new Date(peak.at).toISOString(),
         users: presence.users(now),
+        countries: presence.usersByCountry(now),
         onlineIds: presence.online(now).slice(0, MAX_ONLINE_IDS).map(({ id, lastSeen }) => ({
           id,
           lastSeenAt: new Date(lastSeen).toISOString(),

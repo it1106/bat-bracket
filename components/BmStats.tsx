@@ -81,6 +81,7 @@ interface Status {
     peak: number
     peakAt: string | null
     users: number
+    countries?: Array<{ country: string; count: number }>
     onlineIds?: Array<{ id: string; lastSeenAt: string }>
   }
 }
@@ -943,6 +944,16 @@ export default function BmStats() {
             </table>
           </div>
           <p className="bms-note">A dash means that figure was not being counted on that day.</p>
+          {visitors.countries && visitors.countries.length > 0 && (
+            <>
+              <h3 className="bms-subtitle">Today&apos;s users by country</h3>
+              <CountryDonut countries={visitors.countries} noun="user" />
+              <p className="bms-note">
+                Each of today&apos;s {num(visitors.users)} users, by the country Cloudflare reported when they were
+                first seen. Unknown is a user seen before their country was being recorded.
+              </p>
+            </>
+          )}
         </Card>
       )}
 

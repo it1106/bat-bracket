@@ -33,7 +33,17 @@ export interface PresenceSnapshot {
   day: string
   peak: { count: number; at: number | null }
   ids: string[]
+  /** Each device's country, in the order of `ids`; '' where it is not known.
+   *  Absent in snapshots saved before countries were kept. */
+  countries?: string[]
 }
+
+/** The country of a device nobody has told us the country of. */
+export const UNKNOWN_COUNTRY = 'XX'
+
+// What a heartbeat may report: a two-character code as Cloudflare sends it, or
+// 'direct' for a request that did not come through Cloudflare.
+const isCountry = (c: unknown): c is string => typeof c === 'string' && /^([A-Z0-9]{2}|direct)$/.test(c)
 
 export interface PresenceHooks {
   onNewPeak?: (day: string, count: number, at: number) => void
@@ -44,16 +54,16 @@ export interface PresenceHooks {
 export class PresenceStore {
   private lastSeen = new Map<string, number>()
   private day = ''
-  private seenToday = new Set<string>()
+  /** Device → its country ('' until a heartbeat reports one). */
+  private seenToday = new Map<string, string>()
   private peakCount = 0
   private peakAt: number | null = null
 
   constructor(private hooks: PresenceHooks = {}) {}
 
-  touch(id: string, now: number): void {
+  touch(id: string, now: number, country?: string): void {
     this.rollDay(now)
-    // Same cap as the online map: random ids can't grow the set without bound.
-    if (this.seenToday.size < MAX_DEVICES) this.seenToday.add(id)
+    this.see(id, isCountry(country) ? country : '')
     // Re-insert so Map iteration order stays oldest-first for pruning.
     this.lastSeen.delete(id)
     this.lastSeen.set(id, now)
@@ -94,12 +104,25 @@ export class PresenceStore {
     return this.seenToday.size
   }
 
+  /** Today's distinct devices by country, most first. */
+  usersByCountry(now: number): Array<{ country: string; count: number }> {
+    this.rollDay(now)
+    const counts = new Map<string, number>()
+    for (const country of Array.from(this.seenToday.values())) {
+      const key = country || UNKNOWN_COUNTRY
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return Array.from(counts, ([country, count]) => ({ country, count }))
+      .sort((a, b) => b.count - a.count || a.country.localeCompare(b.country))
+  }
+
   snapshot(now: number): PresenceSnapshot {
     this.count(now)
     return {
       day: this.day,
       peak: { count: this.peakCount, at: this.peakAt },
-      ids: Array.from(this.seenToday),
+      ids: Array.from(this.seenToday.keys()),
+      countries: Array.from(this.seenToday.values()),
     }
   }
 
@@ -108,13 +131,25 @@ export class PresenceStore {
   restore(snap: PresenceSnapshot, now: number): void {
     this.rollDay(now)
     if (snap.day !== this.day) return
-    for (const id of snap.ids) {
-      if (this.seenToday.size >= MAX_DEVICES) break
-      if (isValidDeviceId(id)) this.seenToday.add(id)
-    }
+    snap.ids.forEach((id, i) => {
+      const country = snap.countries?.[i]
+      if (isValidDeviceId(id)) this.see(id, isCountry(country) ? country : '')
+    })
     if (snap.peak.count > this.peakCount) {
       this.peakCount = snap.peak.count
       this.peakAt = snap.peak.at
+    }
+  }
+
+  // Records a device as seen today. Its first known country is kept: one
+  // visitor is one slice of the day, wherever they roam later.
+  private see(id: string, country: string): void {
+    const known = this.seenToday.get(id)
+    if (known === undefined) {
+      // Same cap as the online map: random ids can't grow the set without bound.
+      if (this.seenToday.size < MAX_DEVICES) this.seenToday.set(id, country)
+    } else if (!known && country) {
+      this.seenToday.set(id, country)
     }
   }
 

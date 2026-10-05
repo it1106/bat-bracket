@@ -3,6 +3,7 @@ import { presence, isValidDeviceId } from '@/lib/presence'
 import { ensurePresenceLoaded, schedulePresenceSave } from '@/lib/presence-persist'
 import { observeHigh } from '@/lib/records'
 import { noteDaily } from '@/lib/daily-history'
+import { clientOf } from '@/lib/access-log'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,12 @@ export async function POST(request: Request) {
   }
   ensurePresenceLoaded()
   const now = Date.now()
-  presence.touch(id, now)
+  // The visitor's country as Cloudflare reports it, for /bmstats.
+  const { country } = clientOf({
+    'cf-connecting-ip': request.headers.get('cf-connecting-ip') ?? undefined,
+    'cf-ipcountry': request.headers.get('cf-ipcountry') ?? undefined,
+  }, undefined)
+  presence.touch(id, now, country)
   const online = presence.count(now)
   schedulePresenceSave()
   const users = presence.users(now)
