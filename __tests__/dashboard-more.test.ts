@@ -135,3 +135,17 @@ describe('withTodayCounts', () => {
   })
 })
 
+
+import { DailyHistory } from '@/lib/daily-history'
+
+describe('daily history: site requests', () => {
+  it('keeps the day\'s site request total alongside the other figures, across a save and load', () => {
+    const history = new DailyHistory()
+    history.note('2026-10-05', 'site', 100)
+    history.note('2026-10-05', 'site', 17_699)
+    history.note('2026-10-05', 'bat', 7_144)
+    const restored = new DailyHistory()
+    restored.merge(JSON.parse(JSON.stringify(history.rows(30))))
+    expect(restored.rows(30)).toEqual([{ day: '2026-10-05', site: 17_699, bat: 7_144 }])
+  })
+})

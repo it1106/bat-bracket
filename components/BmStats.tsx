@@ -43,7 +43,7 @@ interface Status {
     perMinute: number[]
   }
   highs?: Partial<Record<HighKey, { value: number; at: string }>>
-  history?: Array<{ day: string; users?: number; peak?: number; pages?: number; bat?: number; batFailed?: number }>
+  history?: Array<{ day: string; users?: number; peak?: number; pages?: number; site?: number; bat?: number; batFailed?: number }>
   latency?: { count: number; medianMs: number | null; p95Ms: number | null; maxMs: number | null; slow: number }
   restarts?: {
     starts: number
@@ -908,6 +908,7 @@ export default function BmStats() {
                   <td className="bms-th">Users</td>
                   <td className="bms-th">Peak online</td>
                   <td className="bms-th">Page loads</td>
+                  <td className="bms-th">Site requests</td>
                   <td className="bms-th">BAT requests</td>
                   <td className="bms-th">BAT failed</td>
                   <td className="bms-th">BAT down</td>
@@ -920,7 +921,7 @@ export default function BmStats() {
                       {dateOf(`${row.day}T12:00:00+07:00`, false)}
                       {row.day === bat.day && <span className="bms-today"> so far</span>}
                     </th>
-                    {([row.users, row.peak, row.pages, row.bat, row.batFailed] as const).map((value, i) => (
+                    {([row.users, row.peak, row.pages, row.site, row.bat, row.batFailed] as const).map((value, i) => (
                       <td key={i}>{value === undefined ? '–' : num(value)}</td>
                     ))}
                     <td>{downOn(row.day) === undefined ? '–' : `${num(downOn(row.day) as number)} min`}</td>

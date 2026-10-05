@@ -1,4 +1,5 @@
 import { sharedCounter } from './bat-fetch-stats'
+import { noteDaily } from './daily-history'
 
 // How fast the site answers its visitors, for /bmstats: the data requests a
 // page makes (schedules, brackets, players …) over the past 60 minutes, and
@@ -88,6 +89,7 @@ export function recordSiteRequest(url: string | undefined, status: number, ms: n
   if (!route) return
   window_.add(route, status, ms, Date.now())
   today.record(route, status < 500)
+  noteDaily('site', today.totals().today)
 }
 
 /** One row of the dashboard's request table: today's count (midnight to

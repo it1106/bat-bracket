@@ -7,7 +7,7 @@ import { dayOf } from './presence'
 // during a day, keeping the highest value reported gives the day's total.
 // Server-only; saved to .cache/daily-history.json so a restart keeps it.
 
-export const HISTORY_FIELDS = ['users', 'peak', 'pages', 'bat', 'batFailed'] as const
+export const HISTORY_FIELDS = ['users', 'peak', 'pages', 'site', 'bat', 'batFailed'] as const
 export type HistoryField = (typeof HISTORY_FIELDS)[number]
 export type HistoryRow = { day: string } & Partial<Record<HistoryField, number>>
 
