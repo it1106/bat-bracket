@@ -1,6 +1,8 @@
 jest.mock('../lib/bat-player-fetch', () => ({
   fetchBatPlayerProfile: jest.fn(),
 }))
+// These cover the lookup itself, which is currently switched off.
+jest.mock('../lib/bat-yob-switch', () => ({ BAT_YOB_LOOKUP_ENABLED: true }))
 jest.mock('../lib/bat-player-cache', () => ({
   readBatPlayer: jest.fn(),
   isFresh: jest.fn(() => true),

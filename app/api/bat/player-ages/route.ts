@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getBatPlayerYobs } from '@/lib/bat-player-yob'
+import { BAT_YOB_LOOKUP_ENABLED } from '@/lib/bat-yob-switch'
 
 export const maxDuration = 60
 
@@ -19,6 +20,9 @@ export async function GET(request: Request) {
 
   if (!tournamentId) return NextResponse.json({ error: 'tournament param required' }, { status: 400 })
   if (ids.length === 0) return NextResponse.json({})
+  // Switched off (see lib/bat-yob-switch): nobody is answered for, which also
+  // ends the asking loop of a page loaded before the switch.
+  if (!BAT_YOB_LOOKUP_ENABLED) return NextResponse.json({})
 
   try {
     const yobs = await getBatPlayerYobs(tournamentId, ids)
@@ -54,6 +58,9 @@ export async function POST(request: Request) {
   if (!Array.isArray(body.ids)) return NextResponse.json({ error: 'ids must be a list' }, { status: 400 })
   const ids = body.ids.filter((id): id is string => typeof id === 'string' && PLAYER_ID.test(id)).slice(0, MAX_IDS)
   if (ids.length === 0) return NextResponse.json({})
+  // Switched off (see lib/bat-yob-switch): nobody is answered for, which also
+  // ends the asking loop of a page loaded before the switch.
+  if (!BAT_YOB_LOOKUP_ENABLED) return NextResponse.json({})
 
   try {
     const yobs = await getBatPlayerYobs(tournamentId, ids)

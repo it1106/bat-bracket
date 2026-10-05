@@ -13,6 +13,7 @@ import { track } from '@/lib/analytics'
 import { buildNextOppMap } from '@/lib/nextOpp'
 import { useLongPress } from '@/lib/useLongPress'
 import { fetchBatYobs, loadStoredYobs } from '@/lib/yobClient'
+import { BAT_YOB_LOOKUP_ENABLED } from '@/lib/bat-yob-switch'
 import TeamScheduleButton from '@/components/TeamScheduleButton'
 import { buildTeamSchedule } from '@/lib/teamSchedule'
 import { buildFilename, captureMatchImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
@@ -292,7 +293,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     return Array.from(ids).sort().join(',')
   }, [groups, tournamentId])
   useEffect(() => {
-    if (!batIdsKey || !tournamentId) return
+    if (!BAT_YOB_LOOKUP_ENABLED || !batIdsKey || !tournamentId) return
     const ids = batIdsKey.split(',')
     // Birth years this browser was already told, on this or an earlier visit.
     const known = loadStoredYobs(tournamentId)
