@@ -63,7 +63,7 @@ interface Status {
     errors: number
     today: number
     errorsToday: number
-    byRoute: Array<{ route: string; count: number; medianMs: number; p95Ms: number; errors: number }>
+    byRoute: Array<{ route: string; today?: number; count: number; medianMs: number | null; p95Ms: number | null; errors: number }>
   }
   browser?: { processes: number; rssBytes: number; cpuPercent: number } | null
   bwf?: { today: number; failedToday: number; lastHour: number }
@@ -565,13 +565,14 @@ export default function BmStats() {
           </div>
           {site.byRoute.length > 0 && (
             <>
-              <h3 className="bms-subtitle">By type, past 60 minutes</h3>
+              <h3 className="bms-subtitle">By type</h3>
               <div className="bms-scroll">
                 <table className="bms-table bms-routes">
                   <thead>
                     <tr>
                       <th scope="col" className="bms-th">Request</th>
-                      <td className="bms-th">Count</td>
+                      <td className="bms-th">Today</td>
+                      <td className="bms-th">Past 60 min</td>
                       <td className="bms-th">Typical</td>
                       <td className="bms-th">Slowest 5%</td>
                       <td className="bms-th">Errors</td>
@@ -581,6 +582,7 @@ export default function BmStats() {
                     {site.byRoute.map((r) => (
                       <tr key={r.route}>
                         <th scope="row">{r.route}</th>
+                        <td>{r.today === undefined ? '–' : num(r.today)}</td>
                         <td>{num(r.count)}</td>
                         <td>{millis(r.medianMs)}</td>
                         <td>{millis(r.p95Ms)}</td>
@@ -590,6 +592,9 @@ export default function BmStats() {
                   </tbody>
                 </table>
               </div>
+              <p className="bms-note">
+                Today is midnight to midnight, {bat.day}. Typical, slowest 5% and errors are for the past 60 minutes.
+              </p>
             </>
           )}
         </Card>

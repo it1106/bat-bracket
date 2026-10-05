@@ -90,7 +90,40 @@ export function recordSiteRequest(url: string | undefined, status: number, ms: n
   today.record(route, status < 500)
 }
 
-export function getSiteStats(): SiteStats & { today: number; errorsToday: number } {
+/** One row of the dashboard's request table: today's count (midnight to
+ *  midnight, Bangkok) beside the past hour's figures. A route asked for today
+ *  but not in the past hour has a zero count and no timings. */
+export interface SiteRouteRow {
+  route: string
+  today: number
+  count: number
+  medianMs: number | null
+  p95Ms: number | null
+  errors: number
+}
+
+/** Joins the past hour's per-route figures with today's per-route counts,
+ *  busiest today first. */
+export function withTodayCounts(
+  byRoute: SiteRouteStats[],
+  todayByRoute: Array<{ kind: string; count: number }>,
+): SiteRouteRow[] {
+  const rows = new Map<string, SiteRouteRow>()
+  for (const { kind, count } of todayByRoute) {
+    rows.set(kind, { route: kind, today: count, count: 0, medianMs: null, p95Ms: null, errors: 0 })
+  }
+  for (const r of byRoute) rows.set(r.route, { ...r, today: rows.get(r.route)?.today ?? 0 })
+  return Array.from(rows.values())
+    .sort((a, b) => b.today - a.today || b.count - a.count || a.route.localeCompare(b.route))
+}
+
+export function getSiteStats(): Omit<SiteStats, 'byRoute'> & { today: number; errorsToday: number; byRoute: SiteRouteRow[] } {
   const totals = today.totals()
-  return { ...window_.stats(Date.now()), today: totals.today, errorsToday: totals.failedToday }
+  const hour = window_.stats(Date.now())
+  return {
+    ...hour,
+    byRoute: withTodayCounts(hour.byRoute, today.stats().byKind),
+    today: totals.today,
+    errorsToday: totals.failedToday,
+  }
 }

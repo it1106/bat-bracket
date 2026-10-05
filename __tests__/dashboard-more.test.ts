@@ -102,3 +102,36 @@ describe('parseDu', () => {
     expect(parseDu('500\t/root/.pm2/logs\nnonsense\n\n', '/root/app')).toEqual([{ name: '/root/.pm2/logs', bytes: 512000 }])
   })
 })
+
+import { withTodayCounts } from '@/lib/site-requests'
+
+describe('withTodayCounts', () => {
+  const hour = [
+    { route: 'matches', count: 40, medianMs: 120, p95Ms: 900, errors: 1 },
+    { route: 'bracket', count: 5, medianMs: 80, p95Ms: 200, errors: 0 },
+  ]
+
+  it('puts today\'s count beside the past hour\'s figures, busiest today first', () => {
+    expect(withTodayCounts(hour, [{ kind: 'bracket', count: 900 }, { kind: 'matches', count: 300 }])).toEqual([
+      { route: 'bracket', today: 900, count: 5, medianMs: 80, p95Ms: 200, errors: 0 },
+      { route: 'matches', today: 300, count: 40, medianMs: 120, p95Ms: 900, errors: 1 },
+    ])
+  })
+
+  it('lists a route asked for today but not in the past hour, without timings', () => {
+    expect(withTodayCounts(hour, [{ kind: 'matches', count: 300 }, { kind: 'bracket', count: 9 }, { kind: 'h2h', count: 15 }]))
+      .toEqual([
+        { route: 'matches', today: 300, count: 40, medianMs: 120, p95Ms: 900, errors: 1 },
+        { route: 'h2h', today: 15, count: 0, medianMs: null, p95Ms: null, errors: 0 },
+        { route: 'bracket', today: 9, count: 5, medianMs: 80, p95Ms: 200, errors: 0 },
+      ])
+  })
+
+  it('keeps a route seen in the past hour that today\'s counts do not have yet', () => {
+    expect(withTodayCounts(hour, [])).toEqual([
+      { route: 'matches', today: 0, count: 40, medianMs: 120, p95Ms: 900, errors: 1 },
+      { route: 'bracket', today: 0, count: 5, medianMs: 80, p95Ms: 200, errors: 0 },
+    ])
+  })
+})
+
