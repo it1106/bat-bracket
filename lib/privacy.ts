@@ -6,6 +6,7 @@ import type { Lang } from '@/lib/i18n'
 //
 // This describes what the code does. If analytics change — a new property sent
 // to PostHog, session replay, an account system — update the notice with it.
+// The request log and its 14 days are lib/access-log.ts (RETENTION_DAYS).
 
 export interface PrivacySection {
   heading: string
@@ -28,7 +29,7 @@ export const PRIVACY: Record<Lang, PrivacyText> = {
       },
       {
         heading: 'What we collect',
-        body: 'When you open BATMatch, your browser creates a random visitor ID and keeps it on your device. With that ID we record which pages you view, what you open (such as a tournament, a draw or a player profile), how fast pages load, and errors that occur. We also see general information your browser sends, such as device type, browser and approximate location. If you create a custom tab, its name and search keywords are recorded with your usage data.',
+        body: 'When you open BATMatch, your browser creates a random visitor ID and keeps it on your device. With that ID we record which pages you view, what you open (such as a tournament, a draw or a player profile), how fast pages load, and errors that occur. We also see general information your browser sends, such as device type, browser and approximate location. If you create a custom tab, its name and search keywords are recorded with your usage data. Our server also keeps a log of the requests it receives — the time, your IP address and country, the page or data requested, and your browser type — for 14 days, to keep the site secure and to investigate problems.',
       },
       {
         heading: 'What we do not collect',
@@ -40,7 +41,7 @@ export const PRIVACY: Record<Lang, PrivacyText> = {
       },
       {
         heading: 'Who processes it',
-        body: 'Usage data is processed for us by PostHog, an analytics service, on servers in the European Union. The count of visitors online is kept on BATMatch’s own server.',
+        body: 'Usage data is processed for us by PostHog, an analytics service, on servers in the European Union. The count of visitors online and the request log are kept on BATMatch’s own server.',
       },
       {
         heading: 'What is stored on your device',
@@ -65,7 +66,7 @@ export const PRIVACY: Record<Lang, PrivacyText> = {
       },
       {
         heading: 'ข้อมูลที่เราเก็บ',
-        body: 'เมื่อคุณเปิด BATMatch เบราว์เซอร์ของคุณจะสร้างรหัสผู้เข้าชมแบบสุ่มและเก็บไว้ในอุปกรณ์ของคุณ เราใช้รหัสนี้บันทึกว่าคุณเปิดดูหน้าใด เปิดดูอะไร (เช่น รายการแข่งขัน สายการแข่งขัน หรือโปรไฟล์นักกีฬา) หน้าเว็บโหลดเร็วแค่ไหน และมีข้อผิดพลาดอะไรเกิดขึ้น นอกจากนี้เรายังเห็นข้อมูลทั่วไปที่เบราว์เซอร์ส่งมา เช่น ประเภทอุปกรณ์ เบราว์เซอร์ และตำแหน่งโดยประมาณ หากคุณสร้างแท็บกำหนดเอง ชื่อหัวข้อและคำค้นหาของแท็บนั้นจะถูกบันทึกไปพร้อมกับข้อมูลการใช้งานด้วย',
+        body: 'เมื่อคุณเปิด BATMatch เบราว์เซอร์ของคุณจะสร้างรหัสผู้เข้าชมแบบสุ่มและเก็บไว้ในอุปกรณ์ของคุณ เราใช้รหัสนี้บันทึกว่าคุณเปิดดูหน้าใด เปิดดูอะไร (เช่น รายการแข่งขัน สายการแข่งขัน หรือโปรไฟล์นักกีฬา) หน้าเว็บโหลดเร็วแค่ไหน และมีข้อผิดพลาดอะไรเกิดขึ้น นอกจากนี้เรายังเห็นข้อมูลทั่วไปที่เบราว์เซอร์ส่งมา เช่น ประเภทอุปกรณ์ เบราว์เซอร์ และตำแหน่งโดยประมาณ หากคุณสร้างแท็บกำหนดเอง ชื่อหัวข้อและคำค้นหาของแท็บนั้นจะถูกบันทึกไปพร้อมกับข้อมูลการใช้งานด้วย นอกจากนี้ เซิร์ฟเวอร์ของเรายังเก็บบันทึกคำขอที่ได้รับ ได้แก่ เวลา ที่อยู่ IP และประเทศของคุณ หน้าหรือข้อมูลที่ขอ และประเภทเบราว์เซอร์ ไว้เป็นเวลา 14 วัน เพื่อรักษาความปลอดภัยของเว็บไซต์และตรวจสอบปัญหา',
       },
       {
         heading: 'ข้อมูลที่เราไม่เก็บ',
@@ -77,7 +78,7 @@ export const PRIVACY: Record<Lang, PrivacyText> = {
       },
       {
         heading: 'ใครเป็นผู้ประมวลผลข้อมูล',
-        body: 'ข้อมูลการใช้งานประมวลผลโดย PostHog ซึ่งเป็นบริการวิเคราะห์การใช้งานเว็บไซต์ บนเซิร์ฟเวอร์ที่ตั้งอยู่ในสหภาพยุโรป ส่วนจำนวนผู้ที่กำลังออนไลน์เก็บไว้บนเซิร์ฟเวอร์ของ BATMatch เอง',
+        body: 'ข้อมูลการใช้งานประมวลผลโดย PostHog ซึ่งเป็นบริการวิเคราะห์การใช้งานเว็บไซต์ บนเซิร์ฟเวอร์ที่ตั้งอยู่ในสหภาพยุโรป ส่วนจำนวนผู้ที่กำลังออนไลน์และบันทึกคำขอเก็บไว้บนเซิร์ฟเวอร์ของ BATMatch เอง',
       },
       {
         heading: 'ข้อมูลที่เก็บไว้ในอุปกรณ์ของคุณ',

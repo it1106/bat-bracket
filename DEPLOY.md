@@ -129,6 +129,21 @@ grep '\[bat-fetch\]' /root/.pm2/logs/bat-bracket-out-*.log \
   | grep -oP 'kind=\S+' | sort | uniq -c | sort -rn
 ```
 
+### Access log (who asked for what)
+
+Every request except build files is written to `/root/app/.cache/access-log/<day>.log`,
+one JSON line each: time, visitor address and country (from Cloudflare), method,
+status (`0` = the visitor left before an answer), milliseconds, URL, user agent
+and referer. Files are kept 14 days (`lib/access-log.ts`). `cc` is `direct` for
+a request that did not come through Cloudflare.
+
+```bash
+cd /root/app/.cache/access-log
+grep '"ip":"203.0.113.7"' 2026-10-05.log                       # everything one address did
+grep -o '"ip":"[^"]*"' 2026-10-05.log | sort | uniq -c | sort -rn | head   # busiest addresses
+grep '/api/bat/player-ages' 2026-10-05.log | grep -o '"ip":"[^"]*"' | sort | uniq -c | sort -rn | head
+```
+
 ## After a restart
 
 Pre-warm runs for ~90 s, fetching every bracket of every tournament listed in

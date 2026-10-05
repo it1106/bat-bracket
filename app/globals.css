@@ -3859,6 +3859,30 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .bms-table .bms-path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; word-break: break-all; }
 .bms-routes { min-width: 420px; }
 .bms-routes th { white-space: nowrap; }
+/* "By country" donut. Slice colours are a fixed set told apart by colour-blind
+   readers too; dark mode has its own steps of the same hues. */
+.bms-donut-wrap {
+  --bms-c0: #9aa0a6; --bms-c1: #2a78d6; --bms-c2: #eb6834; --bms-c3: #1baf7a; --bms-c4: #eda100; --bms-c5: #e87ba4;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px;
+}
+html.dark .bms-donut-wrap {
+  --bms-c0: #6e7681; --bms-c1: #3987e5; --bms-c2: #d95926; --bms-c3: #199e70; --bms-c4: #c98500; --bms-c5: #d55181;
+}
+.bms-donut { flex: 0 0 150px; width: 150px; }
+.bms-donut svg { display: block; width: 100%; height: auto; }
+.bms-donut-side { flex: 1 1 240px; min-width: 0; }
+.bms-donut-arc { transition: opacity 120ms ease-out; cursor: default; }
+.bms-donut-arc--dim { opacity: 0.35; }
+.bms-donut-total { font-size: 15px; font-weight: 700; fill: var(--fg); font-variant-numeric: tabular-nums; }
+.bms-donut-caption { font-size: 8px; fill: var(--muted); }
+circle.bms-c0 { stroke: var(--bms-c0); } circle.bms-c1 { stroke: var(--bms-c1); } circle.bms-c2 { stroke: var(--bms-c2); }
+circle.bms-c3 { stroke: var(--bms-c3); } circle.bms-c4 { stroke: var(--bms-c4); } circle.bms-c5 { stroke: var(--bms-c5); }
+.bms-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; }
+.bms-swatch.bms-c0 { background: var(--bms-c0); } .bms-swatch.bms-c1 { background: var(--bms-c1); }
+.bms-swatch.bms-c2 { background: var(--bms-c2); } .bms-swatch.bms-c3 { background: var(--bms-c3); }
+.bms-swatch.bms-c4 { background: var(--bms-c4); } .bms-swatch.bms-c5 { background: var(--bms-c5); }
+.bms-countries .bms-share { width: 64px; }
+.bms-table tr.bms-row--on { background: var(--surface-2); }
 
 /* ── Team schedule picture (calendar button on a searched schedule) ── */
 .match-schedule__filter-count { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; }

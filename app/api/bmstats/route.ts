@@ -8,6 +8,7 @@ import { getBatLatency } from '@/lib/bat-latency'
 import { getRestartInfo, memoryLimitBytes } from '@/lib/pm2-restarts'
 import { getPlayerCacheStats } from '@/lib/player-cache-stats'
 import { getSiteStats } from '@/lib/site-requests'
+import { getCountryStats } from '@/lib/access-log'
 import { getBrowserUsage } from '@/lib/browser-usage'
 import { getBwfFetchStats } from '@/lib/bwf-fetch-stats'
 import { getDiskUsage } from '@/lib/disk-usage'
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
       restarts: getRestartInfo(),
       memoryLimitBytes: memoryLimitBytes(),
       playerCache: getPlayerCacheStats(),
-      site: getSiteStats(),
+      site: { ...getSiteStats(), countries: getCountryStats() },
       browser,
       bwf: getBwfFetchStats(),
       outages: getBatOutages(MAX_OUTAGES),

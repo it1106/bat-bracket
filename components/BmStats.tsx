@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { setSearchAliases } from '@/lib/searchAliases'
 import { outageEvents } from '@/lib/batOutageEvents'
+import CountryDonut from '@/components/CountryDonut'
 
 const REFRESH_MS = 10_000
 
@@ -64,6 +65,7 @@ interface Status {
     today: number
     errorsToday: number
     byRoute: Array<{ route: string; today?: number; count: number; medianMs: number | null; p95Ms: number | null; errors: number }>
+    countries?: Array<{ country: string; count: number }>
   }
   browser?: { processes: number; rssBytes: number; cpuPercent: number } | null
   bwf?: { today: number; failedToday: number; lastHour: number }
@@ -594,6 +596,16 @@ export default function BmStats() {
               </div>
               <p className="bms-note">
                 Today is midnight to midnight, {bat.day}. Typical, slowest 5% and errors are for the past 60 minutes.
+              </p>
+            </>
+          )}
+          {site.countries && site.countries.length > 0 && (
+            <>
+              <h3 className="bms-subtitle">By country</h3>
+              <CountryDonut countries={site.countries} />
+              <p className="bms-note">
+                Where today&apos;s requests came from, as Cloudflare reports each visitor&apos;s country. Every request
+                is also written to the access log with its address, kept for 14 days.
               </p>
             </>
           )}
