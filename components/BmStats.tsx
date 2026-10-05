@@ -908,7 +908,7 @@ export default function BmStats() {
                   <td className="bms-th">Users</td>
                   <td className="bms-th">Peak online</td>
                   <td className="bms-th">Page loads</td>
-                  <td className="bms-th">Site requests</td>
+                  <td className="bms-th" title="Data requests the site answered (schedules, brackets, players…), midnight to midnight">Site requests</td>
                   <td className="bms-th">BAT requests</td>
                   <td className="bms-th">BAT failed</td>
                   <td className="bms-th">BAT down</td>
