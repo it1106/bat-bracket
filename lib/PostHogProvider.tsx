@@ -14,13 +14,10 @@ const HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || '/ingest'
 // PostHog dashboard generates session-replay / person links against ui_host;
 // keep it on the real PostHog UI domain so those links resolve.
 const UI_HOST = 'https://eu.posthog.com'
-// Vercel injects NEXT_PUBLIC_VERCEL_ENV ("production" | "preview" | "development")
-// at build time. Empty on any non-Vercel build (LAN box, local dev). Hostname
-// sniffing was wrong: custom domains pointed at Vercel got tagged "self-hosted"
-// because they don't end in .vercel.app.
-const VERCEL_ENV = process.env.NEXT_PUBLIC_VERCEL_ENV || ''
-const APP_DEPLOYMENT = VERCEL_ENV ? 'vercel' : 'self-hosted'
-const APP_ENVIRONMENT = VERCEL_ENV || 'production'
+// Sent with every event. There is one deployment now, but dashboards built
+// when there were two still filter on these, so the values stay as they were.
+const APP_DEPLOYMENT = 'self-hosted'
+const APP_ENVIRONMENT = 'production'
 
 export function PostHogProvider({ children }: { children: ReactNode }) {
   const { lang } = useLanguage()
@@ -35,8 +32,7 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
       ui_host: UI_HOST,
       capture_pageview: true,
       autocapture: false,
-      // Web Vitals (LCP/INP/CLS/...) reported per pageview — replaces the
-      // ad-blocker-prone @vercel/speed-insights script.
+      // Web Vitals (LCP/INP/CLS/...) reported per pageview.
       capture_performance: { web_vitals: true },
       // Hooks window.onerror + unhandledrejection so JS errors flow to PostHog
       // as $exception events. Critical for catching prod regressions early.

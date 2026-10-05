@@ -5,7 +5,7 @@ export async function register() {
     const { installRequestTimer } = await import('./lib/request-timer')
     installRequestTimer()
   }
-  if (process.env.NEXT_RUNTIME === 'nodejs' && !process.env.VERCEL) {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
     const dns = await import('dns')
     dns.setDefaultResultOrder('ipv4first')
 

@@ -30,9 +30,6 @@ yarn-error.log*
 # holds BMSTATS_PASSWORD on the server — never commit it
 .env.production
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -4,7 +4,7 @@ import { dayOf } from './presence'
 
 // Why the worker restarted today, for /bmstats. The app only knows that it
 // started; the reason is in PM2's own log, so this reads it. Server-only, and
-// returns null wherever there is no PM2 (local runs, Vercel).
+// returns null wherever there is no PM2 (local runs).
 
 export type RestartReason = 'reload' | 'memory' | 'crash'
 

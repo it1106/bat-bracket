@@ -4,12 +4,6 @@ const nextConfig = {
     serverComponentsExternalPackages: ['playwright-core', '@sparticuz/chromium'],
     instrumentationHook: true,
   },
-  // Vercel auto-sets VERCEL_ENV at build time but only exposes it server-side.
-  // Re-export it under a NEXT_PUBLIC_ prefix so the client bundle (PostHog
-  // deployment tag) can read it. Falls back to empty string off Vercel.
-  env: {
-    NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV || '',
-  },
   // Same-origin reverse proxy for PostHog so ad-blockers (which hard-block
   // *.posthog.com) don't drop ~25-30% of events. Browser sends to /ingest/...
   // on our own domain; Next rewrites it to PostHog EU at the edge.
