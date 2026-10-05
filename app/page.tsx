@@ -74,6 +74,9 @@ async function safeJson(res: Response): Promise<unknown> {
   }
 }
 
+/** How often an open bracket checks the server for a newer picture. */
+const BRACKET_POLL_MS = 60_000
+
 // /api/matches stamps X-Stale-Cache: 1 when it served a cached copy because
 // the BAT upstream was unreachable. Inspect once per successful response so
 // the banner can flip on/off in real time without polling. Non-OK responses
@@ -721,6 +724,32 @@ export default function Home() {
     setFromRoundName(newFrom > 0 ? roundName : '')
     await fetchBracketFrom(selectedTournament, selectedDraw, newFrom)
   }, [selectedTournament, selectedDraw, fromRound, fetchBracketFrom])
+
+  // The open bracket re-reads itself every minute, so a result the server has
+  // picked up shows without choosing the draw again. The request is answered
+  // from the server's bracket cache (which goes to BAT only when its copy has
+  // aged out), and the picture is replaced only when it has actually changed.
+  // Quietly: no spinner, and a failed read just waits for the next one.
+  const bracketShown = viewMode === 'bracket' && bracketHtml !== '' && !eventBundle
+  useEffect(() => {
+    if (!bracketShown || !selectedTournament || !selectedDraw) return
+    let cancelled = false
+    const params = new URLSearchParams({ tournament: selectedTournament, event: selectedDraw })
+    if (fromRound > 0) params.set('fromRound', String(fromRound))
+    const tick = async () => {
+      if (document.visibilityState !== 'visible') return
+      try {
+        const res = await fetch(`/api/bracket?${params}`)
+        if (readStaleFlag(res)) setStaleCache(true)
+        const data = await safeJson(res) as BracketData | ApiError
+        if (cancelled || isApiError(data) || !data.html) return
+        setBracketHtml((shown) => (shown ? data.html : shown))
+        setBracketEntrants(data.entrantCount)
+      } catch { /* ignore — next tick retries */ }
+    }
+    const id = setInterval(tick, BRACKET_POLL_MS)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [bracketShown, selectedTournament, selectedDraw, fromRound])
 
   // After bracketHtml updates, jump to the pending round if one was requested
   useEffect(() => {

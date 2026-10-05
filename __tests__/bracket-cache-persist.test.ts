@@ -14,7 +14,7 @@ import {
   cache, rawHtmlCache, playerClubCache, makeBracketKey, markBracketDirty,
   flushBracketCache, loadBracketStoreFromDisk, ensureBracketsLoaded,
   cachedEntrantCounts, prewarmBracketCache, restoreBracketStore, __resetBracketStoreForTesting,
-  bracketHtmlForSchedule, LIVE_TTL_MS,
+  bracketHtmlForSchedule, LIVE_TTL_MS, refreshBracketForResult,
 } from '../lib/bracket-cache'
 import { batFetch } from '../lib/bat-fetch'
 import { parseBracket } from '../lib/scraper'
@@ -459,6 +459,59 @@ describe('bracketHtmlForSchedule', () => {
     expect(await bracketHtmlForSchedule(A, '1')).toBe('final')
     await settle()
     expect(batFetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('refreshBracketForResult', () => {
+  const settle = () => new Promise((r) => setImmediate(r))
+  beforeEach(() => {
+    ;(batFetch as jest.Mock).mockReset()
+    ;(batFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => 'refreshed' })
+  })
+
+  it('refetches the bracket once for a finished match, however often it is reported', async () => {
+    put(A, '1', 'old', Date.now() - 60_000)
+    expect(refreshBracketForResult(A, '1', '1,2')).toBe(true)
+    await settle()
+    expect(refreshBracketForResult(A.toUpperCase(), '1', '1,2')).toBe(false)
+    await settle()
+    expect(batFetch).toHaveBeenCalledTimes(1)
+    expect(rawHtmlCache.get(makeBracketKey(A, '1'))).toBe('refreshed')
+  })
+
+  it('shares one request between matches of a draw that finish together', async () => {
+    put(A, '1', 'old', Date.now() - 60_000)
+    expect(refreshBracketForResult(A, '1', '1,2')).toBe(true)
+    expect(refreshBracketForResult(A, '1', '3,4')).toBe(true)
+    await settle()
+    expect(batFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('asks again for the next match to finish', async () => {
+    put(A, '1', 'old', Date.now() - 60_000)
+    refreshBracketForResult(A, '1', '1,2')
+    await settle()
+    refreshBracketForResult(A, '1', '3,4')
+    await settle()
+    expect(batFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('leaves a finished tournament alone', async () => {
+    const key = makeBracketKey(A, '1')
+    rawHtmlCache.set(key, 'final')
+    cache.set(key, { bracket: { html: 'final' } as never, ts: 1, done: true })
+    expect(refreshBracketForResult(A, '1', '1,2')).toBe(false)
+    await settle()
+    expect(batFetch).not.toHaveBeenCalled()
+  })
+
+  it('survives BAT failing, and does not ask again for that match', async () => {
+    ;(batFetch as jest.Mock).mockResolvedValue({ ok: false, status: 500 })
+    put(A, '1', 'old', Date.now() - 60_000)
+    refreshBracketForResult(A, '1', '1,2')
+    await settle()
+    expect(rawHtmlCache.get(makeBracketKey(A, '1'))).toBe('old')
+    expect(refreshBracketForResult(A, '1', '1,2')).toBe(false)
   })
 })
 

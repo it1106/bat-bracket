@@ -178,3 +178,54 @@ describe('next match of a later-round pairing (THE MALL 2026, BD U17)', () => {
     expect(next).toMatchObject({ nextTime: '19:50', sameDay: true })
   })
 })
+
+describe('bracket results, for telling when a held bracket is behind the schedule', () => {
+  const row = (id: string, won = false) =>
+    `<div class="match__row ${won ? 'has-won' : ''}"><a href="/sport/player.aspx?id=X&player=${id}">P${id}</a></div>`
+  const html = `
+    <div class="bracket js-bracket"><swiper-container>
+      <swiper-slide><div class="bracket-round__match-group-wrapper">
+        <div class="match">${row('2', true)}${row('1')}</div>
+        <div class="match">${row('3')}${row('4')}</div>
+      </div></swiper-slide>
+      <swiper-slide><div class="bracket-round__match-group-wrapper">
+        <div class="match">${row('2')}</div>
+      </div></swiper-slide>
+    </swiper-container></div>`
+
+  it('lists every match that has players, and whether it has been decided', () => {
+    expect(parseBracketContext(html).results).toEqual([
+      { players: ['1', '2'], decided: true },
+      { players: ['3', '4'], decided: false },
+      { players: ['2'], decided: false },
+    ])
+  })
+
+  it('finds the round-of-32 pairing in the real bracket, not yet played', () => {
+    const real = fs.readFileSync(path.join(process.cwd(), 'fixtures', 'bracket-bat-themall-bdu17.html'), 'utf-8')
+    const results = parseBracketContext(real).results
+    expect(results.find((r) => r.players.join(',') === '322,323,632,634')).toEqual({
+      players: ['322', '323', '632', '634'], decided: false,
+    })
+    expect(results.filter((r) => r.decided).length).toBeGreaterThan(0)
+  })
+})
+
+import { resultsBracketLacks } from '@/lib/bracket-cache'
+
+describe('resultsBracketLacks', () => {
+  const bracket = { known: new Set(['1,2', '3,4', '5,6']), decided: new Set(['1,2']) }
+
+  it('names the finished matches the bracket still shows as unplayed', () => {
+    expect(resultsBracketLacks(['1,2', '3,4', '5,6'], bracket)).toEqual(['3,4', '5,6'])
+  })
+
+  it('is empty when the bracket already has every result', () => {
+    expect(resultsBracketLacks(['1,2'], bracket)).toEqual([])
+  })
+
+  it('ignores a match the bracket does not have at all', () => {
+    expect(resultsBracketLacks(['7,8'], bracket)).toEqual([])
+  })
+})
+

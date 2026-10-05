@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketContext } from '@/lib/scraper'
-import { cache as bracketCache, bracketHtmlForSchedule, siblingLookupCache, feederLookupCache, nextLookupCache, makeBracketKey, ensureBracketsLoaded } from '@/lib/bracket-cache'
+import { cache as bracketCache, bracketHtmlForSchedule, siblingLookupCache, feederLookupCache, nextLookupCache, resultLookupCache, resultsBracketLacks, refreshBracketForResult, makeBracketKey, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
 import { readDayCache, writeDayCache, isDayComplete, shouldMemcacheDayResult, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
@@ -123,6 +123,7 @@ async function enrichBracketContext(
   const siblingByDraw = new Map<string, Map<string, string>>()
   const feederByDraw = new Map<string, Map<string, MatchPlayer[][][]>>()
   const nextByDraw = new Map<string, Map<string, string>>()
+  const resultsByDraw = new Map<string, { known: Set<string>; decided: Set<string> }>()
 
   // A finished tournament's brackets live on disk until someone opens it;
   // without this the lookups below would refetch every draw from BAT.
@@ -149,7 +150,8 @@ async function enrichBracketContext(
         let sibling = siblingLookupCache.get(key)
         let feeder = feederLookupCache.get(key)
         let next = nextLookupCache.get(key)
-        if (sibling?.ts !== bracketTs || feeder?.ts !== bracketTs || next?.ts !== bracketTs) {
+        let results = resultLookupCache.get(key)
+        if (sibling?.ts !== bracketTs || feeder?.ts !== bracketTs || next?.ts !== bracketTs || results?.ts !== bracketTs) {
           const context = parseBracketContext(html)
           sibling = { lookup: new Map<string, string>(), ts: bracketTs }
           for (const p of context.siblings) sibling.lookup.set(p.players.join(','), p.siblingPlayers.join(','))
@@ -159,10 +161,18 @@ async function enrichBracketContext(
           for (const e of context.nextMatches) {
             if (e.sameDay) next.lookup.set(e.players.join(','), e.nextTime)
           }
+          results = { known: new Set<string>(), decided: new Set<string>(), ts: bracketTs }
+          for (const r of context.results) {
+            const matchKey = r.players.join(',')
+            results.known.add(matchKey)
+            if (r.decided) results.decided.add(matchKey)
+          }
           siblingLookupCache.set(key, sibling)
           feederLookupCache.set(key, feeder)
           nextLookupCache.set(key, next)
+          resultLookupCache.set(key, results)
         }
+        if (results.known.size > 0) resultsByDraw.set(drawNum, results)
         if (sibling.lookup.size > 0) siblingByDraw.set(drawNum, sibling.lookup)
         if (feeder.lookup.size > 0) feederByDraw.set(drawNum, feeder.lookup)
         if (next.lookup.size > 0) nextByDraw.set(drawNum, next.lookup)
@@ -171,6 +181,19 @@ async function enrichBracketContext(
       }
     }),
   )
+
+  // A match the schedule shows as finished but the bracket still shows as
+  // unplayed means the bracket is behind: refresh it now (in the background)
+  // so it follows the scores instead of waiting out its TTL.
+  resultsByDraw.forEach((bracket, drawNum) => {
+    const decided = groups.flatMap((g) => g.matches)
+      .filter((m) => m.drawNum === drawNum && m.winner !== null)
+      .map(matchPlayerKey)
+      .filter(Boolean)
+    for (const matchKey of resultsBracketLacks(decided, bracket)) {
+      refreshBracketForResult(tournamentId, drawNum, matchKey)
+    }
+  })
 
   for (const g of groups) {
     for (const m of g.matches) {

@@ -31,6 +31,10 @@ interface BracketCacheState {
   // Tournaments (lowercased guid) with brackets fetched since the last flush.
   // Per draw: a match's player key → the same-day time its winner plays next.
   nextLookupCache: Map<string, { lookup: Map<string, string>; ts: number }>
+  // Per draw: the matches the bracket has, and those it shows as decided.
+  resultLookupCache: Map<string, { known: Set<string>; decided: Set<string>; ts: number }>
+  // Per draw: finished matches that have already asked for a refresh.
+  resultRefreshes: Map<string, Set<string>>
   dirtyGuids: Set<string>
   // Finished tournaments whose brackets are on disk but not in the Maps above.
   coldGuids: Set<string>
@@ -59,6 +63,8 @@ const state: BracketCacheState = globalState.__bracketCacheState ??= {
   siblingLookupCache: new Map(),
   feederLookupCache: new Map(),
   nextLookupCache: new Map(),
+  resultLookupCache: new Map(),
+  resultRefreshes: new Map(),
   dirtyGuids: new Set(),
   coldGuids: new Set(),
   warmGuids: [],
@@ -150,6 +156,8 @@ export const siblingLookupCache = state.siblingLookupCache
 export const feederLookupCache = state.feederLookupCache
 // A globalThis state object that predates this field (a hot reload) won't have it.
 export const nextLookupCache = (state.nextLookupCache ??= new Map())
+export const resultLookupCache = (state.resultLookupCache ??= new Map())
+const resultRefreshes = (state.resultRefreshes ??= new Map())
 // Tiered TTLs by draw activity.
 //   live   = at least one match still has no winner → poll on a tight cycle
 //            so users see results soon after a match finishes.
@@ -279,6 +287,36 @@ export async function bracketHtmlForSchedule(guid: string, drawNum: string): Pro
     fetchAndCache(guid, drawNum).catch(() => {}) // the old copy keeps serving
   }
   return html
+}
+
+/** Of the matches the schedule shows as finished (`decidedKeys`, player
+ *  keys), those the bracket has but still shows as unplayed: the bracket is
+ *  behind the schedule for these. A match the bracket does not have at all is
+ *  left out — its feeder matches report themselves. */
+export function resultsBracketLacks(
+  decidedKeys: string[],
+  bracket: { known: Set<string>; decided: Set<string> },
+): string[] {
+  return decidedKeys.filter((key) => bracket.known.has(key) && !bracket.decided.has(key))
+}
+
+/** Refetches a draw's bracket because the schedule shows a result (the match
+ *  with player key `matchKey`) that the held bracket does not have yet, so the
+ *  bracket follows the scores instead of waiting out its TTL. Each match asks
+ *  once only, however often it is reported and whether or not the fetch
+ *  succeeds, which bounds the cost at one BAT request per finished match;
+ *  matches of a draw finishing together share one request. Returns whether a
+ *  refresh was started. */
+export function refreshBracketForResult(guid: string, drawNum: string, matchKey: string): boolean {
+  const key = makeBracketKey(guid, drawNum)
+  if (cache.get(key)?.done || state.unparsed.has(key)) return false
+  let asked = resultRefreshes.get(key)
+  if (!asked) resultRefreshes.set(key, (asked = new Set()))
+  if (asked.has(matchKey)) return false
+  asked.add(matchKey)
+  console.log(`[bracket] refresh for result tournament=${guid} draw=${drawNum} match=${matchKey}`)
+  fetchAndCache(guid, drawNum).catch(() => {}) // the old copy keeps serving
+  return true
 }
 
 async function fetchAndCacheNow(guid: string, drawNum: string): Promise<BracketData> {
@@ -471,6 +509,8 @@ function dropFromMemory(guid: string): void {
     siblingLookupCache.delete(key)
     feederLookupCache.delete(key)
     nextLookupCache.delete(key)
+    resultLookupCache.delete(key)
+    resultRefreshes.delete(key)
   }
   state.coldGuids.add(guid)
 }
@@ -536,6 +576,8 @@ export function __resetBracketStoreForTesting(): void {
   siblingLookupCache.clear()
   feederLookupCache.clear()
   nextLookupCache.clear()
+  resultLookupCache.clear()
+  resultRefreshes.clear()
 }
 
 export async function loadBracketStoreFromDisk(): Promise<number> {

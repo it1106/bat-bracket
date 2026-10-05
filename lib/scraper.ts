@@ -715,9 +715,24 @@ export function parseBracketContext(html: string): {
   siblings: ReturnType<typeof parseBracketSiblings>
   feeders: ReturnType<typeof parseBracketFeeders>
   nextMatches: ReturnType<typeof parseBracketNextMatches>
+  results: Array<{ players: string[]; decided: boolean }>
 } {
   const $ = cheerio.load(html, { xmlMode: false })
-  return { siblings: siblingsFrom($), feeders: feedersFrom($), nextMatches: nextMatchesFrom($) }
+  return { siblings: siblingsFrom($), feeders: feedersFrom($), nextMatches: nextMatchesFrom($), results: resultsFrom($) }
+}
+
+// Every match in the bracket that has players, and whether the bracket shows
+// it as decided (one side marked as having won). `players` is the sorted flat
+// list of player IDs, the join key the other lookups use. The schedule
+// compares this against its own results to tell when a bracket is behind.
+function resultsFrom($: cheerio.CheerioAPI): Array<{ players: string[]; decided: boolean }> {
+  const result: Array<{ players: string[]; decided: boolean }> = []
+  $('.bracket.js-bracket').find('swiper-container > swiper-slide .match').each((_, match) => {
+    const players = extractFlatPlayerIds($, match).slice().sort()
+    if (players.length === 0) return
+    result.push({ players, decided: $(match).find('.match__row.has-won').length > 0 })
+  })
+  return result
 }
 
 function nextMatchesFrom(
