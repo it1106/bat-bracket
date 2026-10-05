@@ -678,6 +678,69 @@ export default function BmStats() {
         )}
       </Card>
 
+      {outages && (
+        <Card title="BAT outages">
+          {outages.recent.length === 0 ? (
+            <p className="bms-note">
+              None recorded{outages.since ? ` since tracking began on ${dateOf(outages.since, true)}` : ''}.
+            </p>
+          ) : (
+            <div className="bms-scroll">
+              <table className="bms-table bms-history">
+                <thead>
+                  <tr>
+                    <th scope="col" className="bms-th">Started</th>
+                    <td className="bms-th">Ended</td>
+                    <td className="bms-th">Lasted</td>
+                    <td className="bms-th">Failed requests</td>
+                    <td className="bms-th">What happened</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {outages.recent.map((outage) => (
+                    <tr key={outage.start}>
+                      <th scope="row">{dateOf(outage.start, true)}</th>
+                      <td>{outage.end ? clock(outage.end) : <span className="bms-today">still down</span>}</td>
+                      <td>{lasted(outage.start, outage.end)}</td>
+                      <td>{num(outage.failed)}</td>
+                      <td>{OUTAGE_LABEL[outage.kind]} ({outage.detail})</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {outages.recent.length > 0 && (
+            <>
+              <h3 className="bms-subtitle">Event log</h3>
+              <ul className="bms-events">
+                {outageEvents(outages.recent).map((event) => (
+                  <li key={`${event.type}${event.at}`}>
+                    <time dateTime={event.at}>{fullTime(event.at)}</time>
+                    <span className="bms-meter-state">
+                      <span
+                        className="bms-dot"
+                        style={{ background: event.type === 'down' ? 'var(--red)' : 'var(--win-fg)' }}
+                        aria-hidden="true"
+                      />
+                      {event.type === 'down' ? 'BAT went down' : 'BAT came back up'}
+                    </span>
+                    <span className="bms-events-note">
+                      {event.type === 'down' ? event.detail : `after ${duration(event.downSeconds ?? 0)}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="bms-note">
+            An outage is five or more BAT requests failing in a row over at least 30 seconds; it ends at the first of
+            three answers in a row. This is BAT as seen from this server, so a break in the server&apos;s own
+            connection shows here too.
+          </p>
+        </Card>
+      )}
+
       {pages && (
         <Card title="Page loads">
           <p className="bms-note">
@@ -829,69 +892,6 @@ export default function BmStats() {
           </>
         )}
       </Card>
-
-      {outages && (
-        <Card title="BAT outages">
-          {outages.recent.length === 0 ? (
-            <p className="bms-note">
-              None recorded{outages.since ? ` since tracking began on ${dateOf(outages.since, true)}` : ''}.
-            </p>
-          ) : (
-            <div className="bms-scroll">
-              <table className="bms-table bms-history">
-                <thead>
-                  <tr>
-                    <th scope="col" className="bms-th">Started</th>
-                    <td className="bms-th">Ended</td>
-                    <td className="bms-th">Lasted</td>
-                    <td className="bms-th">Failed requests</td>
-                    <td className="bms-th">What happened</td>
-                  </tr>
-                </thead>
-                <tbody>
-                  {outages.recent.map((outage) => (
-                    <tr key={outage.start}>
-                      <th scope="row">{dateOf(outage.start, true)}</th>
-                      <td>{outage.end ? clock(outage.end) : <span className="bms-today">still down</span>}</td>
-                      <td>{lasted(outage.start, outage.end)}</td>
-                      <td>{num(outage.failed)}</td>
-                      <td>{OUTAGE_LABEL[outage.kind]} ({outage.detail})</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {outages.recent.length > 0 && (
-            <>
-              <h3 className="bms-subtitle">Event log</h3>
-              <ul className="bms-events">
-                {outageEvents(outages.recent).map((event) => (
-                  <li key={`${event.type}${event.at}`}>
-                    <time dateTime={event.at}>{fullTime(event.at)}</time>
-                    <span className="bms-meter-state">
-                      <span
-                        className="bms-dot"
-                        style={{ background: event.type === 'down' ? 'var(--red)' : 'var(--win-fg)' }}
-                        aria-hidden="true"
-                      />
-                      {event.type === 'down' ? 'BAT went down' : 'BAT came back up'}
-                    </span>
-                    <span className="bms-events-note">
-                      {event.type === 'down' ? event.detail : `after ${duration(event.downSeconds ?? 0)}`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          <p className="bms-note">
-            An outage is five or more BAT requests failing in a row over at least 30 seconds; it ends at the first of
-            three answers in a row. This is BAT as seen from this server, so a break in the server&apos;s own
-            connection shows here too.
-          </p>
-        </Card>
-      )}
 
       {history.length > 0 && (
         <Card title="Past 30 days">
