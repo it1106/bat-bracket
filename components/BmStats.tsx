@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { setSearchAliases } from '@/lib/searchAliases'
 import { outageEvents } from '@/lib/batOutageEvents'
 import CountryDonut from '@/components/CountryDonut'
+import { useTheme } from '@/lib/ThemeContext'
 
 const REFRESH_MS = 10_000
 
@@ -387,6 +388,25 @@ function AliasEditor() {
       </form>
       {error && <p className="bms-login-error" role="alert">{error}</p>}
     </Card>
+  )
+}
+
+// Light/dark switch, shared with the rest of the site (same saved choice).
+// Both icons are rendered and CSS shows the right one, so the button is
+// correct before React hydrates.
+export function BmStatsThemeToggle() {
+  const { toggleTheme } = useTheme()
+  return (
+    <button
+      type="button"
+      className="bms-logout bms-theme"
+      onClick={toggleTheme}
+      aria-label="Switch between light and dark mode"
+      title="Light / dark mode"
+    >
+      <span className="bms-theme-to-dark" aria-hidden="true">🌙</span>
+      <span className="bms-theme-to-light" aria-hidden="true">☀</span>
+    </button>
   )
 }
 

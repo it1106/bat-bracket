@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import BmStats from '@/components/BmStats'
+import BmStats, { BmStatsThemeToggle } from '@/components/BmStats'
 
 // Server status for whoever runs the site. Not linked from anywhere and kept
 // out of search indexes; the figures themselves come from /api/bmstats.
@@ -12,7 +12,10 @@ export const metadata: Metadata = {
 export default function BmStatsPage() {
   return (
     <div className="lb-page">
-      <Link href="/" className="pp-back">← Home</Link>
+      <div className="bms-top">
+        <Link href="/" className="pp-back">← Home</Link>
+        <BmStatsThemeToggle />
+      </div>
       <BmStats />
     </div>
   )
