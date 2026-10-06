@@ -3809,6 +3809,11 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
   cursor: pointer;
 }
 .bms-logout:hover { background: var(--surface-2); }
+.bms-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.bms-theme { min-width: 34px; line-height: 1.4; }
+.bms-theme-to-light { display: none; }
+html.dark .bms-theme-to-light { display: inline; }
+html.dark .bms-theme-to-dark { display: none; }
 .bms-login { max-width: 340px; margin: 24px auto 0; gap: 10px; }
 .bms-login-label { font-size: 13px; color: var(--muted); }
 .bms-login-input {
