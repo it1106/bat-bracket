@@ -407,7 +407,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     loadingPlayer: 'Loading player profile…',
     loadingH2H: 'Loading H2H data…',
     exportJpg: '↓ Export JPG',
-    overview: 'Overview',
+    overview: 'Info',
     regulations: 'Regulations',
     tournamentInformation: 'Tournament Information',
     seededEntries: 'Seeded Entries',
