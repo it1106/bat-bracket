@@ -61,6 +61,21 @@ export function parseTournamentMeta(html: string): TournamentInfo | null {
 
 // Parses tournament overview page, extracting info alert HTML blocks.
 // Returns sanitized inner HTML of each .alert--info.js-alert found.
+// Strips attributes that shouldn't survive into dangerouslySetInnerHTML
+// (event handlers, ids/classes, bootstrap toggle wiring).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function stripUnsafeAttrs($: cheerio.CheerioAPI, root: cheerio.Cheerio<any>): void {
+  root.find('*').each((_, node) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const attrs: Record<string, string> = (node as any).attribs ?? {}
+    for (const attr of Object.keys(attrs)) {
+      if (attr.startsWith('on') || ['id', 'class', 'aria-expanded', 'aria-controls', 'data-toggle', 'data-target'].includes(attr)) {
+        $(node).removeAttr(attr)
+      }
+    }
+  })
+}
+
 export function parseOverviewNotes(html: string): string[] {
   const $ = cheerio.load(html)
   const notes: string[] = []
@@ -69,19 +84,34 @@ export function parseOverviewNotes(html: string): string[] {
     if (!inner.length) return
     // Remove elements that shouldn't render (buttons, scripts, etc.)
     inner.find('button, script, style').remove()
-    inner.find('*').each((__, node) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const attrs: Record<string, string> = (node as any).attribs ?? {}
-      for (const attr of Object.keys(attrs)) {
-        if (attr.startsWith('on') || ['id', 'class', 'aria-expanded', 'aria-controls', 'data-toggle', 'data-target'].includes(attr)) {
-          $(node).removeAttr(attr)
-        }
-      }
-    })
+    stripUnsafeAttrs($, inner)
     const content = inner.html()?.trim()
     if (content) notes.push(content)
   })
   return notes
+}
+
+// The tournament home page only links to /Home/Regulations when the
+// organiser has filled in regulations — skip the extra BAT call otherwise.
+export function hasRegulationsLink(html: string): boolean {
+  return html.includes('/Home/Regulations')
+}
+
+// Parses the regulations modal fragment (/tournament/{id}/Home/Regulations,
+// fetched with X-Requested-With: XMLHttpRequest — without that header BAT
+// answers with a 404 page). The text sits directly inside the modal's form,
+// alongside a CSRF input and a Close button. Returns '' when there is none.
+export function parseRegulations(html: string): string {
+  const $ = cheerio.load(html)
+  const body = $('.modal__body form').first()
+  if (!body.length) return ''
+  body.find('input, button, script, style, .btn__group').remove()
+  stripUnsafeAttrs($, body)
+  return (body.html() ?? '')
+    .trim()
+    .replace(/^(\s*<br\s*\/?>)+/i, '')
+    .replace(/(<br\s*\/?>\s*)+$/i, '')
+    .trim()
 }
 
 // Parses the BAT seeds page (/sport/seeds.aspx?id=...).

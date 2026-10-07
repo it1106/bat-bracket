@@ -590,6 +590,9 @@ export interface SeedEvent {
 }
 
 export interface TournamentOverview {
+  // Regulations HTML from the tournament's "View regulations" modal. Optional
+  // because disk snapshots written before this field existed lack it.
+  regulations?: string
   notes: string[]
   seedEvents: SeedEvent[]
 }

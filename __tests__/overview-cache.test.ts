@@ -1,6 +1,8 @@
 jest.mock('../lib/bat-fetch', () => ({ batFetch: jest.fn() }))
 jest.mock('../lib/scraper', () => ({
+  hasRegulationsLink: jest.fn(),
   parseOverviewNotes: jest.fn(),
+  parseRegulations: jest.fn(),
   parseSeedEntries: jest.fn(),
 }))
 jest.mock('../lib/tournamentStats', () => ({ eventRank: jest.fn(() => 0) }))
@@ -20,7 +22,7 @@ jest.mock('fs', () => ({
 
 import { promises as fs } from 'fs'
 import { batFetch } from '@/lib/bat-fetch'
-import { parseOverviewNotes, parseSeedEntries } from '@/lib/scraper'
+import { hasRegulationsLink, parseOverviewNotes, parseRegulations, parseSeedEntries } from '@/lib/scraper'
 import { cache, fetchAndCache } from '@/lib/overview-cache'
 
 const okRes = (body: string) => ({ ok: true, text: async () => body })
@@ -161,5 +163,62 @@ describe('overview-cache stale fallback', () => {
     expect(cache.has(TID)).toBe(true)
     // Empty result must not clobber a prior good disk snapshot.
     expect(fs.writeFile).not.toHaveBeenCalled()
+  })
+})
+
+describe('overview-cache regulations', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+    cache.clear()
+    noDiskSnapshot()
+    ;(fs.mkdir as jest.Mock).mockResolvedValue(undefined)
+    ;(fs.writeFile as jest.Mock).mockResolvedValue(undefined)
+    ;(fs.rename as jest.Mock).mockResolvedValue(undefined)
+    ;(parseOverviewNotes as jest.Mock).mockReturnValue([])
+    ;(parseSeedEntries as jest.Mock).mockReturnValue([])
+  })
+
+  it('fetches regulations as an XHR request when the home page links to them', async () => {
+    ;(hasRegulationsLink as jest.Mock).mockReturnValue(true)
+    ;(parseRegulations as jest.Mock).mockReturnValue('Level 2<br>')
+    ;(batFetch as jest.Mock)
+      .mockResolvedValueOnce(okRes('overview-html'))
+      .mockResolvedValueOnce(okRes('seeds-html'))
+      .mockResolvedValueOnce(okRes('regs-html'))
+
+    const { data, stale } = await fetchAndCache(TID)
+
+    expect(stale).toBe(false)
+    expect(data.regulations).toBe('Level 2<br>')
+    const [kind, url, init] = (batFetch as jest.Mock).mock.calls[2]
+    expect(kind).toBe('regulations')
+    expect(url).toBe(`https://bat.tournamentsoftware.com/tournament/${TID}/Home/Regulations`)
+    expect(init.headers['X-Requested-With']).toBe('XMLHttpRequest')
+    expect(parseRegulations).toHaveBeenCalledWith('regs-html')
+  })
+
+  it('skips the regulations call when the home page has no regulations link', async () => {
+    ;(hasRegulationsLink as jest.Mock).mockReturnValue(false)
+    ;(batFetch as jest.Mock)
+      .mockResolvedValueOnce(okRes('overview-html'))
+      .mockResolvedValueOnce(okRes('seeds-html'))
+
+    const { data } = await fetchAndCache(TID)
+
+    expect(batFetch).toHaveBeenCalledTimes(2)
+    expect(data.regulations).toBeUndefined()
+  })
+
+  it('keeps the previously cached regulations when the regulations call fails', async () => {
+    cache.set(TID, { data: { regulations: 'old regs', notes: [], seedEvents: [] }, ts: 0 })
+    ;(hasRegulationsLink as jest.Mock).mockReturnValue(true)
+    ;(batFetch as jest.Mock)
+      .mockResolvedValueOnce(okRes('overview-html'))
+      .mockResolvedValueOnce(okRes('seeds-html'))
+      .mockResolvedValueOnce(errRes)
+
+    const { data } = await fetchAndCache(TID)
+
+    expect(data.regulations).toBe('old regs')
   })
 })

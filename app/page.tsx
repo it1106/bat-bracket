@@ -192,6 +192,7 @@ export default function Home() {
   const [customModalMode, setCustomModalMode] = useState<'create' | 'edit'>('create')
   const [customModalEditId, setCustomModalEditId] = useState<string | null>(null)
   const [customTabsEditMode, setCustomTabsEditMode] = useState(false)
+  const [regulations, setRegulations] = useState('')
   const [overviewNotes, setOverviewNotes] = useState<string[]>([])
   const [seedEvents, setSeedEvents] = useState<SeedEvent[]>([])
   const [matchDays, setMatchDays] = useState<MatchDay[]>([])
@@ -470,6 +471,7 @@ export default function Home() {
     setMatchDays([])
     setMatchGroups([])
     setSelectedDay('')
+    setRegulations('')
     setOverviewNotes([])
     setSeedEvents([])
     // Clear cache-source indicators so they don't flash the previous
@@ -505,6 +507,7 @@ export default function Home() {
           return r.json() as Promise<TournamentOverview>
         })
         .then((data: TournamentOverview) => {
+          if (data?.regulations) setRegulations(data.regulations)
           if (data?.notes) setOverviewNotes(data.notes)
           if (data?.seedEvents) setSeedEvents(data.seedEvents)
         })
@@ -1228,7 +1231,7 @@ export default function Home() {
       {/* View mode tabs */}
       {selectedTournament && (
         <div ref={customTabStripRef} className="flex items-center justify-evenly sm:justify-start gap-0 px-[3px] py-0 bg-[var(--surface)] border-b border-[var(--border)]">
-          {(overviewNotes.length > 0 || seedEvents.length > 0) && (
+          {(regulations || overviewNotes.length > 0 || seedEvents.length > 0) && (
             <button
               onClick={() => setViewMode('overview')}
               className={`px-[5px] sm:px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
@@ -1353,6 +1356,19 @@ export default function Home() {
       {/* Overview view */}
       {viewMode === 'overview' && (
         <div className="px-5 py-5 max-w-4xl space-y-6">
+
+          {/* Regulations */}
+          {regulations && (
+            <section>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted)] mb-3">
+                {t('regulations')}
+              </h2>
+              <div
+                className="p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--fg)] text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: regulations }}
+              />
+            </section>
+          )}
 
           {/* Tournament Information */}
           {overviewNotes.length > 0 && (

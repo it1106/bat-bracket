@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs'
 import path from 'path'
 import { batFetch } from '@/lib/bat-fetch'
-import { parseOverviewNotes, parseSeedEntries } from '@/lib/scraper'
+import { hasRegulationsLink, parseOverviewNotes, parseRegulations, parseSeedEntries } from '@/lib/scraper'
 import { eventRank } from '@/lib/tournamentStats'
 import type { TournamentOverview } from '@/lib/types'
 
@@ -65,7 +65,22 @@ export interface FetchResult {
 }
 
 function isEmpty(data: TournamentOverview): boolean {
-  return data.notes.length === 0 && data.seedEvents.length === 0
+  return !data.regulations && data.notes.length === 0 && data.seedEvents.length === 0
+}
+
+// Regulations live behind an AJAX modal; BAT returns a 404 page for this URL
+// unless the request carries the XHR header. Returns null on upstream failure
+// so the caller can keep the previously cached copy.
+async function fetchRegulations(id: string): Promise<string | null> {
+  try {
+    const res = await batFetch('regulations', `https://bat.tournamentsoftware.com/tournament/${id}/Home/Regulations`, {
+      headers: { ...HEADERS, 'X-Requested-With': 'XMLHttpRequest' },
+    })
+    if (!res.ok) return null
+    return parseRegulations(await res.text())
+  } catch {
+    return null
+  }
 }
 
 export async function fetchAndCache(id: string, done = false): Promise<FetchResult> {
@@ -77,7 +92,8 @@ export async function fetchAndCache(id: string, done = false): Promise<FetchResu
   const overviewOk = overviewRes.status === 'fulfilled' && overviewRes.value.ok
   const seedsOk = seedsRes.status === 'fulfilled' && seedsRes.value.ok
 
-  const notes = overviewOk ? parseOverviewNotes(await overviewRes.value.text()) : []
+  const overviewHtml = overviewOk ? await overviewRes.value.text() : ''
+  const notes = overviewOk ? parseOverviewNotes(overviewHtml) : []
   const rawSeeds = seedsOk ? parseSeedEntries(await seedsRes.value.text()) : []
   // Strip " - Main Draw" / " - Qualifying" suffixes to get the canonical
   // event key (e.g. "BS U15") that eventRank recognises.
@@ -87,7 +103,15 @@ export async function fetchAndCache(id: string, done = false): Promise<FetchResu
     return eventRank(keyA) - eventRank(keyB)
   })
 
-  const data: TournamentOverview = { notes, seedEvents }
+  // Only ask for regulations when the home page links to them. If that one
+  // call fails, keep whatever regulations the previous snapshot had rather
+  // than blanking the section for a full TTL.
+  let regulations = ''
+  if (overviewOk && hasRegulationsLink(overviewHtml)) {
+    regulations = (await fetchRegulations(id)) ?? cache.get(id)?.data.regulations ?? ''
+  }
+
+  const data: TournamentOverview = { ...(regulations && { regulations }), notes, seedEvents }
   const upstreamFailed = !overviewOk || !seedsOk
 
   // Stale-fallback gate. If any upstream failed AND we wound up with nothing,

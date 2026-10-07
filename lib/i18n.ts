@@ -106,6 +106,7 @@ export type TKey =
   | 'loadingH2H'
   | 'exportJpg'
   | 'overview'
+  | 'regulations'
   | 'tournamentInformation'
   | 'seededEntries'
   | 'staleCacheBanner'
@@ -407,6 +408,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     loadingH2H: 'Loading H2H data…',
     exportJpg: '↓ Export JPG',
     overview: 'Overview',
+    regulations: 'Regulations',
     tournamentInformation: 'Tournament Information',
     seededEntries: 'Seeded Entries',
     staleCacheBanner: 'BAT server is down — serving from cache. Data may be behind.',
@@ -740,6 +742,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     loadingH2H: 'กำลังโหลดข้อมูล Head-to-Head…',
     exportJpg: '↓ บันทึกรูปภาพ',
     overview: 'ภาพรวม',
+    regulations: 'ระเบียบการแข่งขัน',
     tournamentInformation: 'ข้อมูลการแข่งขัน',
     seededEntries: 'การวางมือ',
     staleCacheBanner: 'เซิร์ฟเวอร์ BAT ล่ม — กำลังแสดงข้อมูลจากแคช ข้อมูลอาจไม่เป็นปัจจุบัน',
