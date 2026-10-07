@@ -96,8 +96,11 @@ export function buildTeamScheduleNode(image: TeamScheduleImage): HTMLElement {
     el('div', `font-size:11px;color:${MUTED};margin-top:2px;padding-bottom:10px;border-bottom:2px solid ${BRAND};`, image.labels.disclaimer),
   )
 
-  for (const row of image.rows) {
+  image.rows.forEach((row, i) => {
     const line = el('div', `display:flex;align-items:flex-start;gap:12px;padding:9px 0;border-bottom:1px solid ${LINE};`)
+
+    // A running number, so a match can be pointed at ("the 3rd one").
+    const index = el('div', `width:20px;flex-shrink:0;text-align:right;font-size:13px;line-height:20px;color:${MUTED};`, String(i + 1))
 
     const when = el('div', `width:${everyRowAtSharedCourt ? 64 : 112}px;flex-shrink:0;`)
     when.append(el('div', `font-size:15px;font-weight:700;`, row.when || row.order || '–'))
@@ -118,10 +121,10 @@ export function buildTeamScheduleNode(image: TeamScheduleImage): HTMLElement {
       `vs ${row.opponent.join(' / ') || row.opponentCandidates.join(` ${image.labels.or} `) || '–'}`,
     ))
 
-    line.append(when, event, players)
+    line.append(index, when, event, players)
     if (showResults) line.append(resultCell(row, image.labels))
     root.append(line)
-  }
+  })
 
   const stamp = new Date().toLocaleString('en-GB', {
     timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
