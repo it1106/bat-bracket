@@ -154,6 +154,7 @@ export type TKey =
   | 'pathToFinal'
   | 'pathLikely'
   | 'pathOthers'
+  | 'pathOthersOne'
   | 'pathPossible'
   | 'pathFirstMeeting'
   | 'pathRecord'
@@ -472,6 +473,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     pathToFinal: 'Path to final',
     pathLikely: 'Likely',
     pathOthers: '+{n} others',
+    pathOthersOne: '+1 other',
     pathPossible: '{n} possible opponents',
     pathFirstMeeting: 'First meeting',
     pathRecord: 'Record {w}–{l}',
@@ -822,6 +824,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     pathToFinal: 'เส้นทางสู่รอบชิง',
     pathLikely: 'คาดว่าเจอ',
     pathOthers: '+อีก {n} ราย',
+    pathOthersOne: '+อีก 1 ราย',
     pathPossible: 'คู่แข่งที่เป็นไปได้ {n} ราย',
     pathFirstMeeting: 'ยังไม่เคยเจอกัน',
     pathRecord: 'สถิติ {w}–{l}',

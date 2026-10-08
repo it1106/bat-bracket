@@ -8,6 +8,7 @@ import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
 import PathToFinalModal from '@/components/PathToFinalModal'
+import { usePathTarget } from '@/lib/usePathTarget'
 import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
 import Link from 'next/link'
@@ -203,7 +204,7 @@ export default function Home() {
   const [modalProfile, setModalProfile] = useState<PlayerProfile | null>(null)
   const [modalLoading, setModalLoading] = useState(false)
   const [h2hData, setH2hData] = useState<H2HData | null>(null)
-  const [pathTarget, setPathTarget] = useState<{ drawNum: string; drawName: string; playerId: string } | null>(null)
+  const { pathTarget, openPath, closePath } = usePathTarget(modalProfile?.playerId)
   const [h2hLoading, setH2hLoading] = useState(false)
   const bracketRef = useRef<HTMLDivElement>(null)
   const playerSearchRef = useRef<HTMLInputElement>(null)
@@ -467,7 +468,7 @@ export default function Home() {
     }
     setSelectedDraw('')
     setDraws([])
-    setPathTarget(null)
+    closePath()
     setBracketHtml('')
     setBracketEntrants(undefined)
     setError(null)
@@ -584,7 +585,7 @@ export default function Home() {
         }
       }
     }
-  }, [tournaments])
+  }, [tournaments, closePath])
 
   // Pick the initial tournament once the list is known: a `?tournament=` deep
   // link (e.g. from a player's ranking detail) wins, else restore the last
@@ -857,8 +858,8 @@ export default function Home() {
       draw: drawName,
       draw_id: drawNum,
     })
-    setPathTarget({ drawNum, drawName, playerId: modalProfile.playerId })
-  }, [modalProfile, tournaments, selectedTournament])
+    openPath({ drawNum, drawName, playerId: modalProfile.playerId })
+  }, [modalProfile, tournaments, selectedTournament, openPath])
 
   const handleH2HClose = useCallback(() => {
     setH2hData(null)
@@ -1582,8 +1583,8 @@ export default function Home() {
           drawNum={pathTarget.drawNum}
           drawName={pathTarget.drawName}
           playerId={pathTarget.playerId}
-          onClose={() => setPathTarget(null)}
-          onPlayerClick={(id) => { setPathTarget(null); playerClickHandler?.(id) }}
+          onClose={closePath}
+          onPlayerClick={(id) => { closePath(); playerClickHandler?.(id) }}
         />
       )}
 

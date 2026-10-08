@@ -196,6 +196,20 @@ describe('GET /api/path', () => {
     for (const c of hit) expect(c.rank).toBe(4)
   })
 
+  it('does not read the ranking file when the draw has no ranking event', async () => {
+    expect((await ok()).status).toBe(200) // no draw list held: the draw's name is unknown
+    drawsMock.mockResolvedValue({ draws: [{ drawNum: '5', name: 'Team Event', size: '32', type: 'Elimination' }], ts: 0 })
+    expect((await ok()).status).toBe(200)
+    expect(rankingMock).not.toHaveBeenCalled()
+    expect(indexMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('reads the ranking file when the draw has a ranking event', async () => {
+    drawsMock.mockResolvedValue({ draws: [{ drawNum: '5', name: 'BS U9', size: '32', type: 'Elimination' }], ts: 0 })
+    await ok()
+    expect(rankingMock).toHaveBeenCalledTimes(1)
+  })
+
   it('still answers when the index and ranking reads fail', async () => {
     indexMock.mockRejectedValue(new Error('ENOENT'))
     rankingMock.mockRejectedValue(new Error('ENOENT'))

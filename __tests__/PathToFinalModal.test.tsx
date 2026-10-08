@@ -327,6 +327,52 @@ describe('PathToFinalModal', () => {
     expect(document.querySelector('.ptf-rows')!.textContent).not.toContain('2569')
   })
 
+  it('names a lone, certain opponent with "vs", not "Likely"', async () => {
+    mockFetch({
+      ...BASE,
+      rounds: [{
+        round: 'Semi final', status: 'future', time: '9:50',
+        candidates: [{ team: [P('Dan Sri', '4')], seed: '1', rank: 2, record: { wins: 1, losses: 0 }, favourite: true }],
+      }],
+    })
+    renderModal()
+    await screen.findByText('Semi Final')
+    expect(rowText(0)).toContain('vs')
+    expect(rowText(0)).toContain('Dan Sri')
+    expect(rowText(0)).toContain('Seed 1')
+    expect(rowText(0)).toContain('Rank 2')
+    expect(rowText(0)).toContain('Record 1–0')
+    expect(rowText(0)).toContain('9:50')
+    expect(rowText(0)).not.toContain('Likely')
+    expect(document.querySelector('.ptf-more')).toBeNull()
+  })
+
+  it('still says "Likely" when others could take the place', async () => {
+    mockFetch(BASE)
+    renderModal()
+    await screen.findByText('Quarter Final')
+    expect(rowText(3)).toContain('Likely')
+  })
+
+  it('counts one other in the singular', async () => {
+    mockFetch({
+      ...BASE,
+      rounds: [{
+        round: 'Semi final', status: 'future',
+        candidates: [
+          { team: [P('Dan Sri', '4')], seed: '1', record: null, favourite: true },
+          { team: [P('Ek Chai', '5')], record: null, favourite: false },
+        ],
+      }],
+    })
+    renderModal()
+    await screen.findByText('Semi Final')
+    expect(screen.getByText('+1 other')).toBeTruthy()
+    expect(rowText(0)).not.toContain('+1 others')
+    fireEvent.click(screen.getByText('+1 other'))
+    expect(rowText(0)).toContain('Ek Chai')
+  })
+
   it('renders in Thai', async () => {
     localStorage.setItem('batbracket.lang', 'th')
     mockFetch(BASE)

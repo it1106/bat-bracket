@@ -65,11 +65,13 @@ export async function GET(request: Request) {
   const path = buildBracketPath(parseBracketRounds(html), playerId)
   if (!path) return notFound('Player is not in this draw')
 
+  // The ranking file is several megabytes and read afresh each time, so it is
+  // only opened for a draw that has a ranking event to look positions up in.
+  const eventCode = drawInfo ? rankingEventCodeForDraw(drawInfo.name) : null
   const [index, ranking] = await Promise.all([
     readIndexCache('bat').catch(() => null),
-    readRankingCache('bat').catch(() => null),
+    eventCode ? readRankingCache('bat').catch(() => null) : null,
   ])
-  const eventCode = drawInfo ? rankingEventCodeForDraw(drawInfo.name) : null
 
   const rounds: PathRoundOut[] = path.rounds.map((round) => {
     const { candidates, ...rest } = round

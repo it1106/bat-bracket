@@ -129,11 +129,23 @@ export default function PathToFinalModal({ tournamentId, drawNum, drawName, play
     }
 
     const list = r.candidates ?? []
+    // Only one team can still fill the place: that is the opponent, not a guess.
+    if (list.length === 1) {
+      return (
+        <>
+          <span className="ptf-muted">{t('vs')}</span>
+          {candidate(list[0])}
+          {schedule(r)}
+        </>
+      )
+    }
     const favourite = list.find((c) => c.favourite)
     const rest = favourite ? list.filter((c) => c !== favourite) : list
-    const label = favourite
-      ? t('pathOthers').replace('{n}', String(rest.length))
-      : t('pathPossible').replace('{n}', String(rest.length))
+    const label = !favourite
+      ? t('pathPossible').replace('{n}', String(rest.length))
+      : rest.length === 1
+        ? t('pathOthersOne')
+        : t('pathOthers').replace('{n}', String(rest.length))
     return (
       <>
         {favourite && (
