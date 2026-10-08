@@ -119,12 +119,19 @@ export default async function PlayerPage({ params }: Props) {
     let tournamentLevels: Record<string, number> | undefined
     if (provider === 'bat') {
       const overrides = getLevelOverrides()
+      // The Ranking Detail rows can name tournaments the index never ingested,
+      // so their ids are looked up too — otherwise those rows would lose the
+      // level suffix the rest of the list shows.
+      const ids = new Set(record.tournaments.map((t) => t.tournamentId))
+      for (const r of initialDetail?.tournaments ?? []) {
+        if (r.tournamentId) ids.add(r.tournamentId)
+      }
       const pairs = await Promise.all(
-        record.tournaments.map(async (t) => {
+        Array.from(ids).map(async (id) => {
           // Manual override wins over the auto-parsed sidecar level.
-          const meta = await readMeta(t.tournamentId.toUpperCase())
-          const lvl = overrides.get(t.tournamentId.toUpperCase()) ?? meta?.level
-          return [t.tournamentId, lvl] as const
+          const meta = await readMeta(id.toUpperCase())
+          const lvl = overrides.get(id.toUpperCase()) ?? meta?.level
+          return [id, lvl] as const
         }),
       )
       tournamentLevels = {}

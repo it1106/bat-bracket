@@ -13,6 +13,7 @@ interface Props {
   cutoffs: ExpiryCutoffs
   currentRanking?: Ranking | null
   bestFinishByKey?: Record<string, string>
+  tournamentLevels?: Record<string, number>
 }
 
 /** This section's own rank. A section is one PAIRING, and each pairing is a
@@ -32,7 +33,7 @@ function lookupRank(
   return entryForPairing(ev, { slug }, section.doublesPartner)?.rank ?? null
 }
 
-export default function RankingEventSection({ slug, section, cutoffs, currentRanking, bestFinishByKey }: Props) {
+export default function RankingEventSection({ slug, section, cutoffs, currentRanking, bestFinishByKey, tournamentLevels }: Props) {
   const { t } = useLanguage()
   // Every pairing carries its own rank now that the lookup can tell them
   // apart, so `section.rankAmbiguous` no longer gates this.
@@ -61,6 +62,7 @@ export default function RankingEventSection({ slug, section, cutoffs, currentRan
           creditOverride={sr.creditInThisSection}
           expiry={classifyExpiry(sr.row.week, cutoffs)}
           bestFinishByKey={bestFinishByKey}
+          tournamentLevels={tournamentLevels}
         />
       ))}
 
@@ -75,6 +77,7 @@ export default function RankingEventSection({ slug, section, cutoffs, currentRan
               row={sr.row}
               creditOverride={sr.creditInThisSection}
               expiry={classifyExpiry(sr.row.week, cutoffs)}
+              tournamentLevels={tournamentLevels}
             />
           ))}
         </>

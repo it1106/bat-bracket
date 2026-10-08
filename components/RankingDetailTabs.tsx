@@ -30,6 +30,9 @@ interface Props {
    *  publishes that cell empty. Plain data so it survives the client-side
    *  detail refetch below, which replaces the detail but not this map. */
   bestFinishByKey?: Record<string, string>
+  /** BAT tournament level keyed by uppercased GUID — appended to each row's
+   *  tournament name as "(L2)". Absent for BWF, whose rows render bare. */
+  tournamentLevels?: Record<string, number>
 }
 
 const DISCIPLINES: Discipline[] = ['singles', 'doubles', 'mixed']
@@ -45,7 +48,7 @@ type FetchState =
  * ranking entry the player holds in that discipline (per age group, and per
  * pairing for doubles), each a top-10-by-points list sorted newest-first.
  */
-export default function RankingDetailTabs({ provider, slug, initialDetail, rankingPublishDate, currentRanking, bestFinishByKey }: Props) {
+export default function RankingDetailTabs({ provider, slug, initialDetail, rankingPublishDate, currentRanking, bestFinishByKey, tournamentLevels }: Props) {
   const { t } = useLanguage()
   const [active, setActive] = useState<Discipline>('singles')
   const [fetchState, setFetchState] = useState<FetchState>(
@@ -138,6 +141,7 @@ export default function RankingDetailTabs({ provider, slug, initialDetail, ranki
             cutoffs={cutoffs}
             currentRanking={currentRanking}
             bestFinishByKey={bestFinishByKey}
+            tournamentLevels={tournamentLevels}
           />
         ))}
         {uncredited.length > 0 && (
@@ -151,6 +155,7 @@ export default function RankingDetailTabs({ provider, slug, initialDetail, ranki
                 row={r}
                 expiry={classifyExpiry(r.week, cutoffs)}
                 bestFinishByKey={bestFinishByKey}
+                tournamentLevels={tournamentLevels}
               />
             ))}
           </section>

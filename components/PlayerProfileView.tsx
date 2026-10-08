@@ -22,7 +22,8 @@ interface Props {
    *  rendered next to the country name instead of the globe glyph. */
   countryFlagUrl?: string
   /** BAT tournamentId → level (1-6). Present only for BAT profiles; drives the
-   *  locked-in points shown per event. Absent for BWF. */
+   *  locked-in points shown per event and the "(L2)" suffix on Ranking Detail
+   *  tournament names. Absent for BWF. */
   tournamentLevels?: Record<string, number>
 }
 
@@ -73,6 +74,14 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
     }
     return out
   }, [record])
+  // Ranking Detail rows carry uppercased GUIDs, while `tournamentLevels` is
+  // keyed by the index's own ids — rekey so the row lookup can't miss on case.
+  const rankingDetailLevels = useMemo(() => {
+    if (!tournamentLevels) return undefined
+    const out: Record<string, number> = {}
+    for (const [id, lvl] of Object.entries(tournamentLevels)) out[id.toUpperCase()] = lvl
+    return out
+  }, [tournamentLevels])
   const router = useRouter()
   const { t } = useLanguage()
   const discLabel = (d: 'singles' | 'doubles' | 'mixed') =>
@@ -231,6 +240,7 @@ export default function PlayerProfileView({ record, playerRankings, rankingPubli
           rankingPublishDate={rankingPublishDate}
           currentRanking={currentRanking}
           bestFinishByKey={bestFinishByKey}
+          tournamentLevels={rankingDetailLevels}
         />
       )}
       <div className="pp-kpi-row">

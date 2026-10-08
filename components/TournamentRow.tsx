@@ -21,6 +21,10 @@ interface Props {
    *  our own index. Consulted only when upstream left its Result cell blank,
    *  which is currently every row. */
   bestFinishByKey?: Record<string, string>
+  /** BAT tournament level (1-6) keyed by uppercased tournament GUID. When the
+   *  row's tournament has one, the name gains the same "(L2)" suffix the
+   *  tournament dropdown shows. */
+  tournamentLevels?: Record<string, number>
 }
 
 /**
@@ -28,7 +32,7 @@ interface Props {
  * to the in-app tournament view when we have a GUID; otherwise renders as
  * plain text. All other fields are display-only.
  */
-export default function TournamentRow({ row, expiry = null, creditOverride, bestFinishByKey }: Props) {
+export default function TournamentRow({ row, expiry = null, creditOverride, bestFinishByKey, tournamentLevels }: Props) {
   const { t } = useLanguage()
   const cls = expiry === 'next'
     ? 'pp-rd-row pp-rd-row--expiring'
@@ -40,9 +44,11 @@ export default function TournamentRow({ row, expiry = null, creditOverride, best
     : expiry === 'soon'
       ? t('rankingDetailExpiringWithin4Weeks')
       : undefined
+  const level = row.tournamentId ? tournamentLevels?.[row.tournamentId.toUpperCase()] : undefined
+  const label = level && level > 0 ? `${row.tournamentName} (L${level})` : row.tournamentName
   const name = row.tournamentId
-    ? <Link href={`/?tournament=${row.tournamentId}&name=${encodeURIComponent(row.tournamentName)}`}>{row.tournamentName}</Link>
-    : <span>{row.tournamentName}</span>
+    ? <Link href={`/?tournament=${row.tournamentId}&name=${encodeURIComponent(row.tournamentName)}`}>{label}</Link>
+    : <span>{label}</span>
   const showDiscount = creditOverride != null && Math.round(creditOverride) !== row.points
   const pointsCell = showDiscount
     ? `${row.points.toLocaleString()} → ${Math.round(creditOverride!).toLocaleString()}`
