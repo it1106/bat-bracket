@@ -34,7 +34,10 @@ export async function GET(request: Request) {
 
   // The draw list says what kind of draw this is and what it is called. It is
   // read from what is already held; when it is not there, the bracket decides.
-  const drawInfo = (await getCachedOrDisk(guid).catch(() => undefined))?.draws.find((d) => d.drawNum === drawNum)
+  const draws = (await getCachedOrDisk(guid).catch(() => undefined))?.draws ?? []
+  const drawInfo = draws.find((d) => d.drawNum === drawNum)
+  // A draw number the tournament does not have must not reach BAT.
+  if (draws.length > 0 && !drawInfo) return notFound('No such draw')
   if (drawInfo && (drawInfo.groupLetter || (drawInfo.type && !/^elimination$/i.test(drawInfo.type.trim())))) {
     return notFound('Not a knockout draw')
   }

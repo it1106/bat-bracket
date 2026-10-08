@@ -286,6 +286,47 @@ describe('PathToFinalModal', () => {
     expect(onClose).toHaveBeenCalledTimes(3)
   })
 
+  it('closes only itself on Escape, leaving a window underneath open', async () => {
+    mockFetch(BASE)
+    const underneath = jest.fn()
+    document.addEventListener('keydown', underneath)
+    const onClose = jest.fn()
+    renderModal({ onClose })
+    await screen.findByText('Quarter Final')
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    document.removeEventListener('keydown', underneath)
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(underneath).not.toHaveBeenCalled()
+  })
+
+  it('lets other keys through to the window underneath', async () => {
+    mockFetch(BASE)
+    const underneath = jest.fn()
+    document.addEventListener('keydown', underneath)
+    renderModal()
+    await screen.findByText('Quarter Final')
+    fireEvent.keyDown(document.body, { key: 'a' })
+    document.removeEventListener('keydown', underneath)
+    expect(underneath).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the day of a scheduled round, without the year', async () => {
+    mockFetch({
+      ...BASE,
+      rounds: [
+        { round: 'Quarter final', status: 'next', opponent: [P('Chai Yo', '3')], date: '20/6/2569', time: '14:30', court: 'Court 3', record: null },
+        { round: 'Semi final', status: 'future', date: '21/6/2569', time: '9:50', candidates: [{ team: [P('Dan Sri', '4')], record: null, favourite: true }] },
+        { round: 'Final', status: 'future', date: '21/6/2569', candidates: [{ team: [P('Gun Dee', '7')], record: null, favourite: true }] },
+      ],
+    })
+    renderModal()
+    await screen.findByText('Quarter Final')
+    expect(rowText(0)).toContain('20/6 14:30 · Court 3')
+    expect(rowText(1)).toContain('21/6 9:50')
+    expect(rowText(2)).toContain('21/6')
+    expect(document.querySelector('.ptf-rows')!.textContent).not.toContain('2569')
+  })
+
   it('renders in Thai', async () => {
     localStorage.setItem('batbracket.lang', 'th')
     mockFetch(BASE)

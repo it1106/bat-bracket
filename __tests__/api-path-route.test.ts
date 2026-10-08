@@ -93,6 +93,17 @@ describe('GET /api/path', () => {
     expect(htmlMock).not.toHaveBeenCalled()
   })
 
+  it('is 404 for a draw number the tournament does not have, without asking BAT', async () => {
+    drawsMock.mockResolvedValue({ draws: [{ drawNum: '6', name: 'GS U9', size: '32', type: 'Elimination' }], ts: 0 })
+    expect((await ok()).status).toBe(404)
+    expect(htmlMock).not.toHaveBeenCalled()
+  })
+
+  it('still reads the bracket when the draw list is held but empty', async () => {
+    drawsMock.mockResolvedValue({ draws: [], ts: 0 })
+    expect((await ok()).status).toBe(200)
+  })
+
   it('loads a finished tournament from disk before reading the bracket', async () => {
     await ok()
     expect(ensureBracketsLoaded).toHaveBeenCalledWith(TID, '5')

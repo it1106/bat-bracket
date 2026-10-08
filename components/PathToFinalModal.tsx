@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { MatchPlayer } from '@/lib/types'
 import type { PathCandidate, PathRecord, PathResponse, PathRoundOut } from '@/lib/pathEnrich'
 import { useLanguage } from '@/lib/LanguageContext'
@@ -34,11 +34,20 @@ export default function PathToFinalModal({ tournamentId, drawNum, drawName, play
     return () => { live = false }
   }, [tournamentId, drawNum, playerId])
 
+  // This panel opens on top of the player window, which also closes on
+  // Escape. Taking the key in the capture phase and stopping it there closes
+  // the panel alone, and leaves the window underneath for the next press.
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopImmediatePropagation()
+      onCloseRef.current()
+    }
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
+  }, [])
 
   const toggle = (i: number) => {
     setOpen((prev) => {
@@ -81,8 +90,13 @@ export default function PathToFinalModal({ tournamentId, drawNum, drawName, play
     </div>
   )
 
-  const schedule = (r: PathRoundOut) =>
-    (r.time || r.court) ? <span className="ptf-when">{[r.time, r.court].filter(Boolean).join(' · ')}</span> : null
+  // BAT prints the date with a Buddhist-era year ("20/6/2569"); the day and
+  // month are all a reader needs, and a time alone would not say which day.
+  const schedule = (r: PathRoundOut) => {
+    const when = [r.date?.replace(/\/\d{4}$/, ''), r.time].filter(Boolean).join(' ')
+    const text = [when, r.court].filter(Boolean).join(' · ')
+    return text ? <span className="ptf-when">{text}</span> : null
+  }
 
   const body = (r: PathRoundOut, i: number) => {
     if (r.status === 'bye') return <span className="ptf-muted">{t('pathBye')}</span>
