@@ -180,4 +180,52 @@ describe('rankCandidates', () => {
     const out = rankCandidates([{ team: [P('A')], seed: '1', rank: 4, record: { wins: 2, losses: 1 } }])
     expect(out[0]).toEqual({ team: [P('A')], seed: '1', rank: 4, record: { wins: 2, losses: 1 }, favourite: true })
   })
+
+describe('teamRank with a known identity', () => {
+  const r = () => ({
+    provider: 'bat', scrapedAt: '', publishDate: '', rankingId: '',
+    events: [
+      { eventCode: 'U15_MS', eventName: 'U15 Boys singles', entries: [
+        { rank: 5, name: 'Somchai Chai', slug: nameToSlug('Somchai Chai'), club: '', points: 0, tournaments: 0, globalPlayerId: '900' },
+      ] },
+      { eventCode: 'U15_MD', eventName: 'U15 Boys doubles', entries: [
+        { rank: 8, name: 'Somchai Chai', slug: nameToSlug('Somchai Chai'), club: '', points: 0, tournaments: 0,
+          players: [
+            { name: 'Somchai Chai', slug: nameToSlug('Somchai Chai'), globalPlayerId: '900' },
+            { name: 'Anan Dee', slug: nameToSlug('Anan Dee'), globalPlayerId: '901' },
+          ] },
+      ] },
+    ],
+  }) as unknown as Ranking
+
+  it('does not match a differently spelled name on its own', () => {
+    expect(teamRank(r(), 'U15_MS', [P('Somchai Jai')])).toBeUndefined()
+  })
+
+  it('matches through a curated alias', () => {
+    const identify = (slug: string) => slug === nameToSlug('Somchai Jai') ? { aliasSlug: nameToSlug('Somchai Chai') } : {}
+    expect(teamRank(r(), 'U15_MS', [P('Somchai Jai')], identify)).toBe(5)
+  })
+
+  it('matches through any of the player\'s ranking ids', () => {
+    const identify = (slug: string) => slug === nameToSlug('Somchai Jai') ? { globalPlayerIds: ['123', '900'] } : {}
+    expect(teamRank(r(), 'U15_MS', [P('Somchai Jai')], identify)).toBe(5)
+  })
+
+  it('matches a pair when one partner is known only by id', () => {
+    const identify = (slug: string) => slug === nameToSlug('Somchai Jai') ? { globalPlayerIds: ['900'] } : {}
+    expect(teamRank(r(), 'U15_MD', [P('Anan Dee'), P('Somchai Jai')], identify)).toBe(8)
+  })
+
+  it('does not give a pair\'s rank to a different pair sharing one player', () => {
+    const identify = () => ({})
+    expect(teamRank(r(), 'U15_MD', [P('Anan Dee'), P('Krit Wong')], identify)).toBeUndefined()
+    expect(teamRank(r(), 'U15_MD', [P('Anan Dee')], identify)).toBeUndefined()
+  })
+
+  it('does not match an id that belongs to someone else', () => {
+    const identify = () => ({ globalPlayerIds: ['555'] })
+    expect(teamRank(r(), 'U15_MS', [P('Somchai Jai')], identify)).toBeUndefined()
+  })
+})
 })

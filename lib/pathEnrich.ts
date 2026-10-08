@@ -57,16 +57,50 @@ function slugKey(names: string[]): string {
   return names.map((n) => nameToSlug(n)).filter(Boolean).sort().join('|')
 }
 
+/** What else is known about a bracket player beyond the spelling of their
+ *  name: the curated alias for the ranking's spelling, and the ranking ids
+ *  they carry (one per ranking series). */
+export interface RankIdentity {
+  aliasSlug?: string
+  globalPlayerIds?: string[]
+}
+
 /** The team's position in a ranking event: the row naming exactly these
- *  players. Undefined when the event or the row is not there. */
-export function teamRank(ranking: Ranking | null, eventCode: string, team: MatchPlayer[]): number | undefined {
+ *  players. A player matches a row member by name, by alias, or by ranking
+ *  id, so a name the two sources spell differently is still found. Undefined
+ *  when the event or the row is not there. */
+export function teamRank(
+  ranking: Ranking | null,
+  eventCode: string,
+  team: MatchPlayer[],
+  identify: (slug: string) => RankIdentity = () => ({}),
+): number | undefined {
   const ev = ranking?.events.find((e) => e.eventCode === eventCode)
   if (!ev) return undefined
-  const want = slugKey(team.map((p) => p.name))
-  if (!want) return undefined
+  const who = team
+    .map((p) => nameToSlug(p.name))
+    .filter(Boolean)
+    .map((slug) => ({ slug, ...identify(slug) }))
+  if (who.length === 0) return undefined
+
   const row = ev.entries.find((e) => {
-    const members = e.players && e.players.length > 0 ? e.players.map((p) => p.name) : [e.name]
-    return slugKey(members) === want
+    const members = e.players && e.players.length > 0
+      ? e.players
+      : [{ slug: e.slug, globalPlayerId: e.globalPlayerId }]
+    if (members.length !== who.length) return false
+    // Each player takes a different member, so a pair never matches a row
+    // that merely contains one of them twice over.
+    const free = new Set(members.map((_, i) => i))
+    return who.every((w) => {
+      const hit = members.findIndex((m, i) => free.has(i) && (
+        m.slug === w.slug ||
+        (!!w.aliasSlug && m.slug === w.aliasSlug) ||
+        (!!m.globalPlayerId && !!w.globalPlayerIds?.includes(m.globalPlayerId))
+      ))
+      if (hit < 0) return false
+      free.delete(hit)
+      return true
+    })
   })
   return row?.rank
 }

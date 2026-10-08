@@ -387,13 +387,23 @@ describe('PathToFinalModal', () => {
     expect(rowText(4)).toContain('คู่แข่งที่เป็นไปได้ 2 ราย')
   })
 
-  it('words the "out" line in Thai without repeating รอบ', async () => {
+  it('words the "out" line in Thai as "lost in" the round', async () => {
     localStorage.setItem('batbracket.lang', 'th')
     mockFetch({
       ...BASE, eliminated: true,
       rounds: [{ round: 'Round of 16', status: 'lost', opponent: [P('Beam Kla', '2')], scores: [], walkover: false, retired: false }],
     })
     renderModal()
-    await waitFor(() => expect(document.querySelector('.ptf-end')?.textContent).toBe('ตกรอบในรอบ 16'))
+    await waitFor(() => expect(document.querySelector('.ptf-end')?.textContent).toBe('แพ้ในรอบ 16'))
+  })
+
+  it('words a semi-final exit in Thai', async () => {
+    localStorage.setItem('batbracket.lang', 'th')
+    mockFetch({
+      ...BASE, eliminated: true,
+      rounds: [{ round: 'Semi final', status: 'lost', opponent: [P('Beam Kla', '2')], scores: [], walkover: false, retired: false }],
+    })
+    renderModal()
+    await waitFor(() => expect(document.querySelector('.ptf-end')?.textContent).toBe('แพ้ในรอบรองชนะเลิศ'))
   })
 })

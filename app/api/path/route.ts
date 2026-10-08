@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cache, rawHtmlCache, ttlMsFor, makeBracketKey, bracketHtmlForSchedule, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { parseBracketRounds } from '@/lib/scraper'
-import { buildBracketPath } from '@/lib/bracketPath'
+import { buildBracketPath, isKnockout } from '@/lib/bracketPath'
 import {
   pairRecord, rankCandidates, rankingEventCodeForDraw, teamRank,
   type PathResponse, type PathRoundOut,
@@ -12,6 +12,8 @@ import { getCachedOrDisk } from '@/lib/draws-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
 import { staleHeaders } from '@/lib/stale-headers'
 import { batDownSince } from '@/lib/bat-outages'
+import { readGlobalPlayerIds } from '@/lib/bat-player-id-map'
+import { rankingSlugAlias } from '@/lib/ranking/aliases'
 
 export const maxDuration = 30
 
@@ -62,16 +64,31 @@ export async function GET(request: Request) {
   }
   if (!html) return notFound('No bracket for this draw')
 
-  const path = buildBracketPath(parseBracketRounds(html), playerId)
+  // A round-robin page parses into rounds too. The draw list usually says so
+  // first; when it is not held, the shape of the rounds does.
+  const bracketRounds = parseBracketRounds(html)
+  if (!isKnockout(bracketRounds)) return notFound('Not a knockout draw')
+  const path = buildBracketPath(bracketRounds, playerId)
   if (!path) return notFound('Player is not in this draw')
 
   // The ranking file is several megabytes and read afresh each time, so it is
   // only opened for a draw that has a ranking event to look positions up in.
   const eventCode = drawInfo ? rankingEventCodeForDraw(drawInfo.name) : null
-  const [index, ranking] = await Promise.all([
+  const noIds: Record<string, string[]> = {}
+  const [index, ranking, rankingIds] = await Promise.all([
     readIndexCache('bat').catch(() => null),
     eventCode ? readRankingCache('bat').catch(() => null) : null,
+    eventCode ? readGlobalPlayerIds().catch(() => noIds) : noIds,
   ])
+  // The ranking can spell a name differently from the bracket; the curated
+  // alias list and the players' ranking ids bridge that.
+  const identify = (slug: string) => {
+    const aliasSlug = rankingSlugAlias('bat', slug)
+    return {
+      ...(aliasSlug !== slug && { aliasSlug }),
+      ...(rankingIds[slug] && { globalPlayerIds: rankingIds[slug] }),
+    }
+  }
 
   const rounds: PathRoundOut[] = path.rounds.map((round) => {
     const { candidates, ...rest } = round
@@ -81,7 +98,7 @@ export async function GET(request: Request) {
     }
     if (candidates) {
       out.candidates = rankCandidates(candidates.map((c) => {
-        const rank = eventCode ? teamRank(ranking, eventCode, c.team) : undefined
+        const rank = eventCode ? teamRank(ranking, eventCode, c.team, identify) : undefined
         return {
           team: c.team,
           ...(c.seed && { seed: c.seed }),

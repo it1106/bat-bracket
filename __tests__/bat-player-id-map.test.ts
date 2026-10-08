@@ -5,6 +5,7 @@ import {
   readPlayerIdEntry,
   writePlayerIdSuccess,
   writePlayerIdFailure,
+  readGlobalPlayerIds,
   __setBatPlayerIdMapRootForTesting,
 } from '@/lib/bat-player-id-map'
 
@@ -62,4 +63,20 @@ describe('bat-player-id-map', () => {
     await fs.writeFile(path.join(tmp, 'bat-player-id-map.json'), '{not json')
     expect(await readPlayerIdEntry('whatever')).toBeNull()
   })
+
+describe('readGlobalPlayerIds', () => {
+  it('is empty when nothing has been discovered', async () => {
+    expect(await readGlobalPlayerIds()).toEqual({})
+  })
+
+  it('lists every ranking id a player carries, and leaves out failed lookups', async () => {
+    await writePlayerIdSuccess('ravin', '9687100', { '289': '9687100', '189': '9687863' })
+    await writePlayerIdSuccess('anan', '42')
+    await writePlayerIdFailure('nobody', 'not found')
+    const ids = await readGlobalPlayerIds()
+    expect(ids.ravin.slice().sort()).toEqual(['9687100', '9687863'])
+    expect(ids.anan).toEqual(['42'])
+    expect(ids.nobody).toBeUndefined()
+  })
+})
 })

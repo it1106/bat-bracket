@@ -1,7 +1,7 @@
 import fs from 'fs'
 import nodePath from 'path'
 import { parseBracketRounds } from '@/lib/scraper'
-import { buildBracketPath } from '@/lib/bracketPath'
+import { buildBracketPath, isKnockout } from '@/lib/bracketPath'
 import type { BracketRound, BracketSlotMatch, MatchPlayer } from '@/lib/types'
 
 const P = (id: string): MatchPlayer => ({ name: `P${id}`, playerId: id })
@@ -211,4 +211,87 @@ describe('buildBracketPath', () => {
     expect(final.some((c) => c.seed === '1')).toBe(true)
     expect(final.some((c) => c.team.some((p) => p.playerId === '3417'))).toBe(false)
   })
+
+describe('isKnockout', () => {
+  it('accepts rounds that halve down to one final', () => {
+    expect(isKnockout(draw(FRESH()))).toBe(true)
+    expect(isKnockout([{ name: 'Final', matches: [E()] }])).toBe(true)
+  })
+
+  it('rejects no rounds at all', () => {
+    expect(isKnockout([])).toBe(false)
+  })
+
+  it('rejects a round-robin page, whose "rounds" are all the same size', () => {
+    expect(isKnockout([
+      { name: 'Round 1', matches: [E(), E()] },
+      { name: 'Round 2', matches: [E(), E()] },
+    ])).toBe(false)
+  })
+
+  it('rejects a draw that does not end in a single final', () => {
+    expect(isKnockout([{ name: 'Semi final', matches: [E(), E()] }])).toBe(false)
+  })
+
+  it('rejects a round that is not twice the next', () => {
+    expect(isKnockout([
+      { name: 'Quarter final', matches: [E(), E(), E()] },
+      { name: 'Semi final', matches: [E(), E()] },
+      { name: 'Final', matches: [E()] },
+    ])).toBe(false)
+  })
+
+  it('accepts every real knockout fixture and rejects the real group draw', () => {
+    const read = (f: string) => parseBracketRounds(fs.readFileSync(nodePath.join(process.cwd(), 'fixtures', f), 'utf-8'))
+    for (const f of ['bracket-bat-ysb-bsu13.html', 'bracket-bat-bsu9.html', 'bracket-bat-themall-bdu17.html', 'bracket-bat-unentered.html', 'bracket-bat-finished-16.html']) {
+      expect(isKnockout(read(f))).toBe(true)
+    }
+    expect(isKnockout(read('group-draw-bs-u11-a.html'))).toBe(false)
+  })
+})
+
+describe('buildBracketPath on a finished real draw', () => {
+  const rounds = parseBracketRounds(
+    fs.readFileSync(nodePath.join(process.cwd(), 'fixtures', 'bracket-bat-finished-16.html'), 'utf-8'),
+  )
+
+  it('walks the champion through a bye and three wins', () => {
+    const path = buildBracketPath(rounds, '1862')!
+    expect(path.champion).toBe(true)
+    expect(path.eliminated).toBe(false)
+    expect(path.rounds.map((r) => [r.round, r.status])).toEqual([
+      ['Round of 16', 'bye'], ['Quarter final', 'won'], ['Semi final', 'won'], ['Final', 'won'],
+    ])
+    expect(path.rounds[1].opponent!.map((p) => p.playerId)).toEqual(['1511'])
+    expect(path.rounds[1].scores).toEqual([{ t1: 15, t2: 11 }, { t1: 15, t2: 6 }])
+    expect(path.rounds[3].opponent!.map((p) => p.playerId)).toEqual(['1666'])
+    expect(path.rounds[3].scores).toEqual([{ t1: 13, t2: 15 }, { t1: 15, t2: 6 }, { t1: 15, t2: 13 }])
+    expect(path.rounds.every((r) => r.candidates === undefined)).toBe(true)
+  })
+
+  it('stops the runner-up at the final', () => {
+    const path = buildBracketPath(rounds, '1666')!
+    expect(path.champion).toBe(false)
+    expect(path.eliminated).toBe(true)
+    expect(path.rounds.map((r) => r.status)).toEqual(['bye', 'won', 'won', 'lost'])
+    expect(path.rounds[3].round).toBe('Final')
+    expect(path.rounds[3].scores).toEqual([{ t1: 15, t2: 13 }, { t1: 6, t2: 15 }, { t1: 13, t2: 15 }])
+  })
+
+  it('reads a walkover from both sides', () => {
+    const winner = buildBracketPath(rounds, '1552')!
+    expect(winner.rounds[1]).toMatchObject({ round: 'Quarter final', status: 'won', walkover: true })
+    const loser = buildBracketPath(rounds, '1376')!
+    expect(loser.eliminated).toBe(true)
+    expect(loser.rounds.map((r) => r.status)).toEqual(['bye', 'lost'])
+    expect(loser.rounds[1]).toMatchObject({ walkover: true })
+  })
+
+  it('stops a first-round loser after one row', () => {
+    const path = buildBracketPath(rounds, '1777')!
+    expect(path.rounds).toHaveLength(1)
+    expect(path.rounds[0]).toMatchObject({ round: 'Round of 16', status: 'lost' })
+    expect(path.rounds[0].scores).toEqual([{ t1: 10, t2: 15 }, { t1: 15, t2: 8 }, { t1: 13, t2: 15 }])
+  })
+})
 })

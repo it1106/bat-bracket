@@ -62,6 +62,18 @@ function possibleFrom(rounds: BracketRound[], r: number, i: number, side: Side):
   ]
 }
 
+/** True when the rounds have the shape of a knockout: each round twice the
+ *  size of the next, ending in a single final. A round-robin page also parses
+ *  into "rounds", but they are all the same size. */
+export function isKnockout(rounds: BracketRound[]): boolean {
+  if (rounds.length === 0) return false
+  if (rounds[rounds.length - 1].matches.length !== 1) return false
+  for (let r = 0; r < rounds.length - 1; r++) {
+    if (rounds[r].matches.length !== 2 * rounds[r + 1].matches.length) return false
+  }
+  return true
+}
+
 /** One player's route through a knockout bracket, from the round they enter
  *  to the final. Null when the player is not in the bracket. */
 export function buildBracketPath(rounds: BracketRound[], playerId: string): BracketPath | null {

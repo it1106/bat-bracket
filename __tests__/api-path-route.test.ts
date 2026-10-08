@@ -17,6 +17,8 @@ jest.mock('../lib/stale-headers', () => ({
   staleHeaders: () => ({ 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' }),
 }))
 jest.mock('../lib/bat-outages', () => ({ batDownSince: jest.fn().mockReturnValue(null) }))
+jest.mock('../lib/bat-player-id-map', () => ({ readGlobalPlayerIds: jest.fn().mockResolvedValue({}) }))
+jest.mock('../lib/ranking/aliases', () => ({ rankingSlugAlias: jest.fn((_p: string, slug: string) => slug) }))
 
 import { GET } from '@/app/api/path/route'
 import { cache, rawHtmlCache, bracketHtmlForSchedule, ensureBracketsLoaded } from '@/lib/bracket-cache'
@@ -25,6 +27,8 @@ import { readRankingCache } from '@/lib/ranking/cache'
 import { getCachedOrDisk } from '@/lib/draws-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
 import { batDownSince } from '@/lib/bat-outages'
+import { readGlobalPlayerIds } from '@/lib/bat-player-id-map'
+import { rankingSlugAlias } from '@/lib/ranking/aliases'
 import { parseBracketRounds } from '@/lib/scraper'
 import { nameToSlug } from '@/lib/playerIndex'
 import { seedNumber, type PathResponse } from '@/lib/pathEnrich'
@@ -38,6 +42,9 @@ const rankingMock = readRankingCache as jest.Mock
 const drawsMock = getCachedOrDisk as jest.Mock
 const refMock = resolveRef as jest.Mock
 const downMock = batDownSince as jest.Mock
+const idsMock = readGlobalPlayerIds as jest.Mock
+const aliasMock = rankingSlugAlias as jest.Mock
+const GROUP_HTML = fs.readFileSync(nodePath.join(process.cwd(), 'fixtures', 'group-draw-bs-u11-a.html'), 'utf-8')
 
 // A first-round match with two players and no result yet.
 const ROUNDS = parseBracketRounds(HTML)
@@ -57,6 +64,8 @@ beforeEach(() => {
   drawsMock.mockReset().mockResolvedValue(undefined)
   refMock.mockReset().mockReturnValue(undefined)
   downMock.mockReset().mockReturnValue(null)
+  idsMock.mockReset().mockResolvedValue({})
+  aliasMock.mockReset().mockImplementation((_p: string, slug: string) => slug)
   ;(ensureBracketsLoaded as jest.Mock).mockClear()
 })
 
@@ -208,6 +217,54 @@ describe('GET /api/path', () => {
     drawsMock.mockResolvedValue({ draws: [{ drawNum: '5', name: 'BS U9', size: '32', type: 'Elimination' }], ts: 0 })
     await ok()
     expect(rankingMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('is 404 for a round-robin page even when the draw list is not held', async () => {
+    htmlMock.mockResolvedValue(GROUP_HTML)
+    const anyone = parseBracketRounds(GROUP_HTML).flatMap((r) => r.matches).flatMap((m) => m.teams.flat())[0]
+    expect(anyone).toBeDefined()
+    const res = await get(`tournament=${TID}&draw=5&player=${anyone.playerId}`)
+    expect(res.status).toBe(404)
+  })
+
+  describe('ranking positions for a name the ranking spells differently', () => {
+    const setup = async () => {
+      const semi = (await (await ok()).json() as PathResponse).rounds.find((r) => r.candidates && r.candidates.length >= 2)!
+      const target = semi.candidates![1].team[0]
+      drawsMock.mockResolvedValue({ draws: [{ drawNum: '5', name: 'BS U9', size: '32', type: 'Elimination' }], ts: 0 })
+      rankingMock.mockResolvedValue({
+        events: [{ eventCode: 'U9_MS', eventName: 'U9 Boys singles', entries: [{ rank: 6, name: 'Other Spelling', slug: 'other_spelling', globalPlayerId: '777' }] }],
+      })
+      const rankOf = async () => ((await (await ok()).json()) as PathResponse).rounds
+        .flatMap((r) => r.candidates ?? []).filter((c) => c.team[0].playerId === target.playerId).map((c) => c.rank)
+      return { target, rankOf }
+    }
+
+    it('finds none by name alone', async () => {
+      const { rankOf } = await setup()
+      expect((await rankOf()).every((r) => r === undefined)).toBe(true)
+    })
+
+    it('finds it through the player\'s ranking id', async () => {
+      const { target, rankOf } = await setup()
+      idsMock.mockResolvedValue({ [nameToSlug(target.name)]: ['777'] })
+      const ranks = await rankOf()
+      expect(ranks.length).toBeGreaterThan(0)
+      expect(ranks.every((r) => r === 6)).toBe(true)
+    })
+
+    it('finds it through a curated alias', async () => {
+      const { target, rankOf } = await setup()
+      aliasMock.mockImplementation((_p: string, slug: string) => slug === nameToSlug(target.name) ? 'other_spelling' : slug)
+      expect((await rankOf()).every((r) => r === 6)).toBe(true)
+    })
+
+    it('still answers when the id map cannot be read', async () => {
+      const { rankOf } = await setup()
+      idsMock.mockRejectedValue(new Error('ENOENT'))
+      expect((await ok()).status).toBe(200)
+      expect((await rankOf()).every((r) => r === undefined)).toBe(true)
+    })
   })
 
   it('still answers when the index and ranking reads fail', async () => {

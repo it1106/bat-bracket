@@ -852,13 +852,10 @@ export default function Home() {
   const handlePathClick = useCallback((drawNum: string, drawName: string) => {
     if (!modalProfile?.playerId) return
     const t = tournaments.find((x) => x.id === selectedTournament)
-    track('path_to_final_opened', {
-      tournament_id: selectedTournament,
-      tournament_name: t?.name ?? '',
-      draw: drawName,
-      draw_id: drawNum,
-    })
-    openPath({ drawNum, drawName, playerId: modalProfile.playerId })
+    openPath(
+      { drawNum, drawName, playerId: modalProfile.playerId },
+      { tournamentId: selectedTournament, tournamentName: t?.name ?? '' },
+    )
   }, [modalProfile, tournaments, selectedTournament, openPath])
 
   const handleH2HClose = useCallback(() => {

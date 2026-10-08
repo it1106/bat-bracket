@@ -53,6 +53,19 @@ export async function readPlayerIdEntry(slug: string): Promise<PlayerIdEntry | n
   }
 }
 
+/** Every ranking id each discovered player carries, by slug: the primary id
+ *  and one per ranking series. One read of the file, for callers that look up
+ *  many players at once. Players whose lookup failed are left out. */
+export async function readGlobalPlayerIds(): Promise<Record<string, string[]>> {
+  const map = await readAll()
+  const out: Record<string, string[]> = {}
+  for (const [slug, entry] of Object.entries(map.players)) {
+    if (!entry.globalPlayerId) continue
+    out[slug] = Array.from(new Set([entry.globalPlayerId, ...Object.values(entry.bySeries ?? {})]))
+  }
+  return out
+}
+
 /** Persist a successful discovery. `bySeries` maps series id (`rid`) → that
  *  series' numeric player id; the primary id is the first one listed. */
 export async function writePlayerIdSuccess(

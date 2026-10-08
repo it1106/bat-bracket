@@ -101,4 +101,37 @@ describe('parseBracketRounds', () => {
     expect(rounds.map((r) => r.matches.length)).toEqual([8, 4, 2, 1])
     expect(rounds.flatMap((r) => r.matches).every((m) => m.teams[0].length === 0 && m.teams[1].length === 0)).toBe(true)
   })
+
+describe('parseBracketRounds on a finished real draw', () => {
+  const rounds = parseBracketRounds(fixtureHtml('bracket-bat-finished-16.html'))
+
+  it('finds every match decided, down to the final', () => {
+    expect(rounds.map((r) => r.matches.length)).toEqual([8, 4, 2, 1])
+    expect(rounds.flatMap((r) => r.matches).every((m) => m.winner !== null)).toBe(true)
+    const final = rounds[3].matches[0]
+    expect(final.teams.map((t) => t[0].playerId)).toEqual(['1666', '1862'])
+    expect(final.winner).toBe(2)
+  })
+
+  it('puts every winner on the row of the next round that its match feeds', () => {
+    let checked = 0
+    for (let r = 0; r < rounds.length - 1; r++) {
+      rounds[r].matches.forEach((m, j) => {
+        const winner = m.teams[m.winner! - 1]
+        const next = rounds[r + 1].matches[Math.floor(j / 2)].teams[j % 2]
+        expect(next.map((p) => p.playerId)).toEqual(winner.map((p) => p.playerId))
+        checked++
+      })
+    }
+    expect(checked).toBe(14)
+  })
+
+  it('flags the walkover and gives it no score', () => {
+    const wo = rounds[1].matches[1]
+    expect(wo.walkover).toBe(true)
+    expect(wo.scores).toEqual([])
+    expect(wo.winner).toBe(2)
+    expect(rounds.flatMap((r) => r.matches).filter((m) => m.walkover)).toHaveLength(1)
+  })
+})
 })

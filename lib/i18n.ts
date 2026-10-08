@@ -833,7 +833,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     pathBye: 'บาย',
     pathWon: 'ชนะ',
     pathLost: 'แพ้',
-    pathOut: 'ตกรอบใน{round}',
+    pathOut: 'แพ้ใน{round}',
     pathRunnerUp: 'รองแชมป์',
     pathChampion: 'แชมป์',
     pathRecordNote: 'สถิติการพบกันนับเฉพาะรายการที่ BATMatch เก็บข้อมูล',
