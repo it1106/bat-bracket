@@ -65,19 +65,20 @@ already hold a player, so it cannot describe an empty future round. Add:
 
 ```ts
 export interface BracketSlotMatch {
-  teams: MatchPlayer[][]        // 0, 1 or 2 teams; empty rows dropped
-  seeds: Array<string | undefined>  // per team, as printed: "2", "3/4"
-  winner: 1 | 2 | null          // index into the two rows, when decided
+  teams: [MatchPlayer[], MatchPlayer[]]   // both rows, in page order;
+                                          // an unfilled or "Bye" row is []
+  seeds: [string | undefined, string | undefined]  // per row: "2", "3/4"
+  winner: 1 | 2 | null          // which row won, when decided
   scores: MatchScore[]
   walkover: boolean
   retired: boolean
   time?: string                 // "HH:MM" from the match footer
   date?: string                 // as BAT prints it
-  court?: string
+  court?: string                // the venue or court in the match footer
 }
 
 export interface BracketRound {
-  name: string                  // normalised: R64, R32, R16, QF, SF, Final
+  name: string                  // as BAT prints it: "Round of 64", "Final"
   matches: BracketSlotMatch[]   // DOM order
 }
 
@@ -87,8 +88,9 @@ export function parseBracketRounds(html: string): BracketRound[]
 It walks the same `swiper-slide` / `.bracket-round__match-group-wrapper`
 structure `feedersFrom` walks, and reuses `extractMatchTeams` and
 `extractMatchSchedule`. Position is the relationship: match `i` of round `r`
-is fed by matches `2i` and `2i+1` of round `r-1`. This is the same index rule
-`feedersFrom` relies on.
+is fed by matches `2i` (its first row) and `2i+1` (its second row) of round
+`r-1`. This is the same index rule `feedersFrom` relies on, and it is why both
+rows of every match are kept even when empty.
 
 BAT prints a seed as a suffix on the player's name in the bracket itself
 (`ภูมิพิพัชญ์ พึ่งโพธิ์สภ [2]` in `fixtures/bracket-bat-ysb-bsu13.html`). The
@@ -105,7 +107,8 @@ export interface PathRound {
   round: string
   status: 'won' | 'lost' | 'next' | 'future' | 'bye'
   opponent?: MatchPlayer[]          // known opponent (won, lost, next)
-  scores?: MatchScore[]
+  opponentSeed?: string
+  scores?: MatchScore[]             // the player's side is t1
   walkover?: boolean
   retired?: boolean
   time?: string
@@ -135,10 +138,13 @@ Rules:
 - Follow the player forward by position (`i → floor(i / 2)`).
 - A match the player is in, decided, gives `won` or `lost`. After `lost` the
   route stops and `eliminated` is true.
-- A match the player is in with no opposing team and no result is `bye` when
-  the opposing feeder subtree holds no players at all, otherwise `next` with
-  `candidates`.
-- A round the player has not reached yet is `future`.
+- BAT prints a bye as a decided match whose losing row is empty. A match the
+  player won against an empty row is `bye`. So is an undecided round where
+  nobody at all can come through the opposing side.
+- The first round still to be played is `next`: with `opponent` when the
+  bracket already names one, otherwise with `candidates`. This holds even when
+  the bracket has not yet placed the player in that round after a win.
+- Every round after that is `future`.
 - **Candidates** for a slot are the teams that can still come out of the
   opposite feeder subtree: if that feeder match is decided, its winner only;
   if it has two teams and no result, both; if it is empty, recurse into its
@@ -191,7 +197,7 @@ interface PathCandidate {
 }
 
 interface PathRoundOut extends Omit<PathRound, 'candidates'> {
-  record?: { wins: number; losses: number } | null   // for a known opponent
+  record?: { wins: number; losses: number } | null   // `next` opponent only
   candidates?: PathCandidate[]
 }
 
