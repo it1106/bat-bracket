@@ -151,6 +151,22 @@ export type TKey =
   | 'darkMode'
   | 'lightMode'
   | 'close'
+  | 'pathToFinal'
+  | 'pathLikely'
+  | 'pathOthers'
+  | 'pathPossible'
+  | 'pathFirstMeeting'
+  | 'pathRecord'
+  | 'pathRank'
+  | 'pathSeed'
+  | 'pathBye'
+  | 'pathWon'
+  | 'pathLost'
+  | 'pathOut'
+  | 'pathRunnerUp'
+  | 'pathChampion'
+  | 'pathRecordNote'
+  | 'pathLoadFailed'
   | 'h2hButton'
   | 'langToggle'
   | 'statsCareer'
@@ -453,6 +469,22 @@ const dict: Record<Lang, Record<TKey, string>> = {
     darkMode: 'Dark mode',
     lightMode: 'Light mode',
     close: 'Close',
+    pathToFinal: 'Path to final',
+    pathLikely: 'Likely',
+    pathOthers: '+{n} others',
+    pathPossible: '{n} possible opponents',
+    pathFirstMeeting: 'First meeting',
+    pathRecord: 'Record {w}–{l}',
+    pathRank: 'Rank {n}',
+    pathSeed: 'Seed {n}',
+    pathBye: 'Bye',
+    pathWon: 'Won',
+    pathLost: 'Lost',
+    pathOut: 'Out in {round}',
+    pathRunnerUp: 'Runner-up',
+    pathChampion: 'Champion',
+    pathRecordNote: 'Records count matches in tournaments tracked on BATMatch.',
+    pathLoadFailed: 'Could not load the path for this draw.',
     h2hButton: 'H2H',
     langToggle: 'ภาษาไทย',
     statsCareer: 'Career · this year in parens',
@@ -787,6 +819,22 @@ const dict: Record<Lang, Record<TKey, string>> = {
     darkMode: 'โหมดมืด',
     lightMode: 'โหมดสว่าง',
     close: 'ปิด',
+    pathToFinal: 'เส้นทางสู่รอบชิง',
+    pathLikely: 'คาดว่าเจอ',
+    pathOthers: '+อีก {n} ราย',
+    pathPossible: 'คู่แข่งที่เป็นไปได้ {n} ราย',
+    pathFirstMeeting: 'ยังไม่เคยเจอกัน',
+    pathRecord: 'สถิติ {w}–{l}',
+    pathRank: 'อันดับ {n}',
+    pathSeed: 'มือวาง {n}',
+    pathBye: 'บาย',
+    pathWon: 'ชนะ',
+    pathLost: 'แพ้',
+    pathOut: 'ตกรอบใน{round}',
+    pathRunnerUp: 'รองแชมป์',
+    pathChampion: 'แชมป์',
+    pathRecordNote: 'สถิติการพบกันนับเฉพาะรายการที่ BATMatch เก็บข้อมูล',
+    pathLoadFailed: 'ไม่สามารถโหลดเส้นทางของสายนี้ได้',
     h2hButton: 'H2H',
     langToggle: 'English',
     statsCareer: 'สถิติรวม · ในวงเล็บคือปีนี้',
