@@ -1,0 +1,96 @@
+import { NextResponse } from 'next/server'
+import { cache, ttlMsFor, makeBracketKey, bracketHtmlForSchedule, ensureBracketsLoaded } from '@/lib/bracket-cache'
+import { parseBracketRounds } from '@/lib/scraper'
+import { buildBracketPath } from '@/lib/bracketPath'
+import {
+  pairRecord, rankCandidates, rankingEventCodeForDraw, teamRank,
+  type PathResponse, type PathRoundOut,
+} from '@/lib/pathEnrich'
+import { readIndexCache } from '@/lib/player-index-cache'
+import { readRankingCache } from '@/lib/ranking/cache'
+import { getCachedOrDisk } from '@/lib/draws-cache'
+import { resolveRef } from '@/lib/tournaments-registry'
+import { staleHeaders } from '@/lib/stale-headers'
+import { batDownSince } from '@/lib/bat-outages'
+
+export const maxDuration = 30
+
+// One player's path to the final of a knockout draw: the rounds they have
+// played, their next match, and who could stand in each round after it.
+// Built from the bracket this server already holds — it asks BAT for nothing
+// beyond the one fetch bracketHtmlForSchedule makes for a bracket never seen.
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const guid = (searchParams.get('tournament') ?? '').toLowerCase()
+  const drawNum = searchParams.get('draw') ?? ''
+  const playerId = searchParams.get('player') ?? ''
+  if (!guid || !drawNum || !playerId) {
+    return NextResponse.json({ error: 'tournament, draw and player params required' }, { status: 400 })
+  }
+  const notFound = (error: string) => NextResponse.json({ error }, { status: 404 })
+
+  const ref = resolveRef(guid)
+  if (ref && ref.provider !== 'bat') return notFound('Path is only available for BAT tournaments')
+
+  // The draw list says what kind of draw this is and what it is called. It is
+  // read from what is already held; when it is not there, the bracket decides.
+  const drawInfo = (await getCachedOrDisk(guid).catch(() => undefined))?.draws.find((d) => d.drawNum === drawNum)
+  if (drawInfo && (drawInfo.groupLetter || (drawInfo.type && !/^elimination$/i.test(drawInfo.type.trim())))) {
+    return notFound('Not a knockout draw')
+  }
+
+  let html: string | undefined
+  try {
+    // A finished tournament's brackets live on disk until someone opens one.
+    await ensureBracketsLoaded(guid, drawNum)
+    html = await bracketHtmlForSchedule(guid, drawNum)
+  } catch {
+    html = undefined
+  }
+  if (!html) return notFound('No bracket for this draw')
+
+  const path = buildBracketPath(parseBracketRounds(html), playerId)
+  if (!path) return notFound('Player is not in this draw')
+
+  const [index, ranking] = await Promise.all([
+    readIndexCache('bat').catch(() => null),
+    readRankingCache('bat').catch(() => null),
+  ])
+  const eventCode = drawInfo ? rankingEventCodeForDraw(drawInfo.name) : null
+
+  const rounds: PathRoundOut[] = path.rounds.map((round) => {
+    const { candidates, ...rest } = round
+    const out: PathRoundOut = { ...rest }
+    if (round.status === 'next' && round.opponent) {
+      out.record = pairRecord(index, path.team, round.opponent)
+    }
+    if (candidates) {
+      out.candidates = rankCandidates(candidates.map((c) => {
+        const rank = eventCode ? teamRank(ranking, eventCode, c.team) : undefined
+        return {
+          team: c.team,
+          ...(c.seed && { seed: c.seed }),
+          ...(rank !== undefined && { rank }),
+          record: pairRecord(index, path.team, c.team),
+        }
+      }))
+    }
+    return out
+  })
+
+  // An overdue bracket is normal — it is being refreshed in the background.
+  // It is only worth a warning when BAT is failing, so that refresh cannot land.
+  const entry = cache.get(makeBracketKey(guid, drawNum))
+  const overdue = !!entry && !entry.done && Date.now() - entry.ts >= ttlMsFor(entry)
+  const stale = overdue && !!batDownSince()
+
+  const body: PathResponse = {
+    team: path.team,
+    ...(path.seed && { seed: path.seed }),
+    eliminated: path.eliminated,
+    champion: path.champion,
+    rounds,
+    stale,
+  }
+  return NextResponse.json(body, stale ? { headers: staleHeaders() } : undefined)
+}
