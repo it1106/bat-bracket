@@ -7,6 +7,7 @@ import MatchSchedule from '@/components/MatchSchedule'
 import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
+import PathToFinalModal from '@/components/PathToFinalModal'
 import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
 import Link from 'next/link'
@@ -202,6 +203,7 @@ export default function Home() {
   const [modalProfile, setModalProfile] = useState<PlayerProfile | null>(null)
   const [modalLoading, setModalLoading] = useState(false)
   const [h2hData, setH2hData] = useState<H2HData | null>(null)
+  const [pathTarget, setPathTarget] = useState<{ drawNum: string; drawName: string; playerId: string } | null>(null)
   const [h2hLoading, setH2hLoading] = useState(false)
   const bracketRef = useRef<HTMLDivElement>(null)
   const playerSearchRef = useRef<HTMLInputElement>(null)
@@ -465,6 +467,7 @@ export default function Home() {
     }
     setSelectedDraw('')
     setDraws([])
+    setPathTarget(null)
     setBracketHtml('')
     setBracketEntrants(undefined)
     setError(null)
@@ -844,6 +847,18 @@ export default function Home() {
     } catch {}
     finally { setH2hLoading(false) }
   }, [selectedTournament, tournaments])
+
+  const handlePathClick = useCallback((drawNum: string, drawName: string) => {
+    if (!modalProfile?.playerId) return
+    const t = tournaments.find((x) => x.id === selectedTournament)
+    track('path_to_final_opened', {
+      tournament_id: selectedTournament,
+      tournament_name: t?.name ?? '',
+      draw: drawName,
+      draw_id: drawNum,
+    })
+    setPathTarget({ drawNum, drawName, playerId: modalProfile.playerId })
+  }, [modalProfile, tournaments, selectedTournament])
 
   const handleH2HClose = useCallback(() => {
     setH2hData(null)
@@ -1555,6 +1570,20 @@ export default function Home() {
           onH2HClick={handleH2HClick}
           onPlayerClick={playerClickHandler}
           provider={tournaments.find((x) => x.id === selectedTournament)?.provider}
+          draws={draws}
+          onPathClick={handlePathClick}
+        />
+      )}
+
+      {/* Path to the final */}
+      {pathTarget && selectedTournament && (
+        <PathToFinalModal
+          tournamentId={selectedTournament}
+          drawNum={pathTarget.drawNum}
+          drawName={pathTarget.drawName}
+          playerId={pathTarget.playerId}
+          onClose={() => setPathTarget(null)}
+          onPlayerClick={(id) => { setPathTarget(null); playerClickHandler?.(id) }}
         />
       )}
 

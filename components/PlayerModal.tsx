@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import type { PlayerProfile, MatchEntry, ProviderTag } from '@/lib/types'
+import type { PlayerProfile, MatchEntry, ProviderTag, DrawInfo } from '@/lib/types'
+import { knockoutDrawsOf } from '@/lib/pathDraws'
 import { useLanguage } from '@/lib/LanguageContext'
 import { pct } from '@/lib/playerStats'
 
@@ -13,6 +14,10 @@ interface Props {
   onH2HClick?: (h2hUrl: string, m: MatchEntry) => void
   onPlayerClick?: (playerId: string) => void
   provider?: ProviderTag
+  /** The tournament's draws, used to tell knockout draws from group draws. */
+  draws?: DrawInfo[]
+  /** Opens the path to the final for one of the player's knockout draws. */
+  onPathClick?: (drawNum: string, drawName: string) => void
 }
 
 
@@ -23,7 +28,7 @@ function scoreStr(entry: MatchEntry, tr: { walkover: string; vsMatch: string; re
   return entry.scores.map((s) => `${s.t1}–${s.t2}`).join(', ')
 }
 
-export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick, provider }: Props) {
+export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick, provider, draws, onPathClick }: Props) {
   const { t, abbrevRound, lang } = useLanguage()
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const [activeEventIds, setActiveEventIds] = useState<Set<string>>(new Set())
@@ -67,6 +72,11 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
     const drawLower = m.draw.toLowerCase()
     return activeEventShortNames.some((n) => drawLower === n || drawLower.includes(n) || n.includes(drawLower))
   }
+
+  // BAT knockout draws only: the path is read from a BAT bracket.
+  const pathDraws = profile && onPathClick && (provider ?? 'bat') === 'bat'
+    ? knockoutDrawsOf(profile.matches, draws)
+    : []
 
   return (
     <div className="pm-overlay" onClick={onClose}>
@@ -154,6 +164,21 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                       className={`pm-event-pill${activeEventIds.has(ev.eventId) ? ' active' : ''}`}
                       onClick={() => toggleEvent(ev.eventId)}
                     >{lang === 'th' ? ev.name.replace(/\s+with\s+/i, ' คู่กับ ') : ev.name}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {pathDraws.length > 0 && onPathClick && (
+              <div className="pm-section">
+                <div className="pm-events">
+                  {pathDraws.map((d) => (
+                    <button
+                      key={d.drawNum}
+                      type="button"
+                      className="pm-event-pill ptf-open"
+                      onClick={() => onPathClick(d.drawNum, d.name)}
+                    >{pathDraws.length > 1 ? `${t('pathToFinal')} · ${d.name}` : t('pathToFinal')}</button>
                   ))}
                 </div>
               </div>
