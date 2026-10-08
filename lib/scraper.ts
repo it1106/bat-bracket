@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch, MatchPlayer, MatchScore, StandingsRow, SeedEvent } from './types'
+import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch, MatchPlayer, MatchScore, StandingsRow, SeedEvent, BracketRound, BracketSlotMatch } from './types'
 
 function extractId(url: string): string {
   const match = url.match(/\/tournament\/([^/]+)/)
@@ -705,6 +705,72 @@ function feedersFrom($: cheerio.CheerioAPI): Array<{ players: string[]; childMat
   }
 
   return result
+}
+
+const BRACKET_SEED_RE = /\s*\[([^\]]+)\]\s*$/
+
+// One bracket .match as a position-keeping slot: both rows are kept even when
+// empty, because the row index says which feeder match fills it. Only linked
+// players count, so the "Bye" row of a bye comes out empty.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function slotMatchFrom($: cheerio.CheerioAPI, matchEl: any): BracketSlotMatch {
+  const ex = extractMatchEntry($, matchEl)
+  const teams: [MatchPlayer[], MatchPlayer[]] = [[], []]
+  const seeds: [string | undefined, string | undefined] = [undefined, undefined]
+
+  $(matchEl).find('.match__row').each((ri, row) => {
+    if (ri > 1) return
+    $(row).find('.match__row-title-value').each((_, tv) => {
+      const a = $(tv).find('a').first()
+      const idMatch = (a.attr('href') ?? '').match(/player=(\d+)/)
+      if (!idMatch) return
+      const raw = playerText(a)
+      const seed = raw.match(BRACKET_SEED_RE)
+      if (seed && !seeds[ri]) seeds[ri] = seed[1].trim()
+      const name = raw.replace(BRACKET_SEED_RE, '').trim()
+      if (name) teams[ri].push({ name, playerId: idMatch[1] })
+    })
+  })
+
+  const schedule = extractMatchSchedule($, matchEl)
+  const court = $(matchEl).find('.match__footer-list-item')
+    .filter((_, li) => $(li).find('.icon-marker').length > 0)
+    .first().find('.nav-link__value').text().trim()
+
+  return {
+    teams,
+    seeds,
+    winner: ex.winner,
+    scores: ex.scores,
+    walkover: ex.walkover,
+    retired: ex.retired,
+    ...(schedule?.time && { time: schedule.time }),
+    ...(schedule?.date && { date: schedule.date }),
+    ...(court && { court }),
+  }
+}
+
+// Every round of a knockout bracket, each as its matches in page order.
+// Position is the relationship between rounds: match `i` of round `r` is fed
+// by matches `2i` (its first row) and `2i + 1` (its second row) of round
+// `r - 1` — the same index rule parseBracketFeeders relies on. Unlike the
+// feeder walk, this keeps slots nobody has reached yet, which is what a
+// player's path to the final is made of.
+export function parseBracketRounds(html: string): BracketRound[] {
+  const $ = cheerio.load(html, { xmlMode: false })
+  const bracket = $('.bracket.js-bracket')
+  if (!bracket.length) return []
+
+  const roundNames = bracket.find('.subheading').map((_, el) => $(el).text().trim()).get()
+  const rounds: BracketRound[] = []
+  bracket.find('swiper-container > swiper-slide').each((slideIdx, slide) => {
+    const matchEls = $(slide).find('.bracket-round__match-group-wrapper .match')
+    if (matchEls.length === 0) return
+    const matches: BracketSlotMatch[] = []
+    matchEls.each((_, m) => { matches.push(slotMatchFrom($, m)) })
+    rounds.push({ name: roundNames[slideIdx] ?? '', matches })
+  })
+  return rounds
 }
 
 // When and where the bracket says a match is scheduled, read from its footer:

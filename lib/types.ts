@@ -82,6 +82,32 @@ export interface MatchScore {
   t2: number
 }
 
+/** One match slot of a knockout bracket, as the bracket page prints it.
+ *  `teams` and `seeds` always hold both rows, in page order, so the row index
+ *  is meaningful: row `s` of match `i` is fed by match `2i + s` of the round
+ *  before. An unfilled row, or the "Bye" row of a bye, is an empty array. */
+export interface BracketSlotMatch {
+  teams: [MatchPlayer[], MatchPlayer[]]
+  /** The seed printed after a name ("2", "3/4"), per row. */
+  seeds: [string | undefined, string | undefined]
+  winner: 1 | 2 | null
+  scores: MatchScore[]
+  walkover: boolean
+  retired: boolean
+  /** "HH:MM" from the match footer. */
+  time?: string
+  /** The date as BAT prints it, Buddhist-era year: "20/6/2569". */
+  date?: string
+  /** The venue or court named in the footer. */
+  court?: string
+}
+
+export interface BracketRound {
+  /** The round name as BAT prints it: "Round of 64", "Quarter final", "Final". */
+  name: string
+  matches: BracketSlotMatch[]
+}
+
 export interface MatchEntry {
   draw: string
   drawNum: string
