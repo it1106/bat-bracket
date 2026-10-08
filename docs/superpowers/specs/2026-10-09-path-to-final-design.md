@@ -217,8 +217,10 @@ interface PathResponse {
   BAT request this can cause is the single bracket fetch that function already
   makes when no copy is held at all.
 - `stale` is true when the bracket's cache entry
-  (`cache.get(makeBracketKey(guid, drawNum))`) is not marked done and its `ts`
-  is older than `ttlMsFor(entry)`.
+  (`cache.get(makeBracketKey(guid, drawNum))`) is not marked done, its `ts`
+  is older than `ttlMsFor(entry)`, and BAT is in an outage (`batDownSince()`).
+  An overdue bracket alone is not stale: it is being refreshed in the
+  background.
 - `404` when the draw has no bracket, the bracket has no rounds, or the player
   is not in it. `400` on missing params.
 - Sent with the same stale headers the bracket route uses
@@ -259,7 +261,8 @@ button.
     "+N others". Tapping expands the full candidate list inline, each with
     seed, ranking position and record. With no favourite: "N possible
     opponents", same expansion.
-- After a `lost` row: a single "Out in {round}" line, no further rows.
+- After a `lost` row: a single "Out in {round}" line, no further rows. A
+  player who lost the final gets "Runner-up" instead.
 - `champion`: a "Champion" line after the final.
 - Footer note: the record covers tournaments tracked on BATMatch.
 - Tapping an opponent's name calls the existing `onPlayerClick`.

@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - BAT provider only. Single-elimination draws only. Never shown for BWF, group-stage or round-robin draws.
-- No new BAT requests. The only BAT call this feature may cause is the one bracket fetch `bracketHtmlForSchedule` already makes when it holds no copy.
+- No new kinds of BAT request. The feature reads brackets only through `bracketHtmlForSchedule`, which fetches a bracket it has never held, and refreshes a held one in the background at most once per refresh period (30 minutes for a live draw) — the same cost the schedule already pays.
 - Nothing new is kept in server memory: no new module-level caches or maps.
 - Every user-visible string has both an `en` and a `th` entry in `lib/i18n.ts` and a key in the `TKey` union.
 - Past records come only from the BAT player index (`readIndexCache('bat')`), never from BAT's H2H page.
@@ -1184,7 +1184,7 @@ git commit -m "feat(path): rank, past record and favourite for path candidates"
 - Test: `__tests__/api-path-route.test.ts`
 
 **Interfaces:**
-- Consumes: `parseBracketRounds` (Task 1); `buildBracketPath` (Task 2); `pairRecord`, `rankCandidates`, `rankingEventCodeForDraw`, `teamRank`, `PathResponse`, `PathRoundOut` (Task 3); from `@/lib/bracket-cache`: `cache`, `ttlMsFor`, `makeBracketKey`, `bracketHtmlForSchedule(guid, drawNum): Promise<string | undefined>`, `ensureBracketsLoaded(guid, drawNum): Promise<void>`; `readIndexCache(provider)` from `@/lib/player-index-cache`; `readRankingCache(provider)` from `@/lib/ranking/cache`; `getCachedOrDisk(id)` from `@/lib/draws-cache`; `resolveRef(guid)` from `@/lib/tournaments-registry`; `staleHeaders()` from `@/lib/stale-headers`.
+- Consumes: `batDownSince()` from `@/lib/bat-outages` (truthy while BAT is in an outage); `parseBracketRounds` (Task 1); `buildBracketPath` (Task 2); `pairRecord`, `rankCandidates`, `rankingEventCodeForDraw`, `teamRank`, `PathResponse`, `PathRoundOut` (Task 3); from `@/lib/bracket-cache`: `cache`, `ttlMsFor`, `makeBracketKey`, `bracketHtmlForSchedule(guid, drawNum): Promise<string | undefined>`, `ensureBracketsLoaded(guid, drawNum): Promise<void>`; `readIndexCache(provider)` from `@/lib/player-index-cache`; `readRankingCache(provider)` from `@/lib/ranking/cache`; `getCachedOrDisk(id)` from `@/lib/draws-cache`; `resolveRef(guid)` from `@/lib/tournaments-registry`; `staleHeaders()` from `@/lib/stale-headers`.
 - Produces: `GET /api/path?tournament=<guid>&draw=<drawNum>&player=<playerId>` → `200 PathResponse`, `400 { error }`, `404 { error }`.
 
 Request timing and the site-request count need no code: `instrumentation.ts` installs the timer for every `/api/*` route and `routeOf` labels this one `path`.
@@ -1211,6 +1211,7 @@ jest.mock('../lib/tournaments-registry', () => ({ resolveRef: jest.fn().mockRetu
 jest.mock('../lib/stale-headers', () => ({
   staleHeaders: () => ({ 'Cache-Control': 'no-store', 'X-Stale-Cache': '1' }),
 }))
+jest.mock('../lib/bat-outages', () => ({ batDownSince: jest.fn().mockReturnValue(null) }))
 
 import { GET } from '@/app/api/path/route'
 import { cache, bracketHtmlForSchedule, ensureBracketsLoaded } from '@/lib/bracket-cache'
@@ -1218,6 +1219,7 @@ import { readIndexCache } from '@/lib/player-index-cache'
 import { readRankingCache } from '@/lib/ranking/cache'
 import { getCachedOrDisk } from '@/lib/draws-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
+import { batDownSince } from '@/lib/bat-outages'
 import { parseBracketRounds } from '@/lib/scraper'
 import { nameToSlug } from '@/lib/playerIndex'
 import { seedNumber, type PathResponse } from '@/lib/pathEnrich'
@@ -1230,6 +1232,7 @@ const indexMock = readIndexCache as jest.Mock
 const rankingMock = readRankingCache as jest.Mock
 const drawsMock = getCachedOrDisk as jest.Mock
 const refMock = resolveRef as jest.Mock
+const downMock = batDownSince as jest.Mock
 
 // A first-round match with two players and no result yet.
 const ROUNDS = parseBracketRounds(HTML)
@@ -1247,6 +1250,7 @@ beforeEach(() => {
   rankingMock.mockReset().mockResolvedValue(null)
   drawsMock.mockReset().mockResolvedValue(undefined)
   refMock.mockReset().mockReturnValue(undefined)
+  downMock.mockReset().mockReturnValue(null)
   ;(ensureBracketsLoaded as jest.Mock).mockClear()
 })
 
@@ -1358,14 +1362,24 @@ describe('GET /api/path', () => {
     expect(((await res.json()) as PathResponse).rounds[0].record).toBeNull()
   })
 
-  it('marks a bracket past its refresh time as stale', async () => {
+  it('marks an overdue bracket as stale while BAT is down', async () => {
+    downMock.mockReturnValue('2026-10-09T03:00:00.000Z')
     ;(cache as Map<string, unknown>).set(`${TID}:5`, { bracket: { html: '' }, ts: Date.now() - 60 * 60_000 })
     const res = await ok()
     expect(res.headers.get('X-Stale-Cache')).toBe('1')
     expect(((await res.json()) as PathResponse).stale).toBe(true)
   })
 
-  it('does not call a fresh or finished bracket stale', async () => {
+  it('does not raise the alarm for an overdue bracket while BAT is up', async () => {
+    // Overdue only means a background refresh is on its way.
+    ;(cache as Map<string, unknown>).set(`${TID}:5`, { bracket: { html: '' }, ts: Date.now() - 60 * 60_000 })
+    const res = await ok()
+    expect(res.headers.get('X-Stale-Cache')).toBeNull()
+    expect(((await res.json()) as PathResponse).stale).toBe(false)
+  })
+
+  it('does not call a fresh or finished bracket stale, even while BAT is down', async () => {
+    downMock.mockReturnValue('2026-10-09T03:00:00.000Z')
     ;(cache as Map<string, unknown>).set(`${TID}:5`, { bracket: { html: '' }, ts: Date.now() - 60_000 })
     expect(((await (await ok()).json()) as PathResponse).stale).toBe(false)
     ;(cache as Map<string, unknown>).set(`${TID}:5`, { bracket: { html: '' }, ts: 0, done: true })
@@ -1397,6 +1411,7 @@ import { readRankingCache } from '@/lib/ranking/cache'
 import { getCachedOrDisk } from '@/lib/draws-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
 import { staleHeaders } from '@/lib/stale-headers'
+import { batDownSince } from '@/lib/bat-outages'
 
 export const maxDuration = 30
 
@@ -1463,8 +1478,11 @@ export async function GET(request: Request) {
     return out
   })
 
+  // An overdue bracket is normal — it is being refreshed in the background.
+  // It is only worth a warning when BAT is failing, so that refresh cannot land.
   const entry = cache.get(makeBracketKey(guid, drawNum))
-  const stale = !!entry && !entry.done && Date.now() - entry.ts >= ttlMsFor(entry)
+  const overdue = !!entry && !entry.done && Date.now() - entry.ts >= ttlMsFor(entry)
+  const stale = overdue && !!batDownSince()
 
   const body: PathResponse = {
     team: path.team,
@@ -1481,7 +1499,7 @@ export async function GET(request: Request) {
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `npx jest __tests__/api-path-route.test.ts`
-Expected: PASS, 13 tests.
+Expected: PASS, 14 tests.
 
 If TypeScript rejects `ref.provider` or `entry.done`, open `lib/tournaments-registry.ts` (`resolveRef`) and `lib/bracket-cache.ts` (`BracketCacheEntry`) and use the field names they declare; do not change those files.
 
@@ -1521,7 +1539,7 @@ git commit -m "feat(path): serve a player's path to the final at /api/path"
   }
   export default function PathToFinalModal(props: Props): JSX.Element
   ```
-  New `TKey`s: `pathToFinal`, `pathLikely`, `pathOthers`, `pathPossible`, `pathFirstMeeting`, `pathRecord`, `pathRank`, `pathSeed`, `pathBye`, `pathWon`, `pathLost`, `pathOut`, `pathChampion`, `pathRecordNote`, `pathLoadFailed`.
+  New `TKey`s: `pathToFinal`, `pathLikely`, `pathOthers`, `pathPossible`, `pathFirstMeeting`, `pathRecord`, `pathRank`, `pathSeed`, `pathBye`, `pathWon`, `pathLost`, `pathOut`, `pathRunnerUp`, `pathChampion`, `pathRecordNote`, `pathLoadFailed`.
 
 - [ ] **Step 1: Add the strings**
 
@@ -1540,6 +1558,7 @@ In `lib/i18n.ts`, add to the `TKey` union, after `| 'close'`:
   | 'pathWon'
   | 'pathLost'
   | 'pathOut'
+  | 'pathRunnerUp'
   | 'pathChampion'
   | 'pathRecordNote'
   | 'pathLoadFailed'
@@ -1560,6 +1579,7 @@ In the `en` dictionary, after the `close: 'Close',` line:
     pathWon: 'Won',
     pathLost: 'Lost',
     pathOut: 'Out in {round}',
+    pathRunnerUp: 'Runner-up',
     pathChampion: 'Champion',
     pathRecordNote: 'Records count matches in tournaments tracked on BATMatch.',
     pathLoadFailed: 'Could not load the path for this draw.',
@@ -1579,7 +1599,8 @@ In the `th` dictionary, after the `close: 'ปิด',` line:
     pathBye: 'บาย',
     pathWon: 'ชนะ',
     pathLost: 'แพ้',
-    pathOut: 'ตกรอบ {round}',
+    pathOut: 'ตกรอบใน{round}',
+    pathRunnerUp: 'รองแชมป์',
     pathChampion: 'แชมป์',
     pathRecordNote: 'สถิติการพบกันนับเฉพาะรายการที่ BATMatch เก็บข้อมูล',
     pathLoadFailed: 'ไม่สามารถโหลดเส้นทางของสายนี้ได้',
@@ -1764,6 +1785,16 @@ describe('PathToFinalModal', () => {
     expect(document.querySelector('.ptf-end')!.textContent).toBe('Out in Round of 16')
   })
 
+  it('calls the loser of the final the runner-up', async () => {
+    mockFetch({
+      ...BASE, eliminated: true,
+      rounds: [{ round: 'Final', status: 'lost', opponent: [P('Beam Kla', '2')], scores: [{ t1: 19, t2: 21 }], walkover: false, retired: false }],
+    })
+    renderModal()
+    await screen.findByText('Final')
+    expect(document.querySelector('.ptf-end')!.textContent).toBe('Runner-up')
+  })
+
   it('ends with a champion line', async () => {
     mockFetch({
       ...BASE, champion: true,
@@ -1883,6 +1914,16 @@ describe('PathToFinalModal', () => {
     expect(rowText(3)).toContain('ยังไม่เคยเจอกัน')
     expect(rowText(3)).toContain('+อีก 2 ราย')
     expect(rowText(4)).toContain('คู่แข่งที่เป็นไปได้ 2 ราย')
+  })
+
+  it('words the "out" line in Thai without repeating รอบ', async () => {
+    localStorage.setItem('batbracket.lang', 'th')
+    mockFetch({
+      ...BASE, eliminated: true,
+      rounds: [{ round: 'Round of 16', status: 'lost', opponent: [P('Beam Kla', '2')], scores: [], walkover: false, retired: false }],
+    })
+    renderModal()
+    await waitFor(() => expect(document.querySelector('.ptf-end')?.textContent).toBe('ตกรอบในรอบ 16'))
   })
 })
 ```
@@ -2069,7 +2110,11 @@ export default function PathToFinalModal({ tournamentId, drawNum, drawName, play
             </div>
 
             {data.eliminated && last && (
-              <div className="ptf-end">{t('pathOut').replace('{round}', longRound(last.round))}</div>
+              <div className="ptf-end">
+                {/^final$/i.test(last.round.trim())
+                  ? t('pathRunnerUp')
+                  : t('pathOut').replace('{round}', longRound(last.round))}
+              </div>
             )}
             {data.champion && <div className="ptf-end">{t('pathChampion')}</div>}
 
@@ -2228,7 +2273,7 @@ button.ptf-name { cursor: pointer; }
 - [ ] **Step 6: Run the test to verify it passes**
 
 Run: `npx jest __tests__/PathToFinalModal.test.tsx`
-Expected: PASS, 20 tests.
+Expected: PASS, 22 tests.
 
 If "renders one row per round" fails because `longRound('Quarter final')` returns different casing than `Quarter Final`, read `longRoundL` in `lib/i18n.ts`, and change the expected strings in this test file to what it returns. Do not change `longRoundL`.
 
@@ -2617,8 +2662,8 @@ Check the browser console and the dev server log for errors after each step.
 
 - [ ] **Step 4: Check the request costs nothing extra**
 
-With the panel open on a draw whose bracket was already viewed, watch the dev server log while reopening the panel three times.
-Expected: no new `[bat-fetch]` lines for a bracket (the route reuses the held copy).
+On a draw whose bracket was viewed within the last 30 minutes, watch the dev server log while opening the panel three times.
+Expected: no bracket request to BAT (the route reuses the held copy). On a bracket older than that, one background refresh is expected and is not a fault.
 
 - [ ] **Step 5: Settle the remaining open point**
 
