@@ -3,6 +3,7 @@ import nodePath from 'path'
 
 jest.mock('../lib/bracket-cache', () => ({
   cache: new Map(),
+  rawHtmlCache: new Map(),
   ttlMsFor: () => 30 * 60_000,
   makeBracketKey: (guid: string, drawNum: string) => `${guid.toLowerCase()}:${drawNum}`,
   bracketHtmlForSchedule: jest.fn(),
@@ -18,7 +19,7 @@ jest.mock('../lib/stale-headers', () => ({
 jest.mock('../lib/bat-outages', () => ({ batDownSince: jest.fn().mockReturnValue(null) }))
 
 import { GET } from '@/app/api/path/route'
-import { cache, bracketHtmlForSchedule, ensureBracketsLoaded } from '@/lib/bracket-cache'
+import { cache, rawHtmlCache, bracketHtmlForSchedule, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { readIndexCache } from '@/lib/player-index-cache'
 import { readRankingCache } from '@/lib/ranking/cache'
 import { getCachedOrDisk } from '@/lib/draws-cache'
@@ -49,6 +50,7 @@ const ok = () => get(`tournament=${TID}&draw=5&player=${PLAYER.playerId}`)
 
 beforeEach(() => {
   ;(cache as Map<string, unknown>).clear()
+  ;(rawHtmlCache as Map<string, string>).clear()
   htmlMock.mockReset().mockResolvedValue(HTML)
   indexMock.mockReset().mockResolvedValue(null)
   rankingMock.mockReset().mockResolvedValue(null)
@@ -101,6 +103,31 @@ describe('GET /api/path', () => {
 
   it('still reads the bracket when the draw list is held but empty', async () => {
     drawsMock.mockResolvedValue({ draws: [], ts: 0 })
+    expect((await ok()).status).toBe(200)
+  })
+
+  it('rejects a tournament that is not a GUID, or a draw or player that is not a number', async () => {
+    for (const qs of [
+      'tournament=not-a-guid&draw=5&player=1',
+      `tournament=${TID}&draw=5%2F..%2F6&player=1`,
+      `tournament=${TID}&draw=abc&player=1`,
+      `tournament=${TID}&draw=5&player=1%3Bx`,
+    ]) {
+      expect((await get(qs)).status).toBe(400)
+    }
+    expect(htmlMock).not.toHaveBeenCalled()
+    expect(drawsMock).not.toHaveBeenCalled()
+  })
+
+  it('answers 404 at once, without waiting on BAT, when BAT is down and no bracket is held', async () => {
+    downMock.mockReturnValue('2026-10-09T03:00:00.000Z')
+    expect((await ok()).status).toBe(404)
+    expect(htmlMock).not.toHaveBeenCalled()
+  })
+
+  it('still serves a held bracket while BAT is down', async () => {
+    downMock.mockReturnValue('2026-10-09T03:00:00.000Z')
+    ;(rawHtmlCache as Map<string, string>).set(`${TID}:5`, HTML)
     expect((await ok()).status).toBe(200)
   })
 
@@ -179,6 +206,7 @@ describe('GET /api/path', () => {
 
   it('marks an overdue bracket as stale while BAT is down', async () => {
     downMock.mockReturnValue('2026-10-09T03:00:00.000Z')
+    ;(rawHtmlCache as Map<string, string>).set(`${TID}:5`, HTML)
     ;(cache as Map<string, unknown>).set(`${TID}:5`, { bracket: { html: '' }, ts: Date.now() - 60 * 60_000 })
     const res = await ok()
     expect(res.headers.get('X-Stale-Cache')).toBe('1')
@@ -195,6 +223,7 @@ describe('GET /api/path', () => {
 
   it('does not call a fresh or finished bracket stale, even while BAT is down', async () => {
     downMock.mockReturnValue('2026-10-09T03:00:00.000Z')
+    ;(rawHtmlCache as Map<string, string>).set(`${TID}:5`, HTML)
     ;(cache as Map<string, unknown>).set(`${TID}:5`, { bracket: { html: '' }, ts: Date.now() - 60_000 })
     expect(((await (await ok()).json()) as PathResponse).stale).toBe(false)
     ;(cache as Map<string, unknown>).set(`${TID}:5`, { bracket: { html: '' }, ts: 0, done: true })

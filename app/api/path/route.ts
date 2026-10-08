@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { cache, ttlMsFor, makeBracketKey, bracketHtmlForSchedule, ensureBracketsLoaded } from '@/lib/bracket-cache'
+import { cache, rawHtmlCache, ttlMsFor, makeBracketKey, bracketHtmlForSchedule, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { parseBracketRounds } from '@/lib/scraper'
 import { buildBracketPath } from '@/lib/bracketPath'
 import {
@@ -27,6 +27,11 @@ export async function GET(request: Request) {
   if (!guid || !drawNum || !playerId) {
     return NextResponse.json({ error: 'tournament, draw and player params required' }, { status: 400 })
   }
+  // These values go into a BAT URL and a cache key when the bracket is not
+  // held, so only the shapes BAT itself uses are let through.
+  if (!/^[0-9a-f-]{36}$/.test(guid) || !/^\d+$/.test(drawNum) || !/^\d+$/.test(playerId)) {
+    return NextResponse.json({ error: 'tournament must be a GUID; draw and player must be numbers' }, { status: 400 })
+  }
   const notFound = (error: string) => NextResponse.json({ error }, { status: 404 })
 
   const ref = resolveRef(guid)
@@ -46,6 +51,11 @@ export async function GET(request: Request) {
   try {
     // A finished tournament's brackets live on disk until someone opens one.
     await ensureBracketsLoaded(guid, drawNum)
+    // With nothing held and BAT in an outage, fetching would keep the reader
+    // waiting on a request that is sure to fail (two 50-second attempts).
+    if (!rawHtmlCache.has(makeBracketKey(guid, drawNum)) && batDownSince()) {
+      return notFound('No bracket for this draw')
+    }
     html = await bracketHtmlForSchedule(guid, drawNum)
   } catch {
     html = undefined
