@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerStatus } from '@/lib/server-status'
+import { getPushStats } from '@/lib/push/stats'
+import { getTodayIso } from '@/lib/today'
 import { getBatFetchStats } from '@/lib/bat-fetch-stats'
 import { getPageviewStats } from '@/lib/pageview-stats'
 import { getAllTimeHighs } from '@/lib/records'
@@ -57,6 +59,7 @@ export async function GET(request: Request) {
       restarts: getRestartInfo(),
       memoryLimitBytes: memoryLimitBytes(),
       playerCache: getPlayerCacheStats(),
+      push: getPushStats(getTodayIso()),
       site: { ...getSiteStats(), countries: getCountryStats() },
       browser,
       bwf: getBwfFetchStats(),

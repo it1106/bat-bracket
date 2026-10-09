@@ -211,6 +211,15 @@ export async function register() {
     await renewLease()
     setInterval(renewLease, LEASE_HEARTBEAT_MS)
 
+    // Match alerts: once a minute, only on the worker that holds the lease.
+    // Does nothing (and starts no timer) when the push keys are not set.
+    try {
+      const { startPushWatcher } = await import('./lib/push/watcher')
+      await startPushWatcher({ isLeader: () => amLeader, origin: `http://127.0.0.1:${process.env.PORT || '3000'}` })
+    } catch (err) {
+      console.warn('[push] watcher failed to start:', err instanceof Error ? err.message : err)
+    }
+
     // A reload cannot take leadership immediately: the outgoing worker's lease
     // stays live until it ages past LEASE_TTL_MS, so a fresh worker only wins
     // ~a minute in. Boot kicks that sampled `amLeader` once at 30-45s therefore

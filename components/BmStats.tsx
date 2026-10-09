@@ -57,6 +57,7 @@ interface Status {
   } | null
   memoryLimitBytes?: number | null
   playerCache?: { writesToday: number; failedToday: number }
+  push?: { sentToday: number; failedToday: number; goneToday: number }
   site?: {
     count: number
     medianMs: number | null
@@ -715,6 +716,15 @@ export default function BmStats() {
           </table>
         )}
       </Card>
+
+      {status.push && (
+        <Card title="Match alerts">
+          <p className="bms-note">
+            Sent today: <b>{num(status.push.sentToday)}</b> · failed: <b>{num(status.push.failedToday)}</b> · devices
+            removed as gone: <b>{num(status.push.goneToday)}</b>.
+          </p>
+        </Card>
+      )}
 
       {outages && (
         <Card title="BAT outages">
