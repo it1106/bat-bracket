@@ -51,7 +51,7 @@ export const PRIVACY: Record<Lang, PrivacyText> = {
       {
         heading: 'Match alerts',
         body:
-          'If you follow a player or a club to be told when their match is close, our server stores your browser\'s push address (an address your browser creates so notifications can reach this device) and the list of players and clubs you follow. It is used only to send those alerts. It is not linked to your name or to any account. Unfollowing everything deletes it, and a device we have not seen for 60 days is removed automatically.',
+          'If you follow a player or a club to be told when their match is close (and, for a player, the result), our server stores your browser\'s push address (an address your browser creates so notifications can reach this device) and the list of players and clubs you follow. It is used only to send those alerts. It is not linked to your name or to any account. Unfollowing everything deletes it, and a device we have not seen for 60 days is removed automatically.',
       },
       {
         heading: 'Your choices',
@@ -93,7 +93,7 @@ export const PRIVACY: Record<Lang, PrivacyText> = {
       {
         heading: 'การแจ้งเตือนแมตช์',
         body:
-          'หากคุณติดตามนักกีฬาหรือสโมสรเพื่อรับแจ้งเตือนเมื่อใกล้ถึงคิวแข่ง เซิร์ฟเวอร์ของเราจะเก็บที่อยู่สำหรับส่งการแจ้งเตือนของเบราว์เซอร์คุณ (ที่อยู่ที่เบราว์เซอร์สร้างขึ้นเพื่อให้การแจ้งเตือนมาถึงอุปกรณ์นี้) และรายชื่อนักกีฬากับสโมสรที่คุณติดตาม ข้อมูลนี้ใช้เพื่อส่งการแจ้งเตือนดังกล่าวเท่านั้น ไม่ได้ผูกกับชื่อหรือบัญชีใด ๆ เมื่อเลิกติดตามทั้งหมดข้อมูลจะถูกลบ และอุปกรณ์ที่ไม่ได้ใช้งานเกิน 60 วันจะถูกลบโดยอัตโนมัติ',
+          'หากคุณติดตามนักกีฬาหรือสโมสรเพื่อรับแจ้งเตือนเมื่อใกล้ถึงคิวแข่ง (และผลการแข่งขันสำหรับนักกีฬา) เซิร์ฟเวอร์ของเราจะเก็บที่อยู่สำหรับส่งการแจ้งเตือนของเบราว์เซอร์คุณ (ที่อยู่ที่เบราว์เซอร์สร้างขึ้นเพื่อให้การแจ้งเตือนมาถึงอุปกรณ์นี้) และรายชื่อนักกีฬากับสโมสรที่คุณติดตาม ข้อมูลนี้ใช้เพื่อส่งการแจ้งเตือนดังกล่าวเท่านั้น ไม่ได้ผูกกับชื่อหรือบัญชีใด ๆ เมื่อเลิกติดตามทั้งหมดข้อมูลจะถูกลบ และอุปกรณ์ที่ไม่ได้ใช้งานเกิน 60 วันจะถูกลบโดยอัตโนมัติ',
       },
       {
         heading: 'ทางเลือกของคุณ',

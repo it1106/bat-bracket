@@ -44,13 +44,14 @@ export interface PushSubscriptionRecord {
   lastSeenAt: string
 }
 
-export type Stage = 'soon' | 'next'
+/** `soon` and `next` come before a match; `result` once it has a winner. */
+export type Stage = 'soon' | 'next' | 'result'
 
 export interface DueAlert {
   endpoint: string
   lang: Lang
   stage: Stage
-  /** 1-based place in the queue when decided. */
+  /** 1-based place in the queue when decided; 0 for a result. */
   position: number
   sentKey: string
   /** Every sent key this alert settles: its own, plus `soon` when it is `next`. */

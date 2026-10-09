@@ -38,6 +38,38 @@ export function alertPayload(alert: DueAlert, tournamentId: string): PushPayload
   return { title: title(alert), body: parts.join(' · '), url: urlFor(tournamentId), tag: matchTag(m) }
 }
 
+/** A finished match, told from the followed player's side: "Won 15-2, 15-4".
+ *  With both sides followed it takes neither: "A beat B 15-2, 15-4". */
+export function resultPayload(alert: DueAlert, tournamentId: string): PushPayload {
+  const th = alert.lang === 'th'
+  const m = alert.match
+  const [a, b] = sides(alert)
+  const mine = new Set(alert.players.map((p) => p.playerId || p.name))
+  const has = (team: MatchPlayer[]) => team.some((p) => mine.has(p.playerId || p.name))
+  const neutral = has(m.team1) === has(m.team2)
+  const round = `${m.draw} ${abbrevRoundL(m.round, alert.lang)}`.trim()
+  const base = { url: urlFor(tournamentId), tag: matchTag(m) }
+
+  if (neutral) {
+    const [winner, loser] = m.winner === 2 ? [m.team2, m.team1] : [m.team1, m.team2]
+    const score = m.scores.map((s) => (m.winner === 2 ? `${s.t2}-${s.t1}` : `${s.t1}-${s.t2}`)).join(', ')
+    const line = [`${names(winner)} ${th ? 'ชนะ' : 'beat'} ${names(loser)}`, score].filter(Boolean).join(' ')
+    return { title: th ? 'ผลการแข่งขัน' : 'Result', body: `${line} · ${round}`, ...base }
+  }
+
+  const mineIsTeam1 = a === m.team1
+  const won = (m.winner === 1) === mineIsTeam1
+  const score = m.scores.map((s) => (mineIsTeam1 ? `${s.t1}-${s.t2}` : `${s.t2}-${s.t1}`)).join(', ')
+  let title: string
+  if (m.walkover) {
+    title = th ? (won ? 'ชนะ (คู่แข่งถอนตัว)' : 'แพ้ (ถอนตัว)') : won ? 'Won by walkover' : 'Lost by walkover'
+  } else {
+    title = [th ? (won ? 'ชนะ' : 'แพ้') : won ? 'Won' : 'Lost', score].filter(Boolean).join(' ')
+    if (m.retired) title += th ? ' (รีไทร์)' : ' (retired)'
+  }
+  return { title, body: `${names(a)} ${th ? 'พบ' : 'vs'} ${names(b)} · ${round}`, ...base }
+}
+
 const DIGEST_LINES = 4
 
 /** Several alerts for one device in one tick, as a single notification: the

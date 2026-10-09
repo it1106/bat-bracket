@@ -1,6 +1,6 @@
 import type { MatchesData, MatchScheduleGroup } from '@/lib/types'
-import { dueAlerts } from './alerts'
-import { alertPayload, digestPayload } from './text'
+import { dueAlerts, dueResults } from './alerts'
+import { alertPayload, digestPayload, matchTag, resultPayload } from './text'
 import type { Sender, SendResult } from './sender'
 import type { DueAlert, PushSubscriptionRecord } from './types'
 
@@ -32,8 +32,37 @@ const GIVE_UP_AFTER = 3
  *  the alert simply gets its tries again. */
 const failures = new Map<string, number>()
 
+/** Per tournament and day, the matches that had no winner on the last tick. */
+const lastOpen = new Map<string, Set<string>>()
+/** When a match was first seen to have gone from open to decided. A result
+ *  already there when the watcher first read the day is never in here, so a
+ *  restart or a new follow does not report the whole morning. In memory: a
+ *  result that comes in across a restart goes unreported. */
+const resultSeen = new Map<string, number>()
+
 export function __resetWatcherForTesting(): void {
   failures.clear()
+  lastOpen.clear()
+  resultSeen.clear()
+}
+
+/** Notes which results came in since the last tick, and forgets other days. */
+function noteResults(dayKey: string, groups: MatchScheduleGroup[], now: number): void {
+  // Keys start "<tournament>|<day>".
+  const day = dayKey.split('|')[1]
+  for (const map of [lastOpen, resultSeen]) {
+    for (const key of Array.from(map.keys())) if (key.split('|')[1] !== day) map.delete(key)
+  }
+  const before = lastOpen.get(dayKey)
+  const open = new Set<string>()
+  for (const group of groups) {
+    for (const match of group.matches) {
+      const tag = matchTag(match)
+      if (match.winner === null) open.add(tag)
+      else if (before?.has(tag) && !resultSeen.has(`${dayKey}|${tag}`)) resultSeen.set(`${dayKey}|${tag}`, now)
+    }
+  }
+  lastOpen.set(dayKey, open)
 }
 
 /** One pass: for each tournament someone follows, decide what is due on
@@ -59,6 +88,12 @@ export async function runWatcherTick(deps: WatcherDeps): Promise<{ sent: number;
       if (!groups) continue
       const clubOf = await deps.clubOf(tournamentId)
       due = dueAlerts({ tournamentId, dateIso, groups, records, clubOf, alreadySent: deps.hasSent, nowMinutes: deps.bangkokMinute() })
+      const dayKey = `${tournamentId}|${dateIso}`
+      noteResults(dayKey, groups, deps.now())
+      due.push(...dueResults({
+        tournamentId, dateIso, groups, records, alreadySent: deps.hasSent,
+        resultSeenAt: (match) => resultSeen.get(`${dayKey}|${matchTag(match)}`),
+      }))
     } catch (err) {
       console.warn(`[push] tick skipped ${tournamentId}:`, err instanceof Error ? err.message : err)
       continue
@@ -73,9 +108,14 @@ export async function runWatcherTick(deps: WatcherDeps): Promise<{ sent: number;
     for (const [endpoint, alerts] of Array.from(byDevice)) {
       const record = records.find((r) => r.endpoint === endpoint)
       if (!record) continue
-      const batches = alerts.length > SINGLE_MAX
-        ? [{ alerts, payload: digestPayload(alerts, tournamentId, minuteKey) }]
-        : alerts.map((a) => ({ alerts: [a], payload: alertPayload(a, tournamentId) }))
+      // A result is always its own notification; only what is coming up is bundled.
+      const coming = alerts.filter((a) => a.stage !== 'result')
+      const batches = [
+        ...(coming.length > SINGLE_MAX
+          ? [{ alerts: coming, payload: digestPayload(coming, tournamentId, minuteKey) }]
+          : coming.map((a) => ({ alerts: [a], payload: alertPayload(a, tournamentId) }))),
+        ...alerts.filter((a) => a.stage === 'result').map((a) => ({ alerts: [a], payload: resultPayload(a, tournamentId) })),
+      ]
 
       for (const batch of batches) {
         const keys = batch.alerts.flatMap((a) => a.covers)
