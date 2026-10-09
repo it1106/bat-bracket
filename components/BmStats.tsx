@@ -57,7 +57,27 @@ interface Status {
   } | null
   memoryLimitBytes?: number | null
   playerCache?: { writesToday: number; failedToday: number }
-  push?: { sentToday: number; failedToday: number; goneToday: number }
+  push?: {
+    sentToday: number
+    failedToday: number
+    goneToday: number
+    devices?: Array<{
+      id: string
+      service: string
+      lang: string
+      createdAt: string
+      lastSeenAt: string
+      follows: Array<{
+        kind: 'player' | 'club'
+        name: string
+        playerId?: string
+        tournamentId: string
+        tournamentName: string
+        addedAt: string
+      }>
+    }>
+    deviceTotal?: number
+  }
   site?: {
     count: number
     medianMs: number | null
@@ -723,6 +743,58 @@ export default function BmStats() {
             Sent today: <b>{num(status.push.sentToday)}</b> · failed: <b>{num(status.push.failedToday)}</b> · devices
             removed as gone: <b>{num(status.push.goneToday)}</b>.
           </p>
+          {status.push.devices && status.push.devices.length === 0 && (
+            <p className="bms-note">No device is following a player or a club.</p>
+          )}
+          {status.push.devices && status.push.devices.length > 0 && (
+            <>
+              <div className="bms-scroll">
+                <table className="bms-table bms-history">
+                  <thead>
+                    <tr>
+                      <th scope="col" className="bms-th">Device</th>
+                      <td className="bms-th">Browser</td>
+                      <td className="bms-th">Last seen</td>
+                      <td className="bms-th">Following</td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {status.push.devices.map((device) => (
+                      <tr key={device.id}>
+                        <th scope="row"><code>{device.id}</code></th>
+                        <td>{device.service}</td>
+                        <td>
+                          {dayOfBangkok(device.lastSeenAt) === dayOfBangkok(status.generatedAt)
+                            ? clock(device.lastSeenAt)
+                            : dateOf(device.lastSeenAt, true)}
+                        </td>
+                        <td>
+                          {device.follows.length === 0 ? (
+                            <span className="bms-note">nothing</span>
+                          ) : (
+                            device.follows.map((follow) => (
+                              <div key={`${follow.kind}|${follow.tournamentId}|${follow.playerId ?? follow.name}`}>
+                                {follow.name}
+                                {follow.playerId ? ` (${follow.playerId})` : ''}
+                                {follow.kind === 'club' ? ' — club' : ''}
+                                <span className="bms-note"> · {follow.tournamentName}</span>
+                              </div>
+                            ))
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {typeof status.push.deviceTotal === 'number' && status.push.deviceTotal > status.push.devices.length && (
+                <p className="bms-note">
+                  Showing the {num(status.push.devices.length)} most recently seen of{' '}
+                  <b>{num(status.push.deviceTotal)}</b> devices.
+                </p>
+              )}
+            </>
+          )}
         </Card>
       )}
 

@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getServerStatus } from '@/lib/server-status'
 import { getPushStats } from '@/lib/push/stats'
+import { deviceRows } from '@/lib/push/devices'
+import { listRecords } from '@/lib/push/store'
+import { listAllTournaments } from '@/lib/tournaments-registry'
+import { loadDiscovered } from '@/lib/discovery-store'
 import { getTodayIso } from '@/lib/today'
 import { getBatFetchStats } from '@/lib/bat-fetch-stats'
 import { getPageviewStats } from '@/lib/pageview-stats'
@@ -39,11 +43,26 @@ export async function GET(request: Request) {
     )
   }
   ensurePresenceLoaded()
-  const [server, browser, diskEntries] = await Promise.all([
+  const [server, browser, diskEntries, pushRecords, discovered] = await Promise.all([
     getServerStatus(),
     getBrowserUsage(CPU_SAMPLE_MS),
     getDiskUsage(),
+    listRecords(),
+    loadDiscovered().catch(() => null),
   ])
+  // Most live tournaments are not in public/tournaments.txt: the site finds
+  // them itself. Same two sources, same precedence, as alertTournaments().
+  const tournamentNames = new Map<string, string>()
+  for (const e of discovered?.entries ?? []) {
+    if (e.name) tournamentNames.set(e.id.toUpperCase(), e.name)
+  }
+  for (const t of listAllTournaments()) {
+    if (t.name) tournamentNames.set(t.id.toUpperCase(), t.name)
+  }
+  const { devices, total: deviceTotal } = deviceRows(
+    pushRecords,
+    (id) => tournamentNames.get(id.toUpperCase()) ?? null,
+  )
   if (server.disk) observeHigh('diskUsed', server.disk.usedBytes)
   const now = Date.now()
   const peak = presence.peak(now)
@@ -59,7 +78,7 @@ export async function GET(request: Request) {
       restarts: getRestartInfo(),
       memoryLimitBytes: memoryLimitBytes(),
       playerCache: getPlayerCacheStats(),
-      push: getPushStats(getTodayIso()),
+      push: { ...getPushStats(getTodayIso()), devices, deviceTotal },
       site: { ...getSiteStats(), countries: getCountryStats() },
       browser,
       bwf: getBwfFetchStats(),
