@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ['playwright-core', '@sparticuz/chromium'],
+    serverComponentsExternalPackages: ['playwright-core', '@sparticuz/chromium', 'web-push'],
     instrumentationHook: true,
   },
   // Vercel auto-sets VERCEL_ENV at build time but only exposes it server-side.
