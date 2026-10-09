@@ -1,4 +1,4 @@
-import { runWatcherTick, makeFetchDay, __resetWatcherForTesting, type WatcherDeps } from '@/lib/push/watcher'
+import { runWatcherTick, makeFetchDay, makeFetchDays, finishedTournaments, __resetWatcherForTesting, type WatcherDeps } from '@/lib/push/watcher'
 import type { PushFollow, PushPayload, PushSubscriptionRecord } from '@/lib/push/types'
 import type { MatchEntry, MatchPlayer, MatchScheduleGroup } from '@/lib/types'
 import type { SendResult } from '@/lib/push/sender'
@@ -219,5 +219,77 @@ describe('makeFetchDay', () => {
     expect(await makeFetchDay('http://x', down as never)(TID, DAY)).toBeNull()
     const half = async (url: string) => (url.includes('&date=') ? reply({ error: 'x' }, false) : reply(DAYS))
     expect(await makeFetchDay('http://x', half as never)(TID, DAY)).toBeNull()
+  })
+})
+
+describe('finishedTournaments', () => {
+  const setup = (over: { days?: Record<string, string[] | null>; done?: string[]; batDown?: boolean; records?: PushSubscriptionRecord[]; fail?: string[] } = {}) => {
+    const asked: string[] = []
+    const deps = {
+      todayIso: () => DAY,
+      isBatDown: () => !!over.batDown,
+      listRecords: async () => over.records ?? [device('a', [follow('1'), follow('2', TID2.toLowerCase())])],
+      isDone: (id: string) => (over.done ?? []).includes(id),
+      fetchDays: async (id: string) => {
+        asked.push(id)
+        if (over.fail?.includes(id)) throw new Error('timeout')
+        return (over.days ?? {})[id] ?? null
+      },
+    }
+    return { deps, asked }
+  }
+
+  it('names a tournament whose last day is more than a day past', async () => {
+    const { deps } = setup({ days: { [TID]: ['2026-10-05', '2026-10-07'], [TID2]: ['2026-10-08', '2026-10-14'] } })
+    expect(await finishedTournaments(deps)).toEqual([TID])
+  })
+
+  it('keeps a tournament that ended yesterday or ends today', async () => {
+    const { deps } = setup({ days: { [TID]: ['2026-10-07', '2026-10-08'], [TID2]: ['2026-10-09'] } })
+    expect(await finishedTournaments(deps)).toEqual([])
+  })
+
+  it('goes by the latest day whatever order the days come in', async () => {
+    const { deps } = setup({ days: { [TID]: ['2026-10-12', '2026-10-01'], [TID2]: ['2026-10-02', '2026-10-01'] } })
+    expect(await finishedTournaments(deps)).toEqual([TID2])
+  })
+
+  it('names a tournament marked done without asking for its schedule', async () => {
+    const { deps, asked } = setup({ done: [TID2], days: { [TID]: ['2026-10-09'] } })
+    expect(await finishedTournaments(deps)).toEqual([TID2])
+    expect(asked).toEqual([TID])
+  })
+
+  it('keeps a tournament whose schedule cannot be read, is empty, or throws', async () => {
+    const { deps } = setup({ days: { [TID]: null, [TID2]: [] } })
+    expect(await finishedTournaments(deps)).toEqual([])
+    const broken = setup({ days: { [TID2]: ['2026-10-01'] }, fail: [TID] })
+    expect(await finishedTournaments(broken.deps)).toEqual([TID2])
+  })
+
+  it('removes nothing and asks nothing while BAT is down, or when nobody follows anything', async () => {
+    const down = setup({ batDown: true, done: [TID], days: { [TID2]: ['2026-10-01'] } })
+    expect(await finishedTournaments(down.deps)).toEqual([])
+    expect(down.asked).toEqual([])
+    const none = setup({ records: [] })
+    expect(await finishedTournaments(none.deps)).toEqual([])
+  })
+})
+
+describe('makeFetchDays', () => {
+  const reply = (body: unknown, ok = true) => ({ ok, status: ok ? 200 : 500, json: async () => body })
+
+  it('gives the dates of the schedule days', async () => {
+    const urls: string[] = []
+    const fetchFn = async (url: string) => { urls.push(url); return reply({ days: [{ date: '25691009', label: '', dateIso: DAY }, { date: '25691010', label: '', dateIso: '2026-10-10' }] }) }
+    expect(await makeFetchDays('http://x', fetchFn as never)(TID)).toEqual([DAY, '2026-10-10'])
+    expect(urls).toEqual([`http://x/api/matches?tournament=${TID}`])
+  })
+
+  it('is null on an error answer, with no days, or when any day has no readable date', async () => {
+    expect(await makeFetchDays('http://x', (async () => reply({ error: 'x' }, false)) as never)(TID)).toBeNull()
+    expect(await makeFetchDays('http://x', (async () => reply({})) as never)(TID)).toBeNull()
+    const partial = async () => reply({ days: [{ date: '25691001', label: '', dateIso: '2026-10-01' }, { date: 'x', label: '' }] })
+    expect(await makeFetchDays('http://x', partial as never)(TID)).toBeNull()
   })
 })

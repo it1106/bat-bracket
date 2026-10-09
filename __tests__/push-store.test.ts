@@ -2,7 +2,7 @@ import * as os from 'os'
 import * as path from 'path'
 import { promises as fs } from 'fs'
 import {
-  addFollow, removeFollow, getRecord, listRecords, touchRecord, removeRecord, pruneStale,
+  addFollow, removeFollow, getRecord, listRecords, touchRecord, removeRecord, pruneStale, removeFollowsIn,
   MAX_PLAYER_FOLLOWS, MAX_CLUB_FOLLOWS, STALE_DAYS, __setPushRootForTesting,
 } from '@/lib/push/store'
 import type { FollowTarget } from '@/lib/push/types'
@@ -177,5 +177,35 @@ describe('touchRecord', () => {
     await touchRecord(sub('a').endpoint, T0 + DAY + 1)
     __setPushRootForTesting(tmp)
     expect((await getRecord(sub('a').endpoint))!.lastSeenAt).toBe(new Date(T0 + DAY + 1).toISOString())
+  })
+})
+
+describe('removeFollowsIn', () => {
+  const OTHER = 'BBBBBBBB-0000-0000-0000-000000000002'
+
+  it('removes every follow in the given tournaments and leaves the rest', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    await addFollow(sub('a'), 'en', club('Red Club'), T0)
+    await addFollow(sub('a'), 'en', player('2', OTHER), T0)
+    await addFollow(sub('b'), 'en', player('3', OTHER), T0)
+    expect(await removeFollowsIn([TID.toLowerCase()])).toBe(2)
+    expect((await getRecord(sub('a').endpoint))!.follows.map((f) => f.tournamentId)).toEqual([OTHER])
+    expect((await getRecord(sub('b').endpoint))!.follows).toHaveLength(1)
+  })
+
+  it('drops a device left with nothing to follow, as unfollowing the last one does', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    await addFollow(sub('b'), 'en', player('2', OTHER), T0)
+    expect(await removeFollowsIn([TID])).toBe(1)
+    expect(await getRecord(sub('a').endpoint)).toBeNull()
+    expect(await listRecords()).toHaveLength(1)
+  })
+
+  it('writes nothing when there is nothing to remove', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    const before = (await fs.stat(path.join(tmp, 'subscriptions.json'))).mtimeMs
+    expect(await removeFollowsIn([OTHER])).toBe(0)
+    expect(await removeFollowsIn([])).toBe(0)
+    expect((await fs.stat(path.join(tmp, 'subscriptions.json'))).mtimeMs).toBe(before)
   })
 })
