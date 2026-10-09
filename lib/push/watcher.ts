@@ -137,9 +137,10 @@ export async function runWatcherTick(deps: WatcherDeps): Promise<{ sent: number;
             draw: a.match.draw,
             round: a.match.round,
             match: `${names(a.match.team1)} v ${names(a.match.team2)}`,
-            // A club follow also fills `players` with that club's players in the
-            // match, so the club is what explains the alert when there is one.
-            via: a.clubs.length > 0 ? a.clubs.join(', ') : names(a.players),
+            // Both reasons, when there are two: following the player by name
+            // and following their club are not the same thing, and showing
+            // only the club reads as though the name follow did nothing.
+            via: [...a.directPlayers.map((p) => p.name), ...a.clubs].join(' · ') || names(a.players),
           })
         }
         if (result === 'ok') {

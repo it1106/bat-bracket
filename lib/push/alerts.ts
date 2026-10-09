@@ -100,11 +100,14 @@ export function dueAlerts(input: {
       const inMatch: MatchPlayer[] = [...match.team1, ...match.team2]
       for (const w of watching) {
         const players: MatchPlayer[] = []
+        const directPlayers: MatchPlayer[] = []
         const clubs = new Set<string>()
         for (const p of inMatch) {
           const viaClub = w.clubs.get(normalizeClub(clubOf(p.playerId)))
           if (viaClub) clubs.add(viaClub)
-          if (viaClub || (p.playerId && w.players.has(p.playerId))) players.push(p)
+          const byName = !!p.playerId && w.players.has(p.playerId)
+          if (byName) directPlayers.push(p)
+          if (viaClub || byName) players.push(p)
         }
         if (players.length === 0) continue
 
@@ -113,7 +116,7 @@ export function dueAlerts(input: {
         if (alreadySent(sentKey)) continue
         // "next" settles "soon" as well: an early alert must never follow the late one.
         const covers = stage === 'next' ? [sentKey, sentKeyFor(endpoint, tid, dateIso, match, 'soon')] : [sentKey]
-        out.push({ endpoint, lang: w.record.lang, stage, position, sentKey, covers, match, players, clubs: Array.from(clubs) })
+        out.push({ endpoint, lang: w.record.lang, stage, position, sentKey, covers, match, players, directPlayers, clubs: Array.from(clubs) })
       }
     }
   }
@@ -152,7 +155,8 @@ export function dueResults(input: {
         if (players.length === 0) continue
         const sentKey = sentKeyFor(record.endpoint, tid, dateIso, match, 'result')
         if (alreadySent(sentKey)) continue
-        out.push({ endpoint: record.endpoint, lang: record.lang, stage: 'result', position: 0, sentKey, covers: [sentKey], match, players, clubs: [] })
+        // A result only ever comes from a follow by name, so every player here is a direct one.
+        out.push({ endpoint: record.endpoint, lang: record.lang, stage: 'result', position: 0, sentKey, covers: [sentKey], match, players, directPlayers: players, clubs: [] })
       }
     }
   }

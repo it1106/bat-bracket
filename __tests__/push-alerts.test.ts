@@ -167,6 +167,16 @@ describe('dueAlerts — clubs', () => {
     expect(first).toHaveLength(1)
     expect(first[0].players.map((p) => p.playerId)).toEqual(['1'])
     expect(first[0].clubs).toEqual(['Red Club'])
+    // Both reasons are kept apart, so the status page can say the follow by
+    // name did its part and is not hidden behind the club.
+    expect(first[0].directPlayers.map((p) => p.playerId)).toEqual(['1'])
+  })
+
+  it('keeps a player the club alone brought in out of the directly followed', () => {
+    const out = decide(queue(), [device('a', [club('Red Club')])], { clubs })
+    const first = out.filter((a) => a.match.team1[0].playerId === '1')
+    expect(first[0].players.map((p) => p.playerId)).toEqual(['1'])
+    expect(first[0].directPlayers).toEqual([])
   })
 
   it('alerts once for one partner followed and the other partner\'s club followed', () => {

@@ -375,6 +375,13 @@ describe('runWatcherTick records what it sent', () => {
     expect(w.noted.map((n) => n.result)).toEqual(['failed'])
   })
 
+  it('names the player and the club when the device follows both', async () => {
+    const records = [device('a', [follow('1'), { kind: 'club', tournamentId: TID, clubName: 'Red Club', addedAt: '' }])]
+    const w = world({ records, clubOf: async () => (id) => (id === '1' ? 'Red Club' : undefined) })
+    await runWatcherTick(w.deps)
+    expect(w.noted[0].via).toBe('P1 · Red Club')
+  })
+
   it('names the club that brought a match in', async () => {
     const records = [device('a', [{ kind: 'club', tournamentId: TID, clubName: 'UNITY&RAWIN', addedAt: '' }])]
     const w = world({ records, clubOf: async () => (id) => (id === '1' ? 'UNITY&RAWIN' : undefined) })

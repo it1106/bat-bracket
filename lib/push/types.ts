@@ -59,6 +59,9 @@ export interface DueAlert {
   match: MatchEntry
   /** The players in the match this device follows, directly or through a club. */
   players: MatchPlayer[]
+  /** Of those, the ones followed by name. A club member the device does not
+   *  also follow individually is not here, so the two reasons stay apart. */
+  directPlayers: MatchPlayer[]
   /** The followed clubs that brought the match in. */
   clubs: string[]
 }
