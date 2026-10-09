@@ -360,6 +360,7 @@ export type TKey =
   | 'rankingDetailUncounted'
   | 'rankingDetailExpiringNext'
   | 'rankingDetailExpiringWithin4Weeks'
+  | 'rankingDetailExpiresOn'
   | 'rankingDetailLoadFailed'
   | 'rankingDetailRetry'
   | 'rankingDetailEmpty'
@@ -696,6 +697,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     rankingDetailUncounted: 'Not counting toward any ranking',
     rankingDetailExpiringNext: 'Will expire next ranking week',
     rankingDetailExpiringWithin4Weeks: 'Will expire within the next 4 ranking weeks',
+    rankingDetailExpiresOn: 'Points drop out on',
     rankingDetailLoadFailed: "Couldn't load ranking detail.",
     rankingDetailRetry: 'Retry',
     rankingDetailEmpty: 'No ranking-eligible tournaments in the last 52 weeks.',
@@ -1064,6 +1066,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     rankingDetailUncounted: 'ไม่นับคะแนนในอันดับใด',
     rankingDetailExpiringNext: 'แต้มจะถูกตัดออกในการประกาศอันดับครั้งถัดไป',
     rankingDetailExpiringWithin4Weeks: 'แต้มจะถูกตัดออกภายใน 4 สัปดาห์ข้างหน้า',
+    rankingDetailExpiresOn: 'แต้มจะถูกตัดออกวันที่',
     rankingDetailLoadFailed: 'โหลดรายละเอียดอันดับไม่สำเร็จ',
     rankingDetailRetry: 'ลองอีกครั้ง',
     rankingDetailEmpty: 'ไม่มีรายการที่นับสะสมในรอบ 52 สัปดาห์ล่าสุด',
