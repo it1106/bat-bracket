@@ -77,6 +77,16 @@ interface Status {
       }>
     }>
     deviceTotal?: number
+    recentSends?: Array<{
+      at: string
+      device: string
+      stage: 'soon' | 'next' | 'result'
+      result: 'ok' | 'gone' | 'failed'
+      draw: string
+      round: string
+      match: string
+      via: string
+    }>
   }
   site?: {
     count: number
@@ -111,6 +121,9 @@ interface Status {
 type HighKey = 'batDay' | 'batHour' | 'batFailedDay' | 'pagesDay' | 'pagesHour' | 'peakOnline' | 'usersDay' | 'diskUsed'
 
 const num = (n: number) => n.toLocaleString('en-US')
+
+// Enough to see the morning's alerts without the card running away.
+const RECENT_SENDS_SHOWN = 25
 
 /** "3 Oct 2026", or "3 Oct 2026, 16:52" for figures reached at a moment. */
 function dateOf(iso: string, withTime: boolean): string {
@@ -791,6 +804,50 @@ export default function BmStats() {
                 <p className="bms-note">
                   Showing the {num(status.push.devices.length)} most recently seen of{' '}
                   <b>{num(status.push.deviceTotal)}</b> devices.
+                </p>
+              )}
+            </>
+          )}
+          {status.push.recentSends && status.push.recentSends.length > 0 && (
+            <>
+              <p className="bms-note"><b>Recent alerts sent</b></p>
+              <div className="bms-scroll">
+                <table className="bms-table bms-history">
+                  <thead>
+                    <tr>
+                      <th scope="col" className="bms-th">Sent</th>
+                      <td className="bms-th">Device</td>
+                      <td className="bms-th">Stage</td>
+                      <td className="bms-th">Match</td>
+                      <td className="bms-th">For</td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {status.push.recentSends.slice(0, RECENT_SENDS_SHOWN).map((send, i) => (
+                      <tr key={`${send.at}|${send.device}|${send.match}|${i}`}>
+                        <th scope="row">
+                          {dayOfBangkok(send.at) === dayOfBangkok(status.generatedAt)
+                            ? clock(send.at, true)
+                            : dateOf(send.at, true)}
+                        </th>
+                        <td><code>{send.device}</code></td>
+                        <td>
+                          {send.stage}
+                          {send.result !== 'ok' && <b> · {send.result}</b>}
+                        </td>
+                        <td>
+                          {send.match}
+                          <span className="bms-note"> · {send.draw} {send.round}</span>
+                        </td>
+                        <td>{send.via}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {status.push.recentSends.length > RECENT_SENDS_SHOWN && (
+                <p className="bms-note">
+                  Showing the latest {num(RECENT_SENDS_SHOWN)} of <b>{num(status.push.recentSends.length)}</b> kept.
                 </p>
               )}
             </>

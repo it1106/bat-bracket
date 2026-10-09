@@ -183,4 +183,21 @@ describe('/api/bmstats match alerts', () => {
     const body = await (await stats(await session())).json()
     expect(body.push.devices[0].follows[0].tournamentName).toBe('LI-NING Pathumthani Championship 2026')
   })
+
+  it('serves the alerts that have gone out, newest first', async () => {
+    const recent = await import('@/lib/push/recent-sends')
+    recent.__setRecentSendsRootForTesting(path.join(dir, 'recent-sends'))
+    await recent.recordSend({
+      at: '2026-10-09T03:26:04.000Z', device: '02533ab321f9a162', stage: 'soon', result: 'ok',
+      draw: 'BS U17', round: 'Round of 128', match: 'ชยพัทธ์ รอดแย้ม v ณัฐปภัสร์ ตันติวิริยางกูร', via: 'UNITY&RAWIN',
+    })
+    await recent.recordSend({
+      at: '2026-10-09T03:55:04.000Z', device: '02533ab321f9a162', stage: 'result', result: 'ok',
+      draw: 'BS U17', round: 'Round of 128', match: 'ปริญญา พุฒิไพรสกุล v ธนากร วรวาส', via: 'ปริญญา พุฒิไพรสกุล',
+    })
+
+    const body = await (await stats(await session())).json()
+    expect(body.push.recentSends.map((r: { stage: string }) => r.stage)).toEqual(['result', 'soon'])
+    expect(body.push.recentSends[1].via).toBe('UNITY&RAWIN')
+  })
 })

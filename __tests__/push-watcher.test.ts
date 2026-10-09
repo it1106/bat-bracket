@@ -2,6 +2,8 @@ import { runWatcherTick, makeFetchDay, makeFetchDays, finishedTournaments, __res
 import type { PushFollow, PushPayload, PushSubscriptionRecord } from '@/lib/push/types'
 import type { MatchEntry, MatchPlayer, MatchScheduleGroup } from '@/lib/types'
 import type { SendResult } from '@/lib/push/sender'
+import type { RecentSend } from '@/lib/push/recent-sends'
+import { endpointHash } from '@/lib/push/devices'
 
 const TID = 'AAAAAAAA-0000-0000-0000-000000000001'
 const TID2 = 'BBBBBBBB-0000-0000-0000-000000000002'
@@ -23,6 +25,7 @@ function world(over: Partial<WatcherDeps> & { records?: PushSubscriptionRecord[]
   const pushes: Array<{ to: string; payload: PushPayload }> = []
   const removed: string[] = []
   const fetched: string[] = []
+  const noted: RecentSend[] = []
   const deps: WatcherDeps = {
     now: () => Date.UTC(2026, 9, 9, 3, 15),
     todayIso: () => DAY,
@@ -41,9 +44,10 @@ function world(over: Partial<WatcherDeps> & { records?: PushSubscriptionRecord[]
     },
     removeRecord: async (endpoint) => { removed.push(endpoint.split('/').pop()!) },
     record: () => {},
+    noteSend: async (row) => { noted.push(row) },
     ...over,
   }
-  return { deps, sent, pushes, removed, fetched }
+  return { deps, sent, pushes, removed, fetched, noted }
 }
 
 beforeEach(() => __resetWatcherForTesting())
@@ -345,5 +349,36 @@ describe('runWatcherTick — results', () => {
     groups = day(m('1', '2', { winner: 1 }), m('3', '4', { winner: 2 }), m('5', '6', { winner: 1 }))
     await runWatcherTick(w.deps)
     expect(w.pushes.map((p) => p.payload.title)).toEqual(['Won', 'Lost', 'Won'])
+  })
+})
+
+describe('runWatcherTick records what it sent', () => {
+  it('notes a successful send with the match and who it was for', async () => {
+    const w = world({ records: [device('a', [follow('1')])] })
+    await runWatcherTick(w.deps)
+    expect(w.noted).toHaveLength(1)
+    // The device table names a device the same way, so the two line up.
+    expect(w.noted[0].device).toBe(endpointHash('https://fcm.googleapis.com/fcm/send/a'))
+    expect(w.noted[0]).toMatchObject({
+      stage: 'next',
+      result: 'ok',
+      draw: 'BS U15',
+      round: 'Round of 32',
+      match: 'P1 v P2',
+      via: 'P1',
+    })
+  })
+
+  it('notes a failed send, so a silent failure is visible on the status page', async () => {
+    const w = world({ records: [device('a', [follow('1')])], results: { a: 'failed' } })
+    await runWatcherTick(w.deps)
+    expect(w.noted.map((n) => n.result)).toEqual(['failed'])
+  })
+
+  it('names the club that brought a match in', async () => {
+    const records = [device('a', [{ kind: 'club', tournamentId: TID, clubName: 'UNITY&RAWIN', addedAt: '' }])]
+    const w = world({ records, clubOf: async () => (id) => (id === '1' ? 'UNITY&RAWIN' : undefined) })
+    await runWatcherTick(w.deps)
+    expect(w.noted[0].via).toBe('UNITY&RAWIN')
   })
 })

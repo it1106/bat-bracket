@@ -3,6 +3,7 @@ import { getServerStatus } from '@/lib/server-status'
 import { getPushStats } from '@/lib/push/stats'
 import { deviceRows } from '@/lib/push/devices'
 import { listRecords } from '@/lib/push/store'
+import { readRecentSends } from '@/lib/push/recent-sends'
 import { listAllTournaments } from '@/lib/tournaments-registry'
 import { loadDiscovered } from '@/lib/discovery-store'
 import { getTodayIso } from '@/lib/today'
@@ -43,12 +44,13 @@ export async function GET(request: Request) {
     )
   }
   ensurePresenceLoaded()
-  const [server, browser, diskEntries, pushRecords, discovered] = await Promise.all([
+  const [server, browser, diskEntries, pushRecords, discovered, recentSends] = await Promise.all([
     getServerStatus(),
     getBrowserUsage(CPU_SAMPLE_MS),
     getDiskUsage(),
     listRecords(),
     loadDiscovered().catch(() => null),
+    readRecentSends(),
   ])
   // Most live tournaments are not in public/tournaments.txt: the site finds
   // them itself. Same two sources, same precedence, as alertTournaments().
@@ -78,7 +80,7 @@ export async function GET(request: Request) {
       restarts: getRestartInfo(),
       memoryLimitBytes: memoryLimitBytes(),
       playerCache: getPlayerCacheStats(),
-      push: { ...getPushStats(getTodayIso()), devices, deviceTotal },
+      push: { ...getPushStats(getTodayIso()), devices, deviceTotal, recentSends },
       site: { ...getSiteStats(), countries: getCountryStats() },
       browser,
       bwf: getBwfFetchStats(),
