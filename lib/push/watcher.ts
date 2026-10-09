@@ -2,7 +2,12 @@ import type { MatchesData, MatchScheduleGroup } from '@/lib/types'
 import { dueAlerts, dueResults } from './alerts'
 import { alertPayload, digestPayload, matchTag, resultPayload } from './text'
 import type { Sender, SendResult } from './sender'
+import { endpointHash } from './devices'
+import type { RecentSend } from './recent-sends'
 import type { DueAlert, PushSubscriptionRecord } from './types'
+import type { MatchPlayer } from '@/lib/types'
+
+const names = (team: MatchPlayer[]) => team.map((p) => p.name).join(' / ')
 
 export interface WatcherDeps {
   now: () => number
@@ -21,6 +26,8 @@ export interface WatcherDeps {
   send: Sender
   removeRecord: (endpoint: string) => Promise<void>
   record: (result: SendResult, dayIso: string) => void
+  /** Keeps one row per alert for the status page. */
+  noteSend: (row: RecentSend) => Promise<void>
 }
 
 // More than this many alerts for one device in one tick go out as one notification.
@@ -121,6 +128,20 @@ export async function runWatcherTick(deps: WatcherDeps): Promise<{ sent: number;
         const keys = batch.alerts.flatMap((a) => a.covers)
         const result: SendResult = await deps.send(record, batch.payload).catch(() => 'failed' as const)
         deps.record(result, dateIso)
+        for (const a of batch.alerts) {
+          await deps.noteSend({
+            at: new Date(deps.now()).toISOString(),
+            device: endpointHash(endpoint),
+            stage: a.stage,
+            result,
+            draw: a.match.draw,
+            round: a.match.round,
+            match: `${names(a.match.team1)} v ${names(a.match.team2)}`,
+            // A club follow also fills `players` with that club's players in the
+            // match, so the club is what explains the alert when there is one.
+            via: a.clubs.length > 0 ? a.clubs.join(', ') : names(a.players),
+          })
+        }
         if (result === 'ok') {
           tally.sent++
           await deps.markSent(keys, dateIso)
@@ -230,6 +251,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
   const sentLog = await import('./sent-log')
   const { clubLookup } = await import('./clubs')
   const { recordPush } = await import('./stats')
+  const recent = await import('./recent-sends')
   const { batDownSince } = await import('@/lib/bat-outages')
   const { getTodayIso, getBangkokHour, getBangkokMinute } = await import('@/lib/today')
   const { alertTournaments } = await import('./tournaments')
@@ -248,13 +270,14 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     send: webPushSender(config),
     removeRecord: store.removeRecord,
     record: recordPush,
+    noteSend: recent.recordSend,
   }
 
   // Which tournaments are worth asking about, refreshed before every tick.
   let listed = new Map<string, { done: boolean }>()
   let busy = false
   let lastPruneDay = ''
-  const loaded = sentLog.loadSentLog()
+  const loaded = Promise.all([sentLog.loadSentLog(), recent.loadRecentSends()])
   timer = setInterval(async () => {
     if (busy || !opts.isLeader()) return
     busy = true
