@@ -130,3 +130,57 @@ describe('search aliases API', () => {
     expect((await admin('DELETE', await session(), undefined, '?key=nobody')).status).toBe(404)
   })
 })
+
+describe('/api/bmstats match alerts', () => {
+  const session = async () => cookieOf(await login(PW))
+
+  it('lists each following device by a hash, never by its endpoint or keys', async () => {
+    const { addFollow, __setPushRootForTesting } = await import('@/lib/push/store')
+    const { endpointHash } = await import('@/lib/push/devices')
+    __setPushRootForTesting(path.join(dir, 'push-store'))
+    const endpoint = 'https://wns2-sg2p.notify.windows.com/w/?token=secret-token'
+    await addFollow(
+      { endpoint, keys: { p256dh: 'p256dh-secret', auth: 'auth-secret' } },
+      'en',
+      { kind: 'player', tournamentId: '704595c5-4a11-4093-a254-6791021df219', playerId: '2588', playerName: 'ปริญญา พุฒิไพรสกุล' },
+      Date.parse('2026-10-09T03:21:36.386Z'),
+    )
+
+    const body = await (await stats(await session())).json()
+    expect(body.push.deviceTotal).toBe(1)
+    expect(body.push.devices).toHaveLength(1)
+    expect(body.push.devices[0].id).toBe(endpointHash(endpoint))
+    expect(body.push.devices[0].service).toBe('Edge')
+    expect(body.push.devices[0].follows[0]).toMatchObject({ kind: 'player', playerId: '2588', name: 'ปริญญา พุฒิไพรสกุล' })
+
+    const json = JSON.stringify(body.push)
+    expect(json).not.toContain('secret-token')
+    expect(json).not.toContain('p256dh-secret')
+    expect(json).not.toContain('auth-secret')
+  })
+
+  it('names a tournament the site discovered by itself, not only the hand-listed ones', async () => {
+    const { addFollow, __setPushRootForTesting } = await import('@/lib/push/store')
+    const { saveDiscovered } = await import('@/lib/discovery-store')
+    __setPushRootForTesting(path.join(dir, 'push-store-discovered'))
+    await saveDiscovered({
+      version: 1,
+      entries: [{
+        id: '704595C5-4A11-4093-A254-6791021DF219',
+        name: 'LI-NING Pathumthani Championship 2026',
+        hasBracket: true,
+        discoveredAt: '2026-09-17T01:06:10.944Z',
+        lastSeenOnUpcomingAt: '2026-10-09T04:04:04.872Z',
+      }],
+    })
+    await addFollow(
+      { endpoint: 'https://fcm.googleapis.com/fcm/send/discovered', keys: { p256dh: 'k', auth: 'k' } },
+      'en',
+      { kind: 'player', tournamentId: '704595C5-4A11-4093-A254-6791021DF219', playerId: '2503', playerName: 'รวิณ ชูชัยศรี' },
+      Date.parse('2026-10-09T02:01:40.713Z'),
+    )
+
+    const body = await (await stats(await session())).json()
+    expect(body.push.devices[0].follows[0].tournamentName).toBe('LI-NING Pathumthani Championship 2026')
+  })
+})
