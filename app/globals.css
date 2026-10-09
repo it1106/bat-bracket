@@ -4066,3 +4066,76 @@ button.ptf-name { cursor: pointer; }
 }
 
 .ptf-error { padding: 24px 0; text-align: center; font-size: calc(13px * var(--text-scale)); }
+
+/* Match alerts: follow controls */
+.follow-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.follow-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: calc(12px * var(--text-scale));
+  font-weight: 600;
+  color: var(--brand-fg);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 4px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.follow-btn:hover { background: var(--border); }
+.follow-btn:disabled { opacity: 0.6; cursor: default; }
+
+.follow-btn--on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.follow-btn--on:hover { background: var(--brand); }
+
+.follow-note {
+  font-size: calc(12px * var(--text-scale));
+  color: var(--muted);
+  max-width: 44ch;
+}
+
+.follow-copy {
+  margin-left: 8px;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--brand-fg);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.following-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.following-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: calc(13px * var(--text-scale));
+}
+
+.following-where {
+  color: var(--muted);
+  font-size: calc(11px * var(--text-scale));
+}

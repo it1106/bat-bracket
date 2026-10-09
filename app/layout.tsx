@@ -3,6 +3,7 @@ import { LanguageProvider } from '@/lib/LanguageContext'
 import { ThemeProvider } from '@/lib/ThemeContext'
 import { PostHogProvider } from '@/lib/PostHogProvider'
 import { PresenceProvider } from '@/lib/PresenceContext'
+import { PushFollowsProvider } from '@/lib/push/PushFollowsContext'
 import { TEXT_SIZE_NO_FLASH } from '@/lib/textSize'
 import IOSInstallBanner from '@/components/IOSInstallBanner'
 import AppFooter from '@/components/AppFooter'
@@ -50,13 +51,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ThemeProvider>
             <PostHogProvider>
               <PresenceProvider>
-                <SearchAliasesLoader />
-                {children}
-                {/* Sits in the root layout so the disclaimer is reachable from
-                    every route — the tournament view, leaderboards, player
-                    profiles and the country matrix alike. */}
-                <AppFooter />
-                <IOSInstallBanner />
+                <PushFollowsProvider>
+                  <SearchAliasesLoader />
+                  {children}
+                  {/* Sits in the root layout so the disclaimer is reachable from
+                      every route — the tournament view, leaderboards, player
+                      profiles and the country matrix alike. */}
+                  <AppFooter />
+                  <IOSInstallBanner />
+                </PushFollowsProvider>
               </PresenceProvider>
             </PostHogProvider>
           </ThemeProvider>

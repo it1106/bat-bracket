@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { PlayerProfile, MatchEntry, ProviderTag, DrawInfo } from '@/lib/types'
 import { knockoutDrawsOf } from '@/lib/pathDraws'
+import FollowButton from '@/components/FollowButton'
 import { useLanguage } from '@/lib/LanguageContext'
 import { pct } from '@/lib/playerStats'
 
@@ -18,6 +19,8 @@ interface Props {
   draws?: DrawInfo[]
   /** Opens the path to the final for one of the player's knockout draws. */
   onPathClick?: (drawNum: string, drawName: string) => void
+  /** The tournament the player window is open on; with it, a follow button is shown. */
+  tournamentId?: string
 }
 
 
@@ -28,7 +31,7 @@ function scoreStr(entry: MatchEntry, tr: { walkover: string; vsMatch: string; re
   return entry.scores.map((s) => `${s.t1}–${s.t2}`).join(', ')
 }
 
-export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick, provider, draws, onPathClick }: Props) {
+export default function PlayerModal({ profile, loading, onClose, onH2HClick, onPlayerClick, provider, draws, onPathClick, tournamentId }: Props) {
   const { t, abbrevRound, lang } = useLanguage()
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const [activeEventIds, setActiveEventIds] = useState<Set<string>>(new Set())
@@ -100,6 +103,9 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                 <Link href={`/player/${fullProfile.provider}/${fullProfile.slug}`} className="pm-full-profile-link">
                   {t('viewFullProfile')} →
                 </Link>
+              )}
+              {tournamentId && profile.playerId && (provider ?? 'bat') === 'bat' && (
+                <FollowButton tournamentId={tournamentId} playerId={profile.playerId} playerName={profile.name} clubName={profile.club || undefined} />
               )}
               {profile.stats && (() => {
                 const s = profile.stats

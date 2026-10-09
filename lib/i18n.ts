@@ -334,6 +334,22 @@ export type TKey =
   | 'alertsNewRanking'
   | 'alertsRankingTitle'
   | 'alertsBellAria'
+  | 'followPlayer'
+  | 'followingPlayer'
+  | 'followingViaClub'
+  | 'followBlocked'
+  | 'followNeedsInstall'
+  | 'followInAppBrowser'
+  | 'followCopyLink'
+  | 'followLinkCopied'
+  | 'followLimit'
+  | 'followError'
+  | 'followClub'
+  | 'followingClub'
+  | 'followClubWarning'
+  | 'followingTitle'
+  | 'followingEmpty'
+  | 'unfollow'
   | 'rankingDetailTitle'
   | 'rankingDetailTabSingles'
   | 'rankingDetailTabDoubles'
@@ -653,6 +669,22 @@ const dict: Record<Lang, Record<TKey, string>> = {
     alertsNewRanking: 'New Ranking',
     alertsRankingTitle: 'New ranking published',
     alertsBellAria: 'Notifications',
+    followPlayer: 'Follow',
+    followingPlayer: 'Following',
+    followingViaClub: 'Following (club)',
+    followBlocked: 'Notifications are blocked for this site. Allow them in your browser\'s site settings, then tap Follow again.',
+    followNeedsInstall: 'On iPhone, alerts need BATMatch on your home screen: tap Share, then "Add to Home Screen", and open it from there.',
+    followInAppBrowser: 'Alerts do not work inside this app\'s browser. Open BATMatch in Chrome or Safari.',
+    followCopyLink: 'Copy link',
+    followLinkCopied: 'Link copied',
+    followLimit: 'You are following as many as this device allows. Unfollow some first.',
+    followError: 'Could not follow just now. Please try again.',
+    followClub: 'Follow club',
+    followingClub: 'Following club',
+    followClubWarning: 'Every match by this club\'s players sends alerts. That can be many in a day.',
+    followingTitle: 'Following',
+    followingEmpty: 'Follow a player or a club to be told when their match is close.',
+    unfollow: 'Unfollow',
     rankingDetailTitle: 'Ranking detail',
     rankingDetailTabSingles: 'Singles',
     rankingDetailTabDoubles: 'Doubles',
@@ -1004,6 +1036,22 @@ const dict: Record<Lang, Record<TKey, string>> = {
     alertsNewRanking: 'อันดับใหม่',
     alertsRankingTitle: 'ประกาศอันดับฉบับใหม่',
     alertsBellAria: 'การแจ้งเตือน',
+    followPlayer: 'ติดตาม',
+    followingPlayer: 'กำลังติดตาม',
+    followingViaClub: 'กำลังติดตาม (สโมสร)',
+    followBlocked: 'เว็บไซต์นี้ถูกปิดการแจ้งเตือน กรุณาอนุญาตในการตั้งค่าเว็บไซต์ของเบราว์เซอร์ แล้วแตะติดตามอีกครั้ง',
+    followNeedsInstall: 'บน iPhone ต้องเพิ่ม BATMatch ไว้ที่หน้าจอโฮมก่อน: แตะแชร์ แล้วเลือก "เพิ่มไปยังหน้าจอโฮม" จากนั้นเปิดจากไอคอนนั้น',
+    followInAppBrowser: 'การแจ้งเตือนใช้ไม่ได้ในเบราว์เซอร์ของแอปนี้ กรุณาเปิด BATMatch ใน Chrome หรือ Safari',
+    followCopyLink: 'คัดลอกลิงก์',
+    followLinkCopied: 'คัดลอกลิงก์แล้ว',
+    followLimit: 'ติดตามครบจำนวนที่อุปกรณ์นี้รองรับแล้ว กรุณาเลิกติดตามบางรายการก่อน',
+    followError: 'ติดตามไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+    followClub: 'ติดตามสโมสร',
+    followingClub: 'กำลังติดตามสโมสร',
+    followClubWarning: 'ทุกแมตช์ของนักกีฬาสโมสรนี้จะมีการแจ้งเตือน ซึ่งอาจมีจำนวนมากในหนึ่งวัน',
+    followingTitle: 'กำลังติดตาม',
+    followingEmpty: 'ติดตามนักกีฬาหรือสโมสร เพื่อรับแจ้งเตือนเมื่อใกล้ถึงคิวแข่ง',
+    unfollow: 'เลิกติดตาม',
     rankingDetailTitle: 'รายละเอียดอันดับ',
     rankingDetailTabSingles: 'เดี่ยว',
     rankingDetailTabDoubles: 'คู่',

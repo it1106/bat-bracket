@@ -1570,6 +1570,7 @@ export default function Home() {
           provider={tournaments.find((x) => x.id === selectedTournament)?.provider}
           draws={draws}
           onPathClick={handlePathClick}
+          tournamentId={selectedTournament || undefined}
         />
       )}
 
