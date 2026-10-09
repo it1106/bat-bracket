@@ -124,7 +124,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
   const { recordPush } = await import('./stats')
   const { batDownSince } = await import('@/lib/bat-outages')
   const { getTodayIso } = await import('@/lib/today')
-  const { listAllTournaments } = await import('@/lib/tournaments-registry')
+  const { alertTournaments } = await import('./tournaments')
 
   // The app's own schedule route, so the watcher shares the one-minute cache
   // with visitors and the warmer and never asks BAT itself.
@@ -144,7 +144,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     todayIso: () => getTodayIso(),
     isBatDown: () => !!batDownSince(),
     listRecords: store.listRecords,
-    isWatchable: (id) => listAllTournaments().some((t) => t.id.toUpperCase() === id && t.provider === 'bat' && !t.done),
+    isWatchable: (id) => { const t = listed.get(id); return !!t && !t.done },
     fetchDay,
     clubOf: async (tournamentId) => (await clubLookup(tournamentId)).clubOf,
     hasSent: sentLog.hasSent,
@@ -154,6 +154,8 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     record: recordPush,
   }
 
+  // Which tournaments are worth asking about, refreshed before every tick.
+  let listed = new Map<string, { done: boolean }>()
   let busy = false
   let lastPruneDay = ''
   const loaded = sentLog.loadSentLog()
@@ -168,6 +170,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
         await sentLog.pruneSent(today)
         await store.pruneStale(deps.now())
       }
+      listed = await alertTournaments()
       const r = await runWatcherTick(deps)
       if (r.sent || r.failed || r.gone) console.log(`[push] tick sent=${r.sent} failed=${r.failed} gone=${r.gone}`)
     } catch (err) {

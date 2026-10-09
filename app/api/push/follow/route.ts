@@ -3,7 +3,7 @@ import { pushConfig } from '@/lib/push/config'
 import { parseSubscription, parseTarget } from '@/lib/push/validate'
 import { clubLookup } from '@/lib/push/clubs'
 import { addFollow } from '@/lib/push/store'
-import { listAllTournaments } from '@/lib/tournaments-registry'
+import { alertTournaments } from '@/lib/push/tournaments'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,11 +18,11 @@ export async function POST(request: Request) {
   const subscription = parseSubscription(body?.subscription)
   const target = parseTarget(body?.target, true)
   if (!subscription || !target) return answer({ error: 'subscription and target required' }, 400)
-  // Only a BAT tournament the site lists. resolveRef would not do: it treats
-  // any unknown id as BAT, and the watcher asks for the schedule of every
-  // followed tournament, so a made-up id must never get this far.
-  const listed = listAllTournaments().some((t) => t.id.toUpperCase() === target.tournamentId && t.provider === 'bat')
-  if (!listed) return answer({ error: 'match alerts are for BAT tournaments listed on this site' }, 400)
+  // Only a BAT tournament the site lists: the watcher asks for the schedule
+  // of every followed tournament, so a made-up id must never get this far.
+  if (!(await alertTournaments()).has(target.tournamentId)) {
+    return answer({ error: 'match alerts are for BAT tournaments listed on this site' }, 400)
+  }
   // A club follow can only name a club that tournament has.
   if (target.kind === 'club' && !(await clubLookup(target.tournamentId)).hasClub(target.clubName)) {
     return answer({ error: 'no such club in this tournament' }, 400)

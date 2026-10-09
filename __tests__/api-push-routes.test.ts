@@ -1,7 +1,7 @@
 jest.mock('../lib/push/config', () => ({ pushConfig: jest.fn() }))
 jest.mock('../lib/push/store', () => ({ addFollow: jest.fn(), removeFollow: jest.fn(), touchRecord: jest.fn() }))
 jest.mock('../lib/push/clubs', () => ({ clubLookup: jest.fn() }))
-jest.mock('../lib/tournaments-registry', () => ({ listAllTournaments: jest.fn() }))
+jest.mock('../lib/push/tournaments', () => ({ alertTournaments: jest.fn() }))
 
 import { GET as getKey } from '@/app/api/push/key/route'
 import { POST as follow } from '@/app/api/push/follow/route'
@@ -10,7 +10,7 @@ import { POST as state } from '@/app/api/push/state/route'
 import { pushConfig } from '@/lib/push/config'
 import { addFollow, removeFollow, touchRecord } from '@/lib/push/store'
 import { clubLookup } from '@/lib/push/clubs'
-import { listAllTournaments } from '@/lib/tournaments-registry'
+import { alertTournaments } from '@/lib/push/tournaments'
 
 const TID = 'aaaaaaaa-0000-0000-0000-000000000001'
 const ENDPOINT = 'https://fcm.googleapis.com/fcm/send/abc'
@@ -23,7 +23,7 @@ const add = addFollow as jest.Mock
 const remove = removeFollow as jest.Mock
 const touch = touchRecord as jest.Mock
 const clubs = clubLookup as jest.Mock
-const registry = listAllTournaments as jest.Mock
+const listed = alertTournaments as jest.Mock
 
 const post = (body: unknown) => new Request('http://x/api/push', { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body) })
 
@@ -33,7 +33,7 @@ beforeEach(() => {
   remove.mockReset().mockResolvedValue([])
   touch.mockReset().mockResolvedValue([{ kind: 'player' }])
   clubs.mockReset().mockResolvedValue({ clubOf: () => undefined, hasClub: (n: string) => n === 'Red Club' })
-  registry.mockReset().mockReturnValue([{ id: TID.toUpperCase(), provider: 'bat', done: false }])
+  listed.mockReset().mockResolvedValue(new Map([[TID.toUpperCase(), { done: false }]]))
 })
 
 describe('GET /api/push/key', () => {
@@ -86,14 +86,8 @@ describe('POST /api/push/follow', () => {
     expect(add).not.toHaveBeenCalled()
   })
 
-  it('is 400 for a BWF tournament', async () => {
-    registry.mockReturnValue([{ id: TID.toUpperCase(), provider: 'bwf', done: false }])
-    expect((await follow(post({ subscription: SUB, lang: 'en', target: PLAYER }))).status).toBe(400)
-    expect(add).not.toHaveBeenCalled()
-  })
-
   it('is 400 for a tournament the site does not list, so nobody can make the watcher poll a made-up id', async () => {
-    registry.mockReturnValue([{ id: 'BBBBBBBB-0000-0000-0000-000000000002', provider: 'bat', done: false }])
+    listed.mockResolvedValue(new Map([['BBBBBBBB-0000-0000-0000-000000000002', { done: false }]]))
     expect((await follow(post({ subscription: SUB, lang: 'en', target: PLAYER }))).status).toBe(400)
     expect((await follow(post({ subscription: SUB, lang: 'en', target: CLUB }))).status).toBe(400)
     expect(add).not.toHaveBeenCalled()
@@ -101,7 +95,7 @@ describe('POST /api/push/follow', () => {
   })
 
   it('still lets a finished tournament be followed (nothing is sent for it, and it can be unfollowed)', async () => {
-    registry.mockReturnValue([{ id: TID.toUpperCase(), provider: 'bat', done: true }])
+    listed.mockResolvedValue(new Map([[TID.toUpperCase(), { done: true }]]))
     expect((await follow(post({ subscription: SUB, lang: 'en', target: PLAYER }))).status).toBe(200)
   })
 
