@@ -16,7 +16,7 @@ const alert = (over: Partial<DueAlert> = {}): DueAlert => {
   const m = over.match ?? match()
   return {
     endpoint: 'https://fcm.googleapis.com/fcm/send/x', lang: 'en', stage: 'next', position: 1,
-    sentKey: 'k', covers: ['k'], match: m, players: [m.team1[0]], clubs: [], ...over,
+    sentKey: 'k', covers: ['k'], match: m, players: [m.team1[0]], directPlayers: [m.team1[0]], clubs: [], ...over,
   }
 }
 
