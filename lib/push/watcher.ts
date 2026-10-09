@@ -127,6 +127,51 @@ export function makeFetchDay(origin: string, fetchFn: FetchLike = fetch as unkno
   }
 }
 
+/** The dates of a tournament's schedule days, through the same route. Null
+ *  when the app says no, there are no days, or a day's date cannot be read:
+ *  anything short of the whole list says nothing about when it ends. */
+export function makeFetchDays(origin: string, fetchFn: FetchLike = fetch as unknown as FetchLike) {
+  return async (tournamentId: string): Promise<string[] | null> => {
+    const res = await fetchFn(`${origin}/api/matches?tournament=${encodeURIComponent(tournamentId)}`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+    if (!res.ok) return null
+    const days = ((await res.json()) as MatchesData).days
+    if (!Array.isArray(days) || days.length === 0) return null
+    const dates = days.map((d) => d.dateIso ?? '')
+    return dates.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)) ? dates : null
+  }
+}
+
+export interface FinishedDeps {
+  todayIso: () => string
+  isBatDown: () => boolean
+  listRecords: () => Promise<PushSubscriptionRecord[]>
+  /** Whether the id is a tournament the site knows. One it does not is never
+   *  asked about, and its follows stay. */
+  isListed: (tournamentId: string) => boolean
+  /** The hand-set finished flag. */
+  isDone: (tournamentId: string) => boolean
+  fetchDays: (tournamentId: string) => Promise<string[] | null>
+}
+
+/** The followed tournaments that are over: marked done, or with a last day
+ *  more than a day past. A schedule that cannot be read keeps its follows —
+ *  only a plain "this is over" removes anything. */
+export async function finishedTournaments(deps: FinishedDeps): Promise<string[]> {
+  if (deps.isBatDown()) return []
+  const records = await deps.listRecords()
+  const followed = Array.from(new Set(records.flatMap((r) => r.follows.map((f) => f.tournamentId.toUpperCase()))))
+  const yesterday = new Date(Date.parse(`${deps.todayIso()}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
+  const out: string[] = []
+  for (const id of followed) {
+    if (!deps.isListed(id)) continue
+    if (deps.isDone(id)) { out.push(id); continue }
+    const dates = await deps.fetchDays(id).catch(() => null)
+    if (!dates || dates.length === 0) continue
+    if (dates.reduce((a, b) => (a > b ? a : b)) < yesterday) out.push(id)
+  }
+  return out
+}
+
 const TICK_MS = 60_000
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -175,16 +220,28 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     busy = true
     try {
       await loaded
+      listed = await alertTournaments()
       const today = deps.todayIso()
       if (today !== lastPruneDay) {
         lastPruneDay = today
         failures.clear()
         await sentLog.pruneSent(today)
         await store.pruneStale(deps.now())
+        const over = await finishedTournaments({
+          todayIso: deps.todayIso,
+          isBatDown: deps.isBatDown,
+          listRecords: deps.listRecords,
+          isListed: (id) => listed.has(id),
+          isDone: (id) => !!listed.get(id)?.done,
+          fetchDays: makeFetchDays(opts.origin),
+        })
+        if (over.length > 0) {
+          const removed = await store.removeFollowsIn(over)
+          console.log(`[push] removed ${removed} follows in ${over.length} finished tournaments`)
+        }
       }
       // Another worker may have been the one sending until now.
       await sentLog.refreshSentLog()
-      listed = await alertTournaments()
       const r = await runWatcherTick(deps)
       if (r.sent || r.failed || r.gone) console.log(`[push] tick sent=${r.sent} failed=${r.failed} gone=${r.gone}`)
     } catch (err) {

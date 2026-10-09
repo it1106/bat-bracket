@@ -173,6 +173,24 @@ export async function removeFollow(endpoint: string, target: FollowTarget): Prom
   })
 }
 
+/** Removes every follow in the given tournaments, on every device. A device
+ *  left following nothing goes too, as it does on unfollowing its last one.
+ *  Resolves to the number of follows removed. */
+export async function removeFollowsIn(tournamentIds: string[]): Promise<number> {
+  const ids = new Set(tournamentIds.map((id) => id.toUpperCase()))
+  return change((map) => {
+    let removed = 0
+    for (const [endpoint, rec] of Array.from(map)) {
+      const kept = rec.follows.filter((f) => !ids.has(f.tournamentId.toUpperCase()))
+      if (kept.length === rec.follows.length) continue
+      removed += rec.follows.length - kept.length
+      if (kept.length === 0) map.delete(endpoint)
+      else rec.follows = kept
+    }
+    return { value: removed, dirty: removed > 0 }
+  })
+}
+
 export async function touchRecord(endpoint: string, now: number): Promise<PushFollow[] | null> {
   return change((map) => {
     const rec = map.get(endpoint)
