@@ -1,7 +1,8 @@
 'use client'
 import Link from 'next/link'
 import { useLanguage } from '@/lib/LanguageContext'
-import type { ExpiryTier } from '@/lib/ranking/player-view'
+import type { Lang } from '@/lib/i18n'
+import { expiryDateForWeek, type ExpiryTier } from '@/lib/ranking/player-view'
 import type { RankingPlayerTournament } from '@/lib/types'
 import { resultLabelFor } from '@/lib/ranking/result-label'
 
@@ -32,18 +33,37 @@ interface Props {
  * to the in-app tournament view when we have a GUID; otherwise renders as
  * plain text. All other fields are display-only.
  */
+/** "Tue 1 Jun 2027" in English, the same shape with a Buddhist year in Thai
+ *  (BAT's own convention). UTC throughout, matching expiryDateForWeek. */
+function formatExpiry(d: Date, lang: Lang): string {
+  return d.toLocaleDateString(lang === 'th' ? 'th-TH' : 'en-GB', {
+    timeZone: 'UTC',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).replace(',', '')
+}
+
 export default function TournamentRow({ row, expiry = null, creditOverride, bestFinishByKey, tournamentLevels }: Props) {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const cls = expiry === 'next'
     ? 'pp-rd-row pp-rd-row--expiring'
     : expiry === 'soon'
       ? 'pp-rd-row pp-rd-row--expiring-soon'
       : 'pp-rd-row'
-  const title = expiry === 'next'
+  // Every row says when its points drop out; the two warning tiers add the
+  // urgency wording on top of that date.
+  const expiryDate = expiryDateForWeek(row.week)
+  const tierText = expiry === 'next'
     ? t('rankingDetailExpiringNext')
     : expiry === 'soon'
       ? t('rankingDetailExpiringWithin4Weeks')
       : undefined
+  const dateText = expiryDate
+    ? `${t('rankingDetailExpiresOn')} ${formatExpiry(expiryDate, lang)}`
+    : undefined
+  const title = [dateText, tierText].filter(Boolean).join(' · ') || undefined
   const level = row.tournamentId ? tournamentLevels?.[row.tournamentId.toUpperCase()] : undefined
   const label = level && level > 0 ? `${row.tournamentName} (L${level})` : row.tournamentName
   const name = row.tournamentId

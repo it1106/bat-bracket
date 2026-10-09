@@ -9,6 +9,9 @@ import {
   countContributingTournaments,
   filterToLowestTwoAgeGroups,
   TOP_N,
+  expiryDateForWeek,
+  classifyExpiry,
+  computeExpiryCutoffs,
 } from '@/lib/ranking/player-view'
 import type { RankingPlayerDetail, RankingPlayerTournament } from '@/lib/types'
 
@@ -316,5 +319,51 @@ describe('filterToLowestTwoAgeGroups', () => {
       'U19 Boys singles',
       'Senior Men\'s singles',
     ])
+  })
+})
+
+describe('expiryDateForWeek', () => {
+  const iso = (d: Date | null) => d?.toISOString().slice(0, 10) ?? null
+  const weekday = (d: Date | null) => d?.toUTCString().slice(0, 3) ?? null
+
+  it('lands 53 weeks on from the row week, on the Tuesday', () => {
+    // ISO week 2026-22 starts Mon 25 May 2026; the publication 53 weeks
+    // later is Tue 1 Jun 2027, the first one that no longer counts it.
+    expect(iso(expiryDateForWeek('2026-22'))).toBe('2027-06-01')
+  })
+
+  it('always returns a Tuesday', () => {
+    for (const w of ['2026-1', '2026-22', '2025-52', '2020-53']) {
+      expect(weekday(expiryDateForWeek(w))).toBe('Tue')
+    }
+  })
+
+  it('handles an ISO week 1 that starts in the previous calendar year', () => {
+    // 2026-W1 starts Mon 29 Dec 2025.
+    expect(iso(expiryDateForWeek('2026-1'))).toBe('2027-01-05')
+  })
+
+  it('handles the last week of a 52-week year', () => {
+    expect(iso(expiryDateForWeek('2025-52'))).toBe('2026-12-29')
+  })
+
+  it('handles week 53 of a long ISO year', () => {
+    expect(iso(expiryDateForWeek('2020-53'))).toBe('2022-01-04')
+  })
+
+  it('accepts a zero-padded week', () => {
+    expect(iso(expiryDateForWeek('2026-01'))).toBe('2027-01-05')
+  })
+
+  it('agrees with classifyExpiry: the publication before expiry is the last one counting the row', () => {
+    // Row in 2026-22 expires Tue 1 Jun 2027; the Tuesday before that
+    // (25 May 2027) must be the publication that flags it as 'next'.
+    expect(classifyExpiry('2026-22', computeExpiryCutoffs('25/05/2027', 'en-gb'))).toBe('next')
+  })
+
+  it('returns null on malformed input', () => {
+    for (const w of ['', 'nope', '2026', '2026-', '2026-xx', '2026-0', '2026-54']) {
+      expect(expiryDateForWeek(w)).toBeNull()
+    }
   })
 })

@@ -145,6 +145,37 @@ export function computeExpiryCutoffs(
   }
 }
 
+/** Publishing weekday: rankings are released on Tuesdays. */
+const PUBLISH_WEEKDAY_OFFSET_FROM_MONDAY = 1
+
+/** Monday (UTC) that starts ISO week `week` of `year`, via the Jan-4 rule:
+ *  ISO week 1 is the week containing 4 January. */
+function isoWeekMonday(year: number, week: number): Date {
+  const jan4 = new Date(Date.UTC(year, 0, 4))
+  const dow = jan4.getUTCDay() || 7
+  const week1Monday = jan4.getTime() - (dow - 1) * 86400000
+  return new Date(week1Monday + (week - 1) * 7 * 86400000)
+}
+
+/** The Tuesday publication at which a row's points drop out of the 52-week
+ *  window: the first one that no longer counts them. A row in ISO week W is
+ *  still counted by the publication in week W+52 — that is exactly the 'next'
+ *  tier of classifyExpiry — and gone from the one in week W+53.
+ *
+ *  Assumes weekly publication; a skipped week pushes the real date later.
+ *  Returns null when `week` isn't a "YYYY-WW" key we can parse. */
+export function expiryDateForWeek(week: string): Date | null {
+  const m = week.trim().match(/^(\d{4})-(\d{1,2})$/)
+  if (!m) return null
+  const year = parseInt(m[1], 10)
+  const w = parseInt(m[2], 10)
+  if (w < 1 || w > 53) return null
+  const monday = isoWeekMonday(year, w)
+  return new Date(
+    monday.getTime() + (53 * 7 + PUBLISH_WEEKDAY_OFFSET_FROM_MONDAY) * 86400000,
+  )
+}
+
 export function classifyExpiry(week: string, cutoffs: ExpiryCutoffs): ExpiryTier {
   const w = weekSortKey(week)
   if (cutoffs.next && w.localeCompare(weekSortKey(cutoffs.next)) <= 0) return 'next'
