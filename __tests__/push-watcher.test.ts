@@ -221,3 +221,50 @@ describe('makeFetchDay', () => {
     expect(await makeFetchDay('http://x', half as never)(TID, DAY)).toBeNull()
   })
 })
+
+describe('runWatcherTick — results', () => {
+  const T0 = Date.UTC(2026, 9, 9, 3, 15)
+  const followed = (playerId: string): PushFollow => ({ ...follow(playerId), addedAt: new Date(T0 - 60_000).toISOString() })
+  const open = () => day(m('90', '91', { nowPlaying: true }), m('1', '2', { nowPlaying: true }))
+  const closed = () => day(m('90', '91', { nowPlaying: true }), m('1', '2', { winner: 1, scores: [{ t1: 15, t2: 2 }, { t1: 15, t2: 4 }] }))
+
+  it('reports a followed player\'s result on the tick it first appears, and only once', async () => {
+    let groups = open()
+    const w = world({ records: [device('a', [followed('1')])], fetchDay: async () => groups, now: () => T0 })
+    await runWatcherTick(w.deps)
+    expect(w.pushes).toEqual([])
+    groups = closed()
+    expect(await runWatcherTick(w.deps)).toEqual({ sent: 1, failed: 0, gone: 0 })
+    expect(w.pushes[0].payload.title).toBe('Won 15-2, 15-4')
+    await runWatcherTick(w.deps)
+    expect(w.pushes).toHaveLength(1)
+  })
+
+  it('does not report results that were already in when it first saw the day', async () => {
+    const w = world({ records: [device('a', [followed('1')])], fetchDay: async () => closed(), now: () => T0 })
+    await runWatcherTick(w.deps)
+    await runWatcherTick(w.deps)
+    expect(w.pushes).toEqual([])
+  })
+
+  it('tries a result again on the next tick when the send fails', async () => {
+    let groups = open()
+    let result: SendResult = 'failed'
+    const w = world({ records: [device('a', [followed('1')])], fetchDay: async () => groups, now: () => T0 })
+    w.deps.send = async (_r, payload) => { w.pushes.push({ to: 'a', payload }); return result }
+    await runWatcherTick(w.deps)
+    groups = closed()
+    await runWatcherTick(w.deps)
+    result = 'ok'
+    expect(await runWatcherTick(w.deps)).toEqual({ sent: 1, failed: 0, gone: 0 })
+  })
+
+  it('sends each result as its own notification, never inside the coming-up digest', async () => {
+    let groups = day(m('1', '2', { nowPlaying: true }), m('3', '4', { nowPlaying: true }), m('5', '6', { nowPlaying: true }))
+    const w = world({ records: [device('a', [followed('1'), followed('3'), followed('5')])], fetchDay: async () => groups, now: () => T0 })
+    await runWatcherTick(w.deps)
+    groups = day(m('1', '2', { winner: 1 }), m('3', '4', { winner: 2 }), m('5', '6', { winner: 1 }))
+    await runWatcherTick(w.deps)
+    expect(w.pushes.map((p) => p.payload.title)).toEqual(['Won', 'Lost', 'Won'])
+  })
+})

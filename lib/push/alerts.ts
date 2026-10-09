@@ -119,3 +119,42 @@ export function dueAlerts(input: {
   }
   return out
 }
+
+/** The results due now: for each device, each finished match with a player it
+ *  follows by name. A club follow brings no results — a club's day is dozens.
+ *
+ *  Only a result the watcher saw come in counts (`resultSeenAt`), and only for
+ *  a follow made before it did: following a player at three must not report
+ *  the match they won at nine. */
+export function dueResults(input: {
+  tournamentId: string
+  dateIso: string
+  groups: MatchScheduleGroup[]
+  records: PushSubscriptionRecord[]
+  alreadySent: (key: string) => boolean
+  /** When the watcher first saw this match's result arrive; undefined if it never did. */
+  resultSeenAt: (match: MatchEntry) => number | undefined
+}): DueAlert[] {
+  const { groups, records, alreadySent, dateIso, resultSeenAt } = input
+  const tid = input.tournamentId.toUpperCase()
+  const out: DueAlert[] = []
+
+  for (const group of groups) {
+    for (const match of group.matches) {
+      if (match.winner === null) continue
+      const seenAt = resultSeenAt(match)
+      if (seenAt === undefined) continue
+      for (const record of records) {
+        const followed = new Set(record.follows.flatMap((f) =>
+          f.kind === 'player' && f.tournamentId.toUpperCase() === tid && !(Date.parse(f.addedAt) > seenAt) ? [f.playerId] : []))
+        if (followed.size === 0) continue
+        const players = [...match.team1, ...match.team2].filter((p) => p.playerId && followed.has(p.playerId))
+        if (players.length === 0) continue
+        const sentKey = sentKeyFor(record.endpoint, tid, dateIso, match, 'result')
+        if (alreadySent(sentKey)) continue
+        out.push({ endpoint: record.endpoint, lang: record.lang, stage: 'result', position: 0, sentKey, covers: [sentKey], match, players, clubs: [] })
+      }
+    }
+  }
+  return out
+}

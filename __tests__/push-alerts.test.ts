@@ -1,4 +1,4 @@
-import { dueAlerts, normalizeClub, sentKeyFor, endpointHash } from '@/lib/push/alerts'
+import { dueAlerts, dueResults, normalizeClub, sentKeyFor, endpointHash } from '@/lib/push/alerts'
 import type { PushFollow, PushSubscriptionRecord } from '@/lib/push/types'
 import type { MatchEntry, MatchPlayer, MatchScheduleGroup } from '@/lib/types'
 
@@ -259,5 +259,60 @@ describe('dueAlerts — an opponent not yet decided', () => {
 
   it('does not alert a match with nobody in it', () => {
     expect(decide(day(DONE, m([], [])), [device('a', [player('1')])])).toEqual([])
+  })
+})
+
+describe('dueResults', () => {
+  const SEEN = Date.UTC(2026, 9, 9, 5, 0)
+  const before = new Date(SEEN - 60_000).toISOString()
+  const after = new Date(SEEN + 60_000).toISOString()
+  const since = (playerId: string, addedAt: string): PushFollow => ({ kind: 'player', tournamentId: TID, playerId, playerName: `P${playerId}`, addedAt })
+  const done = m(['1'], ['2'], { winner: 1, scores: [{ t1: 15, t2: 2 }] })
+  const results = (
+    groups: MatchScheduleGroup[],
+    records: PushSubscriptionRecord[],
+    over: { sent?: Set<string>; seen?: (m: MatchEntry) => number | undefined } = {},
+  ) => dueResults({
+    tournamentId: TID, dateIso: DAY, groups, records,
+    alreadySent: (k) => over.sent?.has(k) ?? false,
+    resultSeenAt: over.seen ?? (() => SEEN),
+  })
+
+  it('reports a result the watcher saw arrive, to a device following a player in it', () => {
+    const out = results(day(done, m(['3'], ['4'])), [device('a', [since('2', before)])])
+    expect(out).toHaveLength(1)
+    expect(out[0].stage).toBe('result')
+    expect(out[0].players.map((p) => p.playerId)).toEqual(['2'])
+    expect(out[0].covers).toEqual([sentKeyFor(out[0].endpoint, TID, DAY, done, 'result')])
+  })
+
+  it('says nothing about a result that was already there when the watcher first looked', () => {
+    expect(results(day(done), [device('a', [since('1', before)])], { seen: () => undefined })).toEqual([])
+  })
+
+  it('says nothing to someone who followed after the result came in', () => {
+    expect(results(day(done), [device('a', [since('1', after)])])).toEqual([])
+  })
+
+  it('does not report through a club follow', () => {
+    expect(results(day(done), [device('a', [club('Red')])])).toEqual([])
+  })
+
+  it('reports a walkover, and does not repeat a result already sent', () => {
+    const wo = m(['1'], ['2'], { winner: 2, walkover: true })
+    const first = results(day(wo), [device('a', [since('1', before)])])
+    expect(first).toHaveLength(1)
+    expect(results(day(wo), [device('a', [since('1', before)])], { sent: new Set([first[0].sentKey]) })).toEqual([])
+  })
+
+  it('reports one result once to a device following both players, and separately to each device', () => {
+    const out = results(day(done), [device('a', [since('1', before), since('2', before)]), device('b', [since('2', before)])])
+    expect(out.map((a) => `${a.endpoint.split('/').pop()}:${a.players.map((p) => p.playerId).join('+')}`)).toEqual(['a:1+2', 'b:2'])
+  })
+
+  it('ignores unfinished matches and follows in another tournament', () => {
+    const other: PushFollow = { kind: 'player', tournamentId: 'BBBBBBBB-0000-0000-0000-000000000002', playerId: '1', playerName: 'P1', addedAt: before }
+    expect(results(day(m(['1'], ['2'])), [device('a', [since('1', before)])])).toEqual([])
+    expect(results(day(done), [device('a', [other])])).toEqual([])
   })
 })

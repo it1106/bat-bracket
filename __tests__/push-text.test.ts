@@ -1,4 +1,4 @@
-import { alertPayload, digestPayload } from '@/lib/push/text'
+import { alertPayload, digestPayload, resultPayload } from '@/lib/push/text'
 import type { DueAlert } from '@/lib/push/types'
 import type { MatchEntry, MatchPlayer } from '@/lib/types'
 
@@ -108,5 +108,57 @@ describe('digestPayload', () => {
     const p = digestPayload(many(3), TID, '2026-10-09T10:15')
     expect(p.tag).toBe(`${TID}|2026-10-09T10:15`)
     expect(p.url).toBe(`/?tournament=${TID}`)
+  })
+})
+
+describe('resultPayload', () => {
+  const won = match({ winner: 1, scores: [{ t1: 15, t2: 2 }, { t1: 15, t2: 4 }] })
+  const result = (over: Partial<DueAlert> = {}) => alert({ stage: 'result', position: 0, match: won, ...over })
+
+  it('says the followed player won, with the score, the opponent, draw and round', () => {
+    const p = resultPayload(result(), TID)
+    expect(p.title).toBe('Won 15-2, 15-4')
+    expect(p.body).toBe('Anan Dee vs Beam Kla · BS U15 R32')
+    expect(p.url).toBe(`/?tournament=${TID}`)
+  })
+
+  it('says lost, with the score read from the followed side, when that side is listed second', () => {
+    const p = resultPayload(result({ players: [won.team2[0]] }), TID)
+    expect(p.title).toBe('Lost 2-15, 4-15')
+    expect(p.body).toBe('Beam Kla vs Anan Dee · BS U15 R32')
+  })
+
+  it('names a walkover and a retirement', () => {
+    const wo = match({ winner: 2, walkover: true })
+    expect(resultPayload(result({ match: wo }), TID).title).toBe('Lost by walkover')
+    expect(resultPayload(result({ match: wo, players: [wo.team2[0]] }), TID).title).toBe('Won by walkover')
+    const ret = match({ winner: 1, retired: true, scores: [{ t1: 15, t2: 9 }, { t1: 3, t2: 1 }] })
+    expect(resultPayload(result({ match: ret }), TID).title).toBe('Won 15-9, 3-1 (retired)')
+  })
+
+  it('says only won or lost when no score was published', () => {
+    expect(resultPayload(result({ match: match({ winner: 1 }) }), TID).title).toBe('Won')
+  })
+
+  it('takes no side when both players are followed', () => {
+    const p = resultPayload(result({ players: [won.team1[0], won.team2[0]] }), TID)
+    expect(p.title).toBe('Result')
+    expect(p.body).toBe('Anan Dee beat Beam Kla 15-2, 15-4 · BS U15 R32')
+  })
+
+  it('is written in Thai for a Thai device', () => {
+    expect(resultPayload(result({ lang: 'th' }), TID).title).toBe('ชนะ 15-2, 15-4')
+    expect(resultPayload(result({ lang: 'th' }), TID).body).toBe('Anan Dee พบ Beam Kla · BS U15 รอบ 32')
+    expect(resultPayload(result({ lang: 'th', players: [won.team2[0]] }), TID).title).toBe('แพ้ 2-15, 4-15')
+    const wo = match({ winner: 1, walkover: true })
+    expect(resultPayload(result({ lang: 'th', match: wo }), TID).title).toBe('ชนะ (คู่แข่งถอนตัว)')
+    expect(resultPayload(result({ lang: 'th', match: wo, players: [wo.team2[0]] }), TID).title).toBe('แพ้ (ถอนตัว)')
+    const both = resultPayload(result({ lang: 'th', players: [won.team1[0], won.team2[0]] }), TID)
+    expect(both.title).toBe('ผลการแข่งขัน')
+    expect(both.body).toBe('Anan Dee ชนะ Beam Kla 15-2, 15-4 · BS U15 รอบ 32')
+  })
+
+  it('carries the match tag, so it takes the place of the "next" alert on the device', () => {
+    expect(resultPayload(result(), TID).tag).toBe(alertPayload(alert({ match: match() }), TID).tag)
   })
 })
