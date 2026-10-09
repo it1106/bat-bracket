@@ -36,6 +36,15 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Origin', value: 'https://batmatch.app' },
         ],
       },
+      {
+        // The service worker must never be served stale, by the browser or by
+        // Cloudflare, or an update would not reach devices.
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
     ]
   },
 }
