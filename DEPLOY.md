@@ -30,6 +30,7 @@ git push
 ssh root@ezebat.lan
 cd ~/app
 git pull --ff-only
+npm install --no-audit --no-fund   # only needed when package.json changed; harmless otherwise
 npm run build
 pm2 reload bat-bracket
 pm2 list                        # confirm worker online
@@ -38,8 +39,12 @@ pm2 list                        # confirm worker online
 ## One-liner from local machine
 
 ```bash
-git push && ssh root@ezebat.lan "set -e; cd ~/app && git pull --ff-only && npm run build && pm2 reload bat-bracket && pm2 list | grep bat-bracket"
+git push && ssh root@ezebat.lan "set -e; cd ~/app && git pull --ff-only && npm install --no-audit --no-fund && npm run build && pm2 reload bat-bracket && pm2 list | grep bat-bracket"
 ```
+
+`npm install` is part of the deploy because a build against missing dependencies
+fails (or, worse, builds and then crashes at runtime). It takes a few seconds
+when nothing changed.
 
 ## ⚠️ Deploy hazard: Cloudflare caching build-time 404s
 
@@ -99,6 +104,7 @@ cd ~/app
 git fetch --all
 git checkout <branch>
 git pull --ff-only
+npm install --no-audit --no-fund
 npm run build
 pm2 reload bat-bracket
 ```
