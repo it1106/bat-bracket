@@ -223,12 +223,13 @@ describe('makeFetchDay', () => {
 })
 
 describe('finishedTournaments', () => {
-  const setup = (over: { days?: Record<string, string[] | null>; done?: string[]; batDown?: boolean; records?: PushSubscriptionRecord[]; fail?: string[] } = {}) => {
+  const setup = (over: { days?: Record<string, string[] | null>; done?: string[]; batDown?: boolean; records?: PushSubscriptionRecord[]; fail?: string[]; unlisted?: string[] } = {}) => {
     const asked: string[] = []
     const deps = {
       todayIso: () => DAY,
       isBatDown: () => !!over.batDown,
       listRecords: async () => over.records ?? [device('a', [follow('1'), follow('2', TID2.toLowerCase())])],
+      isListed: (id: string) => !(over.unlisted ?? []).includes(id),
       isDone: (id: string) => (over.done ?? []).includes(id),
       fetchDays: async (id: string) => {
         asked.push(id)
@@ -265,6 +266,12 @@ describe('finishedTournaments', () => {
     expect(await finishedTournaments(deps)).toEqual([])
     const broken = setup({ days: { [TID2]: ['2026-10-01'] }, fail: [TID] })
     expect(await finishedTournaments(broken.deps)).toEqual([TID2])
+  })
+
+  it('neither asks about nor names an id the site does not know', async () => {
+    const { deps, asked } = setup({ unlisted: [TID], done: [TID], days: { [TID]: ['2026-10-01'], [TID2]: ['2026-10-01'] } })
+    expect(await finishedTournaments(deps)).toEqual([TID2])
+    expect(asked).toEqual([TID2])
   })
 
   it('removes nothing and asks nothing while BAT is down, or when nobody follows anything', async () => {

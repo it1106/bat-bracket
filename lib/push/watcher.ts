@@ -145,6 +145,9 @@ export interface FinishedDeps {
   todayIso: () => string
   isBatDown: () => boolean
   listRecords: () => Promise<PushSubscriptionRecord[]>
+  /** Whether the id is a tournament the site knows. One it does not is never
+   *  asked about, and its follows stay. */
+  isListed: (tournamentId: string) => boolean
   /** The hand-set finished flag. */
   isDone: (tournamentId: string) => boolean
   fetchDays: (tournamentId: string) => Promise<string[] | null>
@@ -160,6 +163,7 @@ export async function finishedTournaments(deps: FinishedDeps): Promise<string[]>
   const yesterday = new Date(Date.parse(`${deps.todayIso()}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
   const out: string[] = []
   for (const id of followed) {
+    if (!deps.isListed(id)) continue
     if (deps.isDone(id)) { out.push(id); continue }
     const dates = await deps.fetchDays(id).catch(() => null)
     if (!dates || dates.length === 0) continue
@@ -227,6 +231,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
           todayIso: deps.todayIso,
           isBatDown: deps.isBatDown,
           listRecords: deps.listRecords,
+          isListed: (id) => listed.has(id),
           isDone: (id) => !!listed.get(id)?.done,
           fetchDays: makeFetchDays(opts.origin),
         })
