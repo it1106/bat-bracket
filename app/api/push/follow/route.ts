@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { pushConfig } from '@/lib/push/config'
 import { parseSubscription, parseTarget } from '@/lib/push/validate'
 import { clubLookup } from '@/lib/push/clubs'
-import { addFollow } from '@/lib/push/store'
+import { addFollow, getRecord } from '@/lib/push/store'
+import { allowNewDevice, clientAddress } from '@/lib/push/rate-limit'
 import { alertTournaments } from '@/lib/push/tournaments'
 
 export const dynamic = 'force-dynamic'
@@ -26,6 +27,11 @@ export async function POST(request: Request) {
   // A club follow can only name a club that tournament has.
   if (target.kind === 'club' && !(await clubLookup(target.tournamentId)).hasClub(target.clubName)) {
     return answer({ error: 'no such club in this tournament' }, 400)
+  }
+  // Only a device the server has not seen counts against the address, and
+  // only once everything else about the request has been accepted.
+  if (!(await getRecord(subscription.endpoint)) && !allowNewDevice(clientAddress(request), Date.now())) {
+    return answer({ error: 'too many new devices from this address today' }, 429)
   }
   const lang = body?.lang === 'th' ? 'th' : 'en'
   const result = await addFollow(subscription, lang, target, Date.now())

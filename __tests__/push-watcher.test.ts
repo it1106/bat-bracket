@@ -1,4 +1,4 @@
-import { runWatcherTick, __resetWatcherForTesting, type WatcherDeps } from '@/lib/push/watcher'
+import { runWatcherTick, makeFetchDay, __resetWatcherForTesting, type WatcherDeps } from '@/lib/push/watcher'
 import type { PushFollow, PushPayload, PushSubscriptionRecord } from '@/lib/push/types'
 import type { MatchEntry, MatchPlayer, MatchScheduleGroup } from '@/lib/types'
 import type { SendResult } from '@/lib/push/sender'
@@ -26,6 +26,7 @@ function world(over: Partial<WatcherDeps> & { records?: PushSubscriptionRecord[]
   const deps: WatcherDeps = {
     now: () => Date.UTC(2026, 9, 9, 3, 15),
     todayIso: () => DAY,
+    bangkokMinute: () => 12 * 60,
     isBatDown: () => false,
     listRecords: async () => over.records ?? [],
     isWatchable: () => true,
@@ -173,5 +174,50 @@ describe('runWatcherTick', () => {
     w.deps.record = (result, dayIso) => { seen.push(`${result}:${dayIso}`) }
     await runWatcherTick(w.deps)
     expect(seen.sort()).toEqual([`gone:${DAY}`, `ok:${DAY}`])
+  })
+})
+
+describe('runWatcherTick before play has started', () => {
+  const freshDay: MatchScheduleGroup[] = [{ type: 'time', time: '9:00', matches: [m('1', '2')] }]
+
+  it('sends nothing at midnight, and the alert still goes out in the morning', async () => {
+    let minute = 1
+    const w = world({ records: [device('a', [follow('1')])], days: { [TID]: freshDay } })
+    w.deps.bangkokMinute = () => minute
+    await runWatcherTick(w.deps)
+    expect(w.pushes).toEqual([])
+    minute = 8 * 60 + 40
+    await runWatcherTick(w.deps)
+    expect(w.pushes.map((p) => p.payload.title)).toEqual(['Up next'])
+  })
+})
+
+describe('makeFetchDay', () => {
+  const DAYS = { days: [{ date: '25691009', label: '', dateIso: DAY }] }
+  const reply = (body: unknown, ok = true) => ({ ok, status: ok ? 200 : 500, json: async () => body })
+
+  it('asks the app for the full schedule, then for today, and never forces a fresh read', async () => {
+    const calls: Array<{ url: string; hasSignal: boolean }> = []
+    const fetchFn = async (url: string, init?: { signal?: unknown }) => {
+      calls.push({ url, hasSignal: !!init?.signal })
+      return url.includes('&date=') ? reply({ groups: QUEUE() }) : reply(DAYS)
+    }
+    const groups = await makeFetchDay('http://127.0.0.1:3000', fetchFn as never)(TID, DAY)
+    expect(groups).toHaveLength(1)
+    expect(calls.map((c) => c.url)).toEqual([
+      `http://127.0.0.1:3000/api/matches?tournament=${TID}`,
+      `http://127.0.0.1:3000/api/matches?tournament=${TID}&date=25691009`,
+    ])
+    expect(calls.every((c) => c.hasSignal)).toBe(true)
+    expect(calls.some((c) => c.url.includes('fresh'))).toBe(false)
+  })
+
+  it('is null when the tournament has no day today, or the app answers with an error', async () => {
+    const none = async () => reply({ days: [{ date: '25691010', label: '', dateIso: '2026-10-10' }] })
+    expect(await makeFetchDay('http://x', none as never)(TID, DAY)).toBeNull()
+    const down = async () => reply({ error: 'x' }, false)
+    expect(await makeFetchDay('http://x', down as never)(TID, DAY)).toBeNull()
+    const half = async (url: string) => (url.includes('&date=') ? reply({ error: 'x' }, false) : reply(DAYS))
+    expect(await makeFetchDay('http://x', half as never)(TID, DAY)).toBeNull()
   })
 })

@@ -51,8 +51,9 @@ export interface PushClient {
   /** The server's public key, or null when match alerts are not set up. */
   publicKey(): Promise<string | null>
   currentSubscription(): Promise<PushSubscriptionJSON | null>
-  /** Asks for permission if needed, then subscribes. */
-  subscribe(publicKey: string): Promise<PushSubscriptionJSON | 'denied' | null>
+  /** Asks for permission if needed, then subscribes. 'denied' is a refusal;
+   *  'dismissed' is the prompt closed without an answer, which can be asked again. */
+  subscribe(publicKey: string): Promise<PushSubscriptionJSON | 'denied' | 'dismissed' | null>
   follow(subscription: PushSubscriptionJSON, lang: Lang, target: FollowTarget): Promise<{ follows: PushFollow[] } | { error: string; reason?: string }>
   unfollow(endpoint: string, target: FollowTarget): Promise<PushFollow[] | null>
   state(endpoint: string): Promise<PushFollow[] | null>
@@ -90,7 +91,7 @@ export const browserPushClient: PushClient = {
   async subscribe(publicKey) {
     try {
       const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
-      if (permission !== 'granted') return 'denied'
+      if (permission !== 'granted') return permission === 'denied' ? 'denied' : 'dismissed'
       const reg = await registration()
       await navigator.serviceWorker.ready
       const existing = await reg.pushManager.getSubscription()

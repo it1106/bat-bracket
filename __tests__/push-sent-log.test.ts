@@ -1,7 +1,7 @@
 import * as os from 'os'
 import * as path from 'path'
 import { promises as fs } from 'fs'
-import { hasSent, markSent, pruneSent, loadSentLog, __setSentRootForTesting } from '@/lib/push/sent-log'
+import { hasSent, markSent, pruneSent, loadSentLog, refreshSentLog, __setSentRootForTesting } from '@/lib/push/sent-log'
 
 let tmp = ''
 beforeEach(async () => {
@@ -50,5 +50,38 @@ describe('sent log', () => {
   it('marking nothing writes nothing', async () => {
     await markSent([], '2026-10-09')
     await expect(fs.stat(path.join(tmp, 'sent.json'))).rejects.toBeDefined()
+  })
+})
+
+describe('sent log shared between two workers', () => {
+  const file = () => path.join(tmp, 'sent.json')
+  const otherWorkerWrites = async (sent: Record<string, string>) => {
+    await fs.writeFile(file(), JSON.stringify({ version: 1, sent }), 'utf8')
+    const later = new Date(Date.now() + 5000)
+    await fs.utimes(file(), later, later)
+  }
+
+  it('picks up what the other worker sent before deciding again', async () => {
+    await markSent(['mine'], '2026-10-09')
+    await otherWorkerWrites({ mine: '2026-10-09', theirs: '2026-10-09' })
+    expect(hasSent('theirs')).toBe(false)
+    await refreshSentLog()
+    expect(hasSent('theirs')).toBe(true)
+    expect(hasSent('mine')).toBe(true)
+  })
+
+  it('does not wipe the other worker\'s entries with a stale copy when it next writes', async () => {
+    await markSent(['mine'], '2026-10-09')
+    await otherWorkerWrites({ theirs: '2026-10-09' })
+    await markSent(['more'], '2026-10-09')
+    const onDisk = JSON.parse(await fs.readFile(file(), 'utf8')).sent
+    expect(Object.keys(onDisk).sort()).toEqual(['mine', 'more', 'theirs'])
+  })
+
+  it('refreshing with no file, or an unchanged one, changes nothing', async () => {
+    await refreshSentLog()
+    await markSent(['a'], '2026-10-09')
+    await refreshSentLog()
+    expect(hasSent('a')).toBe(true)
   })
 })

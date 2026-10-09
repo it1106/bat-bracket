@@ -7,6 +7,8 @@ import type { DueAlert, PushSubscriptionRecord } from './types'
 export interface WatcherDeps {
   now: () => number
   todayIso: () => string
+  /** Minutes since midnight, Bangkok time. */
+  bangkokMinute: () => number
   isBatDown: () => boolean
   listRecords: () => Promise<PushSubscriptionRecord[]>
   /** Whether a tournament is worth asking about: listed, BAT, not finished. */
@@ -56,7 +58,7 @@ export async function runWatcherTick(deps: WatcherDeps): Promise<{ sent: number;
       const groups = await deps.fetchDay(tournamentId, dateIso)
       if (!groups) continue
       const clubOf = await deps.clubOf(tournamentId)
-      due = dueAlerts({ tournamentId, dateIso, groups, records, clubOf, alreadySent: deps.hasSent })
+      due = dueAlerts({ tournamentId, dateIso, groups, records, clubOf, alreadySent: deps.hasSent, nowMinutes: deps.bangkokMinute() })
     } catch (err) {
       console.warn(`[push] tick skipped ${tournamentId}:`, err instanceof Error ? err.message : err)
       continue
@@ -104,6 +106,27 @@ export async function runWatcherTick(deps: WatcherDeps): Promise<{ sent: number;
   return tally
 }
 
+// A schedule read that never answers must not hold the watcher up.
+const FETCH_TIMEOUT_MS = 20_000
+
+type FetchLike = (url: string, init?: { signal?: AbortSignal }) => Promise<{ ok: boolean; json: () => Promise<unknown> }>
+
+/** Today's schedule for a tournament through the app's own schedule route, so
+ *  the watcher shares the one-minute cache with visitors and the warmer and
+ *  never asks BAT itself. Null when there is no day today or the app says no. */
+export function makeFetchDay(origin: string, fetchFn: FetchLike = fetch as unknown as FetchLike) {
+  return async (tournamentId: string, dateIso: string): Promise<MatchScheduleGroup[] | null> => {
+    const base = `${origin}/api/matches?tournament=${encodeURIComponent(tournamentId)}`
+    const full = await fetchFn(base, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+    if (!full.ok) return null
+    const day = ((await full.json()) as MatchesData).days?.find((d) => d.dateIso === dateIso)
+    if (!day?.date) return null
+    const res = await fetchFn(`${base}&date=${encodeURIComponent(day.date)}`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+    if (!res.ok) return null
+    return ((await res.json()) as Pick<MatchesData, 'groups'>).groups ?? null
+  }
+}
+
 const TICK_MS = 60_000
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -123,29 +146,17 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
   const { clubLookup } = await import('./clubs')
   const { recordPush } = await import('./stats')
   const { batDownSince } = await import('@/lib/bat-outages')
-  const { getTodayIso } = await import('@/lib/today')
+  const { getTodayIso, getBangkokHour, getBangkokMinute } = await import('@/lib/today')
   const { alertTournaments } = await import('./tournaments')
-
-  // The app's own schedule route, so the watcher shares the one-minute cache
-  // with visitors and the warmer and never asks BAT itself.
-  const fetchDay = async (tournamentId: string, dateIso: string): Promise<MatchScheduleGroup[] | null> => {
-    const base = `${opts.origin}/api/matches?tournament=${encodeURIComponent(tournamentId)}`
-    const full = await fetch(base)
-    if (!full.ok) return null
-    const day = ((await full.json()) as MatchesData).days?.find((d) => d.dateIso === dateIso)
-    if (!day?.date) return null
-    const res = await fetch(`${base}&date=${encodeURIComponent(day.date)}`)
-    if (!res.ok) return null
-    return ((await res.json()) as Pick<MatchesData, 'groups'>).groups ?? null
-  }
 
   const deps: WatcherDeps = {
     now: () => Date.now(),
     todayIso: () => getTodayIso(),
+    bangkokMinute: () => getBangkokHour() * 60 + getBangkokMinute(),
     isBatDown: () => !!batDownSince(),
     listRecords: store.listRecords,
     isWatchable: (id) => { const t = listed.get(id); return !!t && !t.done },
-    fetchDay,
+    fetchDay: makeFetchDay(opts.origin),
     clubOf: async (tournamentId) => (await clubLookup(tournamentId)).clubOf,
     hasSent: sentLog.hasSent,
     markSent: sentLog.markSent,
@@ -167,9 +178,12 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
       const today = deps.todayIso()
       if (today !== lastPruneDay) {
         lastPruneDay = today
+        failures.clear()
         await sentLog.pruneSent(today)
         await store.pruneStale(deps.now())
       }
+      // Another worker may have been the one sending until now.
+      await sentLog.refreshSentLog()
       listed = await alertTournaments()
       const r = await runWatcherTick(deps)
       if (r.sent || r.failed || r.gone) console.log(`[push] tick sent=${r.sent} failed=${r.failed} gone=${r.gone}`)

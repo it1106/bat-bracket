@@ -18,6 +18,12 @@ export function isGuid(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 }
 
+/** Base64 or URL-safe base64 as bytes; null when it is neither. */
+function decodeKey(value: string): Buffer | null {
+  if (!/^[A-Za-z0-9+/_-]+=*$/.test(value)) return null
+  return Buffer.from(value.replace(/-/g, '+').replace(/_/g, '/'), 'base64')
+}
+
 const short = (v: unknown, max: number): v is string => typeof v === 'string' && v.length > 0 && v.length <= max
 
 export function parseSubscription(value: unknown): { endpoint: string; keys: PushKeys } | null {
@@ -25,6 +31,12 @@ export function parseSubscription(value: unknown): { endpoint: string; keys: Pus
   const v = value as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } }
   if (!isPushEndpoint(v.endpoint) || !v.keys) return null
   if (!short(v.keys.p256dh, 200) || !short(v.keys.auth, 200)) return null
+  // What a browser hands over: an uncompressed P-256 point (65 bytes, first
+  // one 0x04) and a 16-byte secret. Anything else could never be sent to, and
+  // would sit in the store for good.
+  const point = decodeKey(v.keys.p256dh)
+  const secret = decodeKey(v.keys.auth)
+  if (!point || point.length !== 65 || point[0] !== 4 || !secret || secret.length !== 16) return null
   return { endpoint: v.endpoint, keys: { p256dh: v.keys.p256dh, auth: v.keys.auth } }
 }
 

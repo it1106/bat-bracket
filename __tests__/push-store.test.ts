@@ -79,8 +79,8 @@ describe('push store', () => {
 
   it('touch refreshes last-seen and returns the follows; null for a stranger', async () => {
     await addFollow(sub('a'), 'en', player('1'), T0)
-    expect(await touchRecord(sub('a').endpoint, T0 + DAY)).toHaveLength(1)
-    expect((await getRecord(sub('a').endpoint))!.lastSeenAt).toBe(new Date(T0 + DAY).toISOString())
+    expect(await touchRecord(sub('a').endpoint, T0 + 2 * DAY)).toHaveLength(1)
+    expect((await getRecord(sub('a').endpoint))!.lastSeenAt).toBe(new Date(T0 + 2 * DAY).toISOString())
     expect(await touchRecord(sub('nobody').endpoint, T0)).toBeNull()
   })
 
@@ -138,5 +138,44 @@ describe('push store', () => {
     await fs.writeFile(path.join(tmp, 'subscriptions.json'), JSON.stringify({ version: 1, records: [{ endpoint: 5 }, null, 'x'] }), 'utf8')
     __setPushRootForTesting(tmp)
     expect(await listRecords()).toEqual([])
+  })
+})
+
+describe('push store loaded twice in one process', () => {
+  // Next builds the watcher's code and the routes' code as separate copies of
+  // this module; both must be the same store.
+  it('two copies of the module share one set of records and do not trip over each other\'s writes', async () => {
+    let other!: typeof import('@/lib/push/store')
+    jest.isolateModules(() => { other = require('../lib/push/store') })
+    expect(other.addFollow).not.toBe(addFollow)
+    await Promise.all([
+      ...Array.from({ length: 10 }, (_, i) => addFollow(sub(`a${i}`), 'en', player('1'), T0)),
+      ...Array.from({ length: 10 }, (_, i) => other.addFollow(sub(`b${i}`), 'en', player('1'), T0)),
+    ])
+    expect(await listRecords()).toHaveLength(20)
+    expect(await other.listRecords()).toHaveLength(20)
+    __setPushRootForTesting(tmp)
+    expect(await listRecords()).toHaveLength(20)
+    expect((await fs.readdir(tmp)).filter((f) => f.includes('.tmp'))).toEqual([])
+  })
+})
+
+describe('touchRecord', () => {
+  const mtime = async () => (await fs.stat(path.join(tmp, 'subscriptions.json'))).mtimeMs
+
+  it('does not rewrite the file for a device seen within the last day', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    const before = await mtime()
+    expect(await touchRecord(sub('a').endpoint, T0 + 60_000)).toHaveLength(1)
+    expect(await touchRecord(sub('a').endpoint, T0 + DAY - 1)).toHaveLength(1)
+    expect(await mtime()).toBe(before)
+    expect((await getRecord(sub('a').endpoint))!.lastSeenAt).toBe(new Date(T0).toISOString())
+  })
+
+  it('does write once a day has passed, which is what keeps the device from being pruned', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    await touchRecord(sub('a').endpoint, T0 + DAY + 1)
+    __setPushRootForTesting(tmp)
+    expect((await getRecord(sub('a').endpoint))!.lastSeenAt).toBe(new Date(T0 + DAY + 1).toISOString())
   })
 })

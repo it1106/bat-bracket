@@ -10,6 +10,8 @@ export type Sender = (record: Pick<PushSubscriptionRecord, 'endpoint' | 'keys'>,
 
 // An alert that cannot be delivered within ten minutes is no longer useful.
 const TTL_SECONDS = 600
+// A push service that never answers must not hold the watcher up.
+const SEND_TIMEOUT_MS = 10_000
 
 export function webPushSender(config: PushConfig, send: typeof webpush.sendNotification = webpush.sendNotification): Sender {
   return async (record, payload) => {
@@ -17,7 +19,7 @@ export function webPushSender(config: PushConfig, send: typeof webpush.sendNotif
       await send(
         { endpoint: record.endpoint, keys: record.keys },
         JSON.stringify(payload),
-        { TTL: TTL_SECONDS, urgency: 'high', vapidDetails: config },
+        { TTL: TTL_SECONDS, urgency: 'high', vapidDetails: config, timeout: SEND_TIMEOUT_MS },
       )
       return 'ok'
     } catch (err) {

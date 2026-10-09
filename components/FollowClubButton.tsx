@@ -51,7 +51,8 @@ export default function FollowClubButton({ tournamentId, clubName }: { tournamen
       const outcome = await push.follow({ kind: 'club', tournamentId, clubName })
       if (outcome === 'ok') track('match_alert_followed', props)
       else if (outcome === 'denied') blocked('denied', 'followBlocked')
-      else setNote(outcome === 'limit' ? 'followLimit' : 'followError')
+      // closed without an answer: nothing is blocked, the next tap asks again
+      else if (outcome !== 'dismissed') setNote(outcome === 'limit' ? 'followLimit' : 'followError')
     } finally {
       setBusy(false)
     }

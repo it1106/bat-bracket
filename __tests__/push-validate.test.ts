@@ -31,7 +31,9 @@ describe('isPushEndpoint', () => {
 })
 
 describe('parseSubscription', () => {
-  const good = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc', keys: { p256dh: 'BPk', auth: 'q1' } }
+  const P256DH = Buffer.concat([Buffer.from([4]), Buffer.alloc(64, 7)]).toString('base64url')
+  const AUTH = Buffer.alloc(16, 9).toString('base64url')
+  const good = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc', keys: { p256dh: P256DH, auth: AUTH } }
   it('keeps the endpoint and the two keys, nothing else', () => {
     expect(parseSubscription({ ...good, expirationTime: null, extra: 1 })).toEqual(good)
   })
@@ -41,6 +43,21 @@ describe('parseSubscription', () => {
     { endpoint: good.endpoint, keys: { p256dh: 5, auth: 'x' } },
     { endpoint: good.endpoint, keys: { p256dh: 'x'.repeat(300), auth: 'x' } },
   ])('rejects %p', (v) => { expect(parseSubscription(v)).toBeNull() })
+
+  it('rejects keys that are not what a browser produces', () => {
+    const with_ = (keys: Record<string, string>) => parseSubscription({ endpoint: good.endpoint, keys: { ...good.keys, ...keys } })
+    expect(with_({ p256dh: 'BPk' })).toBeNull()
+    expect(with_({ p256dh: Buffer.alloc(65, 7).toString('base64url') })).toBeNull() // not an uncompressed point
+    expect(with_({ p256dh: Buffer.concat([Buffer.from([4]), Buffer.alloc(63, 7)]).toString('base64url') })).toBeNull()
+    expect(with_({ auth: 'q1' })).toBeNull()
+    expect(with_({ auth: Buffer.alloc(15, 9).toString('base64url') })).toBeNull()
+    expect(with_({ auth: 'not base64 !!' })).toBeNull()
+  })
+
+  it('accepts ordinary base64 as well as the URL-safe kind', () => {
+    const std = Buffer.concat([Buffer.from([4]), Buffer.alloc(64, 0xfb)]).toString('base64')
+    expect(parseSubscription({ endpoint: good.endpoint, keys: { p256dh: std, auth: good.keys.auth } })).not.toBeNull()
+  })
 })
 
 describe('parseTarget', () => {

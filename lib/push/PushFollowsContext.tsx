@@ -5,7 +5,7 @@ import { useLanguage } from '@/lib/LanguageContext'
 import { browserPushClient, type PushClient, type PushEnvironment } from './client'
 import type { FollowTarget, PushFollow } from './types'
 
-export type FollowOutcome = 'ok' | 'denied' | 'limit' | 'error'
+export type FollowOutcome = 'ok' | 'denied' | 'dismissed' | 'limit' | 'error'
 
 export interface PushFollowsValue {
   /** 'off' until the server says match alerts are set up. */
@@ -71,7 +71,7 @@ export function PushFollowsProvider({ children, client = browserPushClient }: { 
     if (client.permission() === 'denied') { setPermission('denied'); return 'denied' }
     const sub = await client.subscribe(key)
     setPermission(client.permission())
-    if (sub === 'denied') return 'denied'
+    if (sub === 'denied' || sub === 'dismissed') return sub
     if (!sub) return 'error'
     const result = await client.follow(sub, lang, target)
     if ('follows' in result) { setFollows(result.follows); return 'ok' }

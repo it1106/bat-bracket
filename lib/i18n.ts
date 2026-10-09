@@ -337,6 +337,7 @@ export type TKey =
   | 'followPlayer'
   | 'followingPlayer'
   | 'followingViaClub'
+  | 'followViaClubNote'
   | 'followBlocked'
   | 'followNeedsInstall'
   | 'followInAppBrowser'
@@ -672,6 +673,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     followPlayer: 'Follow',
     followingPlayer: 'Following',
     followingViaClub: 'Following (club)',
+    followViaClubNote: 'You follow this player through their club. To stop, unfollow the club from the bell at the top.',
     followBlocked: 'Notifications are blocked for this site. Allow them in your browser\'s site settings, then tap Follow again.',
     followNeedsInstall: 'On iPhone, alerts need BATMatch on your home screen: tap Share, then "Add to Home Screen", and open it from there.',
     followInAppBrowser: 'Alerts do not work inside this app\'s browser. Open BATMatch in Chrome or Safari.',
@@ -1039,6 +1041,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     followPlayer: 'ติดตาม',
     followingPlayer: 'กำลังติดตาม',
     followingViaClub: 'กำลังติดตาม (สโมสร)',
+    followViaClubNote: 'คุณติดตามนักกีฬาคนนี้ผ่านสโมสร หากต้องการเลิก ให้เลิกติดตามสโมสรที่ปุ่มกระดิ่งด้านบน',
     followBlocked: 'เว็บไซต์นี้ถูกปิดการแจ้งเตือน กรุณาอนุญาตในการตั้งค่าเว็บไซต์ของเบราว์เซอร์ แล้วแตะติดตามอีกครั้ง',
     followNeedsInstall: 'บน iPhone ต้องเพิ่ม BATMatch ไว้ที่หน้าจอโฮมก่อน: แตะแชร์ แล้วเลือก "เพิ่มไปยังหน้าจอโฮม" จากนั้นเปิดจากไอคอนนั้น',
     followInAppBrowser: 'การแจ้งเตือนใช้ไม่ได้ในเบราว์เซอร์ของแอปนี้ กรุณาเปิด BATMatch ใน Chrome หรือ Safari',

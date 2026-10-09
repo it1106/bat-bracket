@@ -70,6 +70,16 @@ describe('FollowClubButton', () => {
     await waitFor(() => expect(note()).toContain('home screen'))
   })
 
+  it('says nothing untrue when the prompt is closed without an answer', async () => {
+    localStorage.setItem('batbracket.followClubWarned', '1')
+    mount(fakeClient({ subscribe: async () => 'dismissed' }))
+    await waitFor(() => expect(button()).not.toBeNull())
+    fireEvent.click(button()!)
+    await waitFor(() => expect(button()!.disabled).toBe(false))
+    expect(note()).toBe('')
+    expect(button()!.getAttribute('aria-pressed')).toBe('false')
+  })
+
   it('explains a denied prompt', async () => {
     localStorage.setItem('batbracket.followClubWarned', '1')
     mount(fakeClient({ subscribe: async () => 'denied' }))

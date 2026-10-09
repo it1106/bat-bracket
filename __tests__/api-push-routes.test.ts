@@ -1,5 +1,6 @@
 jest.mock('../lib/push/config', () => ({ pushConfig: jest.fn() }))
-jest.mock('../lib/push/store', () => ({ addFollow: jest.fn(), removeFollow: jest.fn(), touchRecord: jest.fn() }))
+jest.mock('../lib/push/store', () => ({ addFollow: jest.fn(), removeFollow: jest.fn(), touchRecord: jest.fn(), getRecord: jest.fn() }))
+jest.mock('../lib/push/rate-limit', () => ({ allowNewDevice: jest.fn(), clientAddress: jest.fn().mockReturnValue('1.2.3.4') }))
 jest.mock('../lib/push/clubs', () => ({ clubLookup: jest.fn() }))
 jest.mock('../lib/push/tournaments', () => ({ alertTournaments: jest.fn() }))
 
@@ -8,13 +9,17 @@ import { POST as follow } from '@/app/api/push/follow/route'
 import { POST as unfollow } from '@/app/api/push/unfollow/route'
 import { POST as state } from '@/app/api/push/state/route'
 import { pushConfig } from '@/lib/push/config'
-import { addFollow, removeFollow, touchRecord } from '@/lib/push/store'
+import { addFollow, removeFollow, touchRecord, getRecord } from '@/lib/push/store'
+import { allowNewDevice } from '@/lib/push/rate-limit'
 import { clubLookup } from '@/lib/push/clubs'
 import { alertTournaments } from '@/lib/push/tournaments'
 
 const TID = 'aaaaaaaa-0000-0000-0000-000000000001'
 const ENDPOINT = 'https://fcm.googleapis.com/fcm/send/abc'
-const SUB = { endpoint: ENDPOINT, keys: { p256dh: 'p', auth: 'a' } }
+const SUB = {
+  endpoint: ENDPOINT,
+  keys: { p256dh: Buffer.concat([Buffer.from([4]), Buffer.alloc(64, 7)]).toString('base64url'), auth: Buffer.alloc(16, 9).toString('base64url') },
+}
 const PLAYER = { kind: 'player', tournamentId: TID, playerId: '42', playerName: 'Anan Dee' }
 const CLUB = { kind: 'club', tournamentId: TID, clubName: 'Red Club' }
 
@@ -22,6 +27,8 @@ const config = pushConfig as jest.Mock
 const add = addFollow as jest.Mock
 const remove = removeFollow as jest.Mock
 const touch = touchRecord as jest.Mock
+const known = getRecord as jest.Mock
+const allow = allowNewDevice as jest.Mock
 const clubs = clubLookup as jest.Mock
 const listed = alertTournaments as jest.Mock
 
@@ -32,6 +39,8 @@ beforeEach(() => {
   add.mockReset().mockResolvedValue({ ok: true, follows: [{ kind: 'player' }] })
   remove.mockReset().mockResolvedValue([])
   touch.mockReset().mockResolvedValue([{ kind: 'player' }])
+  known.mockReset().mockResolvedValue(null)
+  allow.mockReset().mockReturnValue(true)
   clubs.mockReset().mockResolvedValue({ clubOf: () => undefined, hasClub: (n: string) => n === 'Red Club' })
   listed.mockReset().mockResolvedValue(new Map([[TID.toUpperCase(), { done: false }]]))
 })
@@ -104,6 +113,28 @@ describe('POST /api/push/follow', () => {
     const res = await follow(post({ subscription: SUB, lang: 'en', target: PLAYER }))
     expect(res.status).toBe(429)
     expect((await res.json()).reason).toBe(reason)
+  })
+
+  it('is 429 for an address that has registered too many new devices today, with no "limit" reason', async () => {
+    allow.mockReturnValue(false)
+    const res = await follow(post({ subscription: SUB, lang: 'en', target: PLAYER }))
+    expect(res.status).toBe(429)
+    expect((await res.json()).reason).toBeUndefined()
+    expect(add).not.toHaveBeenCalled()
+  })
+
+  it('never holds back a device the server already knows', async () => {
+    allow.mockReturnValue(false)
+    known.mockResolvedValue({ endpoint: ENDPOINT, follows: [] })
+    expect((await follow(post({ subscription: SUB, lang: 'en', target: PLAYER }))).status).toBe(200)
+    expect(allow).not.toHaveBeenCalled()
+  })
+
+  it('does not count a refused request against the address', async () => {
+    await follow(post({ subscription: SUB, lang: 'en', target: { ...PLAYER, playerId: '1;x' } }))
+    listed.mockResolvedValue(new Map())
+    await follow(post({ subscription: SUB, lang: 'en', target: PLAYER }))
+    expect(allow).not.toHaveBeenCalled()
   })
 
   it('is 404 when the feature is off, and stores nothing', async () => {

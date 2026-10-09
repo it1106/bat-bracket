@@ -23,6 +23,24 @@ export function sentKeyFor(endpoint: string, tournamentId: string, dateIso: stri
 const SOON_FROM = 2
 const SOON_TO = 4
 
+// Before any match of the day has been played, how close a slot must be.
+const LEAD_BEFORE_FIRST_SLOT = 30
+
+/** "9:00", "09:00" or "9.00" as minutes since midnight; null when unreadable. */
+function slotMinutes(time: string): number | null {
+  const m = time.match(/(\d{1,2})[:.](\d{2})/)
+  if (!m) return null
+  const h = parseInt(m[1], 10)
+  const min = parseInt(m[2], 10)
+  return h < 24 && min < 60 ? h * 60 + min : null
+}
+
+/** Whether the day is under way: a match is on court, or one has been played.
+ *  A walkover is not play. */
+function playHasStarted(groups: MatchScheduleGroup[]): boolean {
+  return groups.some((g) => g.matches.some((m) => m.nowPlaying || (m.winner !== null && !m.walkover)))
+}
+
 /** The alerts due now: for each device, each followed match at the front of
  *  the queue (`next`) or two to four places from it (`soon`) that has not been
  *  sent yet. One match is one alert per stage however the device follows it. */
@@ -33,8 +51,10 @@ export function dueAlerts(input: {
   records: PushSubscriptionRecord[]
   clubOf: (playerId: string) => string | undefined
   alreadySent: (key: string) => boolean
+  /** Minutes since midnight, Bangkok time. */
+  nowMinutes: number
 }): DueAlert[] {
-  const { groups, records, clubOf, alreadySent, dateIso } = input
+  const { groups, records, clubOf, alreadySent, dateIso, nowMinutes } = input
   const tid = input.tournamentId.toUpperCase()
 
   const watching = records
@@ -53,15 +73,27 @@ export function dueAlerts(input: {
   if (watching.length === 0) return []
 
   const order = computePlayingOrder({ groups, liveByCourt: null })
+  // Until a match has been played or is on court, the queue says nothing about
+  // the time: the day's first match is "next" from midnight on. Before play
+  // starts a match is therefore only alerted when its own time slot is near.
+  const started = playHasStarted(groups)
   const out: DueAlert[] = []
 
   for (let gi = 0; gi < groups.length; gi++) {
-    const matches = groups[gi].matches
+    const group = groups[gi]
+    const matches = group.matches
+    if (!started) {
+      const slot = group.type === 'time' ? slotMinutes(group.time) : null
+      if (slot === null || slot - nowMinutes > LEAD_BEFORE_FIRST_SLOT) continue
+    }
     for (let mi = 0; mi < matches.length; mi++) {
       const position = order.get(`${gi}-${mi}`)
       if (position === undefined) continue
       const match = matches[mi]
       if (match.winner !== null || match.walkover || match.nowPlaying) continue
+      // An opponent not yet decided: wait. Alerting now would name nobody, and
+      // the match would be alerted again as a different one once it is known.
+      if (match.team1.length === 0 || match.team2.length === 0) continue
       const stage: Stage | null = position === 1 ? 'next' : position >= SOON_FROM && position <= SOON_TO ? 'soon' : null
       if (!stage) continue
 

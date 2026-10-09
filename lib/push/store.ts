@@ -13,26 +13,44 @@ export const MAX_PLAYER_FOLLOWS = 50
 export const MAX_CLUB_FOLLOWS = 10
 export const MAX_DEVICES = 5000
 export const STALE_DAYS = 60
+const TOUCH_EVERY_MS = 86_400_000
 
 export type FollowResult =
   | { ok: true; follows: PushFollow[] }
   | { ok: false; reason: 'player-limit' | 'club-limit' | 'device-limit' }
 
-let root = path.join(process.cwd(), '.cache', 'push')
-let records: Map<string, PushSubscriptionRecord> | null = null
-/** The file's modified time when it was last read or written here. Another
- *  worker's write changes it, and the next use reads the file again. */
-let readMtimeMs: number | null = null
-let chain: Promise<unknown> = Promise.resolve()
-
-export function __setPushRootForTesting(dir: string): void {
-  root = dir
-  records = null
-  readMtimeMs = null
-  chain = Promise.resolve()
+// Kept on globalThis: Next builds the watcher (instrumentation) and the API
+// routes as separate copies of this module in the same process. With a copy of
+// the state each, they would write over one another; with one state and one
+// chain they take turns. The same reason as lib/bat-fetch-stats.ts.
+interface StoreState {
+  root: string
+  records: Map<string, PushSubscriptionRecord> | null
+  /** The file's modified time when it was last read or written here. Another
+   *  worker's write changes it, and the next use reads the file again. */
+  readMtimeMs: number | null
+  chain: Promise<unknown>
+  /** Makes every temp file name its own, whoever writes it. */
+  writes: number
 }
 
-const file = () => path.join(root, 'subscriptions.json')
+const g = globalThis as typeof globalThis & { __batmatchPushStore?: StoreState }
+const state: StoreState = (g.__batmatchPushStore ??= {
+  root: path.join(process.cwd(), '.cache', 'push'),
+  records: null,
+  readMtimeMs: null,
+  chain: Promise.resolve(),
+  writes: 0,
+})
+
+export function __setPushRootForTesting(dir: string): void {
+  state.root = dir
+  state.records = null
+  state.readMtimeMs = null
+  state.chain = Promise.resolve()
+}
+
+const file = () => path.join(state.root, 'subscriptions.json')
 
 function isRecord(v: unknown): v is PushSubscriptionRecord {
   if (typeof v !== 'object' || v === null) return false
@@ -50,8 +68,8 @@ async function load(): Promise<Map<string, PushSubscriptionRecord>> {
   // watcher. Each worker therefore trusts its copy only while the file is the
   // one it last read or wrote.
   const mtime = await mtimeOf()
-  if (records && mtime === readMtimeMs) return records
-  readMtimeMs = mtime
+  if (state.records && mtime === state.readMtimeMs) return state.records
+  state.readMtimeMs = mtime
   const map = new Map<string, PushSubscriptionRecord>()
   try {
     const parsed = JSON.parse(await fs.readFile(file(), 'utf8')) as { records?: unknown }
@@ -65,27 +83,35 @@ async function load(): Promise<Map<string, PushSubscriptionRecord>> {
       console.warn('[push] subscriptions unreadable, starting empty:', err instanceof Error ? err.message : err)
     }
   }
-  records = map
+  state.records = map
   return map
 }
 
 async function save(map: Map<string, PushSubscriptionRecord>): Promise<void> {
-  const tmp = `${file()}.tmp.${process.pid}`
-  await fs.mkdir(root, { recursive: true })
+  const tmp = `${file()}.tmp.${process.pid}.${++state.writes}`
+  await fs.mkdir(state.root, { recursive: true })
   await fs.writeFile(tmp, JSON.stringify({ version: 1, records: Array.from(map.values()) }), 'utf8')
   await fs.rename(tmp, file())
-  readMtimeMs = await mtimeOf()
+  state.readMtimeMs = await mtimeOf()
 }
 
 /** Runs one change at a time over the loaded map, and writes it when asked. */
 function change<T>(fn: (map: Map<string, PushSubscriptionRecord>) => { value: T; dirty: boolean }): Promise<T> {
-  const run = chain.then(async () => {
-    const map = await load()
-    const { value, dirty } = fn(map)
-    if (dirty) await save(map)
-    return value
+  const run = state.chain.then(async () => {
+    let map = await load()
+    let result = fn(map)
+    if (result.dirty) {
+      // Another worker may have written between the read and now. If so, take
+      // its file and make the change again on top of it, so neither is lost.
+      if ((await mtimeOf()) !== state.readMtimeMs) {
+        map = await load()
+        result = fn(map)
+      }
+      if (result.dirty) await save(map)
+    }
+    return result.value
   })
-  chain = run.catch(() => undefined)
+  state.chain = run.catch(() => undefined)
   return run
 }
 
@@ -151,6 +177,10 @@ export async function touchRecord(endpoint: string, now: number): Promise<PushFo
   return change((map) => {
     const rec = map.get(endpoint)
     if (!rec) return { value: null, dirty: false }
+    // Every page load of a subscribed device comes through here. The date only
+    // feeds the 60-day prune, so once a day is often enough to write it.
+    const seen = Date.parse(rec.lastSeenAt)
+    if (!Number.isNaN(seen) && now - seen < TOUCH_EVERY_MS) return { value: rec.follows.slice(), dirty: false }
     rec.lastSeenAt = new Date(now).toISOString()
     return { value: rec.follows.slice(), dirty: true }
   })

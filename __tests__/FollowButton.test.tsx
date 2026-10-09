@@ -117,9 +117,21 @@ describe('FollowButton', () => {
     mount(client, { clubName: 'red club' })
     await waitFor(() => expect(button()?.textContent).toContain('Following (club)'))
     fireEvent.click(button()!)
-    await Promise.resolve()
+    await waitFor(() => expect(note()).toContain('unfollow the club'))
     expect(client.calls).not.toContain('unfollow')
     expect(client.calls).not.toContain('follow:en')
+  })
+
+  it('says nothing untrue when the prompt is closed without an answer', async () => {
+    const client = fakeClient({ subscribe: async () => 'dismissed' })
+    mount(client)
+    await waitFor(() => expect(button()).not.toBeNull())
+    fireEvent.click(button()!)
+    await waitFor(() => expect(button()!.disabled).toBe(false))
+    expect(note()).toBe('')
+    expect(button()!.getAttribute('aria-pressed')).toBe('false')
+    expect(client.calls).not.toContain('follow:en')
+    expect(track).not.toHaveBeenCalled()
   })
 
   it('is written in Thai', async () => {

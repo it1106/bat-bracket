@@ -28,9 +28,10 @@ const device = (name: string, follows: PushFollow[], lang: 'en' | 'th' = 'en'): 
 const decide = (
   groups: MatchScheduleGroup[],
   records: PushSubscriptionRecord[],
-  over: { sent?: Set<string>; clubs?: Record<string, string> } = {},
+  over: { sent?: Set<string>; clubs?: Record<string, string>; now?: number } = {},
 ) => dueAlerts({
   tournamentId: TID, dateIso: DAY, groups, records,
+  nowMinutes: over.now ?? 12 * 60,
   clubOf: (id) => over.clubs?.[id],
   alreadySent: (k) => over.sent?.has(k) ?? false,
 })
@@ -189,5 +190,74 @@ describe('dueAlerts — clubs', () => {
 
   it('never treats an empty club name as a club', () => {
     expect(decide(queue(), [device('a', [club('  ')])], { clubs: { '1': '' } })).toEqual([])
+  })
+})
+
+describe('dueAlerts — before play has started', () => {
+  // A fresh day: nothing played, nothing on court. The queue rule alone would
+  // call the first match "next" from midnight on.
+  const fresh = (time: string): MatchScheduleGroup[] => [{ type: 'time', time, matches: [m(['1'], ['2']), m(['3'], ['4'])] }]
+  const both = [device('a', [player('1'), player('3')])]
+  const at = (h: number, min: number) => h * 60 + min
+
+  it('sends nothing at midnight for matches that start in the morning', () => {
+    expect(decide(fresh('9:00'), both, { now: at(0, 1) })).toEqual([])
+  })
+
+  it('sends nothing to someone who follows hours before the first slot', () => {
+    expect(decide(fresh('9:00'), both, { now: at(7, 30) })).toEqual([])
+    expect(decide(fresh('9:00'), both, { now: at(8, 29) })).toEqual([])
+  })
+
+  it('alerts the first matches once their slot is half an hour away', () => {
+    expect(brief(decide(fresh('9:00'), both, { now: at(8, 30) })).sort()).toEqual(['a:next:1v2@1', 'a:soon:3v4@2'])
+  })
+
+  it('still alerts a first slot that is running late', () => {
+    expect(decide(fresh('9:00'), both, { now: at(9, 20) })).toHaveLength(2)
+  })
+
+  it('holds back a later slot of a day that has not started', () => {
+    const groups: MatchScheduleGroup[] = [
+      { type: 'time', time: '9:00', matches: [m(['1'], ['2'])] },
+      { type: 'time', time: '13:00', matches: [m(['3'], ['4'])] },
+    ]
+    expect(brief(decide(groups, both, { now: at(8, 45) }))).toEqual(['a:next:1v2@1'])
+  })
+
+  it('does not guess for a slot whose time cannot be read', () => {
+    expect(decide(fresh('TBA'), both, { now: at(9, 0) })).toEqual([])
+  })
+
+  it('reads a time written with a leading zero or a dot', () => {
+    expect(decide(fresh('09:00'), both, { now: at(8, 40) })).toHaveLength(2)
+    expect(decide(fresh('9.00'), both, { now: at(8, 40) })).toHaveLength(2)
+  })
+
+  it('goes by the queue alone once a match has been played or is on court', () => {
+    expect(decide(queue(), [device('a', [player('1')])], { now: at(0, 1) })).toHaveLength(1)
+    const live = day(m(['90'], ['91'], { nowPlaying: true }), m(['1'], ['2']))
+    expect(decide(live, [device('a', [player('1')])], { now: at(0, 1) })).toHaveLength(1)
+  })
+
+  it('a walkover alone does not count as play having started', () => {
+    const groups: MatchScheduleGroup[] = [{ type: 'time', time: '9:00', matches: [m(['90'], ['91'], { walkover: true, winner: 1 }), m(['1'], ['2'])] }]
+    expect(decide(groups, [device('a', [player('1')])], { now: at(0, 1) })).toEqual([])
+  })
+})
+
+describe('dueAlerts — an opponent not yet decided', () => {
+  it('waits until both sides are known, then alerts once', () => {
+    const a = device('a', [player('1')])
+    const waiting = day(DONE, m(['7'], ['8']), m(['1'], []))
+    expect(decide(waiting, [a])).toEqual([])
+    const known = day(DONE, m(['7'], ['8']), m(['1'], ['2']))
+    const first = decide(known, [a])
+    expect(brief(first)).toEqual(['a:soon:1v2@2'])
+    expect(decide(known, [a], { sent: new Set(first.flatMap((x) => x.covers)) })).toEqual([])
+  })
+
+  it('does not alert a match with nobody in it', () => {
+    expect(decide(day(DONE, m([], [])), [device('a', [player('1')])])).toEqual([])
   })
 })

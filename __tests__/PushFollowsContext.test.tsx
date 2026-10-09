@@ -78,6 +78,16 @@ describe('PushFollowsProvider', () => {
     expect(value.follows).toEqual([])
   })
 
+  it('a prompt closed without an answer is neither a denial nor an error, and stores nothing', async () => {
+    const client = fakeClient({ subscribe: async () => 'dismissed' })
+    mount(client)
+    await waitFor(() => expect(value.status).toBe('ok'))
+    let outcome = ''
+    await act(async () => { outcome = await value.follow(PLAYER) })
+    expect(outcome).toBe('dismissed')
+    expect(client.calls).not.toContain('follow:en')
+  })
+
   it('reports the limit, and any other failure, without changing the list', async () => {
     const limited = fakeClient({ follow: async () => ({ error: 'follow limit reached', reason: 'player-limit' }) })
     mount(limited)

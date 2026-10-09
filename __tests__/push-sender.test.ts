@@ -5,13 +5,13 @@ const record = { endpoint: 'https://fcm.googleapis.com/fcm/send/x', keys: { p256
 const payload = { title: 'Up next', body: 'A vs B', url: '/?tournament=T', tag: 't' }
 
 describe('webPushSender', () => {
-  it('sends the payload as JSON, high urgency, ten-minute lifetime, signed with the keys', async () => {
+  it('sends the payload as JSON, high urgency, ten-minute lifetime, a ten-second limit, signed with the keys', async () => {
     const send = jest.fn().mockResolvedValue({ statusCode: 201 })
     expect(await webPushSender(config, send as never)(record, payload)).toBe('ok')
     const [sub, body, options] = send.mock.calls[0]
     expect(sub).toEqual(record)
     expect(JSON.parse(body)).toEqual(payload)
-    expect(options).toEqual({ TTL: 600, urgency: 'high', vapidDetails: config })
+    expect(options).toEqual({ TTL: 600, urgency: 'high', vapidDetails: config, timeout: 10_000 })
   })
 
   it.each([404, 410])('reports a device the push service no longer knows (%i)', async (statusCode) => {

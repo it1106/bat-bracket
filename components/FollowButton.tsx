@@ -46,7 +46,7 @@ export default function FollowButton({ tournamentId, playerId, playerName, clubN
     if (busy) return
     setNote(null)
     // A club follow covers this player; it is undone from the Following list.
-    if (viaClub) return
+    if (viaClub) return setNote('followViaClubNote')
     if (push.status === 'needs-install') return blocked('needs-install', 'followNeedsInstall')
     if (push.status === 'in-app-browser') return blocked('in-app-browser', 'followInAppBrowser')
     setBusy(true)
@@ -60,7 +60,8 @@ export default function FollowButton({ tournamentId, playerId, playerName, clubN
       const outcome = await push.follow({ kind: 'player', tournamentId, playerId, playerName })
       if (outcome === 'ok') track('match_alert_followed', props)
       else if (outcome === 'denied') blocked('denied', 'followBlocked')
-      else setNote(outcome === 'limit' ? 'followLimit' : 'followError')
+      // closed without an answer: nothing is blocked, the next tap asks again
+      else if (outcome !== 'dismissed') setNote(outcome === 'limit' ? 'followLimit' : 'followError')
     } finally {
       setBusy(false)
     }
