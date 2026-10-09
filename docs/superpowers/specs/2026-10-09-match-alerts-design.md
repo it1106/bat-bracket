@@ -4,13 +4,15 @@
 
 ## Summary
 
-A person follows a player in a tournament and gets a notification on their
-phone or computer when that player's match is close to going on court: once at
+A person follows a player, or a whole club, in a tournament and gets a
+notification on their phone or computer when a followed match is close to
+going on court: once at
 about three matches away, and once when it is next. The alert arrives when
 BATMatch is closed and the phone is locked.
 
 It is for parents, coaches and players at a tournament who cannot keep the
-schedule open all day and do not want to miss a call to court.
+schedule open all day and do not want to miss a call to court. Following a
+club is for a coach or club manager who looks after many players at once.
 
 Concrete example: a parent follows their child in BS U15. While they are having
 lunch outside the hall, the phone shows "About 3 matches away: Anan Dee vs Beam
@@ -23,7 +25,8 @@ schedule.
 - **Moment:** "your player is about to play". Results and schedule changes are
   not part of this version.
 - **Channel:** web push. No LINE, no email.
-- **Follow unit:** an individual player in one tournament.
+- **Follow unit:** an individual player in one tournament, or a whole club in
+  one tournament (every player BAT lists under that club there).
 - **Trigger:** two alerts per match, at about three matches away and at next.
 
 ## Scope
@@ -32,8 +35,8 @@ schedule.
   show "Up next" / "N away" pills). Thai and English. Android, desktop
   browsers, and iPhone once BATMatch is on the home screen.
 - **Out of scope:** BWF tournaments. Court-sequenced days ("followed by"
-  schedules), which have no queue position today. Following a club or a
-  keyword. Result, schedule-change and ranking alerts. A user-chosen lead
+  schedules), which have no queue position today. Following a keyword, a
+  country, or a club across every tournament at once. Result, schedule-change and ranking alerts. A user-chosen lead
   time. Accounts or syncing follows between devices. LINE.
 
 ## What the server knows, and what it does not
@@ -78,10 +81,20 @@ One new dependency: `web-push`, to sign and encrypt pushes.
 writer at a time through a promise chain like the other caches.
 
 ```ts
-interface PushFollow {
+type PushFollow = PlayerFollow | ClubFollow
+
+interface PlayerFollow {
+  kind: 'player'
   tournamentId: string      // upper-case GUID
   playerId: string          // BAT's tournament-local player id
   playerName: string        // as shown when followed, for the list
+  addedAt: string           // ISO
+}
+
+interface ClubFollow {
+  kind: 'club'
+  tournamentId: string      // upper-case GUID
+  clubName: string          // as BAT prints it in this tournament
   addedAt: string           // ISO
 }
 
@@ -95,9 +108,23 @@ interface PushSubscriptionRecord {
 }
 ```
 
-Limits: 50 follows per device, 5,000 devices. A request past either is
+Limits: 50 followed players and 10 followed clubs per device, 5,000 devices. A request past either is
 refused with 429. A record with no follows is deleted. A record not seen for
 60 days is deleted by the watcher.
+
+### Club membership
+
+A club follow stores the club's name, not a list of players. Who belongs to
+the club is looked up each time alerts are decided, from the tournament's
+player-to-club map the app already keeps (`readClubsCache(tournamentId)` in
+`lib/clubs-cache.ts`, with the in-memory `playerClubCache` in
+`lib/bracket-cache.ts` as the fresher copy). A player entered late is
+therefore covered without anyone following again.
+
+Club names are compared after trimming, collapsing spaces and folding case.
+Two clubs BAT spells differently are different clubs; the app does not merge
+them. When the map for a tournament is not held, that tournament's club
+follows are skipped for the tick: the watcher never asks BAT for it.
 
 ### Sent log
 
@@ -127,15 +154,17 @@ endpoint, which only that browser and the push service know.
 | Route | Does |
 |-------|------|
 | `GET /key` | `{ publicKey }`, or 404 when the feature is off |
-| `POST /follow` | `{ subscription, lang, tournamentId, playerId, playerName }` → creates the record if new, adds the follow; returns the device's follows |
-| `POST /unfollow` | `{ endpoint, tournamentId, playerId }` → removes it; deletes the record when none are left |
+| `POST /follow` | `{ subscription, lang, target }` → creates the record if new, adds the follow; returns the device's follows. `target` is `{ kind: 'player', tournamentId, playerId, playerName }` or `{ kind: 'club', tournamentId, clubName }` |
+| `POST /unfollow` | `{ endpoint, target }` (the same `target`, without `playerName`) → removes it; deletes the record when none are left |
 | `POST /state` | `{ endpoint }` → the device's follows, and refreshes `lastSeenAt` |
 
 Validation: `endpoint` must be an `https:` URL on a known push service host
 (`fcm.googleapis.com`, `*.push.apple.com`, `updates.push.services.mozilla.com`,
 `*.notify.windows.com`); `tournamentId` a GUID of a BAT tournament the
-registry knows; `playerId` digits; `playerName` at most 120 characters. This
-keeps the server from being told to send requests to arbitrary addresses.
+registry knows; `playerId` digits; `playerName` at most 120 characters; `clubName` at most
+120 characters and present in that tournament's club map, so a club follow can
+only name a club that exists there. The endpoint check keeps the server from
+being told to send requests to arbitrary addresses.
 
 ## Alert decision
 
@@ -145,7 +174,9 @@ interface DueAlert {
   stage: 'soon' | 'next'
   sentKey: string
   match: MatchEntry
-  followed: PushFollow[]     // which of this device's players are in the match
+  players: MatchPlayer[]     // the players in the match this device follows,
+                             // directly or through a club
+  clubs: string[]            // the followed clubs that brought the match in
 }
 
 function dueAlerts(input: {
@@ -153,6 +184,7 @@ function dueAlerts(input: {
   dateIso: string
   groups: MatchScheduleGroup[]
   records: PushSubscriptionRecord[]
+  clubOf: (playerId: string) => string | undefined   // this tournament's map
   alreadySent: (key: string) => boolean
 }): DueAlert[]
 ```
@@ -166,7 +198,14 @@ Rules:
 - A match with a winner, a walkover, or marked now playing is never due.
 - A match first seen at position 1 sends `next` only; `soon` is then recorded
   as sent without sending, so it cannot arrive afterwards.
-- Two followed players in the same match produce one alert naming both.
+- A device follows a match when it follows any player in it, or the club of
+  any player in it. One match is one alert per stage however many ways the
+  device follows it: a followed player who is also in a followed club is not
+  alerted twice, and two followed players in the same match are named
+  together.
+- When both sides of a match are followed (two players from one club drawn
+  against each other, or from two followed clubs), the alert names both sides
+  and does not say "vs" a stranger.
 - A match with no queue position (a court-sequenced day) is never due.
 
 ## Watcher
@@ -180,7 +219,11 @@ only one worker ever sends. Every 60 seconds:
    today, get that day through the app's own matches route
    (`/api/matches?tournament=…&date=…`, no `fresh=1`), so it shares the
    one-minute cache with visitors and the 4-minute warmer.
-3. Run `dueAlerts`, send each through the sender, record what was sent.
+3. Run `dueAlerts` with that tournament's club map. Alerts due for one device
+   in the same tick are sent as one notification when there are more than two
+   (see Notification), so a club with several matches coming up at once does
+   not buzz the phone several times in a row. Send through the sender, record
+   every alert the notification covered.
 4. A push the service answers 404 or 410 for: delete that record.
 5. Any other send failure is logged and not recorded as sent, so the next
    tick retries it; after 3 failed ticks for one alert (counted in memory) it
@@ -213,6 +256,16 @@ Body: `{player} vs {opponent} · {draw} {round} · {court}`; court is left out
 when the schedule has none. `tag` is the match key, so `next` replaces `soon`
 for the same match on the device. `url` opens `/` on that tournament and day.
 
+**Several at once.** When more than two alerts are due for one device in one
+tick, they go out as a single notification: title "{n} matches coming up" /
+"อีก {n} คู่ใกล้ถึงคิว", body one line per match (`{player} · {draw} · {court}`),
+the nearest first, at most four lines and then "+{m} more". Its `tag` is the
+tournament and the minute, so it does not replace the alerts for single
+matches.
+
+**How many to expect.** A club with 30 matches in a day can produce up to 60
+alerts. The follow-club control says so before the person confirms.
+
 ## UI
 
 ### Follow button
@@ -231,11 +284,25 @@ on, and when the browser supports push.
   agent): the button explains that alerts need Chrome or Safari, and offers to
   copy the link. These browsers cannot register for push.
 
+### Follow club
+
+In `components/ClubRosterModal.tsx`, the window that lists a club's players in
+a tournament: a "Follow club" control beside the club's name, reading
+"Following" once on. It follows the same permission, iPhone and in-app browser
+rules as the player button. Before the first club follow on a device it shows
+one line of warning: every match by this club's players sends alerts, which
+can be many in a day.
+
+A player who belongs to a followed club shows "Following (club)" on the
+player-window button. Tapping it does not unfollow the club; it points to the
+Following list, where the club can be unfollowed. A single player cannot be
+muted out of a followed club in this version.
+
 ### Following list
 
 The existing bell panel (`components/AlertBell.tsx`) gains a "Following"
-section: each followed player with the tournament name and an unfollow
-control. It reads from `POST /api/push/state`. Empty when nothing is
+section: followed clubs first, then followed players, each with the tournament
+name and an unfollow control. It reads from `POST /api/push/state`. Empty when nothing is
 followed.
 
 ### Strings
@@ -245,16 +312,16 @@ above, and the two notification titles.
 
 ### Analytics
 
-`match_alert_followed` and `match_alert_unfollowed` (tournament id, player
-id), and `match_alert_blocked` with the reason (denied, needs install, in-app
+`match_alert_followed` and `match_alert_unfollowed` (tournament id, the kind,
+and the player id or club name), and `match_alert_blocked` with the reason (denied, needs install, in-app
 browser, unsupported), through `lib/analytics.ts`. The server counts alerts
 sent and failed per day, shown on `/bmstats`.
 
 ## Privacy
 
 `lib/privacy.ts` gains a section in both languages: when a person follows a
-player, the server stores the browser's push address and the list of followed
-players; it is used only to send these alerts; unfollowing everything deletes
+player or a club, the server stores the browser's push address and the list of
+followed players and clubs; it is used only to send these alerts; unfollowing everything deletes
 it; a device not seen for 60 days is removed.
 
 ## Error handling
@@ -269,6 +336,9 @@ it; a device not seen for 60 days is removed.
 | Schedule for today not available | That tournament is skipped this tick |
 | Store file unreadable | Treated as empty; logged; next write replaces it |
 | Two workers | Only the lease holder runs the watcher |
+| Club map for a tournament not held | That tournament's club follows are skipped this tick; player follows still work |
+| Followed club has no players in today's matches | Nothing is sent; the follow stays |
+| A player moves club in BAT's data mid-tournament | Membership is read each tick, so alerts follow the current data |
 | Match reordered by the organisers | Positions are recomputed each tick; an alert already sent is not sent again |
 
 ## Testing
@@ -277,6 +347,10 @@ it; a device not seen for 60 days is removed.
   `soon` at 2, 3 and 4; nothing at 5; finished, walkover and now-playing
   matches; first seen at position 1; two followed players in one match; a
   doubles match; a court-sequenced day; already-sent keys; two devices.
+  Clubs: a club follow brings in every member's match; a player followed both
+  directly and through a club is alerted once; both sides followed; a club
+  name that differs only in case or spacing; a player with no club; the club
+  map missing.
 - `__tests__/push-store.test.ts` — create, follow, duplicate follow, unfollow,
   delete on empty, limits, stale removal, concurrent writes, unreadable file.
 - `__tests__/push-sent-log.test.ts` — record, lookup, pruning.
@@ -286,9 +360,12 @@ it; a device not seen for 60 days is removed.
   sends once, deletes a gone device, retries a failure then gives up, skips
   during an outage, does nothing with no records, runs only as leader.
 - `__tests__/push-text.test.ts` — titles and bodies in both languages, court
-  omitted when absent.
-- `__tests__/FollowButton.test.tsx` — each state: follow, following, denied,
-  needs install, in-app browser, unsupported.
+  omitted when absent, both sides followed, and the several-at-once
+  notification (three, four and seven matches).
+- `__tests__/FollowButton.test.tsx` — each state: follow, following, following
+  through a club, denied, needs install, in-app browser, unsupported.
+- `__tests__/ClubRosterModal.follow.test.tsx` — follow club, the first-time
+  warning, following, unfollow.
 - `__tests__/AlertBell.following.test.tsx` — list and unfollow.
 - Manual, at the end: a real push to an Android phone and to an iPhone with
   BATMatch on the home screen, with the app closed.
@@ -301,3 +378,8 @@ it; a device not seen for 60 days is removed.
 - The exact date parameter the matches route expects for today (it takes
   BAT's own form, e.g. `25691009`).
 - Where the follow button sits in the player window on a narrow screen.
+- Whether the club map on disk (`lib/clubs-cache.ts`) is kept current for a
+  tournament in play, or only the in-memory copy is; the watcher needs one of
+  them without a BAT request.
+- Whether BAT's club id (`data-club-id` in the bracket markup) is available
+  wherever the club name is, which would make a sturdier key than the name.
