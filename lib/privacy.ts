@@ -6,6 +6,7 @@ import type { Lang } from '@/lib/i18n'
 //
 // This describes what the code does. If analytics change — a new property sent
 // to PostHog, session replay, an account system — update the notice with it.
+// Match alerts and what they store are lib/push/store.ts (STALE_DAYS).
 // The request log and its 14 days are lib/access-log.ts (RETENTION_DAYS).
 
 export interface PrivacySection {
@@ -48,6 +49,11 @@ export const PRIVACY: Record<Lang, PrivacyText> = {
         body: 'The visitor ID and your choices (language, theme, text size, selected tournament and custom tabs) are stored in your browser. BATMatch does not use advertising cookies.',
       },
       {
+        heading: 'Match alerts',
+        body:
+          'If you follow a player or a club to be told when their match is close, our server stores your browser\'s push address (an address your browser creates so notifications can reach this device) and the list of players and clubs you follow. It is used only to send those alerts. It is not linked to your name or to any account. Unfollowing everything deletes it, and a device we have not seen for 60 days is removed automatically.',
+      },
+      {
         heading: 'Your choices',
         body: 'You can remove the visitor ID and your saved choices at any time by clearing this site’s data in your browser settings; a new ID is created if you visit again. Using a private window, or blocking site storage, also limits what is recorded.',
       },
@@ -83,6 +89,11 @@ export const PRIVACY: Record<Lang, PrivacyText> = {
       {
         heading: 'ข้อมูลที่เก็บไว้ในอุปกรณ์ของคุณ',
         body: 'รหัสผู้เข้าชมและการตั้งค่าของคุณ (ภาษา ธีม ขนาดตัวอักษร รายการแข่งขันที่เลือก และแท็บกำหนดเอง) เก็บไว้ในเบราว์เซอร์ของคุณ BATMatch ไม่ใช้คุกกี้เพื่อการโฆษณา',
+      },
+      {
+        heading: 'การแจ้งเตือนแมตช์',
+        body:
+          'หากคุณติดตามนักกีฬาหรือสโมสรเพื่อรับแจ้งเตือนเมื่อใกล้ถึงคิวแข่ง เซิร์ฟเวอร์ของเราจะเก็บที่อยู่สำหรับส่งการแจ้งเตือนของเบราว์เซอร์คุณ (ที่อยู่ที่เบราว์เซอร์สร้างขึ้นเพื่อให้การแจ้งเตือนมาถึงอุปกรณ์นี้) และรายชื่อนักกีฬากับสโมสรที่คุณติดตาม ข้อมูลนี้ใช้เพื่อส่งการแจ้งเตือนดังกล่าวเท่านั้น ไม่ได้ผูกกับชื่อหรือบัญชีใด ๆ เมื่อเลิกติดตามทั้งหมดข้อมูลจะถูกลบ และอุปกรณ์ที่ไม่ได้ใช้งานเกิน 60 วันจะถูกลบโดยอัตโนมัติ',
       },
       {
         heading: 'ทางเลือกของคุณ',

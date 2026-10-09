@@ -26,6 +26,18 @@ describe('privacy text', () => {
     }
   })
 
+  it('says what following a player or a club stores, in both languages', () => {
+    const en = PRIVACY.en.sections.find((s) => s.heading === 'Match alerts')
+    const th = PRIVACY.th.sections.find((s) => s.heading === 'การแจ้งเตือนแมตช์')
+    expect(en?.body).toMatch(/push address/)
+    expect(en?.body).toMatch(/players and clubs/)
+    expect(en?.body).toMatch(/60 days/)
+    expect(th?.body).toMatch(/60 วัน/)
+    // in the same place in both languages, before "Your choices"
+    expect(PRIVACY.en.sections.findIndex((s) => s.heading === 'Match alerts')).toBe(6)
+    expect(PRIVACY.th.sections.findIndex((s) => s.heading === 'การแจ้งเตือนแมตช์')).toBe(6)
+  })
+
   it('names the site and its analytics processor in both languages', () => {
     for (const l of ['en', 'th'] as const) {
       const all = PRIVACY[l].sections.map((s) => s.body).join(' ')

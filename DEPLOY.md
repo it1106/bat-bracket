@@ -153,3 +153,26 @@ Watch for the last `pre-warmed:` line to know it's done:
 ```bash
 tail -f /root/.pm2/logs/bat-bracket-out-0.log | grep 'pre-warmed'
 ```
+
+## Match alerts (web push)
+
+Off until three settings are in `/root/app/.env.production`:
+
+```bash
+# once, on any machine with the repo:
+npx web-push generate-vapid-keys
+```
+
+```
+VAPID_PUBLIC_KEY=<the public key printed above>
+VAPID_PRIVATE_KEY=<the private key printed above>
+VAPID_SUBJECT=mailto:<an address you read>
+```
+
+Then `pm2 reload bat-bracket`. The log line `[push] watcher started` confirms it; without the settings there is no such line and no follow button on the site.
+
+- **Do not change the key pair** once people have followed someone: every existing subscription was made against the public key and would stop receiving alerts.
+- State lives in `.cache/push/` (`subscriptions.json`, `sent.json`). Deleting `subscriptions.json` unfollows everyone.
+- `/sw.js` must reach browsers uncached. `next.config.js` sends it with `no-store`; if a Cloudflare cache rule ever covers `*.js`, exclude `/sw.js`. Check with `curl -sI https://batmatch.app/sw.js | grep -i 'cache-control\|cf-cache-status'` (expect `no-store`, and `BYPASS` or `DYNAMIC`).
+- Counts for the day are on `/bmstats` under "Match alerts". A tick that sent or failed anything logs `[push] tick sent=… failed=… gone=…`.
+- The watcher asks the app's own `/api/matches` once a minute for each followed tournament in play, so it shares the schedule cache and adds at most one BAT request a minute per such tournament when nobody is viewing it.
