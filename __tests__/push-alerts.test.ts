@@ -148,15 +148,11 @@ describe('dueAlerts — who', () => {
 describe('dueAlerts — clubs', () => {
   const clubs = { '1': 'Red Club', '3': 'Red Club', '4': 'Blue Club', '9': 'Red  club ' }
 
-  it('brings in every member\'s match', () => {
-    const out = decide(queue(), [device('a', [club('Red Club')])], { clubs })
-    expect(brief(out).sort()).toEqual(['a:next:1v2@1', 'a:soon:3v4@2'])
-    expect(out[0].clubs).toEqual(['Red Club'])
+  it('says nothing before a member\'s match: a club is followed for its results', () => {
+    expect(decide(queue(), [device('a', [club('Red Club')])], { clubs })).toEqual([])
   })
 
   it('compares club names without regard to case or spacing', () => {
-    const groups = day(DONE, m(['9'], ['10']))
-    expect(decide(groups, [device('a', [club('red club')])], { clubs })).toHaveLength(1)
     expect(normalizeClub('  Red   CLUB ')).toBe('red club')
     expect(normalizeClub(undefined)).toBe('')
   })
@@ -172,11 +168,11 @@ describe('dueAlerts — clubs', () => {
     expect(first[0].directPlayers.map((p) => p.playerId)).toEqual(['1'])
   })
 
-  it('keeps a player the club alone brought in out of the directly followed', () => {
-    const out = decide(queue(), [device('a', [club('Red Club')])], { clubs })
-    const first = out.filter((a) => a.match.team1[0].playerId === '1')
-    expect(first[0].players.map((p) => p.playerId)).toEqual(['1'])
-    expect(first[0].directPlayers).toEqual([])
+  it('keeps a club member the device does not follow by name out of the directly followed', () => {
+    // Player 7 is followed by name; 3 is only a Red Club member.
+    const out = decide(day(DONE, m(['7', '3'], ['2', '8'])), [device('a', [player('7'), club('Red Club')])], { clubs })
+    expect(out[0].players.map((p) => p.playerId).sort()).toEqual(['3', '7'])
+    expect(out[0].directPlayers.map((p) => p.playerId)).toEqual(['7'])
   })
 
   it('alerts once for one partner followed and the other partner\'s club followed', () => {
@@ -186,11 +182,8 @@ describe('dueAlerts — clubs', () => {
     expect(out[0].players.map((p) => p.playerId).sort()).toEqual(['3', '7'])
   })
 
-  it('names both sides when two followed clubs meet', () => {
-    const out = decide(day(DONE, m(['3'], ['4'])), [device('a', [club('Red Club'), club('Blue Club')])], { clubs })
-    expect(out).toHaveLength(1)
-    expect(out[0].players.map((p) => p.playerId).sort()).toEqual(['3', '4'])
-    expect(out[0].clubs.slice().sort()).toEqual(['Blue Club', 'Red Club'])
+  it('says nothing before a match where two followed clubs meet', () => {
+    expect(decide(day(DONE, m(['3'], ['4'])), [device('a', [club('Red Club'), club('Blue Club')])], { clubs })).toEqual([])
   })
 
   it('does nothing for a player with no club, or when the club map is missing', () => {
@@ -281,11 +274,12 @@ describe('dueResults', () => {
   const results = (
     groups: MatchScheduleGroup[],
     records: PushSubscriptionRecord[],
-    over: { sent?: Set<string>; seen?: (m: MatchEntry) => number | undefined } = {},
+    over: { sent?: Set<string>; seen?: (m: MatchEntry) => number | undefined; clubs?: Record<string, string> } = {},
   ) => dueResults({
     tournamentId: TID, dateIso: DAY, groups, records,
     alreadySent: (k) => over.sent?.has(k) ?? false,
     resultSeenAt: over.seen ?? (() => SEEN),
+    clubOf: (id) => over.clubs?.[id],
   })
 
   it('reports a result the watcher saw arrive, to a device following a player in it', () => {
@@ -304,8 +298,33 @@ describe('dueResults', () => {
     expect(results(day(done), [device('a', [since('1', after)])])).toEqual([])
   })
 
-  it('does not report through a club follow', () => {
-    expect(results(day(done), [device('a', [club('Red')])])).toEqual([])
+  it('reports a member\'s result to a device following their club', () => {
+    const since_ = (name: string, addedAt: string) => ({ kind: 'club' as const, tournamentId: TID, clubName: name, addedAt })
+    const out = results(day(done), [device('a', [since_('Red Club', before)])], { clubs: { '1': 'Red Club' } })
+    expect(out).toHaveLength(1)
+    expect(out[0].stage).toBe('result')
+    expect(out[0].players.map((p) => p.playerId)).toEqual(['1'])
+    expect(out[0].clubs).toEqual(['Red Club'])
+    // Nobody here is followed by name, so the status page says the club.
+    expect(out[0].directPlayers).toEqual([])
+  })
+
+  it('says nothing to a club followed after the result came in', () => {
+    const late = { kind: 'club' as const, tournamentId: TID, clubName: 'Red Club', addedAt: after }
+    expect(results(day(done), [device('a', [late])], { clubs: { '1': 'Red Club' } })).toEqual([])
+  })
+
+  it('reports once when the player and their club are both followed', () => {
+    const bothFollows = [since('1', before), { kind: 'club' as const, tournamentId: TID, clubName: 'Red Club', addedAt: before }]
+    const out = results(day(done), [device('a', bothFollows)], { clubs: { '1': 'Red Club' } })
+    expect(out).toHaveLength(1)
+    expect(out[0].directPlayers.map((p) => p.playerId)).toEqual(['1'])
+    expect(out[0].clubs).toEqual(['Red Club'])
+  })
+
+  it('says nothing for a club nobody in the match belongs to', () => {
+    const f = { kind: 'club' as const, tournamentId: TID, clubName: 'Blue Club', addedAt: before }
+    expect(results(day(done), [device('a', [f])], { clubs: { '1': 'Red Club' } })).toEqual([])
   })
 
   it('reports a walkover, and does not repeat a result already sent', () => {

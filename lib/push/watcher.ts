@@ -98,7 +98,7 @@ export async function runWatcherTick(deps: WatcherDeps): Promise<{ sent: number;
       const dayKey = `${tournamentId}|${dateIso}`
       noteResults(dayKey, groups, deps.now())
       due.push(...dueResults({
-        tournamentId, dateIso, groups, records, alreadySent: deps.hasSent,
+        tournamentId, dateIso, groups, records, alreadySent: deps.hasSent, clubOf,
         resultSeenAt: (match) => resultSeen.get(`${dayKey}|${matchTag(match)}`),
       }))
     } catch (err) {

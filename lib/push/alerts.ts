@@ -41,9 +41,10 @@ function playHasStarted(groups: MatchScheduleGroup[]): boolean {
   return groups.some((g) => g.matches.some((m) => m.nowPlaying || (m.winner !== null && !m.walkover)))
 }
 
-/** The alerts due now: for each device, each followed match at the front of
- *  the queue (`next`) or two to four places from it (`soon`) that has not been
- *  sent yet. One match is one alert per stage however the device follows it. */
+/** The alerts due now: for each device, each match with a player it follows
+ *  by name at the front of the queue (`next`) or two to four places from it
+ *  (`soon`) that has not been sent yet. A club follow brings none of these --
+ *  a club is followed for its results. One match is one alert per stage. */
 export function dueAlerts(input: {
   tournamentId: string
   dateIso: string
@@ -109,7 +110,9 @@ export function dueAlerts(input: {
           if (byName) directPlayers.push(p)
           if (viaClub || byName) players.push(p)
         }
-        if (players.length === 0) continue
+        // A club is followed for its results, not its fixtures: only a follow
+        // by name brings an alert before the match.
+        if (directPlayers.length === 0) continue
 
         const endpoint = w.record.endpoint
         const sentKey = sentKeyFor(endpoint, tid, dateIso, match, stage)
@@ -124,7 +127,7 @@ export function dueAlerts(input: {
 }
 
 /** The results due now: for each device, each finished match with a player it
- *  follows by name. A club follow brings no results — a club's day is dozens.
+ *  follows, by name or through a followed club.
  *
  *  Only a result the watcher saw come in counts (`resultSeenAt`), and only for
  *  a follow made before it did: following a player at three must not report
@@ -137,8 +140,9 @@ export function dueResults(input: {
   alreadySent: (key: string) => boolean
   /** When the watcher first saw this match's result arrive; undefined if it never did. */
   resultSeenAt: (match: MatchEntry) => number | undefined
+  clubOf: (playerId: string) => string | undefined
 }): DueAlert[] {
-  const { groups, records, alreadySent, dateIso, resultSeenAt } = input
+  const { groups, records, alreadySent, dateIso, resultSeenAt, clubOf } = input
   const tid = input.tournamentId.toUpperCase()
   const out: DueAlert[] = []
 
@@ -148,15 +152,29 @@ export function dueResults(input: {
       const seenAt = resultSeenAt(match)
       if (seenAt === undefined) continue
       for (const record of records) {
-        const followed = new Set(record.follows.flatMap((f) =>
-          f.kind === 'player' && f.tournamentId.toUpperCase() === tid && !(Date.parse(f.addedAt) > seenAt) ? [f.playerId] : []))
-        if (followed.size === 0) continue
-        const players = [...match.team1, ...match.team2].filter((p) => p.playerId && followed.has(p.playerId))
+        // Only follows already in place when the result arrived count, by name
+        // or by club.
+        const here = record.follows.filter((f) =>
+          f.tournamentId.toUpperCase() === tid && !(Date.parse(f.addedAt) > seenAt))
+        const followed = new Set(here.flatMap((f) => (f.kind === 'player' ? [f.playerId] : [])))
+        const clubsWatched = new Map(here.flatMap((f) => (f.kind === 'club' ? [[normalizeClub(f.clubName), f.clubName] as const] : [])))
+        if (followed.size === 0 && clubsWatched.size === 0) continue
+
+        const players: MatchPlayer[] = []
+        const directPlayers: MatchPlayer[] = []
+        const clubs = new Set<string>()
+        for (const p of [...match.team1, ...match.team2]) {
+          const viaClub = clubsWatched.get(normalizeClub(clubOf(p.playerId)))
+          if (viaClub) clubs.add(viaClub)
+          const byName = !!p.playerId && followed.has(p.playerId)
+          if (byName) directPlayers.push(p)
+          if (viaClub || byName) players.push(p)
+        }
         if (players.length === 0) continue
+
         const sentKey = sentKeyFor(record.endpoint, tid, dateIso, match, 'result')
         if (alreadySent(sentKey)) continue
-        // A result only ever comes from a follow by name, so every player here is a direct one.
-        out.push({ endpoint: record.endpoint, lang: record.lang, stage: 'result', position: 0, sentKey, covers: [sentKey], match, players, directPlayers: players, clubs: [] })
+        out.push({ endpoint: record.endpoint, lang: record.lang, stage: 'result', position: 0, sentKey, covers: [sentKey], match, players, directPlayers, clubs: Array.from(clubs) })
       }
     }
   }
