@@ -33,7 +33,7 @@ describe('FollowingList', () => {
 
   it('says how to start when nothing is followed', async () => {
     mount(fakeClient())
-    await waitFor(() => expect(screen.getByText(/Follow a player or a club/)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/Follow a player to be told when their match is close/)).toBeTruthy())
   })
 
   it('lists clubs first, then players, each with its tournament', async () => {

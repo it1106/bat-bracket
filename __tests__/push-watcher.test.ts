@@ -163,13 +163,12 @@ describe('runWatcherTick', () => {
     expect(w.pushes.filter((p) => p.to === 'b')).toHaveLength(1)
   })
 
-  it('uses the tournament\'s club map', async () => {
+  it('says nothing before a club member\'s match: a club is followed for its results', async () => {
     const clubFollow: PushFollow = { kind: 'club', tournamentId: TID, clubName: 'Red Club', addedAt: '' }
     const w = world({ records: [device('a', [clubFollow])] })
     w.deps.clubOf = async () => (id) => (id === '3' ? 'Red Club' : undefined)
     await runWatcherTick(w.deps)
-    expect(w.pushes).toHaveLength(1)
-    expect(w.pushes[0].payload.body).toContain('P3')
+    expect(w.pushes).toEqual([])
   })
 
   it('reports each result to the day\'s counts', async () => {
@@ -382,10 +381,22 @@ describe('runWatcherTick records what it sent', () => {
     expect(w.noted[0].via).toBe('P1 · Red Club')
   })
 
-  it('names the club that brought a match in', async () => {
-    const records = [device('a', [{ kind: 'club', tournamentId: TID, clubName: 'UNITY&RAWIN', addedAt: '' }])]
-    const w = world({ records, clubOf: async () => (id) => (id === '1' ? 'UNITY&RAWIN' : undefined) })
+  it('names the club that brought a result in', async () => {
+    const T0 = Date.UTC(2026, 9, 9, 3, 15)
+    const clubFollow: PushFollow = { kind: 'club', tournamentId: TID, clubName: 'UNITY&RAWIN', addedAt: new Date(T0 - 60_000).toISOString() }
+    let groups = day(m('90', '91', { nowPlaying: true }), m('1', '2', { nowPlaying: true }))
+    const w = world({
+      records: [device('a', [clubFollow])],
+      clubOf: async () => (id) => (id === '1' ? 'UNITY&RAWIN' : undefined),
+      fetchDay: async () => groups,
+      now: () => T0,
+    })
     await runWatcherTick(w.deps)
+    expect(w.noted).toEqual([])
+    groups = day(m('90', '91', { nowPlaying: true }), m('1', '2', { winner: 1, scores: [{ t1: 15, t2: 2 }] }))
+    await runWatcherTick(w.deps)
+    expect(w.noted).toHaveLength(1)
+    expect(w.noted[0].stage).toBe('result')
     expect(w.noted[0].via).toBe('UNITY&RAWIN')
   })
 })
