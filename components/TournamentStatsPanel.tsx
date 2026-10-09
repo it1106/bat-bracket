@@ -653,7 +653,7 @@ export default function TournamentStatsPanel({ tournamentId, tournamentName }: P
       )}
 
       <CountryRosterModal roster={selectedCountry} onClose={() => setSelectedCountry(null)} />
-      <ClubRosterModal roster={selectedClub} onClose={() => setSelectedClub(null)} />
+      <ClubRosterModal roster={selectedClub} onClose={() => setSelectedClub(null)} tournamentId={tournamentId} />
     </div>
   )
 }

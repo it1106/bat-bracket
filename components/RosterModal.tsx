@@ -26,12 +26,14 @@ interface Props {
   // Optional per-row adornments (used by the country modal for age/DOB).
   nameSuffix?: (row: RosterRow) => ReactNode
   nameTitle?: (row: RosterRow) => string | undefined
+  // Optional control shown under the title line (the club modal's follow button).
+  headerAction?: ReactNode
 }
 
 // Shared body for the club and country roster modals: the pm-overlay/pm-modal
 // shell, a name/event filter box, and the player list. Each caller supplies the
 // title and rows; the country modal additionally passes per-row age adornments.
-export default function RosterModal({ open, title, count, rows, onClose, nameSuffix, nameTitle }: Props) {
+export default function RosterModal({ open, title, count, rows, onClose, nameSuffix, nameTitle, headerAction }: Props) {
   const { t, lang } = useLanguage()
   const [query, setQuery] = useState('')
   const [showActive, setShowActive] = useState(false)
@@ -86,6 +88,7 @@ export default function RosterModal({ open, title, count, rows, onClose, nameSuf
           <div className="pm-section-title">
             {title} · {displayedCount} {t('statsColPlayers')}
           </div>
+          {headerAction}
         </div>
 
         <div className="pm-section">

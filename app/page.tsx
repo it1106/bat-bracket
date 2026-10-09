@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import BracketCanvas from '@/components/BracketCanvas'
 import EventBundleView from '@/components/EventBundleView'
 import MatchSchedule from '@/components/MatchSchedule'
@@ -9,6 +9,8 @@ import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
 import PathToFinalModal from '@/components/PathToFinalModal'
 import { usePathTarget } from '@/lib/usePathTarget'
+import FollowingList from '@/components/FollowingList'
+import { usePushFollows } from '@/lib/push/PushFollowsContext'
 import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
 import Link from 'next/link'
@@ -205,6 +207,11 @@ export default function Home() {
   const [modalLoading, setModalLoading] = useState(false)
   const [h2hData, setH2hData] = useState<H2HData | null>(null)
   const { pathTarget, openPath, closePath } = usePathTarget(modalProfile?.playerId)
+  const pushFollows = usePushFollows()
+  const tournamentNames = useMemo(
+    () => Object.fromEntries(tournaments.map((x) => [x.id.toUpperCase(), x.name])),
+    [tournaments],
+  )
   const [h2hLoading, setH2hLoading] = useState(false)
   const bracketRef = useRef<HTMLDivElement>(null)
   const playerSearchRef = useRef<HTMLInputElement>(null)
@@ -1201,6 +1208,8 @@ export default function Home() {
             <AlertBell
               alerts={alerts}
               onDismiss={() => setAlerts(dismissAlerts())}
+              hasFollowing={pushFollows.status === 'ok'}
+              following={<FollowingList tournamentNames={tournamentNames} />}
             />
             <button
               onClick={() => {

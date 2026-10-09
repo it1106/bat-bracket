@@ -2,16 +2,19 @@
 
 import RosterModal, { type RosterRow } from '@/components/RosterModal'
 import type { StatsClubRoster } from '@/lib/types'
+import FollowClubButton from '@/components/FollowClubButton'
 
 interface Props {
   roster: StatsClubRoster | null
   onClose: () => void
+  /** With it, the window offers to follow the whole club in this tournament. */
+  tournamentId?: string
 }
 
 // Lists the players that represent a club and the event(s) each is entered in.
 // Opened from the Club / Team section of the BAT stats tab. No age (BAT has no
 // per-player age source).
-export default function ClubRosterModal({ roster, onClose }: Props) {
+export default function ClubRosterModal({ roster, onClose, tournamentId }: Props) {
   if (!roster) return null
 
   // Prefer the rich per-player roster; fall back to bare names for stats blobs
@@ -21,6 +24,13 @@ export default function ClubRosterModal({ roster, onClose }: Props) {
     : roster.members.map((name) => ({ name, events: [] }))
 
   return (
-    <RosterModal open title={roster.club} count={roster.players} rows={rows} onClose={onClose} />
+    <RosterModal
+      open
+      title={roster.club}
+      count={roster.players}
+      rows={rows}
+      onClose={onClose}
+      headerAction={tournamentId ? <FollowClubButton tournamentId={tournamentId} clubName={roster.club} /> : undefined}
+    />
   )
 }

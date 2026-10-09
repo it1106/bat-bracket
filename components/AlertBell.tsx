@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import { track } from '@/lib/analytics'
 import type { AlertItem } from '@/lib/alerts'
@@ -8,6 +8,10 @@ import type { AlertItem } from '@/lib/alerts'
 interface AlertBellProps {
   alerts: AlertItem[]
   onDismiss: () => void
+  /** The Following list, shown under the alerts. */
+  following?: ReactNode
+  /** Whether there is a Following list to open the panel for. */
+  hasFollowing?: boolean
 }
 
 function formatAlertDate(dateIso: string, lang: 'en' | 'th'): string {
@@ -29,13 +33,15 @@ function formatAlertDate(dateIso: string, lang: 'en' | 'th'): string {
   })
 }
 
-export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
+export default function AlertBell({ alerts, onDismiss, following, hasFollowing = false }: AlertBellProps) {
   const { t, lang } = useLanguage()
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLSpanElement>(null)
 
   const hasAlerts = alerts.length > 0
   const showPulse = hasAlerts && !open
+  // The panel opens for alerts or for the Following list; only alerts light the dot.
+  const canOpen = hasAlerts || hasFollowing
 
   const tournamentItems = alerts.filter(
     (a): a is Extract<AlertItem, { kind: 'tournament' }> => a.kind === 'tournament',
@@ -53,11 +59,13 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
   )
 
   const dismissWith = (via: 'item' | 'outside' | 'escape') => {
+    setOpen(false)
+    // Opened only for the Following list: there is nothing to clear.
+    if (!hasAlerts) return
     const tournaments = alerts.filter((a) => a.kind === 'tournament').length
     const schedules = alerts.filter((a) => a.kind === 'schedule').length
     const rankings = alerts.filter((a) => a.kind === 'ranking').length
     track('alert_dismissed', { count: alerts.length, tournaments, schedules, rankings, via })
-    setOpen(false)
     onDismiss()
   }
 
@@ -91,8 +99,8 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
   }, [open, alerts, onDismiss])
 
   const handleBellClick = () => {
-    if (!hasAlerts) return
-    if (!open) {
+    if (!canOpen) return
+    if (!open && hasAlerts) {
       const tournaments = alerts.filter((a) => a.kind === 'tournament').length
       const schedules = alerts.filter((a) => a.kind === 'schedule').length
       const rankings = alerts.filter((a) => a.kind === 'ranking').length
@@ -110,12 +118,12 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
       <button
         type="button"
         onClick={handleBellClick}
-        aria-disabled={hasAlerts ? undefined : true}
+        aria-disabled={canOpen ? undefined : true}
         aria-expanded={open}
         aria-label={t('alertsBellAria')}
         title={t('alertsBellAria')}
         className={`relative inline-flex items-center justify-center w-9 h-9 rounded-md border border-[var(--border)] bg-[var(--surface)] text-sm transition-colors ${
-          hasAlerts ? 'text-[var(--fg)] hover:bg-[var(--bg)] cursor-pointer' : 'text-[var(--muted)] cursor-default'
+          canOpen ? 'text-[var(--fg)] hover:bg-[var(--bg)] cursor-pointer' : 'text-[var(--muted)] cursor-default'
         }`}
       >
         <svg
@@ -212,6 +220,8 @@ export default function AlertBell({ alerts, onDismiss }: AlertBellProps) {
                 ))}
               </>
             )}
+
+            {following && <div className="px-4 py-3 border-t border-[var(--border)]">{following}</div>}
           </div>
         </>
       )}
