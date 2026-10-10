@@ -64,6 +64,7 @@ interface Status {
     devices?: Array<{
       id: string
       service: string
+      os: string
       lang: string
       createdAt: string
       lastSeenAt: string
@@ -766,6 +767,7 @@ export default function BmStats() {
                   <thead>
                     <tr>
                       <th scope="col" className="bms-th">Device</th>
+                      <td className="bms-th">OS</td>
                       <td className="bms-th">Browser</td>
                       <td className="bms-th">Last seen</td>
                       <td className="bms-th">Following</td>
@@ -775,6 +777,7 @@ export default function BmStats() {
                     {status.push.devices.map((device) => (
                       <tr key={device.id}>
                         <th scope="row"><code>{device.id}</code></th>
+                        <td>{device.os || '—'}</td>
                         <td>{device.service}</td>
                         <td>
                           {dayOfBangkok(device.lastSeenAt) === dayOfBangkok(status.generatedAt)

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Lang } from '@/lib/i18n'
 import type { PushSubscriptionRecord } from './types'
+import type { DeviceOs } from './user-agent'
 
 // What the status page shows about the devices following a match alert. The
 // endpoint and its keys never leave the server: a device is named by a short
@@ -27,6 +28,8 @@ export interface DeviceRow {
   id: string
   /** The browser behind the push service, or the service's hostname. */
   service: string
+  /** The device's operating system, or '' for one last seen before it was kept. */
+  os: DeviceOs
   lang: Lang
   createdAt: string
   lastSeenAt: string
@@ -74,6 +77,7 @@ export function deviceRows(
     .map((r) => ({
       id: endpointHash(r.endpoint),
       service: service(r.endpoint),
+      os: r.os ?? '',
       lang: r.lang,
       createdAt: r.createdAt,
       lastSeenAt: r.lastSeenAt,

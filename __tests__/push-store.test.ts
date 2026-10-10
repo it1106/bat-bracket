@@ -209,3 +209,31 @@ describe('removeFollowsIn', () => {
     expect((await fs.stat(path.join(tmp, 'subscriptions.json'))).mtimeMs).toBe(before)
   })
 })
+
+describe('push store — operating system', () => {
+  it("keeps the device's operating system, and updates it when it changes", async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0, 'Android')
+    expect((await getRecord(sub('a').endpoint))?.os).toBe('Android')
+    // The same push address on a reinstalled or different OS: take the newer.
+    await touchRecord(sub('a').endpoint, T0 + 60_000, 'iOS')
+    expect((await getRecord(sub('a').endpoint))?.os).toBe('iOS')
+  })
+
+  it('leaves the stored operating system alone when a request does not say', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0, 'Android')
+    await touchRecord(sub('a').endpoint, T0 + 60_000, '')
+    expect((await getRecord(sub('a').endpoint))?.os).toBe('Android')
+  })
+
+  it('loads a record saved before the operating system was kept', async () => {
+    const old = { version: 1, records: [{
+      endpoint: sub('old').endpoint, keys: { p256dh: 'p', auth: 'a' }, lang: 'en',
+      follows: [], createdAt: new Date(T0).toISOString(), lastSeenAt: new Date(T0).toISOString(),
+    }] }
+    await fs.writeFile(path.join(tmp, 'subscriptions.json'), JSON.stringify(old), 'utf8')
+    __setPushRootForTesting(tmp)
+    const rec = await getRecord(sub('old').endpoint)
+    expect(rec).not.toBeNull()
+    expect(rec?.os).toBeUndefined()
+  })
+})

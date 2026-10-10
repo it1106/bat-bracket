@@ -5,6 +5,7 @@ import { clubLookup } from '@/lib/push/clubs'
 import { addFollow, getRecord } from '@/lib/push/store'
 import { allowNewDevice, clientAddress } from '@/lib/push/rate-limit'
 import { alertTournaments } from '@/lib/push/tournaments'
+import { osFromUserAgent } from '@/lib/push/user-agent'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
     return answer({ error: 'too many new devices from this address today' }, 429)
   }
   const lang = body?.lang === 'th' ? 'th' : 'en'
-  const result = await addFollow(subscription, lang, target, Date.now())
+  const result = await addFollow(subscription, lang, target, Date.now(), osFromUserAgent(request.headers.get('user-agent')))
   if (!result.ok) return answer({ error: 'follow limit reached', reason: result.reason }, 429)
   return answer({ follows: result.follows })
 }
