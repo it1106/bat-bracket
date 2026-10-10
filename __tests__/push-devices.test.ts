@@ -111,6 +111,14 @@ describe('deviceRows', () => {
     expect(total).toBe(MAX_DEVICE_ROWS + 7)
   })
 
+  it("shows the device's operating system, and a dash when it was never recorded", () => {
+    const { devices } = deviceRows([
+      record({ endpoint: 'https://a.example/known', os: 'iOS', lastSeenAt: '2026-10-09T05:00:00.000Z' }),
+      record({ endpoint: 'https://a.example/unknown', lastSeenAt: '2026-10-09T04:00:00.000Z' }),
+    ], names)
+    expect(devices.map((d) => d.os)).toEqual(['iOS', ''])
+  })
+
   it('never carries the endpoint or the keys off the server', () => {
     const { devices } = deviceRows([record({ follows: [player(), club()] })], names)
     const json = JSON.stringify(devices)

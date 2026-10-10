@@ -1,5 +1,6 @@
 import type { MatchEntry, MatchPlayer } from '@/lib/types'
 import type { Lang } from '@/lib/i18n'
+import type { DeviceOs } from './user-agent'
 
 export interface PlayerFollow {
   kind: 'player'
@@ -42,6 +43,10 @@ export interface PushSubscriptionRecord {
   createdAt: string
   /** Refreshed whenever the device talks to the API. */
   lastSeenAt: string
+  /** One coarse word for the device's operating system, for the status page.
+   *  Absent on a device last seen before this was kept. Never the user agent
+   *  itself: see lib/push/user-agent.ts. */
+  os?: DeviceOs
 }
 
 /** `soon` and `next` come before a match; `result` once it has a winner. */

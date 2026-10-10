@@ -3,6 +3,7 @@ import path from 'path'
 import type { Lang } from '@/lib/i18n'
 import { normalizeClub } from './alerts'
 import type { FollowTarget, PushFollow, PushKeys, PushSubscriptionRecord } from './types'
+import type { DeviceOs } from './user-agent'
 
 // The devices that asked for match alerts and what each one follows. One JSON
 // file, held in memory while it is unchanged on disk, rewritten whole on every
@@ -135,6 +136,7 @@ export async function addFollow(
   lang: Lang,
   target: FollowTarget,
   now: number,
+  os: DeviceOs = '',
 ): Promise<FollowResult> {
   return change<FollowResult>((map) => {
     const at = new Date(now).toISOString()
@@ -156,6 +158,7 @@ export async function addFollow(
     rec.keys = sub.keys
     rec.lang = lang
     rec.lastSeenAt = at
+    if (os) rec.os = os
     map.set(rec.endpoint, rec)
     return { value: { ok: true, follows: rec.follows.slice() }, dirty: true }
   })
@@ -191,14 +194,18 @@ export async function removeFollowsIn(tournamentIds: string[]): Promise<number> 
   })
 }
 
-export async function touchRecord(endpoint: string, now: number): Promise<PushFollow[] | null> {
+export async function touchRecord(endpoint: string, now: number, os: DeviceOs = ''): Promise<PushFollow[] | null> {
   return change((map) => {
     const rec = map.get(endpoint)
     if (!rec) return { value: null, dirty: false }
+    // A device that moved to another OS, or one first seen before this was
+    // kept. Worth a write on its own, whatever the date throttle below says.
+    const osChanged = !!os && rec.os !== os
+    if (osChanged) rec.os = os
     // Every page load of a subscribed device comes through here. The date only
     // feeds the 60-day prune, so once a day is often enough to write it.
     const seen = Date.parse(rec.lastSeenAt)
-    if (!Number.isNaN(seen) && now - seen < TOUCH_EVERY_MS) return { value: rec.follows.slice(), dirty: false }
+    if (!Number.isNaN(seen) && now - seen < TOUCH_EVERY_MS) return { value: rec.follows.slice(), dirty: osChanged }
     rec.lastSeenAt = new Date(now).toISOString()
     return { value: rec.follows.slice(), dirty: true }
   })

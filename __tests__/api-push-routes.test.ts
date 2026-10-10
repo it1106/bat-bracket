@@ -32,7 +32,8 @@ const allow = allowNewDevice as jest.Mock
 const clubs = clubLookup as jest.Mock
 const listed = alertTournaments as jest.Mock
 
-const post = (body: unknown) => new Request('http://x/api/push', { method: 'POST', body: typeof body === 'string' ? body : JSON.stringify(body) })
+const post = (body: unknown, headers: Record<string, string> = {}) => new Request('http://x/api/push', { method: 'POST', headers, body: typeof body === 'string' ? body : JSON.stringify(body) })
+const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1'
 
 beforeEach(() => {
   config.mockReset().mockReturnValue({ publicKey: 'PUB', privateKey: 'priv', subject: 'mailto:a@b.c' })
@@ -141,6 +142,23 @@ describe('POST /api/push/follow', () => {
     config.mockReturnValue(null)
     expect((await follow(post({ subscription: SUB, lang: 'en', target: PLAYER }))).status).toBe(404)
     expect(add).not.toHaveBeenCalled()
+  })
+})
+
+describe('the device\'s operating system', () => {
+  it('is read from the request when following', async () => {
+    await follow(post({ subscription: SUB, lang: 'en', target: PLAYER }, { 'user-agent': IPHONE_UA }))
+    expect(add.mock.calls[0][4]).toBe('iOS')
+  })
+
+  it('is read from the request when a device checks in', async () => {
+    await state(post({ endpoint: ENDPOINT }, { 'user-agent': IPHONE_UA }))
+    expect(touch.mock.calls[0][2]).toBe('iOS')
+  })
+
+  it('is left blank when the request does not say', async () => {
+    await follow(post({ subscription: SUB, lang: 'en', target: PLAYER }))
+    expect(add.mock.calls[0][4]).toBe('')
   })
 })
 
