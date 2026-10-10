@@ -76,16 +76,20 @@ export default function FollowButton({ tournamentId, playerId, playerName, clubN
 
   return (
     <div className="follow-wrap">
-      <button
-        type="button"
-        className={`follow-btn${direct || viaClub ? ' follow-btn--on' : ''}`}
-        aria-pressed={direct || viaClub}
-        disabled={busy}
-        onClick={onClick}
-      >
-        {BELL}
-        <span>{label}</span>
-      </button>
+      <div className="follow-row">
+        <button
+          type="button"
+          className={`follow-btn${direct || viaClub ? ' follow-btn--on' : ''}`}
+          aria-pressed={direct || viaClub}
+          disabled={busy}
+          onClick={onClick}
+        >
+          {BELL}
+          <span>{label}</span>
+        </button>
+        {/* Match alerts are new: say so next to the button that turns them on. */}
+        <span className="follow-beta">beta</span>
+      </div>
       {note && (
         <div className="follow-note" role="status">
           {t(note)}

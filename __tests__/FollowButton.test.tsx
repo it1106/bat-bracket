@@ -28,6 +28,15 @@ const note = () => document.querySelector('.follow-note')?.textContent ?? ''
 beforeEach(() => { (track as jest.Mock).mockReset(); localStorage.clear() })
 
 describe('FollowButton', () => {
+  it('marks match alerts as a beta feature beside the button', async () => {
+    mount(fakeClient())
+    await waitFor(() => expect(document.querySelector('.follow-beta')).toBeTruthy())
+    const badge = document.querySelector('.follow-beta')
+    expect(badge?.textContent).toBe('beta')
+    // Beside the button, not under it: same row.
+    expect(badge?.parentElement?.querySelector('.follow-btn')).toBeTruthy()
+  })
+
   it('is not shown while the feature is off or the browser cannot do push', async () => {
     mount(fakeClient({ publicKey: async () => null }))
     await Promise.resolve()

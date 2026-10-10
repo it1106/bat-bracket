@@ -4075,6 +4075,33 @@ button.ptf-name { cursor: pointer; }
   margin-top: 6px;
 }
 
+.follow-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Match alerts are still a beta feature; the same amber as other notices. */
+.follow-beta {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: calc(10px * var(--text-scale));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #fef3c7;
+  color: #92400e;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+html.dark .follow-beta {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
+}
+
 .follow-btn {
   align-self: flex-start;
   display: inline-flex;
