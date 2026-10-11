@@ -18,7 +18,9 @@ const follow = (playerId: string, tournamentId = TID): PushFollow => ({ kind: 'p
 const device = (name: string, follows: PushFollow[]): PushSubscriptionRecord => ({
   endpoint: `https://fcm.googleapis.com/fcm/send/${name}`, keys: { p256dh: 'p', auth: 'a' }, lang: 'en', follows, createdAt: '', lastSeenAt: '',
 })
-const QUEUE = () => day(m('90', '91', { winner: 1 }), m('1', '2'), m('3', '4'), m('5', '6'), m('7', '8'))
+// P1's match is on court (the `playing` alert); the rest queue behind it, so
+// 5v6 and 7v8 fall in the `soon` window.
+const QUEUE = () => day(m('90', '91', { winner: 1 }), m('1', '2', { nowPlaying: true }), m('3', '4'), m('5', '6'), m('7', '8'))
 
 function world(over: Partial<WatcherDeps> & { records?: PushSubscriptionRecord[]; days?: Record<string, MatchScheduleGroup[] | null>; results?: Record<string, SendResult> } = {}) {
   const sent = new Set<string>()
@@ -57,7 +59,7 @@ describe('runWatcherTick', () => {
     const w = world({ records: [device('a', [follow('1')])] })
     expect(await runWatcherTick(w.deps)).toEqual({ sent: 1, failed: 0, gone: 0 })
     expect(w.pushes).toHaveLength(1)
-    expect(w.pushes[0].payload.title).toBe('Up next')
+    expect(w.pushes[0].payload.title).toBe('Now Playing')
     await runWatcherTick(w.deps)
     await runWatcherTick(w.deps)
     expect(w.pushes).toHaveLength(1)
@@ -98,14 +100,14 @@ describe('runWatcherTick', () => {
   it('skips a tournament with no schedule today and carries on with the others', async () => {
     const w = world({
       records: [device('a', [follow('1'), follow('1', TID2)])],
-      days: { [TID2]: day(m('90', '91', { winner: 1 }), m('1', '2')), [TID]: null },
+      days: { [TID2]: day(m('90', '91', { winner: 1 }), m('1', '2', { nowPlaying: true })), [TID]: null },
     })
     expect((await runWatcherTick(w.deps)).sent).toBe(1)
   })
 
   it('carries on when one tournament\'s schedule throws', async () => {
     const w = world({ records: [device('a', [follow('1'), follow('1', TID2)])] })
-    w.deps.fetchDay = async (tid) => { if (tid === TID) throw new Error('boom'); return day(m('90', '91', { winner: 1 }), m('1', '2')) }
+    w.deps.fetchDay = async (tid) => { if (tid === TID) throw new Error('boom'); return day(m('90', '91', { winner: 1 }), m('1', '2', { nowPlaying: true })) }
     expect((await runWatcherTick(w.deps)).sent).toBe(1)
   })
 
@@ -138,16 +140,16 @@ describe('runWatcherTick', () => {
   })
 
   it('sends one or two alerts singly', async () => {
-    const w = world({ records: [device('a', [follow('1'), follow('3')])] })
+    const w = world({ records: [device('a', [follow('1'), follow('5')])] })
     await runWatcherTick(w.deps)
-    expect(w.pushes.map((p) => p.payload.title).sort()).toEqual(['About 1 match away', 'Up next'])
+    expect(w.pushes.map((p) => p.payload.title).sort()).toEqual(['About 1 match away', 'Now Playing'])
   })
 
   it('bundles more than two for one device into a single notification, and settles them all', async () => {
-    const w = world({ records: [device('a', [follow('1'), follow('3'), follow('5'), follow('7')])] })
+    const w = world({ records: [device('a', [follow('1'), follow('5'), follow('7')])] })
     expect((await runWatcherTick(w.deps)).sent).toBe(1)
     expect(w.pushes).toHaveLength(1)
-    expect(w.pushes[0].payload.title).toBe('4 matches coming up')
+    expect(w.pushes[0].payload.title).toBe('3 matches coming up')
     expect(w.pushes[0].payload.body.split('\n')[0]).toContain('P1')
     await runWatcherTick(w.deps)
     expect(w.pushes).toHaveLength(1)
@@ -155,8 +157,8 @@ describe('runWatcherTick', () => {
 
   it('bundles per device and per tournament, not across them', async () => {
     const w = world({
-      records: [device('a', [follow('1'), follow('3'), follow('1', TID2)]), device('b', [follow('5')])],
-      days: { [TID]: QUEUE(), [TID2]: day(m('90', '91', { winner: 1 }), m('1', '2')) },
+      records: [device('a', [follow('1'), follow('5'), follow('1', TID2)]), device('b', [follow('5')])],
+      days: { [TID]: QUEUE(), [TID2]: day(m('90', '91', { winner: 1 }), m('1', '2', { nowPlaying: true })) },
     })
     await runWatcherTick(w.deps)
     expect(w.pushes.filter((p) => p.to === 'a')).toHaveLength(3)
@@ -181,17 +183,19 @@ describe('runWatcherTick', () => {
 })
 
 describe('runWatcherTick before play has started', () => {
-  const freshDay: MatchScheduleGroup[] = [{ type: 'time', time: '9:00', matches: [m('1', '2')] }]
+  // P3's match is second, so the queue rule would allow it; only the slot
+  // gate holds it back until the morning.
+  const freshDay: MatchScheduleGroup[] = [{ type: 'time', time: '9:00', matches: [m('1', '2'), m('3', '4')] }]
 
   it('sends nothing at midnight, and the alert still goes out in the morning', async () => {
     let minute = 1
-    const w = world({ records: [device('a', [follow('1')])], days: { [TID]: freshDay } })
+    const w = world({ records: [device('a', [follow('3')])], days: { [TID]: freshDay } })
     w.deps.bangkokMinute = () => minute
     await runWatcherTick(w.deps)
     expect(w.pushes).toEqual([])
     minute = 8 * 60 + 40
     await runWatcherTick(w.deps)
-    expect(w.pushes.map((p) => p.payload.title)).toEqual(['Up next'])
+    expect(w.pushes.map((p) => p.payload.title)).toEqual(['About 1 match away'])
   })
 })
 
@@ -307,7 +311,9 @@ describe('makeFetchDays', () => {
 describe('runWatcherTick — results', () => {
   const T0 = Date.UTC(2026, 9, 9, 3, 15)
   const followed = (playerId: string): PushFollow => ({ ...follow(playerId), addedAt: new Date(T0 - 60_000).toISOString() })
-  const open = () => day(m('90', '91', { nowPlaying: true }), m('1', '2', { nowPlaying: true }))
+  // P1's match is at the front of the queue, which alerts nothing: this is
+  // about the result, not the coming-up alert.
+  const open = () => day(m('90', '91', { nowPlaying: true }), m('1', '2'))
   const closed = () => day(m('90', '91', { nowPlaying: true }), m('1', '2', { winner: 1, scores: [{ t1: 15, t2: 2 }, { t1: 15, t2: 4 }] }))
 
   it('reports a followed player\'s result on the tick it first appears, and only once', async () => {
@@ -342,12 +348,13 @@ describe('runWatcherTick — results', () => {
   })
 
   it('sends each result as its own notification, never inside the coming-up digest', async () => {
-    let groups = day(m('1', '2', { nowPlaying: true }), m('3', '4', { nowPlaying: true }), m('5', '6', { nowPlaying: true }))
+    let groups = day(m('1', '2'), m('3', '4'), m('5', '6'))
     const w = world({ records: [device('a', [followed('1'), followed('3'), followed('5')])], fetchDay: async () => groups, now: () => T0 })
     await runWatcherTick(w.deps)
+    const comingUp = w.pushes.length
     groups = day(m('1', '2', { winner: 1 }), m('3', '4', { winner: 2 }), m('5', '6', { winner: 1 }))
     await runWatcherTick(w.deps)
-    expect(w.pushes.map((p) => p.payload.title)).toEqual(['Won', 'Lost', 'Won'])
+    expect(w.pushes.slice(comingUp).map((p) => p.payload.title)).toEqual(['Won', 'Lost', 'Won'])
   })
 })
 
@@ -359,7 +366,7 @@ describe('runWatcherTick records what it sent', () => {
     // The device table names a device the same way, so the two line up.
     expect(w.noted[0].device).toBe(endpointHash('https://fcm.googleapis.com/fcm/send/a'))
     expect(w.noted[0]).toMatchObject({
-      stage: 'next',
+      stage: 'playing',
       result: 'ok',
       draw: 'BS U15',
       round: 'Round of 32',

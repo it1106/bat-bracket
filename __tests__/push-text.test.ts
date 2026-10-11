@@ -15,15 +15,15 @@ const match = (over: Partial<MatchEntry> = {}): MatchEntry => ({
 const alert = (over: Partial<DueAlert> = {}): DueAlert => {
   const m = over.match ?? match()
   return {
-    endpoint: 'https://fcm.googleapis.com/fcm/send/x', lang: 'en', stage: 'next', position: 1,
+    endpoint: 'https://fcm.googleapis.com/fcm/send/x', lang: 'en', stage: 'playing', position: 0,
     sentKey: 'k', covers: ['k'], match: m, players: [m.team1[0]], directPlayers: [m.team1[0]], clubs: [], ...over,
   }
 }
 
 describe('alertPayload', () => {
-  it('says "Up next" with the player first, the opponent, the draw, round and court', () => {
+  it('says "Now Playing" with the player first, the opponent, the draw, round and court', () => {
     const p = alertPayload(alert(), TID)
-    expect(p.title).toBe('Up next')
+    expect(p.title).toBe('Now Playing')
     expect(p.body).toBe('Anan Dee vs Beam Kla · BS U15 R32 · Court 4')
     expect(p.url).toBe(`/?tournament=${TID}`)
   })
@@ -57,23 +57,27 @@ describe('alertPayload', () => {
   })
 
   it('is written in Thai for a Thai device', () => {
-    expect(alertPayload(alert({ lang: 'th' }), TID).title).toBe('คู่ต่อไป')
+    expect(alertPayload(alert({ lang: 'th' }), TID).title).toBe('กำลังแข่ง')
     expect(alertPayload(alert({ lang: 'th', stage: 'soon', position: 4 }), TID).title).toBe('อีกประมาณ 3 คู่')
     expect(alertPayload(alert({ lang: 'th' }), TID).body).toContain(' พบ ')
   })
 
-  it('uses one tag per match, so "next" replaces "soon" on the device', () => {
+  it('uses one tag per match, so "playing" replaces "soon" on the device', () => {
     const soon = alertPayload(alert({ stage: 'soon', position: 3 }), TID)
-    const next = alertPayload(alert({ stage: 'next' }), TID)
-    expect(soon.tag).toBe(next.tag)
-    expect(alertPayload(alert({ match: match({ drawNum: '22' }) }), TID).tag).not.toBe(next.tag)
+    const playing = alertPayload(alert({ stage: 'playing' }), TID)
+    expect(soon.tag).toBe(playing.tag)
+    expect(alertPayload(alert({ match: match({ drawNum: '22' }) }), TID).tag).not.toBe(playing.tag)
+  })
+
+  it('says "Now Playing" in Thai with the site\'s own words', () => {
+    expect(alertPayload(alert({ lang: 'th' }), TID).title).toBe('กำลังแข่ง')
   })
 })
 
 describe('digestPayload', () => {
   const many = (n: number) => Array.from({ length: n }, (_, i) =>
     alert({
-      position: n - i, stage: n - i === 1 ? 'next' : 'soon',
+      position: n - i, stage: 'soon',
       match: match({ team1: [P(`Player ${i}`, String(100 + i))], court: `Court ${i}` }),
     }))
 

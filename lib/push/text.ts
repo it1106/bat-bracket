@@ -11,7 +11,8 @@ export function matchTag(m: MatchEntry): string {
 }
 
 function title(alert: DueAlert): string {
-  if (alert.stage === 'next') return alert.lang === 'th' ? 'คู่ต่อไป' : 'Up next'
+  // The same words the site itself uses for a match on court (i18n nowPlaying).
+  if (alert.stage === 'playing') return alert.lang === 'th' ? 'กำลังแข่ง' : 'Now Playing'
   const n = Math.max(1, alert.position - 1)
   if (alert.lang === 'th') return `อีกประมาณ ${n} คู่`
   return n === 1 ? 'About 1 match away' : `About ${n} matches away`

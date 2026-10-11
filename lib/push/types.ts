@@ -49,8 +49,9 @@ export interface PushSubscriptionRecord {
   os?: DeviceOs
 }
 
-/** `soon` and `next` come before a match; `result` once it has a winner. */
-export type Stage = 'soon' | 'next' | 'result'
+/** `soon` comes before a match, `playing` once it is on court, `result` once
+ *  it has a winner. */
+export type Stage = 'soon' | 'playing' | 'result'
 
 export interface DueAlert {
   endpoint: string
