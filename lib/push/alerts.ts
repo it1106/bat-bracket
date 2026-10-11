@@ -42,8 +42,8 @@ function playHasStarted(groups: MatchScheduleGroup[]): boolean {
 }
 
 /** The alerts due now: for each device, each match with a player it follows
- *  by name at the front of the queue (`next`) or two to four places from it
- *  (`soon`) that has not been sent yet. A club follow brings none of these --
+ *  by name that is on court (`playing`) or two to four places from the front
+ *  of the queue (`soon`) and has not been sent yet. A club follow brings none of these --
  *  a club is followed for its results. One match is one alert per stage. */
 export function dueAlerts(input: {
   tournamentId: string
@@ -88,14 +88,19 @@ export function dueAlerts(input: {
       if (slot === null || slot - nowMinutes > LEAD_BEFORE_FIRST_SLOT) continue
     }
     for (let mi = 0; mi < matches.length; mi++) {
-      const position = order.get(`${gi}-${mi}`)
-      if (position === undefined) continue
       const match = matches[mi]
-      if (match.winner !== null || match.walkover || match.nowPlaying) continue
+      if (match.winner !== null || match.walkover) continue
       // An opponent not yet decided: wait. Alerting now would name nobody, and
       // the match would be alerted again as a different one once it is known.
       if (match.team1.length === 0 || match.team2.length === 0) continue
-      const stage: Stage | null = position === 1 ? 'next' : position >= SOON_FROM && position <= SOON_TO ? 'soon' : null
+      // A match on court has left the queue and has no place in it, so its
+      // position is read only for `soon`. On court is the thing worth saying,
+      // and unlike a place in the queue it stays true long enough for a
+      // once-a-minute read to catch it.
+      const position = order.get(`${gi}-${mi}`)
+      const stage: Stage | null = match.nowPlaying
+        ? 'playing'
+        : position !== undefined && position >= SOON_FROM && position <= SOON_TO ? 'soon' : null
       if (!stage) continue
 
       const inMatch: MatchPlayer[] = [...match.team1, ...match.team2]
@@ -117,9 +122,9 @@ export function dueAlerts(input: {
         const endpoint = w.record.endpoint
         const sentKey = sentKeyFor(endpoint, tid, dateIso, match, stage)
         if (alreadySent(sentKey)) continue
-        // "next" settles "soon" as well: an early alert must never follow the late one.
-        const covers = stage === 'next' ? [sentKey, sentKeyFor(endpoint, tid, dateIso, match, 'soon')] : [sentKey]
-        out.push({ endpoint, lang: w.record.lang, stage, position, sentKey, covers, match, players, directPlayers, clubs: Array.from(clubs) })
+        // "playing" settles "soon" as well: an early alert must never follow the late one.
+        const covers = stage === 'playing' ? [sentKey, sentKeyFor(endpoint, tid, dateIso, match, 'soon')] : [sentKey]
+        out.push({ endpoint, lang: w.record.lang, stage, position: position ?? 0, sentKey, covers, match, players, directPlayers, clubs: Array.from(clubs) })
       }
     }
   }

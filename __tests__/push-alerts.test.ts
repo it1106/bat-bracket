@@ -44,8 +44,13 @@ const DONE = m(['90'], ['91'], { winner: 1 })
 const queue = () => day(DONE, m(['1'], ['2']), m(['3'], ['4']), m(['5'], ['6']), m(['7'], ['8']), m(['9'], ['10']), m(['11'], ['12']))
 
 describe('dueAlerts — when', () => {
-  it('is "next" at the front of the queue', () => {
-    expect(brief(decide(queue(), [device('a', [player('1')])]))).toEqual(['a:next:1v2@1'])
+  it('says nothing at the front of the queue: the alert waits for the court', () => {
+    expect(decide(queue(), [device('a', [player('1')])])).toEqual([])
+  })
+
+  it('is "playing" once the match is on court', () => {
+    const groups = day(DONE, m(['1'], ['2'], { nowPlaying: true }))
+    expect(brief(decide(groups, [device('a', [player('1')])]))).toEqual(['a:playing:1v2@0'])
   })
 
   it('is "soon" at two, three and four places from the front', () => {
@@ -58,8 +63,12 @@ describe('dueAlerts — when', () => {
     expect(decide(queue(), [device('a', [player('9'), player('11')])])).toEqual([])
   })
 
-  it('never alerts a finished, walked-over or now-playing match', () => {
-    const groups = day(m(['1'], ['2'], { winner: 2 }), m(['3'], ['4'], { walkover: true, winner: 1 }), m(['5'], ['6'], { nowPlaying: true }))
+  it('never alerts a finished or walked-over match, even while it is marked on court', () => {
+    const groups = day(
+      m(['1'], ['2'], { winner: 2 }),
+      m(['3'], ['4'], { walkover: true, winner: 1 }),
+      m(['5'], ['6'], { winner: 1, nowPlaying: true }),
+    )
     expect(decide(groups, [device('a', [player('1'), player('3'), player('5')])])).toEqual([])
   })
 
@@ -80,8 +89,8 @@ describe('dueAlerts — when', () => {
   })
 
   it('matches the tournament id whatever its case', () => {
-    const lower = { ...player('1'), tournamentId: TID.toLowerCase() } as PushFollow
-    expect(brief(decide(queue(), [device('a', [lower])]))).toEqual(['a:next:1v2@1'])
+    const lower = { ...player('3'), tournamentId: TID.toLowerCase() } as PushFollow
+    expect(brief(decide(queue(), [device('a', [lower])]))).toEqual(['a:soon:3v4@2'])
   })
 })
 
@@ -93,31 +102,40 @@ describe('dueAlerts — once', () => {
     expect(decide(queue(), [a], { sent: new Set(first.flatMap((x) => x.covers)) })).toEqual([])
   })
 
-  it('sends "next" after "soon" was sent', () => {
+  it('sends "playing" after "soon" was sent', () => {
     const a = device('a', [player('3')])
     const soon = decide(queue(), [a])
     const sent = new Set(soon.flatMap((x) => x.covers))
-    const later = day(DONE, m(['1'], ['2'], { winner: 1 }), m(['3'], ['4']), m(['5'], ['6']))
-    expect(brief(decide(later, [a], { sent }))).toEqual(['a:next:3v4@1'])
+    const onCourt = day(DONE, m(['1'], ['2'], { winner: 1 }), m(['3'], ['4'], { nowPlaying: true }))
+    expect(brief(decide(onCourt, [a], { sent }))).toEqual(['a:playing:3v4@0'])
   })
 
-  it('a match first seen at the front settles "soon" too, so it cannot arrive afterwards', () => {
+  it('does not repeat "playing" while the match stays on court', () => {
+    const a = device('a', [player('3')])
+    const onCourt = day(DONE, m(['3'], ['4'], { nowPlaying: true }))
+    const first = decide(onCourt, [a])
+    expect(first).toHaveLength(1)
+    const sent = new Set(first.flatMap((x) => x.covers))
+    expect(decide(onCourt, [a], { sent })).toEqual([])
+  })
+
+  it('a match first seen on court settles "soon" too, so it cannot arrive afterwards', () => {
     const a = device('a', [player('1')])
-    const next = decide(queue(), [a])
-    expect(next[0].covers).toHaveLength(2)
-    const sent = new Set(next.flatMap((x) => x.covers))
-    // the organisers push the match back three places
+    const playing = decide(day(DONE, m(['1'], ['2'], { nowPlaying: true })), [a])
+    expect(playing[0].covers).toHaveLength(2)
+    const sent = new Set(playing.flatMap((x) => x.covers))
+    // the match comes off court and is put back three places
     const reordered = day(DONE, m(['3'], ['4']), m(['5'], ['6']), m(['1'], ['2']))
     expect(decide(reordered, [a], { sent })).toEqual([])
   })
 
   it('keeps a key stable when the schedule is re-read in another order', () => {
-    const one = sentKeyFor('https://e/1', TID, DAY, m(['1'], ['2']), 'next')
-    const two = sentKeyFor('https://e/1', TID.toLowerCase(), DAY, m(['2'], ['1']), 'next')
+    const one = sentKeyFor('https://e/1', TID, DAY, m(['1'], ['2']), 'playing')
+    const two = sentKeyFor('https://e/1', TID.toLowerCase(), DAY, m(['2'], ['1']), 'playing')
     expect(one).toBe(two)
-    expect(sentKeyFor('https://e/2', TID, DAY, m(['1'], ['2']), 'next')).not.toBe(one)
+    expect(sentKeyFor('https://e/2', TID, DAY, m(['1'], ['2']), 'playing')).not.toBe(one)
     expect(sentKeyFor('https://e/1', TID, DAY, m(['1'], ['2']), 'soon')).not.toBe(one)
-    expect(sentKeyFor('https://e/1', TID, '2026-10-10', m(['1'], ['2']), 'next')).not.toBe(one)
+    expect(sentKeyFor('https://e/1', TID, '2026-10-10', m(['1'], ['2']), 'playing')).not.toBe(one)
     expect(one).not.toContain('https://')
     expect(endpointHash('https://e/1')).toHaveLength(16)
   })
@@ -125,23 +143,24 @@ describe('dueAlerts — once', () => {
 
 describe('dueAlerts — who', () => {
   it('sends each device its own alert', () => {
-    const out = decide(queue(), [device('a', [player('1')]), device('b', [player('2')]), device('c', [player('5')])])
-    expect(brief(out).sort()).toEqual(['a:next:1v2@1', 'b:next:1v2@1', 'c:soon:5v6@3'])
+    const groups = day(DONE, m(['1'], ['2'], { nowPlaying: true }), m(['3'], ['4']), m(['5'], ['6']))
+    const out = decide(groups, [device('a', [player('1')]), device('b', [player('2')]), device('c', [player('5')])])
+    expect(brief(out).sort()).toEqual(['a:playing:1v2@0', 'b:playing:1v2@0', 'c:soon:5v6@2'])
   })
 
   it('names two followed players in one match together, in one alert', () => {
-    const out = decide(queue(), [device('a', [player('1'), player('2')])])
+    const out = decide(queue(), [device('a', [player('3'), player('4')])])
     expect(out).toHaveLength(1)
-    expect(out[0].players.map((p) => p.playerId).sort()).toEqual(['1', '2'])
+    expect(out[0].players.map((p) => p.playerId).sort()).toEqual(['3', '4'])
   })
 
   it('finds a doubles pair by either partner', () => {
-    const groups = day(DONE, m(['1', '9'], ['2', '8']))
+    const groups = day(DONE, m(['1', '9'], ['2', '8'], { nowPlaying: true }))
     expect(decide(groups, [device('a', [player('9')])])[0].players.map((p) => p.playerId)).toEqual(['9'])
   })
 
   it('carries the device language', () => {
-    expect(decide(queue(), [device('a', [player('1')], 'th')])[0].lang).toBe('th')
+    expect(decide(queue(), [device('a', [player('3')], 'th')])[0].lang).toBe('th')
   })
 })
 
@@ -158,7 +177,8 @@ describe('dueAlerts — clubs', () => {
   })
 
   it('alerts once for a player followed directly and through a club', () => {
-    const out = decide(queue(), [device('a', [player('1'), club('Red Club')])], { clubs })
+    const onCourt = day(DONE, m(['1'], ['2'], { nowPlaying: true }))
+    const out = decide(onCourt, [device('a', [player('1'), club('Red Club')])], { clubs })
     const first = out.filter((a) => a.match.team1[0].playerId === '1')
     expect(first).toHaveLength(1)
     expect(first[0].players.map((p) => p.playerId)).toEqual(['1'])
@@ -170,13 +190,13 @@ describe('dueAlerts — clubs', () => {
 
   it('keeps a club member the device does not follow by name out of the directly followed', () => {
     // Player 7 is followed by name; 3 is only a Red Club member.
-    const out = decide(day(DONE, m(['7', '3'], ['2', '8'])), [device('a', [player('7'), club('Red Club')])], { clubs })
+    const out = decide(day(DONE, m(['7', '3'], ['2', '8'], { nowPlaying: true })), [device('a', [player('7'), club('Red Club')])], { clubs })
     expect(out[0].players.map((p) => p.playerId).sort()).toEqual(['3', '7'])
     expect(out[0].directPlayers.map((p) => p.playerId)).toEqual(['7'])
   })
 
   it('alerts once for one partner followed and the other partner\'s club followed', () => {
-    const groups = day(DONE, m(['7', '3'], ['2', '8']))
+    const groups = day(DONE, m(['7', '3'], ['2', '8'], { nowPlaying: true }))
     const out = decide(groups, [device('a', [player('7'), club('Red Club')])], { clubs })
     expect(out).toHaveLength(1)
     expect(out[0].players.map((p) => p.playerId).sort()).toEqual(['3', '7'])
@@ -213,11 +233,11 @@ describe('dueAlerts — before play has started', () => {
   })
 
   it('alerts the first matches once their slot is half an hour away', () => {
-    expect(brief(decide(fresh('9:00'), both, { now: at(8, 30) })).sort()).toEqual(['a:next:1v2@1', 'a:soon:3v4@2'])
+    expect(brief(decide(fresh('9:00'), both, { now: at(8, 30) }))).toEqual(['a:soon:3v4@2'])
   })
 
   it('still alerts a first slot that is running late', () => {
-    expect(decide(fresh('9:00'), both, { now: at(9, 20) })).toHaveLength(2)
+    expect(decide(fresh('9:00'), both, { now: at(9, 20) })).toHaveLength(1)
   })
 
   it('holds back a later slot of a day that has not started', () => {
@@ -225,7 +245,9 @@ describe('dueAlerts — before play has started', () => {
       { type: 'time', time: '9:00', matches: [m(['1'], ['2'])] },
       { type: 'time', time: '13:00', matches: [m(['3'], ['4'])] },
     ]
-    expect(brief(decide(groups, both, { now: at(8, 45) }))).toEqual(['a:next:1v2@1'])
+    // The 9:00 match is at the front and so says nothing; the 13:00 one is
+    // held back for its slot, not for its place.
+    expect(decide(groups, both, { now: at(8, 45) })).toEqual([])
   })
 
   it('does not guess for a slot whose time cannot be read', () => {
@@ -233,14 +255,14 @@ describe('dueAlerts — before play has started', () => {
   })
 
   it('reads a time written with a leading zero or a dot', () => {
-    expect(decide(fresh('09:00'), both, { now: at(8, 40) })).toHaveLength(2)
-    expect(decide(fresh('9.00'), both, { now: at(8, 40) })).toHaveLength(2)
+    expect(decide(fresh('09:00'), both, { now: at(8, 40) })).toHaveLength(1)
+    expect(decide(fresh('9.00'), both, { now: at(8, 40) })).toHaveLength(1)
   })
 
   it('goes by the queue alone once a match has been played or is on court', () => {
-    expect(decide(queue(), [device('a', [player('1')])], { now: at(0, 1) })).toHaveLength(1)
-    const live = day(m(['90'], ['91'], { nowPlaying: true }), m(['1'], ['2']))
-    expect(decide(live, [device('a', [player('1')])], { now: at(0, 1) })).toHaveLength(1)
+    expect(decide(queue(), [device('a', [player('3')])], { now: at(0, 1) })).toHaveLength(1)
+    const live = day(m(['90'], ['91'], { nowPlaying: true }), m(['1'], ['2']), m(['3'], ['4']))
+    expect(decide(live, [device('a', [player('3')])], { now: at(0, 1) })).toHaveLength(1)
   })
 
   it('a walkover alone does not count as play having started', () => {
