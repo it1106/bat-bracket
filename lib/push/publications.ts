@@ -1,5 +1,10 @@
-import type { Publication } from './types'
+import { endpointHash } from './devices'
+import { prunePublished } from './published-state'
+import { publicationPayload } from './text'
+import type { Publication, PushSubscriptionRecord } from './types'
 import type { PublishedState, PublishedTournament } from './published-state'
+import type { Sender, SendResult } from './sender'
+import type { RecentSend } from './recent-sends'
 
 export interface DrawSnapshot {
   drawNum: string
@@ -133,4 +138,137 @@ export function duePublications(input: {
   }
 
   return { publications, state: { version: 1, seeded: true, tournaments } }
+}
+
+export interface PublicationDeps {
+  now: () => number
+  todayIso: () => string
+  isBatDown: () => boolean
+  /** Every tournament the site lists, with its name and finished flag. */
+  listTournaments: () => Promise<Array<{ id: string; name: string; done: boolean }>>
+  /** The tournament's visible draws with whatever entrant counts are cached,
+   *  or null when they could not be read. */
+  fetchDraws: (tournamentId: string) => Promise<DrawSnapshot[] | null>
+  /** Fetches one bracket so its entrant count becomes known. Failure is fine:
+   *  the count stays unknown and the draw is probed again next pass. */
+  probeBracket: (tournamentId: string, drawNum: string) => Promise<void>
+  /** The tournament's schedule days, or null when they could not be read. */
+  fetchDays: (tournamentId: string) => Promise<DaySnapshot[] | null>
+  loadState: () => Promise<PublishedState>
+  saveState: (state: PublishedState) => Promise<void>
+  listRecords: () => Promise<PushSubscriptionRecord[]>
+  send: Sender
+  removeRecord: (endpoint: string) => Promise<void>
+  record: (result: SendResult, dayIso: string) => void
+  noteSend: (row: RecentSend) => Promise<void>
+}
+
+/** Where each tournament's bracket probing got to, so a big tournament is
+ *  covered over several passes. In memory: a restart simply starts again at
+ *  the first un-announced draw. */
+const probeCursors = new Map<string, number>()
+
+export function __resetPublicationsForTesting(): void {
+  probeCursors.clear()
+}
+
+/** One publication pass. Detection and the state write happen whether or not
+ *  any device is listening: a pass that skipped them for want of an audience
+ *  would hand the next person who switches site news on a month of backlog. */
+export async function runPublicationPass(deps: PublicationDeps): Promise<{ publications: number; sent: number; failed: number; gone: number }> {
+  const tally = { publications: 0, sent: 0, failed: 0, gone: 0 }
+  // A stale read would announce publications that have not happened.
+  if (deps.isBatDown()) return tally
+
+  const state = await deps.loadState()
+  const listed = await deps.listTournaments()
+  // An upstream hiccup is not "everything is gone" — discovery's own rule.
+  if (listed.length === 0 && Object.keys(state.tournaments).length > 0) {
+    console.warn('[push] empty tournament list vs non-empty published state — skipping publication pass')
+    return tally
+  }
+
+  const snapshots: TournamentSnapshot[] = []
+  for (const t of listed) {
+    if (t.done) continue
+    const id = t.id.toUpperCase()
+    let draws = await deps.fetchDraws(id).catch(() => null)
+    if (draws) {
+      const announced = new Set(state.tournaments[id]?.draws ?? [])
+      const isNew = !state.tournaments[id]
+      const probe = async (drawNums: string[]) => {
+        for (const drawNum of drawNums) await deps.probeBracket(id, drawNum).catch(() => undefined)
+        draws = (await deps.fetchDraws(id).catch(() => null)) ?? draws
+      }
+      const entriesFound = () => !!draws && entered(draws).some((d) => !announced.has(d.drawNum))
+      // A tournament the state has never seen is probed in full, so its one
+      // arrival notice carries a complete baseline instead of being chased by
+      // a string of bracket notices.
+      if (isNew) {
+        await probe(probeTargets(draws, announced, Number.MAX_SAFE_INTEGER, 0).drawNums)
+      } else {
+        // Refresh the counts that could still be hiding entries, then read the
+        // list again: /api/bracket caches what it fetched.
+        const { drawNums, nextCursor } = probeTargets(draws, announced, PROBE_CAP, probeCursors.get(id) ?? 0)
+        probeCursors.set(id, nextCursor)
+        if (drawNums.length > 0) await probe(drawNums)
+        // Entries confirmed: the rest of this tournament's draws almost
+        // certainly filled in the same upstream publish, so finish the job now
+        // and announce them together rather than five at a time.
+        if (entriesFound()) {
+          const rest = probeTargets(draws!, announced, Number.MAX_SAFE_INTEGER, 0).drawNums
+          if (rest.length > 0) await probe(rest)
+          probeCursors.set(id, 0)
+        }
+      }
+    }
+    const days = await deps.fetchDays(id).catch(() => null)
+    snapshots.push({ id, name: t.name, draws, days })
+  }
+
+  const decided = duePublications({
+    snapshots,
+    state,
+    todayIso: deps.todayIso(),
+    nowIso: new Date(deps.now()).toISOString(),
+  })
+  tally.publications = decided.publications.length
+
+  // Written before anything is sent: delivery is at-most-once on purpose (the
+  // state is global, so a retry would re-notify every device already reached),
+  // and a reload mid-send must not announce twice.
+  await deps.saveState(prunePublished(decided.state, new Set(snapshots.map((s) => s.id)), deps.now()))
+  if (decided.publications.length === 0) return tally
+
+  const records = (await deps.listRecords()).filter((r) => r.site === true)
+  if (records.length === 0) return tally
+
+  const dayIso = deps.todayIso()
+  const minuteKey = new Date(deps.now()).toISOString().slice(0, 16)
+  const goneEndpoints = new Set<string>()
+  for (const pub of decided.publications) {
+    for (const record of records) {
+      if (goneEndpoints.has(record.endpoint)) continue
+      const payload = publicationPayload(pub, record.lang, minuteKey)
+      const result: SendResult = await deps.send(record, payload).catch(() => 'failed' as const)
+      deps.record(result, dayIso)
+      await deps.noteSend({
+        at: new Date(deps.now()).toISOString(),
+        device: endpointHash(record.endpoint),
+        stage: pub.kind,
+        result,
+        draw: pub.tournamentName,
+        round: '',
+        match: payload.body,
+        via: 'site news',
+      })
+      if (result === 'ok') tally.sent++
+      else if (result === 'gone') {
+        tally.gone++
+        goneEndpoints.add(record.endpoint)
+        await deps.removeRecord(record.endpoint)
+      } else tally.failed++
+    }
+  }
+  return tally
 }
