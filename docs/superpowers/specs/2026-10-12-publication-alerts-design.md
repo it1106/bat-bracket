@@ -173,13 +173,22 @@ export interface Publication {
 A separate type, not `DueAlert` — that one requires a `match: MatchEntry`.
 
 **Cadence.** Called from the watcher's existing one-minute timer, every fifth
-tick, so the one leader lease governs match alerts and publications together
-and there is no second timer to reason about. It returns at once when
-`isBatDown()` (a stale read would announce nothing truthfully) or when no
-record has `site: true` (nobody to tell, so nothing is fetched and **nothing is
-recorded** — the state must not silently advance past publications no device
-has been told about; an empty device list skips the pass entirely, seeding
-included).
+tick, on the same leader lease, but **after** `runWatcherTick` and behind its
+own in-flight flag — never the watcher's `busy` flag. Match alerts are
+time-critical and the timer skips a tick while `busy` is set; a publication
+pass can wait on a bracket probe (`FETCH_TIMEOUT_MS` is 20s, `/api/bracket`
+allows 60) and must not be able to delay a call to court. The flag is
+discovery's `cycleInFlight` pattern: a pass still running when the next one is
+due is simply skipped.
+
+It returns at once when `isBatDown()` — a stale read would announce nothing
+truthfully.
+
+**Detection runs even when no device has `site: true`.** The state advances;
+there is simply nobody to send to. A pass that skipped detection for want of an
+audience would hand the next person who switches the toggle on a month of
+backlog in one burst, which is the same flood the silent seed exists to
+prevent. Sending is what depends on there being devices, not detecting.
 
 **Per tournament**, over `alertTournaments()` filtered to not-`done`:
 
@@ -193,12 +202,18 @@ included).
   not in `draws[]` make one `bracket` publication naming them.
   - `entrantCount` is **cache-only**: undefined means not counted, never zero
     (`lib/bracket-state.ts`). An undefined count never fires and never records.
-  - Counts become known by probing: up to **5** draws per tournament per pass
-    that have no count yet are fetched through `/api/bracket`, which caches
-    them. The cap and its reasoning are discovery's `BRACKET_GATE_PROBE_CAP` —
-    a tournament with 33 empty draws must not burn the fetch budget. Only
-    tournaments with uncounted draws are probed, so this costs nothing once a
-    tournament is fully counted.
+  - Counts are refreshed by probing, through `/api/bracket?tournament=<id>&event=<drawNum>`,
+    which honours `ttlMsFor` and re-reads a stale entry from BAT. The probe set
+    is every **un-announced** draw whose cached count is undefined **or zero** —
+    not only the uncounted ones. `cachedEntrantCounts` does not check a TTL, so
+    a draw whose shape was published empty on Monday answers `0` forever and
+    Wednesday's entries would never be noticed. This is exactly the repeating
+    batch the feature is for.
+  - Up to **5** draws per tournament per pass, rotating through them so a
+    33-draw tournament is covered over several passes without ever fetching 33
+    at once. The cap and its reasoning are discovery's
+    `BRACKET_GATE_PROBE_CAP`. A tournament whose every draw has entries is
+    never probed again, so the steady-state cost is zero.
 - **Schedule** → `/api/matches?tournament=<id>`: days with `dateIso > today`
   and `hasMatches === true` whose date is not in `days[]` make one `schedule`
   publication naming them. The same filter `recordScheduleSnapshot` uses, so
@@ -226,10 +241,12 @@ prefix keeps a publication from replacing a match alert on the device, since
 `matchTag` is `<drawNum>|<ids>`; the minute key lets a second batch of draws
 show as its own notification rather than overwriting the first.
 
-**State is written once, after the pass has tried every device**, and a
-per-device failure is not retried. This is deliberate: the state is global
-rather than per-device, so retrying would re-notify every device that already
-received it. A failed send is logged and counted in the stats like any other.
+**State is written before the sends go out**, and a failure is not retried.
+This is deliberate: the state is global rather than per-device, so a retry
+would re-notify every device that already received it — and writing afterwards
+would mean a pm2 reload mid-send re-announces to everyone already reached.
+At-most-once is the chosen semantics, so the record of "announced" is made
+first. A failed send is logged and counted in the stats like any other.
 `sent-log.ts` is not used for this — it prunes keys after two days, and a
 publication must stay announced for good.
 
@@ -281,8 +298,10 @@ Unit tests over the pure function and the store, mirroring
 - New future days with `hasMatches === true` fire one `schedule` publication;
   today and past days do not.
 - State is append-only: a draw or date already announced never fires again.
-- `isBatDown()`, no `site` devices, and an empty tournament list each skip the
-  pass without writing.
+- `isBatDown()` and an empty tournament list each skip the pass without
+  writing.
+- With no `site` devices the pass still detects and records, and sends nothing;
+  a device switching on afterwards receives no backlog.
 - A failed draws or matches fetch leaves that tournament's state untouched.
 - Store: `site` survives the last follow being removed, including through
   `removeFollowsIn`; `setSite(false)` with no follows deletes the record;
@@ -304,7 +323,7 @@ before the code that satisfies it.
 | `lib/push/published-state.ts` | new — the disk-backed state |
 | `lib/push/publications.ts` | new — `duePublications`, `runPublicationPass` |
 | `lib/push/text.ts` | the three payload builders |
-| `lib/push/watcher.ts` | every-fifth-tick call into the pass |
+| `lib/push/watcher.ts` | every-fifth-tick call into the pass, own in-flight flag |
 | `lib/push/client.ts` | `setSite` |
 | `lib/push/PushFollowsContext.tsx` | `siteNews`, `setSiteNews` |
 | `app/api/push/site/route.ts` | new |
