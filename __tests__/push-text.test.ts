@@ -1,5 +1,5 @@
-import { alertPayload, digestPayload, resultPayload } from '@/lib/push/text'
-import type { DueAlert } from '@/lib/push/types'
+import { alertPayload, digestPayload, publicationPayload, resultPayload } from '@/lib/push/text'
+import type { DueAlert, Publication } from '@/lib/push/types'
 import type { MatchEntry, MatchPlayer } from '@/lib/types'
 
 const P = (name: string, playerId: string): MatchPlayer => ({ name, playerId })
@@ -164,5 +164,53 @@ describe('resultPayload', () => {
 
   it('carries the match tag, so it takes the place of the "next" alert on the device', () => {
     expect(resultPayload(result(), TID).tag).toBe(alertPayload(alert({ match: match() }), TID).tag)
+  })
+})
+
+const pub = (over: Partial<Publication> = {}): Publication => ({
+  kind: 'bracket', tournamentId: TID, tournamentName: 'THE MALL 2026', items: ['BS U15'], ...over,
+})
+const MINUTE = '2026-10-12T04:00'
+
+describe('publicationPayload', () => {
+  it('announces a new tournament by name, and links to it', () => {
+    const p = publicationPayload(pub({ kind: 'tournament', items: [] }), 'en', MINUTE)
+    expect(p.title).toBe('New tournament')
+    expect(p.body).toBe('THE MALL 2026')
+    expect(p.url).toBe(`/?tournament=${TID}`)
+    expect(p.tag).toBe(`pub:t:${TID}`)
+  })
+
+  it('names the draws that are out', () => {
+    const p = publicationPayload(pub({ items: ['BS U15', 'GS U15'] }), 'en', MINUTE)
+    expect(p.title).toBe('Draws are out')
+    expect(p.body).toBe('THE MALL 2026 · BS U15, GS U15')
+    expect(p.tag).toBe(`pub:b:${TID}:${MINUTE}`)
+  })
+
+  it('caps a 33-draw publication at four names and counts the rest', () => {
+    const items = Array.from({ length: 33 }, (_, i) => `D${i + 1}`)
+    const p = publicationPayload(pub({ items }), 'en', MINUTE)
+    expect(p.body).toBe('THE MALL 2026 · D1, D2, D3, D4 +29 more')
+    expect(publicationPayload(pub({ items }), 'th', MINUTE).body).toBe('THE MALL 2026 · D1, D2, D3, D4 +อีก 29')
+  })
+
+  it('gives schedule dates as days and months, not ISO', () => {
+    const p = publicationPayload(pub({ kind: 'schedule', items: ['2026-10-20', '2026-11-01'] }), 'en', MINUTE)
+    expect(p.title).toBe('Schedule published')
+    expect(p.body).toBe('THE MALL 2026 · 20 Oct, 1 Nov')
+    expect(p.tag).toBe(`pub:s:${TID}:${MINUTE}`)
+  })
+
+  it('speaks Thai to a Thai device', () => {
+    expect(publicationPayload(pub({ kind: 'tournament', items: [] }), 'th', MINUTE).title).toBe('ทัวร์นาเมนต์ใหม่')
+    expect(publicationPayload(pub(), 'th', MINUTE).title).toBe('สายการแข่งขันออกแล้ว')
+    const s = publicationPayload(pub({ kind: 'schedule', items: ['2026-10-20'] }), 'th', MINUTE)
+    expect(s.title).toBe('ตารางแข่งออกแล้ว')
+    expect(s.body).toBe('THE MALL 2026 · 20 ต.ค.')
+  })
+
+  it('never collides with a match alert tag', () => {
+    expect(publicationPayload(pub(), 'en', MINUTE).tag.startsWith('pub:')).toBe(true)
   })
 })

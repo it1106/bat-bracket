@@ -20,6 +20,10 @@ export type FollowResult =
   | { ok: true; follows: PushFollow[] }
   | { ok: false; reason: 'player-limit' | 'club-limit' | 'device-limit' }
 
+export type SiteResult =
+  | { ok: true; follows: PushFollow[]; site: boolean }
+  | { ok: false; reason: 'device-limit' }
+
 // Kept on globalThis: Next builds the watcher (instrumentation) and the API
 // routes as separate copies of this module in the same process. With a copy of
 // the state each, they would write over one another; with one state and one
@@ -170,9 +174,46 @@ export async function removeFollow(endpoint: string, target: FollowTarget): Prom
     if (!rec) return { value: [], dirty: false }
     const kept = rec.follows.filter((f) => !sameTarget(f, target))
     if (kept.length === rec.follows.length) return { value: rec.follows.slice(), dirty: false }
-    if (kept.length === 0) map.delete(endpoint)
+    // A device with site news on stays: it is subscribed to the site, not to
+    // this tournament.
+    if (kept.length === 0 && !rec.site) map.delete(endpoint)
     else rec.follows = kept
     return { value: kept, dirty: true }
+  })
+}
+
+/** Turns this device's site-news switch on or off. On is enough to create a
+ *  record: unlike a follow, it names no tournament. Off removes the record
+ *  when nothing else is left on it, exactly as unfollowing the last player
+ *  does. */
+export async function setSite(
+  sub: { endpoint: string; keys: PushKeys },
+  lang: Lang,
+  on: boolean,
+  now: number,
+  os: DeviceOs = '',
+): Promise<SiteResult> {
+  return change<SiteResult>((map) => {
+    const at = new Date(now).toISOString()
+    const existing = map.get(sub.endpoint)
+    // Switching off a device the server never had is already true.
+    if (!existing && !on) return { value: { ok: true, follows: [], site: false }, dirty: false }
+    if (!existing && map.size >= MAX_DEVICES) return { value: { ok: false, reason: 'device-limit' }, dirty: false }
+    const rec: PushSubscriptionRecord =
+      existing ?? { endpoint: sub.endpoint, keys: sub.keys, lang, follows: [], createdAt: at, lastSeenAt: at }
+
+    if (!on && rec.follows.length === 0) {
+      map.delete(rec.endpoint)
+      return { value: { ok: true, follows: [], site: false }, dirty: true }
+    }
+    if (on) rec.site = true
+    else delete rec.site
+    rec.keys = sub.keys
+    rec.lang = lang
+    rec.lastSeenAt = at
+    if (os) rec.os = os
+    map.set(rec.endpoint, rec)
+    return { value: { ok: true, follows: rec.follows.slice(), site: !!rec.site }, dirty: true }
   })
 }
 
@@ -187,14 +228,14 @@ export async function removeFollowsIn(tournamentIds: string[]): Promise<number> 
       const kept = rec.follows.filter((f) => !ids.has(f.tournamentId.toUpperCase()))
       if (kept.length === rec.follows.length) continue
       removed += rec.follows.length - kept.length
-      if (kept.length === 0) map.delete(endpoint)
+      if (kept.length === 0 && !rec.site) map.delete(endpoint)
       else rec.follows = kept
     }
     return { value: removed, dirty: removed > 0 }
   })
 }
 
-export async function touchRecord(endpoint: string, now: number, os: DeviceOs = ''): Promise<PushFollow[] | null> {
+export async function touchRecord(endpoint: string, now: number, os: DeviceOs = ''): Promise<{ follows: PushFollow[]; site: boolean } | null> {
   return change((map) => {
     const rec = map.get(endpoint)
     if (!rec) return { value: null, dirty: false }
@@ -205,9 +246,10 @@ export async function touchRecord(endpoint: string, now: number, os: DeviceOs = 
     // Every page load of a subscribed device comes through here. The date only
     // feeds the 60-day prune, so once a day is often enough to write it.
     const seen = Date.parse(rec.lastSeenAt)
-    if (!Number.isNaN(seen) && now - seen < TOUCH_EVERY_MS) return { value: rec.follows.slice(), dirty: osChanged }
+    const value = { follows: rec.follows.slice(), site: !!rec.site }
+    if (!Number.isNaN(seen) && now - seen < TOUCH_EVERY_MS) return { value, dirty: osChanged }
     rec.lastSeenAt = new Date(now).toISOString()
-    return { value: rec.follows.slice(), dirty: true }
+    return { value, dirty: true }
   })
 }
 

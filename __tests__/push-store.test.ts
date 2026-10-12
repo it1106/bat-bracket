@@ -2,7 +2,7 @@ import * as os from 'os'
 import * as path from 'path'
 import { promises as fs } from 'fs'
 import {
-  addFollow, removeFollow, getRecord, listRecords, touchRecord, removeRecord, pruneStale, removeFollowsIn,
+  addFollow, removeFollow, getRecord, listRecords, touchRecord, removeRecord, pruneStale, removeFollowsIn, setSite,
   MAX_PLAYER_FOLLOWS, MAX_CLUB_FOLLOWS, STALE_DAYS, __setPushRootForTesting,
 } from '@/lib/push/store'
 import type { FollowTarget } from '@/lib/push/types'
@@ -79,7 +79,7 @@ describe('push store', () => {
 
   it('touch refreshes last-seen and returns the follows; null for a stranger', async () => {
     await addFollow(sub('a'), 'en', player('1'), T0)
-    expect(await touchRecord(sub('a').endpoint, T0 + 2 * DAY)).toHaveLength(1)
+    expect((await touchRecord(sub('a').endpoint, T0 + 2 * DAY))!.follows).toHaveLength(1)
     expect((await getRecord(sub('a').endpoint))!.lastSeenAt).toBe(new Date(T0 + 2 * DAY).toISOString())
     expect(await touchRecord(sub('nobody').endpoint, T0)).toBeNull()
   })
@@ -166,8 +166,8 @@ describe('touchRecord', () => {
   it('does not rewrite the file for a device seen within the last day', async () => {
     await addFollow(sub('a'), 'en', player('1'), T0)
     const before = await mtime()
-    expect(await touchRecord(sub('a').endpoint, T0 + 60_000)).toHaveLength(1)
-    expect(await touchRecord(sub('a').endpoint, T0 + DAY - 1)).toHaveLength(1)
+    expect((await touchRecord(sub('a').endpoint, T0 + 60_000))!.follows).toHaveLength(1)
+    expect((await touchRecord(sub('a').endpoint, T0 + DAY - 1))!.follows).toHaveLength(1)
     expect(await mtime()).toBe(before)
     expect((await getRecord(sub('a').endpoint))!.lastSeenAt).toBe(new Date(T0).toISOString())
   })
@@ -235,5 +235,59 @@ describe('push store — operating system', () => {
     const rec = await getRecord(sub('old').endpoint)
     expect(rec).not.toBeNull()
     expect(rec?.os).toBeUndefined()
+  })
+})
+
+describe('push store — site news', () => {
+  it('turns site news on for a device that follows nobody, and off again deletes it', async () => {
+    const r = await setSite(sub('a'), 'th', true, T0)
+    expect(r).toEqual({ ok: true, follows: [], site: true })
+    const rec = (await getRecord(sub('a').endpoint))!
+    expect(rec.site).toBe(true)
+    expect(rec.lang).toBe('th')
+    expect(rec.createdAt).toBe(new Date(T0).toISOString())
+
+    expect(await setSite(sub('a'), 'th', false, T0 + 5)).toEqual({ ok: true, follows: [], site: false })
+    expect(await getRecord(sub('a').endpoint)).toBeNull()
+  })
+
+  it('keeps the device when site news is on and its last follow goes', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    await setSite(sub('a'), 'en', true, T0 + 1)
+    expect(await removeFollow(sub('a').endpoint, player('1'))).toEqual([])
+    const rec = (await getRecord(sub('a').endpoint))!
+    expect(rec.site).toBe(true)
+    expect(rec.follows).toEqual([])
+  })
+
+  it('keeps a site-news device when the finished-tournament sweep takes its follows', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    await addFollow(sub('b'), 'en', player('2'), T0)
+    await setSite(sub('a'), 'en', true, T0)
+    expect(await removeFollowsIn([TID])).toBe(2)
+    expect((await getRecord(sub('a').endpoint))!.site).toBe(true)
+    expect(await getRecord(sub('b').endpoint)).toBeNull()
+  })
+
+  it('turning site news off leaves a device that still follows someone', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    await setSite(sub('a'), 'en', true, T0)
+    const r = await setSite(sub('a'), 'en', false, T0)
+    expect(r.ok && r.site).toBe(false)
+    expect(r.ok && r.follows).toHaveLength(1)
+    expect((await getRecord(sub('a').endpoint))!.site).toBeUndefined()
+  })
+
+  it('does not create a record just to turn site news off', async () => {
+    expect(await setSite(sub('zz'), 'en', false, T0)).toEqual({ ok: true, follows: [], site: false })
+    expect(await listRecords()).toEqual([])
+  })
+
+  it('reports site news alongside the follows when the device is touched', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    await setSite(sub('a'), 'en', true, T0)
+    const touched = await touchRecord(sub('a').endpoint, T0 + 2 * DAY)
+    expect(touched).toEqual({ follows: [expect.objectContaining({ playerId: '1' })], site: true })
+    expect(await touchRecord(sub('zz').endpoint, T0)).toBeNull()
   })
 })

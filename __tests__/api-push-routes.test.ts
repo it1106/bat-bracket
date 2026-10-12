@@ -1,5 +1,5 @@
 jest.mock('../lib/push/config', () => ({ pushConfig: jest.fn() }))
-jest.mock('../lib/push/store', () => ({ addFollow: jest.fn(), removeFollow: jest.fn(), touchRecord: jest.fn(), getRecord: jest.fn() }))
+jest.mock('../lib/push/store', () => ({ addFollow: jest.fn(), removeFollow: jest.fn(), touchRecord: jest.fn(), getRecord: jest.fn(), setSite: jest.fn() }))
 jest.mock('../lib/push/rate-limit', () => ({ allowNewDevice: jest.fn(), clientAddress: jest.fn().mockReturnValue('1.2.3.4') }))
 jest.mock('../lib/push/clubs', () => ({ clubLookup: jest.fn() }))
 jest.mock('../lib/push/tournaments', () => ({ alertTournaments: jest.fn() }))
@@ -8,8 +8,9 @@ import { GET as getKey } from '@/app/api/push/key/route'
 import { POST as follow } from '@/app/api/push/follow/route'
 import { POST as unfollow } from '@/app/api/push/unfollow/route'
 import { POST as state } from '@/app/api/push/state/route'
+import { POST as site } from '@/app/api/push/site/route'
 import { pushConfig } from '@/lib/push/config'
-import { addFollow, removeFollow, touchRecord, getRecord } from '@/lib/push/store'
+import { addFollow, removeFollow, touchRecord, getRecord, setSite } from '@/lib/push/store'
 import { allowNewDevice } from '@/lib/push/rate-limit'
 import { clubLookup } from '@/lib/push/clubs'
 import { alertTournaments } from '@/lib/push/tournaments'
@@ -31,6 +32,7 @@ const known = getRecord as jest.Mock
 const allow = allowNewDevice as jest.Mock
 const clubs = clubLookup as jest.Mock
 const listed = alertTournaments as jest.Mock
+const setSiteMock = setSite as jest.Mock
 
 const post = (body: unknown, headers: Record<string, string> = {}) => new Request('http://x/api/push', { method: 'POST', headers, body: typeof body === 'string' ? body : JSON.stringify(body) })
 const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1'
@@ -39,11 +41,12 @@ beforeEach(() => {
   config.mockReset().mockReturnValue({ publicKey: 'PUB', privateKey: 'priv', subject: 'mailto:a@b.c' })
   add.mockReset().mockResolvedValue({ ok: true, follows: [{ kind: 'player' }] })
   remove.mockReset().mockResolvedValue([])
-  touch.mockReset().mockResolvedValue([{ kind: 'player' }])
+  touch.mockReset().mockResolvedValue({ follows: [{ kind: 'player' }], site: false })
   known.mockReset().mockResolvedValue(null)
   allow.mockReset().mockReturnValue(true)
   clubs.mockReset().mockResolvedValue({ clubOf: () => undefined, hasClub: (n: string) => n === 'Red Club' })
   listed.mockReset().mockResolvedValue(new Map([[TID.toUpperCase(), { done: false }]]))
+  setSiteMock.mockReset().mockResolvedValue({ ok: true, follows: [], site: true })
 })
 
 describe('GET /api/push/key', () => {
@@ -191,14 +194,14 @@ describe('POST /api/push/unfollow', () => {
 describe('POST /api/push/state', () => {
   it('returns the device\'s follows', async () => {
     const res = await state(post({ endpoint: ENDPOINT }))
-    expect(await res.json()).toEqual({ follows: [{ kind: 'player' }] })
+    expect(await res.json()).toEqual({ follows: [{ kind: 'player' }], site: false })
     expect(touch.mock.calls[0][0]).toBe(ENDPOINT)
   })
   it('is an empty list for a device the server does not know', async () => {
     touch.mockResolvedValue(null)
     const res = await state(post({ endpoint: ENDPOINT }))
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ follows: [] })
+    expect(await res.json()).toEqual({ follows: [], site: false })
   })
   it('is 400 for a bad endpoint and 404 when off', async () => {
     expect((await state(post({ endpoint: 'x' }))).status).toBe(400)
@@ -207,5 +210,82 @@ describe('POST /api/push/state', () => {
   })
   it('never lets a response be cached', async () => {
     expect((await state(post({ endpoint: ENDPOINT }))).headers.get('Cache-Control')).toBe('no-store')
+  })
+})
+
+describe('POST /api/push/site', () => {
+  it('turns site news on for a valid subscription', async () => {
+    const res = await site(post({ subscription: SUB, lang: 'th', on: true }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ follows: [], site: true })
+    expect(setSiteMock).toHaveBeenCalledWith(expect.objectContaining({ endpoint: ENDPOINT }), 'th', true, expect.any(Number), '')
+  })
+
+  it('turns it off', async () => {
+    setSiteMock.mockResolvedValue({ ok: true, follows: [], site: false })
+    const res = await site(post({ subscription: SUB, on: false }))
+    expect(await res.json()).toEqual({ follows: [], site: false })
+    expect(setSiteMock).toHaveBeenCalledWith(expect.anything(), 'en', false, expect.any(Number), '')
+  })
+
+  it('refuses a subscription it could not parse', async () => {
+    const res = await site(post({ subscription: { endpoint: 'https://evil.example/x' }, on: true }))
+    expect(res.status).toBe(400)
+    expect(setSiteMock).not.toHaveBeenCalled()
+  })
+
+  it('refuses when `on` is not a boolean', async () => {
+    expect((await site(post({ subscription: SUB, on: 'yes' }))).status).toBe(400)
+  })
+
+  it('counts a device the server has not seen against the address', async () => {
+    allow.mockReturnValue(false)
+    const res = await site(post({ subscription: SUB, on: true }))
+    expect(res.status).toBe(429)
+    expect(setSiteMock).not.toHaveBeenCalled()
+  })
+
+  it('does not rate-limit a device the server already knows', async () => {
+    known.mockResolvedValue({ endpoint: ENDPOINT })
+    allow.mockReturnValue(false)
+    expect((await site(post({ subscription: SUB, on: true }))).status).toBe(200)
+  })
+
+  it('answers 429 when the device limit is reached', async () => {
+    setSiteMock.mockResolvedValue({ ok: false, reason: 'device-limit' })
+    const res = await site(post({ subscription: SUB, on: true }))
+    expect(res.status).toBe(429)
+    expect(await res.json()).toEqual({ error: 'follow limit reached', reason: 'device-limit' })
+  })
+
+  it('is 404 when the feature is off', async () => {
+    config.mockReturnValue(null)
+    expect((await site(post({ subscription: SUB, on: true }))).status).toBe(404)
+  })
+
+  it('takes the device OS from the user agent', async () => {
+    await site(post({ subscription: SUB, on: true }, { 'user-agent': IPHONE_UA }))
+    expect(setSiteMock).toHaveBeenCalledWith(expect.anything(), 'en', true, expect.any(Number), 'iOS')
+  })
+})
+
+describe('POST /api/push/state — site news', () => {
+  it('reports the switch alongside the follows', async () => {
+    touch.mockResolvedValue({ follows: [{ kind: 'player' }], site: true })
+    const res = await state(post({ endpoint: ENDPOINT }))
+    expect(await res.json()).toEqual({ follows: [{ kind: 'player' }], site: true })
+  })
+
+  it('says no for a device the server does not know', async () => {
+    touch.mockResolvedValue(null)
+    expect(await (await state(post({ endpoint: ENDPOINT }))).json()).toEqual({ follows: [], site: false })
+  })
+
+  it('does not spend a new-device slot on switching off an endpoint the server never had', async () => {
+    setSiteMock.mockResolvedValue({ ok: true, follows: [], site: false })
+    allow.mockReturnValue(false)
+    const res = await site(post({ subscription: SUB, on: false }))
+    expect(res.status).toBe(200)
+    expect(setSiteMock).toHaveBeenCalled()
   })
 })

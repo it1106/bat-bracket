@@ -47,11 +47,16 @@ export interface PushSubscriptionRecord {
    *  Absent on a device last seen before this was kept. Never the user agent
    *  itself: see lib/push/user-agent.ts. */
   os?: DeviceOs
+  /** This device asked to be told when something new is published on the
+   *  site: a tournament, its draws, its schedule. Independent of follows —
+   *  a device may have this on and follow nobody. Absent means off. */
+  site?: boolean
 }
 
 /** `soon` comes before a match, `playing` once it is on court, `result` once
- *  it has a winner. */
-export type Stage = 'soon' | 'playing' | 'result'
+ *  it has a winner. The three publication kinds share the type because
+ *  `RecentSend.stage` is typed from it. */
+export type Stage = 'soon' | 'playing' | 'result' | PublicationKind
 
 export interface DueAlert {
   endpoint: string
@@ -77,4 +82,19 @@ export interface PushPayload {
   body: string
   url: string
   tag: string
+}
+
+/** What a publication notification is about. */
+export type PublicationKind = 'tournament' | 'bracket' | 'schedule'
+
+/** One thing newly published, for every device with site news on. Not a
+ *  `DueAlert`: there is no match behind it. */
+export interface Publication {
+  kind: PublicationKind
+  /** Upper-case GUID. */
+  tournamentId: string
+  /** As the site lists it now, not as it was when first seen. */
+  tournamentName: string
+  /** Draw names for `bracket`, ISO dates for `schedule`, empty for `tournament`. */
+  items: string[]
 }
