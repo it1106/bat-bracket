@@ -38,18 +38,18 @@ beforeEach(() => {
 describe('PlayerModal path-to-final button', () => {
   it('shows one unlabelled button for a player in one knockout draw', () => {
     renderModal({ profile: profile([match('1', 'BS U15')]), draws: DRAWS, onPathClick: () => {} })
-    expect(buttons()).toEqual(['Path to final'])
+    expect(buttons()).toEqual(['Road to Final'])
   })
 
   it('labels each button with its draw when there is more than one', () => {
     renderModal({ profile: profile([match('1', 'BS U15'), match('2', 'BD U15')]), draws: DRAWS, onPathClick: () => {} })
-    expect(buttons()).toEqual(['Path to final · BS U15', 'Path to final · BD U15'])
+    expect(buttons()).toEqual(['Road to Final · BS U15', 'Road to Final · BD U15'])
   })
 
   it('passes the draw to the handler', () => {
     const onPathClick = jest.fn()
     renderModal({ profile: profile([match('1', 'BS U15'), match('2', 'BD U15')]), draws: DRAWS, onPathClick })
-    fireEvent.click(screen.getByText('Path to final · BD U15'))
+    fireEvent.click(screen.getByText('Road to Final · BD U15'))
     expect(onPathClick).toHaveBeenCalledWith('2', 'BD U15')
   })
 

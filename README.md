@@ -27,7 +27,7 @@ Android.
 - **Leaderboards** — career titles, wins, win percentage and court time.
 - **Tournament stats** — entry and country breakdowns, a country head-to-head
   matrix (also as a standalone full-page view), and an event breakdown table.
-- **Path to final** — round by round, who a player could still meet on the
+- **Road to Final** — round by round, who a player could still meet on the
   way to the final, with the likely opponent flagged.
 - **Match alerts** — follow a player, or a club for its members' results, and
   get a web push when a match is close and when it ends. The bell also carries
