@@ -11,6 +11,7 @@ import H2HModal from '@/components/H2HModal'
 import PathToFinalModal from '@/components/PathToFinalModal'
 import { usePathTarget } from '@/lib/usePathTarget'
 import FollowingList from '@/components/FollowingList'
+import SiteNewsSwitch from '@/components/SiteNewsSwitch'
 import { usePushFollows } from '@/lib/push/PushFollowsContext'
 import CustomTabModal from '@/components/CustomTabModal'
 import CustomTabButton from '@/components/CustomTabButton'
@@ -1233,7 +1234,7 @@ export default function Home() {
               alerts={alerts}
               onDismiss={() => setAlerts(dismissAlerts())}
               hasFollowing={pushFollows.status === 'ok'}
-              following={<FollowingList tournamentNames={tournamentNames} />}
+              following={<><SiteNewsSwitch /><FollowingList tournamentNames={tournamentNames} /></>}
             />
             <button
               onClick={() => {

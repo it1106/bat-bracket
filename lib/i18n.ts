@@ -350,6 +350,8 @@ export type TKey =
   | 'followClub'
   | 'followingClub'
   | 'followClubWarning'
+  | 'siteNewsTitle'
+  | 'siteNewsNote'
   | 'followingTitle'
   | 'followingEmpty'
   | 'unfollow'
@@ -689,6 +691,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     followClub: 'Follow club',
     followingClub: 'Following club',
     followClubWarning: 'Every match by this club\'s players sends alerts. That can be many in a day.',
+    siteNewsTitle: 'New tournaments, draws & schedules',
+    siteNewsNote: 'Be told when a tournament is listed, when its draws are out, and when its schedule is published.',
     followingTitle: 'Following',
     followingEmpty: 'Follow a player to be told when their match is close, and how it ended. Follow a club to get its members\' results.',
     unfollow: 'Unfollow',
@@ -1060,6 +1064,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     followClub: 'ติดตามสโมสร',
     followingClub: 'กำลังติดตามสโมสร',
     followClubWarning: 'ทุกแมตช์ของนักกีฬาสโมสรนี้จะมีการแจ้งเตือน ซึ่งอาจมีจำนวนมากในหนึ่งวัน',
+    siteNewsTitle: 'ทัวร์นาเมนต์ สาย และตารางใหม่',
+    siteNewsNote: 'รับแจ้งเตือนเมื่อมีทัวร์นาเมนต์ใหม่ เมื่อสายการแข่งขันออก และเมื่อตารางแข่งเผยแพร่',
     followingTitle: 'กำลังติดตาม',
     followingEmpty: 'ติดตามนักกีฬา เพื่อรับแจ้งเตือนเมื่อใกล้ถึงคิวแข่งและผลการแข่งขัน หรือติดตามสโมสร เพื่อรับผลการแข่งขันของนักกีฬาในสโมสร',
     unfollow: 'เลิกติดตาม',
