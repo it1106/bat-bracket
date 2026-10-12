@@ -135,7 +135,10 @@ It is **append-only**: a draw number or a date, once in, stays in. BAT
 re-publishing a draw, or a day dropping off and returning, therefore cannot
 fire a second time. A tournament's whole entry is dropped once it is no longer
 in `alertTournaments()` and its `firstSeenAt` is more than 30 days old, which
-bounds the file.
+bounds the file. Pruning an entry is safe because the pass only looks at
+not-`done` tournaments that are currently listed: a pruned tournament would
+have to be re-listed and not finished to be seen as new again, which is a
+tournament genuinely coming back.
 
 **First run seeds silently.** With no file, the pass writes the complete
 current snapshot — every listed tournament, its entered draws, its future
