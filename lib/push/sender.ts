@@ -8,18 +8,35 @@ export type SendResult = 'ok' | 'gone' | 'failed'
  *  another function of this shape. */
 export type Sender = (record: Pick<PushSubscriptionRecord, 'endpoint' | 'keys'>, payload: PushPayload) => Promise<SendResult>
 
-// An alert that cannot be delivered within ten minutes is no longer useful.
+// A match alert that cannot be delivered within ten minutes is no longer
+// useful. A publication is not like that — the publication pass asks for a
+// day — so these are only the defaults.
 const TTL_SECONDS = 600
 // A push service that never answers must not hold the watcher up.
 const SEND_TIMEOUT_MS = 10_000
 
-export function webPushSender(config: PushConfig, send: typeof webpush.sendNotification = webpush.sendNotification): Sender {
+export interface SendOptions {
+  /** How long the push service may hold the notification for. */
+  ttlSeconds?: number
+  urgency?: 'very-low' | 'low' | 'normal' | 'high'
+}
+
+export function webPushSender(
+  config: PushConfig,
+  send: typeof webpush.sendNotification = webpush.sendNotification,
+  options: SendOptions = {},
+): Sender {
   return async (record, payload) => {
     try {
       await send(
         { endpoint: record.endpoint, keys: record.keys },
         JSON.stringify(payload),
-        { TTL: TTL_SECONDS, urgency: 'high', vapidDetails: config, timeout: SEND_TIMEOUT_MS },
+        {
+          TTL: options.ttlSeconds ?? TTL_SECONDS,
+          urgency: options.urgency ?? 'high',
+          vapidDetails: config,
+          timeout: SEND_TIMEOUT_MS,
+        },
       )
       return 'ok'
     } catch (err) {

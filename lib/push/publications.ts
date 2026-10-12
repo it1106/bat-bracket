@@ -5,6 +5,7 @@ import type { Publication, PushSubscriptionRecord } from './types'
 import type { PublishedState, PublishedTournament } from './published-state'
 import type { Sender, SendResult } from './sender'
 import type { RecentSend } from './recent-sends'
+import type { DrawInfo, MatchesData } from '@/lib/types'
 
 export interface DrawSnapshot {
   drawNum: string
@@ -271,4 +272,55 @@ export async function runPublicationPass(deps: PublicationDeps): Promise<{ publi
     }
   }
   return tally
+}
+
+// A read that never answers must not hold the pass up. The same bound the
+// watcher's schedule reads use.
+const FETCH_TIMEOUT_MS = 20_000
+
+type FetchLike = (url: string, init?: { signal?: AbortSignal }) => Promise<{ ok: boolean; json: () => Promise<unknown> }>
+
+const signal = () => ({ signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+
+/** The tournament's visible draws, through the app's own route so the entrant
+ *  counts are the ones the Bracket tab shows and BAT is never asked directly. */
+export function makeFetchDraws(origin: string, fetchFn: FetchLike = fetch as unknown as FetchLike) {
+  return async (tournamentId: string): Promise<DrawSnapshot[] | null> => {
+    const res = await fetchFn(`${origin}/api/draws?id=${encodeURIComponent(tournamentId.toLowerCase())}`, signal())
+    if (!res.ok) return null
+    const body = (await res.json()) as DrawInfo[] | { error?: string }
+    if (!Array.isArray(body)) return null
+    return body.map((d) => ({
+      drawNum: String(d.drawNum ?? ''),
+      name: d.eventName || d.name || '',
+      ...(typeof d.entrantCount === 'number' ? { entrantCount: d.entrantCount } : {}),
+    }))
+  }
+}
+
+/** The tournament's schedule days. An answer with no days is an empty list,
+ *  not a failure: a tournament whose schedule is not out yet simply has none. */
+export function makeFetchScheduleDays(origin: string, fetchFn: FetchLike = fetch as unknown as FetchLike) {
+  return async (tournamentId: string): Promise<DaySnapshot[] | null> => {
+    const res = await fetchFn(`${origin}/api/matches?tournament=${encodeURIComponent(tournamentId)}`, signal())
+    if (!res.ok) return null
+    const days = ((await res.json()) as MatchesData).days
+    if (!Array.isArray(days)) return []
+    return days
+      .filter((d) => typeof d.dateIso === 'string' && d.dateIso)
+      .map((d) => ({ dateIso: d.dateIso, ...(d.hasMatches === undefined ? {} : { hasMatches: d.hasMatches }) }))
+  }
+}
+
+/** Fetches one bracket so its entrant count is cached and counted. The route
+ *  honours its own TTL, which is how a draw published empty on Monday is seen
+ *  to hold entries on Wednesday. */
+export function makeProbeBracket(origin: string, fetchFn: FetchLike = fetch as unknown as FetchLike) {
+  return async (tournamentId: string, drawNum: string): Promise<void> => {
+    try {
+      await fetchFn(`${origin}/api/bracket?tournament=${encodeURIComponent(tournamentId.toLowerCase())}&event=${encodeURIComponent(drawNum)}`, signal())
+    } catch {
+      // An unknown count is probed again next pass; nothing to report.
+    }
+  }
 }

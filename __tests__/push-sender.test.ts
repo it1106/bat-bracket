@@ -28,4 +28,16 @@ describe('webPushSender', () => {
     const send = jest.fn().mockRejectedValue(new Error('ECONNRESET'))
     expect(await webPushSender(config, send as never)(record, payload)).toBe('failed')
   })
+
+  it("sends with the caller's TTL and urgency when given them", async () => {
+    const send = jest.fn().mockResolvedValue({ statusCode: 201 })
+    await webPushSender(config, send as never, { ttlSeconds: 86_400, urgency: 'normal' })(record, payload)
+    expect(send.mock.calls[0][2]).toEqual(expect.objectContaining({ TTL: 86_400, urgency: 'normal' }))
+  })
+
+  it('still defaults to the ten-minute, high-urgency match alert', async () => {
+    const send = jest.fn().mockResolvedValue({ statusCode: 201 })
+    await webPushSender(config, send as never)(record, payload)
+    expect(send.mock.calls[0][2]).toEqual(expect.objectContaining({ TTL: 600, urgency: 'high' }))
+  })
 })

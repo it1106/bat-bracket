@@ -256,6 +256,9 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
   const { batDownSince } = await import('@/lib/bat-outages')
   const { getTodayIso, getBangkokHour, getBangkokMinute } = await import('@/lib/today')
   const { alertTournaments } = await import('./tournaments')
+  const publications = await import('./publications')
+  const published = await import('./published-state')
+  const { publicationTournaments } = await import('./tournaments')
 
   const deps: WatcherDeps = {
     now: () => Date.now(),
@@ -274,9 +277,34 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     noteSend: recent.recordSend,
   }
 
+  const publicationDeps: import('./publications').PublicationDeps = {
+    now: () => Date.now(),
+    todayIso: () => getTodayIso(),
+    isBatDown: () => !!batDownSince(),
+    listTournaments: publicationTournaments,
+    fetchDraws: publications.makeFetchDraws(opts.origin),
+    probeBracket: publications.makeProbeBracket(opts.origin),
+    fetchDays: publications.makeFetchScheduleDays(opts.origin),
+    loadState: published.loadPublished,
+    saveState: published.savePublished,
+    listRecords: store.listRecords,
+    // A day, at normal urgency: a phone that was off when a 2am draw landed
+    // should still be told, and delivery here is at-most-once.
+    send: webPushSender(config, undefined, { ttlSeconds: 86_400, urgency: 'normal' }),
+    removeRecord: store.removeRecord,
+    record: recordPush,
+    noteSend: recent.recordSend,
+  }
+
   // Which tournaments are worth asking about, refreshed before every tick.
   let listed = new Map<string, { done: boolean }>()
   let busy = false
+  // The publication pass runs every fifth tick, on the same lease. It has its
+  // own in-flight flag and never holds `busy`: a bracket probe can take tens of
+  // seconds, and a match about to go on court must not wait for it.
+  const PUBLICATION_EVERY = 5
+  let ticks = 0
+  let publishing = false
   let lastPruneDay = ''
   const loaded = Promise.all([sentLog.loadSentLog(), recent.loadRecentSends()])
   timer = setInterval(async () => {
@@ -312,6 +340,17 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
       console.warn('[push] tick failed:', err instanceof Error ? err.message : err)
     } finally {
       busy = false
+    }
+
+    if (++ticks % PUBLICATION_EVERY !== 0 || publishing || !opts.isLeader()) return
+    publishing = true
+    try {
+      const p = await publications.runPublicationPass(publicationDeps)
+      if (p.publications) console.log(`[push] publications=${p.publications} sent=${p.sent} failed=${p.failed} gone=${p.gone}`)
+    } catch (err) {
+      console.warn('[push] publication pass failed:', err instanceof Error ? err.message : err)
+    } finally {
+      publishing = false
     }
   }, TICK_MS)
   timer.unref?.()
