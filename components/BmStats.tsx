@@ -81,7 +81,7 @@ interface Status {
     recentSends?: Array<{
       at: string
       device: string
-      stage: 'soon' | 'next' | 'result'
+      stage: 'soon' | 'playing' | 'result' | 'tournament' | 'bracket' | 'schedule'
       result: 'ok' | 'gone' | 'failed'
       draw: string
       round: string

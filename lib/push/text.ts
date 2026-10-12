@@ -1,6 +1,6 @@
 import type { MatchEntry, MatchPlayer } from '@/lib/types'
 import { abbrevRoundL, type Lang } from '@/lib/i18n'
-import type { DueAlert, PushPayload } from './types'
+import type { DueAlert, Publication, PublicationKind, PushPayload } from './types'
 
 const names = (team: MatchPlayer[]) => team.map((p) => p.name).join(' / ')
 
@@ -90,5 +90,47 @@ export function digestPayload(alerts: DueAlert[], tournamentId: string, minuteKe
     body: lines.join('\n'),
     url: urlFor(tournamentId),
     tag: `${tournamentId}|${minuteKey}`,
+  }
+}
+
+const PUB_TITLES: Record<PublicationKind, { en: string; th: string }> = {
+  tournament: { en: 'New tournament', th: 'ทัวร์นาเมนต์ใหม่' },
+  bracket: { en: 'Draws are out', th: 'สายการแข่งขันออกแล้ว' },
+  schedule: { en: 'Schedule published', th: 'ตารางแข่งออกแล้ว' },
+}
+
+// Written out rather than formatted with Intl: this runs on the server, where
+// the available locale data is not something a notification should depend on.
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTHS_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+
+/** "2026-10-20" as "20 Oct" / "20 ต.ค.". Anything not a date is left alone. */
+function shortDate(dateIso: string, lang: Lang): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateIso)
+  if (!m) return dateIso
+  const month = (lang === 'th' ? MONTHS_TH : MONTHS_EN)[Number(m[2]) - 1]
+  return month ? `${Number(m[3])} ${month}` : dateIso
+}
+
+const PUB_ITEMS = 4
+const TAG_LETTER: Record<PublicationKind, string> = { tournament: 't', bracket: 'b', schedule: 's' }
+
+/** One newly published thing, for one device, in its language. The tag's `pub:`
+ *  prefix keeps it from replacing a match alert (whose tag is `<drawNum>|<ids>`);
+ *  the minute key lets a second batch of draws stand beside the first instead
+ *  of overwriting it. A tournament is announced once ever, so its tag has no
+ *  minute in it. */
+export function publicationPayload(pub: Publication, lang: Lang, minuteKey: string): PushPayload {
+  const th = lang === 'th'
+  const shown = pub.items.slice(0, PUB_ITEMS).map((i) => (pub.kind === 'schedule' ? shortDate(i, lang) : i))
+  const rest = pub.items.length - shown.length
+  const list = shown.join(', ') + (rest > 0 ? (th ? ` +อีก ${rest}` : ` +${rest} more`) : '')
+  const title = PUB_TITLES[pub.kind][th ? 'th' : 'en']
+  const letter = TAG_LETTER[pub.kind]
+  return {
+    title,
+    body: [pub.tournamentName, list].filter(Boolean).join(' · '),
+    url: `/?tournament=${pub.tournamentId}`,
+    tag: pub.kind === 'tournament' ? `pub:t:${pub.tournamentId}` : `pub:${letter}:${pub.tournamentId}:${minuteKey}`,
   }
 }
