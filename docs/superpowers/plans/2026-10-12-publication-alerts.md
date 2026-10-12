@@ -19,7 +19,9 @@
 - **Detection runs even when no device has `site: true`.** State advances; only sending is conditional. Skipping detection would hand the next person who opts in a backlog.
 - **State is written before the sends go out.** At-most-once delivery is the chosen semantics; a failure is logged, never retried.
 - **The pass must never hold the watcher's `busy` flag.** Match alerts are time-critical.
-- **Bracket probe cap: 5 draws per tournament per pass**, rotating (discovery's `BRACKET_GATE_PROBE_CAP`).
+- **Bracket probe cap: 5 draws per tournament per pass**, rotating (discovery's `BRACKET_GATE_PROBE_CAP`) — *except* that a tournament new to the state, or one where the pass has just confirmed a draw holds entries, probes **all** its remaining zero/unknown draws in that same pass (the "burst"). Without the burst, 33 draws filling at once would trickle out as seven separate "Draws are out" notifications, and a new tournament with more than five draws would be announced and then followed by a string of bracket notices. The cap exists to avoid spending fetches on tournaments whose draws are all empty; a burst only runs once there is something real to find.
+- **A publication is not urgent.** `webPushSender` hard-codes `TTL: 600` / `urgency: 'high'`, which is right for a call to court and wrong here: a phone switched off when a 2am draw lands would never see it, and delivery is at-most-once. Publications are sent with a 24-hour TTL and normal urgency.
+- **Worst-case bracket latency is about 35 minutes.** `/api/bracket` holds a non-static bracket for `LIVE_TTL_MS` (30 min, `lib/bracket-cache.ts:168`), and an empty-shape draw is never `static` (`isBracketStatic` needs `rowCount === winnerCount * 2`, so a draw with no winners never qualifies). A cached zero therefore expires within 30 minutes, and the next 5-minute pass sees the entries.
 - **Thai and English**, chosen per device from `record.lang`. Thai strings are literals in `lib/push/text.ts`, as the existing payload builders do; UI labels go in `lib/i18n.ts`.
 - **Tournament ids are upper-case GUIDs** everywhere in `lib/push`; `/api/draws` wants the id lower-cased.
 - Test command: `npx jest <file> -t '<name>'`. Full run: `npm test`.
@@ -32,7 +34,7 @@ Five things the spec implies, that no obvious happy-path test exercises, and tha
 2. **Two devices with different languages in one pass** — the payload must be built per device from `record.lang`, not once per publication. A Thai device getting English copy is the visible failure. → Task 5.
 3. **A tournament renamed upstream** — the notification body must use the name from the current snapshot, not the one stored when the tournament was first seen, or a renamed tournament announces under its old name forever. → Task 3.
 4. **A draw list with repeated or empty draw numbers** — `/api/draws` stamps counts per draw and hides group draws, but nothing guarantees uniqueness. A duplicate must not name the same draw twice in one notification, and an empty `drawNum` must not be recorded. → Task 3.
-5. **33 draws published at once** (THE MALL 2026 really did this) — the body must cap at four items with `+N more`, so the notification is readable and the payload stays small. → Task 4.
+5. **33 draws published at once** (THE MALL 2026 really did this) — one notification, not seven: the pass must burst through the probe cap once it finds entries, and the body must cap at four items with `+N more` so the payload stays small. → Task 4 (the body) and Task 5 (the single notification).
 
 ---
 
@@ -1014,6 +1016,7 @@ git commit -m "feat(push): notification text for publications"
 - Consumes: `duePublications`, `probeTargets`, `PROBE_CAP` (Task 3); `PublishedState`, `prunePublished` (Task 2); `publicationPayload` (Task 4); `Sender`/`SendResult` from `lib/push/sender`; `RecentSend` from `lib/push/recent-sends`; `endpointHash` from `lib/push/devices`.
 - Produces:
   - `export interface PublicationDeps { ... }` (exact shape in Step 3)
+  - the burst behaviour: `probeTargets` is called with `Number.MAX_SAFE_INTEGER` as its cap when a tournament is new to the state or has just been found to hold entries
   - `export async function runPublicationPass(deps: PublicationDeps): Promise<{ publications: number; sent: number; failed: number; gone: number }>`
   - `export function __resetPublicationsForTesting(): void`
 
@@ -1161,6 +1164,34 @@ describe('runPublicationPass', () => {
     expect(w.pushes[0].payload.body).toBe('THE MALL 2026 · BS U15')
   })
 
+  it('announces 33 draws filling at once as one notification, not seven', async () => {
+    const names = Array.from({ length: 33 }, (_, i) => ({ drawNum: String(i + 1), name: `D${i + 1}` }))
+    let filled = false
+    const w = world({
+      state: seeded({ [TID]: entry() }),
+      fetchDraws: async () => names.map((d) => ({ ...d, entrantCount: filled ? 16 : 0 })),
+      probeBracket: async () => { filled = true },
+    })
+    const first = await runPublicationPass(w.deps)
+    expect(first.publications).toBe(1)
+    expect(w.pushes).toHaveLength(1)
+    expect(w.pushes[0].payload.body).toBe('THE MALL 2026 · D1, D2, D3, D4 +29 more')
+    expect(w.saved[0].tournaments[TID].draws).toHaveLength(33)
+    // Nothing is left over for the passes that follow.
+    expect((await runPublicationPass({ ...w.deps, loadState: async () => w.saved[0] })).publications).toBe(0)
+  })
+
+  it('announces a new tournament with many draws once, with no bracket notice behind it', async () => {
+    const w = world({
+      state: seeded(),
+      draws: { [TID]: Array.from({ length: 12 }, (_, i) => ({ drawNum: String(i + 1), name: `D${i + 1}`, entrantCount: 16 })) },
+    })
+    const r = await runPublicationPass(w.deps)
+    expect(r.publications).toBe(1)
+    expect(w.pushes.map((p) => p.payload.title)).toEqual(['New tournament'])
+    expect(w.saved[0].tournaments[TID].draws).toHaveLength(12)
+  })
+
   it('writes nothing for a tournament whose draws could not be read', async () => {
     const w = world({
       state: seeded({ [TID]: entry({ draws: ['1'] }) }),
@@ -1267,14 +1298,32 @@ export async function runPublicationPass(deps: PublicationDeps): Promise<{ publi
     const id = t.id.toUpperCase()
     let draws = await deps.fetchDraws(id).catch(() => null)
     if (draws) {
-      // Refresh the counts that could still be hiding entries, then read the
-      // list again: /api/bracket caches what it fetched.
       const announced = new Set(state.tournaments[id]?.draws ?? [])
-      const { drawNums, nextCursor } = probeTargets(draws, announced, PROBE_CAP, probeCursors.get(id) ?? 0)
-      probeCursors.set(id, nextCursor)
-      if (drawNums.length > 0) {
+      const isNew = !state.tournaments[id]
+      const probe = async (drawNums: string[]) => {
         for (const drawNum of drawNums) await deps.probeBracket(id, drawNum).catch(() => undefined)
         draws = (await deps.fetchDraws(id).catch(() => null)) ?? draws
+      }
+      const entriesFound = () => !!draws && entered(draws).some((d) => !announced.has(d.drawNum))
+      // A tournament the state has never seen is probed in full, so its one
+      // arrival notice carries a complete baseline instead of being chased by
+      // a string of bracket notices.
+      if (isNew) {
+        await probe(probeTargets(draws, announced, Number.MAX_SAFE_INTEGER, 0).drawNums)
+      } else {
+        // Refresh the counts that could still be hiding entries, then read the
+        // list again: /api/bracket caches what it fetched.
+        const { drawNums, nextCursor } = probeTargets(draws, announced, PROBE_CAP, probeCursors.get(id) ?? 0)
+        probeCursors.set(id, nextCursor)
+        if (drawNums.length > 0) await probe(drawNums)
+        // Entries confirmed: the rest of this tournament's draws almost
+        // certainly filled in the same upstream publish, so finish the job now
+        // and announce them together rather than five at a time.
+        if (entriesFound()) {
+          const rest = probeTargets(draws!, announced, Number.MAX_SAFE_INTEGER, 0).drawNums
+          if (rest.length > 0) await probe(rest)
+          probeCursors.set(id, 0)
+        }
       }
     }
     const days = await deps.fetchDays(id).catch(() => null)
@@ -1349,7 +1398,7 @@ git commit -m "feat(push): run the publication pass"
 - Modify: `lib/push/tournaments.ts` (add `publicationTournaments`)
 - Modify: `lib/push/publications.ts` (add the three origin fetchers)
 - Modify: `lib/push/watcher.ts` (call the pass every fifth tick, own in-flight flag)
-- Test: `__tests__/push-tournaments.test.ts`, `__tests__/push-publication-fetchers.test.ts`
+- Create: `__tests__/push-publication-tournaments.test.ts`, `__tests__/push-publication-fetchers.test.ts`
 
 **Interfaces:**
 - Consumes: `runPublicationPass`, `PublicationDeps` (Task 5); `loadPublished`/`savePublished` (Task 2).
@@ -1361,83 +1410,129 @@ git commit -m "feat(push): run the publication pass"
 
 - [ ] **Step 1: Write the failing tests for the tournament list**
 
-Add to `__tests__/push-tournaments.test.ts`, which already mocks
-`lib/tournaments-registry` and `lib/discovery-store` and defines `MANUAL`,
-`FOUND`, `BWF`, `registry`, `discovered` and `entry`. Extend its import to
-`import { alertTournaments, publicationTournaments } from '@/lib/push/tournaments'`.
+The list must be **the one the site itself shows**, which is `/api/tournaments`:
+`mergeForApi(manualEntries, denySet, discovered, denyNamePatterns)` from
+`lib/tournaments-merge.ts:4`. That function keeps a discovered entry **only
+when `hasBracket` is true** (line 12) and drops anything in `tournaments.txt`'s
+deny set or matching its name patterns. Announcing anything else would name a
+tournament the reader cannot open, point `/?tournament=` at nothing, and poll
+`/api/draws` every five minutes for every upcoming tournament BAT lists.
+
+Create `__tests__/push-publication-tournaments.test.ts` (a new file: the
+existing `push-tournaments.test.ts` mocks the registry, and this helper reads
+`tournaments.txt` and the discovery store the way the route does):
 
 ```ts
+jest.mock('../lib/discovery-store', () => ({ loadDiscovered: jest.fn() }))
+jest.mock('../lib/tournaments-txt', () => ({ parseTournamentsTxt: jest.fn() }))
+
+import { publicationTournaments } from '@/lib/push/tournaments'
+import { loadDiscovered } from '@/lib/discovery-store'
+import { parseTournamentsTxt } from '@/lib/tournaments-txt'
+
+const MANUAL = 'AAAAAAAA-0000-0000-0000-000000000001'
+const FOUND = 'BBBBBBBB-0000-0000-0000-000000000002'
+const BWF = 'CCCCCCCC-0000-0000-0000-000000000003'
+const DENIED = 'DDDDDDDD-0000-0000-0000-000000000004'
+
+const discovered = loadDiscovered as jest.Mock
+const parsed = parseTournamentsTxt as jest.Mock
+const found = (id: string, name: string, hasBracket = true) => ({ id, name, hasBracket, discoveredAt: '', lastSeenOnUpcomingAt: '' })
+
+const txt = (over: Record<string, unknown> = {}) => ({
+  manualEntries: [], denySet: new Set<string>(), denyNamePatterns: [], levelOverrides: new Map(), ...over,
+})
+
+beforeEach(() => {
+  parsed.mockReset().mockReturnValue(txt())
+  discovered.mockReset().mockResolvedValue({ version: 1, entries: [] })
+})
+
 describe('publicationTournaments', () => {
   it('is empty when the site lists nothing', async () => {
     expect(await publicationTournaments()).toEqual([])
   })
 
-  it('gives a hand-listed BAT tournament with its name and finished flag', async () => {
-    registry.mockReturnValue([{ id: MANUAL.toLowerCase(), provider: 'bat', name: 'THE MALL 2026', done: true }])
+  it('gives a hand-listed BAT tournament with its name and finished flag, id upper-cased', async () => {
+    parsed.mockReturnValue(txt({ manualEntries: [{ id: MANUAL.toLowerCase(), name: 'THE MALL 2026', done: true }] }))
     expect(await publicationTournaments()).toEqual([{ id: MANUAL, name: 'THE MALL 2026', done: true }])
   })
 
-  it('gives a tournament the site found by itself, upper-cased and not finished', async () => {
-    discovered.mockResolvedValue({ version: 1, entries: [{ ...entry(FOUND.toLowerCase()), name: 'Found Open' }] })
+  it('gives a discovered tournament whose draws are out', async () => {
+    discovered.mockResolvedValue({ version: 1, entries: [found(FOUND.toLowerCase(), 'Found Open')] })
     expect(await publicationTournaments()).toEqual([{ id: FOUND, name: 'Found Open', done: false }])
   })
 
-  it('includes a found tournament whose draws are not out yet — unlike alertTournaments', async () => {
-    discovered.mockResolvedValue({ version: 1, entries: [{ ...entry(FOUND, false), name: 'Found Open' }] })
-    expect(await publicationTournaments()).toEqual([{ id: FOUND, name: 'Found Open', done: false }])
-    expect((await alertTournaments()).has(FOUND)).toBe(false)
+  it('leaves out a discovered tournament the site does not show yet', async () => {
+    discovered.mockResolvedValue({ version: 1, entries: [found(FOUND, 'Not ready', false)] })
+    expect(await publicationTournaments()).toEqual([])
   })
 
-  it('leaves out BWF tournaments, even one that was also found', async () => {
-    registry.mockReturnValue([{ id: BWF, provider: 'bwf', name: 'A BWF event', done: false }])
-    discovered.mockResolvedValue({ version: 1, entries: [{ ...entry(BWF), name: 'A BWF event' }] })
+  it('leaves out a tournament the deny set or a name pattern excludes', async () => {
+    parsed.mockReturnValue(txt({ denySet: new Set([DENIED]), denyNamePatterns: ['veteran'] }))
+    discovered.mockResolvedValue({ version: 1, entries: [found(DENIED, 'Denied Cup'), found(FOUND, 'Veteran Masters')] })
+    expect(await publicationTournaments()).toEqual([])
+  })
+
+  it('leaves out BWF tournaments', async () => {
+    parsed.mockReturnValue(txt({ manualEntries: [{ id: BWF, name: 'A BWF event', provider: 'bwf' }] }))
     expect(await publicationTournaments()).toEqual([])
   })
 
   it('lets the hand-listed entry decide when a tournament is in both lists', async () => {
-    registry.mockReturnValue([{ id: MANUAL, provider: 'bat', name: 'Hand name', done: true }])
-    discovered.mockResolvedValue({ version: 1, entries: [{ ...entry(MANUAL), name: 'Found name' }] })
+    parsed.mockReturnValue(txt({ manualEntries: [{ id: MANUAL, name: 'Hand name', done: true }] }))
+    discovered.mockResolvedValue({ version: 1, entries: [found(MANUAL, 'Found name')] })
     expect(await publicationTournaments()).toEqual([{ id: MANUAL, name: 'Hand name', done: true }])
   })
 
-  it('still answers from the hand-listed ones when the found list cannot be read', async () => {
-    registry.mockReturnValue([{ id: MANUAL, provider: 'bat', name: 'THE MALL 2026', done: false }])
+  it('answers from the hand-listed ones alone when the found list cannot be read', async () => {
+    parsed.mockReturnValue(txt({ manualEntries: [{ id: MANUAL, name: 'THE MALL 2026' }] }))
     discovered.mockRejectedValue(new Error('EIO'))
     expect(await publicationTournaments()).toEqual([{ id: MANUAL, name: 'THE MALL 2026', done: false }])
+  })
+
+  it('is empty, not a throw, when tournaments.txt cannot be read', async () => {
+    parsed.mockImplementation(() => { throw new Error('ENOENT') })
+    expect(await publicationTournaments()).toEqual([])
   })
 })
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [ ] **Step 2: Run them to verify they fail**
 
-Run: `npx jest __tests__/push-tournaments.test.ts -t 'publicationTournaments'`
-Expected: FAIL — not exported.
+Run: `npx jest __tests__/push-publication-tournaments.test.ts`
+Expected: FAIL — `publicationTournaments` is not exported.
 
 - [ ] **Step 3: Implement `publicationTournaments`**
 
-Append to `lib/push/tournaments.ts`:
+Append to `lib/push/tournaments.ts`, adding the imports it needs
+(`readFileSync` from `fs`, `join` from `path`, `parseTournamentsTxt` from
+`@/lib/tournaments-txt`, `mergeForApi` from `@/lib/tournaments-merge`):
 
 ```ts
-/** Every BAT tournament the site knows, with the name a notification should
- *  use. `alertTournaments` cannot serve: it carries no names, and it admits a
- *  discovered tournament only once `hasBracket` is set, while a publication
- *  pass wants to see one the moment the site lists it. */
+/** Every BAT tournament the site shows, with the name a notification should
+ *  use — the same list `/api/tournaments` serves, through the same
+ *  `mergeForApi`, so a publication never names a tournament the reader cannot
+ *  open. That matters twice over: `mergeForApi` keeps a discovered entry only
+ *  once its draws are out, and it drops anything `tournaments.txt` denies by
+ *  id or by name pattern.
+ *
+ *  `alertTournaments` cannot serve this: it carries no names. The auto-done
+ *  flag the route derives from the pinned day cache is not reproduced here —
+ *  a tournament whose last day has passed simply stops publishing anything,
+ *  and the hand-set `done` is honoured. */
 export async function publicationTournaments(): Promise<Array<{ id: string; name: string; done: boolean }>> {
-  const out = new Map<string, { id: string; name: string; done: boolean }>()
-  const notBat = new Set<string>()
-  for (const t of listAllTournaments()) {
-    const id = t.id.toUpperCase()
-    if (t.provider === 'bat') out.set(id, { id, name: t.name, done: !!t.done })
-    else notBat.add(id)
+  let txt: ReturnType<typeof parseTournamentsTxt>
+  try {
+    txt = parseTournamentsTxt(readFileSync(join(process.cwd(), 'public', 'tournaments.txt'), 'utf-8'))
+  } catch {
+    // No list, nothing to publish about. The next pass tries again.
+    return []
   }
-  const found = await loadDiscovered().catch(() => null)
-  for (const e of found?.entries ?? []) {
-    const id = e.id.toUpperCase()
-    // The hand-listed entry decides for a tournament in both lists.
-    if (out.has(id) || notBat.has(id)) continue
-    out.set(id, { id, name: e.name, done: false })
-  }
-  return Array.from(out.values())
+  const discovered = await loadDiscovered().catch(() => ({ version: 1 as const, entries: [] }))
+  return mergeForApi(txt.manualEntries, txt.denySet, discovered, txt.denyNamePatterns)
+    .filter((e) => !e.provider || e.provider === 'bat')
+    .map((e) => ({ id: e.id.toUpperCase(), name: e.name, done: e.done === true }))
 }
 ```
 
@@ -1562,10 +1657,75 @@ export function makeProbeBracket(origin: string, fetchFn: FetchLike = fetch as u
 
 - [ ] **Step 7: Run both test files**
 
-Run: `npx jest __tests__/push-publication-fetchers.test.ts __tests__/push-tournaments.test.ts`
+Run: `npx jest __tests__/push-publication-fetchers.test.ts __tests__/push-publication-tournaments.test.ts`
 Expected: PASS.
 
-- [ ] **Step 8: Wire the pass into the watcher**
+- [ ] **Step 8: Give the sender a longer life for publications**
+
+A publication is not a call to court. Add a failing test to
+`__tests__/push-sender.test.ts`, in the style of its existing tests (which pass
+a fake `sendNotification` and assert on the options it received):
+
+```ts
+  it('sends with the caller\'s TTL and urgency when given them', async () => {
+    const seen: Array<Record<string, unknown>> = []
+    const send = (async (_sub: unknown, _body: unknown, opts: Record<string, unknown>) => { seen.push(opts); return undefined }) as never
+    await webPushSender(CONFIG, send, { ttlSeconds: 86_400, urgency: 'normal' })(RECORD, PAYLOAD)
+    expect(seen[0]).toEqual(expect.objectContaining({ TTL: 86_400, urgency: 'normal' }))
+  })
+
+  it('still defaults to the ten-minute, high-urgency match alert', async () => {
+    const seen: Array<Record<string, unknown>> = []
+    const send = (async (_sub: unknown, _body: unknown, opts: Record<string, unknown>) => { seen.push(opts); return undefined }) as never
+    await webPushSender(CONFIG, send)(RECORD, PAYLOAD)
+    expect(seen[0]).toEqual(expect.objectContaining({ TTL: 600, urgency: 'high' }))
+  })
+```
+
+Use that file's own names for the config, record and payload constants.
+
+Run: `npx jest __tests__/push-sender.test.ts` → FAIL (third argument ignored).
+
+Then in `lib/push/sender.ts`, replace the two constants and the signature:
+
+```ts
+// A match alert that cannot be delivered within ten minutes is no longer
+// useful. A publication is not like that — see the publication deps, which
+// pass a day — so these are only the defaults.
+const TTL_SECONDS = 600
+// A push service that never answers must not hold the watcher up.
+const SEND_TIMEOUT_MS = 10_000
+
+export interface SendOptions {
+  /** How long the push service may hold the notification for. */
+  ttlSeconds?: number
+  urgency?: 'very-low' | 'low' | 'normal' | 'high'
+}
+
+export function webPushSender(
+  config: PushConfig,
+  send: typeof webpush.sendNotification = webpush.sendNotification,
+  options: SendOptions = {},
+): Sender {
+  return async (record, payload) => {
+    try {
+      await send(
+        { endpoint: record.endpoint, keys: record.keys },
+        JSON.stringify(payload),
+        {
+          TTL: options.ttlSeconds ?? TTL_SECONDS,
+          urgency: options.urgency ?? 'high',
+          vapidDetails: config,
+          timeout: SEND_TIMEOUT_MS,
+        },
+      )
+      return 'ok'
+    } catch (err) {
+```
+
+(the `catch` block is unchanged). Run the sender tests again → PASS.
+
+- [ ] **Step 9: Wire the pass into the watcher**
 
 In `lib/push/watcher.ts`, inside `startPushWatcher`, add to the dynamic imports near the others:
 
@@ -1589,7 +1749,9 @@ Build its deps after the `WatcherDeps` object:
     loadState: published.loadPublished,
     saveState: published.savePublished,
     listRecords: store.listRecords,
-    send: webPushSender(config),
+    // A day, at normal urgency: a phone that was off when a 2am draw landed
+    // should still be told, and delivery here is at-most-once.
+    send: webPushSender(config, undefined, { ttlSeconds: 86_400, urgency: 'normal' }),
     removeRecord: store.removeRecord,
     record: recordPush,
     noteSend: recent.recordSend,
@@ -1622,7 +1784,7 @@ At the end of the `setInterval` callback, **after** the `finally { busy = false 
     }
 ```
 
-- [ ] **Step 9: Verify the whole suite and the build**
+- [ ] **Step 10: Verify the whole suite and the build**
 
 Run: `npm test`
 Expected: PASS, no regressions in `push-watcher.test.ts`.
@@ -1630,10 +1792,10 @@ Expected: PASS, no regressions in `push-watcher.test.ts`.
 Run: `npx tsc --noEmit`
 Expected: no errors.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
-git add lib/push/tournaments.ts lib/push/publications.ts lib/push/watcher.ts __tests__/push-tournaments.test.ts __tests__/push-publication-fetchers.test.ts
+git add lib/push/tournaments.ts lib/push/publications.ts lib/push/watcher.ts lib/push/sender.ts __tests__/push-publication-tournaments.test.ts __tests__/push-publication-fetchers.test.ts __tests__/push-sender.test.ts
 git commit -m "feat(push): run publications from the watcher's lease"
 ```
 
@@ -1890,6 +2052,15 @@ In `__tests__/PushFollowsContext.test.tsx`:
     await waitFor(() => expect(value.siteNews).toBe(true))
   })
 
+  it('switches off without asking for permission again', async () => {
+    const client = fakeClient({ currentSubscription: async () => SUB, state: async () => ({ follows: [], site: true }) })
+    mount(client)
+    await waitFor(() => expect(value.siteNews).toBe(true))
+    await act(async () => { expect(await value.setSiteNews(false)).toBe('ok') })
+    expect(value.siteNews).toBe(false)
+    expect(client.calls).not.toContain('subscribe')
+  })
+
   it('does not switch site news on when notifications are blocked', async () => {
     const client = fakeClient({ permission: () => 'denied' })
     mount(client)
@@ -1988,12 +2159,23 @@ add the callback beside `follow`:
   const setSiteNews = useCallback(async (on: boolean): Promise<FollowOutcome> => {
     const key = keyRef.current
     if (!key || client.environment() !== 'ok') return 'error'
+    // Switching off must never put a permission prompt in front of someone:
+    // the device is already subscribed, or there is nothing to switch off.
+    if (!on) {
+      const current = await client.currentSubscription()
+      if (!current?.endpoint) { setSiteNewsState(false); return 'ok' }
+      const off = await client.setSite(current, lang, false)
+      if (!('follows' in off)) return off.reason ? 'limit' : 'error'
+      setFollows(off.follows)
+      setSiteNewsState(off.site)
+      return 'ok'
+    }
     if (client.permission() === 'denied') { setPermission('denied'); return 'denied' }
     const sub = await client.subscribe(key)
     setPermission(client.permission())
     if (sub === 'denied' || sub === 'dismissed') return sub
     if (!sub) return 'error'
-    const result = await client.setSite(sub, lang, on)
+    const result = await client.setSite(sub, lang, true)
     if ('follows' in result) {
       setFollows(result.follows)
       setSiteNewsState(result.site)
@@ -2072,7 +2254,9 @@ describe('SiteNewsSwitch', () => {
     mount(fakeClient({ permission: () => 'denied' }))
     const box = await waitFor(() => screen.getByRole('checkbox'))
     await act(async () => { fireEvent.click(box) })
-    await waitFor(() => expect(screen.getByText(/blocked|ถูกปิด/i)).toBeInTheDocument())
+    // The copy is i18n's `followBlocked`: "Notifications are blocked for this
+    // site…" / "เว็บไซต์นี้ถูกปิดการแจ้งเตือน…".
+    await waitFor(() => expect(screen.getByText(/Notifications are blocked|ถูกปิดการแจ้งเตือน/)).toBeInTheDocument())
     expect(screen.getByRole('checkbox')).not.toBeChecked()
   })
 })

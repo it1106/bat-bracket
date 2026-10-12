@@ -47,8 +47,13 @@ opens BATMatch on that tournament.
 
 ## Scope
 
-- **In scope:** BAT tournaments the site lists (`alertTournaments()`), which is
-  the registry plus the discovery store. Thai and English. The same devices
+- **In scope:** the BAT tournaments the site itself shows — the list
+  `/api/tournaments` serves, through the same
+  `mergeForApi(manualEntries, denySet, discovered, denyNamePatterns)`. That
+  keeps a discovered tournament only once its draws are out and drops anything
+  `tournaments.txt` denies by id or name pattern. Announcing anything else
+  would name a tournament the reader cannot open and would poll upstream every
+  five minutes for every tournament BAT merely lists as upcoming. Thai and English. The same devices
   match alerts already reach.
 - **Out of scope:** BWF tournaments. Ranking publications (the bell's third
   kind — BAT/BWF ranking editions already have their own poller and could be
@@ -191,7 +196,7 @@ audience would hand the next person who switches the toggle on a month of
 backlog in one burst, which is the same flood the silent seed exists to
 prevent. Sending is what depends on there being devices, not detecting.
 
-**Per tournament**, over `alertTournaments()` filtered to not-`done`:
+**Per tournament**, over `publicationTournaments()` filtered to not-`done`:
 
 - **Id not in state** → a `tournament` publication, and its entry is written
   with `announced: true` plus whatever draws and days it already has, recorded
@@ -210,11 +215,26 @@ prevent. Sending is what depends on there being devices, not detecting.
     a draw whose shape was published empty on Monday answers `0` forever and
     Wednesday's entries would never be noticed. This is exactly the repeating
     batch the feature is for.
-  - Up to **5** draws per tournament per pass, rotating through them so a
-    33-draw tournament is covered over several passes without ever fetching 33
-    at once. The cap and its reasoning are discovery's
-    `BRACKET_GATE_PROBE_CAP`. A tournament whose every draw has entries is
-    never probed again, so the steady-state cost is zero.
+  - Up to **5** draws per tournament per pass, rotating, so a 33-draw
+    tournament is covered over several passes without ever fetching 33 at
+    once. The cap and its reasoning are discovery's `BRACKET_GATE_PROBE_CAP`.
+    A tournament whose every draw has entries is never probed again, so the
+    steady-state cost is zero.
+  - **Two exceptions burst through the cap**, because the cap would otherwise
+    split one publication into seven: a tournament the state has never seen is
+    probed in full (so its single arrival notice carries a complete baseline
+    rather than being chased by a string of bracket notices), and a tournament
+    where this pass has just confirmed a draw holds entries has its remaining
+    zero/unknown draws probed in the same pass (33 draws filling at once came
+    from one upstream publish and belong in one notification). The cap exists
+    to avoid spending fetches on tournaments whose draws are all empty; a
+    burst only runs when there is something real to find.
+  - **Worst case the bracket notice lags publication by about 35 minutes.**
+    `/api/bracket` holds a non-static bracket for `LIVE_TTL_MS` (30 minutes),
+    and an empty-shape draw is never `static` — `isBracketStatic` requires
+    `rowCount === winnerCount * 2`, which a draw with no winners cannot meet.
+    So a cached zero expires within half an hour and the next pass sees the
+    entries.
 - **Schedule** → `/api/matches?tournament=<id>`: days with `dateIso > today`
   and `hasMatches === true` whose date is not in `days[]` make one `schedule`
   publication naming them. The same filter `recordScheduleSnapshot` uses, so
@@ -224,14 +244,18 @@ prevent. Sending is what depends on there being devices, not detecting.
   nothing for it**. A network failure is not evidence that nothing is
   published.
 
-**Guards.** If `alertTournaments()` is empty while the state holds entries, the
+**Guards.** If the tournament list is empty while the state holds entries, the
 whole pass is skipped and logged — discovery's suspicious-snapshot rule, which
 exists because an upstream hiccup must not be read as "everything is gone".
 
 ### 5. Sending
 
 One notification per tournament per kind per pass, to every record with
-`site: true`, in that record's own `lang`. Reuses the existing machinery: the
+`site: true`, in that record's own `lang`, with a **24-hour TTL at normal
+urgency**. `webPushSender` hard-codes `TTL: 600` and `urgency: 'high'`, which
+is right for a call to court and wrong here: delivery is at-most-once, so a
+phone switched off when a 2am draw lands would otherwise never be told. The
+sender takes those two as options; match alerts keep today's values. Reuses the existing machinery: the
 `Sender` from `webPushSender`, `removeRecord` on `gone`, `recordPush` for the
 stats tiles, and a `noteSend` row for the status table — `draw` = the
 tournament name, `round` = empty, `match` = the notification body,
@@ -277,7 +301,8 @@ no rendering change.
 | Failure | Behaviour |
 |---|---|
 | BAT down (`batDownSince()`) | Pass skipped, nothing recorded |
-| `alertTournaments()` empty, state non-empty | Pass skipped, warned |
+| Tournament list empty, state non-empty | Pass skipped, warned |
+| `tournaments.txt` unreadable | Empty list, so the pass is skipped; the next one tries again |
 | `/api/draws` or `/api/matches` not ok | That tournament skipped, nothing recorded for it |
 | `entrantCount` undefined | Not a publication; probed later, never recorded |
 | Bracket probe fails | Count stays unknown, retried next pass |
@@ -321,7 +346,8 @@ before the code that satisfies it.
 |---|---|
 | `lib/push/types.ts` | `site` on the record, `Stage` widened, `Publication` types |
 | `lib/push/store.ts` | `setSite`, record kept while `site` is on |
-| `lib/push/tournaments.ts` | `publicationTournaments()` — the listed BAT tournaments with their names, since `alertTournaments()` carries none and gates discovered ones on `hasBracket` |
+| `lib/push/tournaments.ts` | `publicationTournaments()` — the BAT tournaments the site itself shows, with their names |
+| `lib/push/sender.ts` | optional TTL and urgency |
 | `lib/push/published-state.ts` | new — the disk-backed state |
 | `lib/push/publications.ts` | new — `duePublications`, `runPublicationPass` |
 | `lib/push/text.ts` | the three payload builders |
