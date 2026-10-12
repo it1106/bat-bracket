@@ -51,8 +51,8 @@ when nothing changed.
 `npm run build` rewrites `.next/static/*` **in place**. Next asset filenames are
 content-hashed, so a normal deploy changes some chunk/CSS hashes. For the few
 seconds mid-build when an asset's file is momentarily absent, any request for it
-returns 404 — and **Cloudflare caches that 404** (default negative TTL is hours).
-The origin recovers instantly, but the edge keeps serving the stale 404, so:
+returns 404 — and **Cloudflare used to cache that 404 for hours**. The origin
+recovers instantly, but the edge kept serving the stale 404, so:
 
 - a missing JS chunk → `ChunkLoadError` → blank/broken page (looks like an outage);
 - a missing CSS file → unstyled page.
@@ -76,15 +76,45 @@ Purge the Cloudflare cache (dashboard → `batmatch.app` → Caching → **Purge
 Everything**, or Custom Purge the exact asset URLs for both apex and `www`).
 There is no CF API token on the box, so this is a manual dashboard action.
 
-### Prevention (do these once)
+### Prevention
 
-1. **Stop Cloudflare caching 4xx.** Add a Cache Rule for `/_next/static/*` that
-   sets *Edge Cache TTL by status code* → `404, 410 = No cache` (or bypass cache
-   on 4xx). This alone prevents the poisoning permanently.
-2. **Purge static after each build** as a post-deploy step (needs a scoped API
-   token with Zone → *Cache Purge*), or build into a fresh dir and swap so assets
-   are never briefly missing. Until then, expect a possible blip on deploy and
-   hard-refresh (Cmd+Shift+R) to confirm.
+1. **Stop Cloudflare caching 4xx — DONE (2026-10-12).** A Cache Rule on
+   `batmatch.app`, matching `starts_with(http.request.uri.path, "/_next/static/")`,
+   sets Edge TTL *Status Code TTL* → `404` and `410` = no cache. Verified the
+   day it went in: a missing asset answers `MISS` then `EXPIRED` on every
+   repeat and never `HIT` (the edge revalidates with the origin every time),
+   while a real asset still answers `HIT`. Re-test any time with:
+
+   ```bash
+   U="https://batmatch.app/_next/static/chunks/zzz-$(date +%s).js"
+   for i in 1 2 3; do curl -sI "$U" | grep -iE '^HTTP|^cf-cache-status'; done
+   # want: never HIT.  And a real asset must still be HIT.
+   ```
+
+2. **Still open: browsers are told to keep the 404 for 4 hours.** The edge
+   stamps `cache-control: max-age=14400` on 404s *under `/_next/static/`*,
+   overriding the origin, which sends `no-cache, no-store, must-revalidate`.
+   A 404 on any other path passes the origin header through untouched and is
+   never cached (`cf-cache-status: DYNAMIC`), so this comes from a rule scoped
+   to that path — look through Caching → Cache Rules (and legacy Page Rules)
+   for one setting a 4-hour **Browser TTL** on `/_next/static/*`. Consequence:
+   a visitor who loads a page mid-deploy and 404s on a chunk stays broken
+   locally for up to 4 hours even though the edge and origin are fine; they
+   need a hard-refresh (Cmd+Shift+R). Fix is one field — set **Browser TTL**
+   to *Respect origin TTL* on that path. That is strictly better for the 200s
+   too: the origin sends `max-age=31536000, immutable`, so real assets would
+   be cached for a year instead of four hours.
+
+3. **Purge static after each build** as a post-deploy step. Needs a scoped API
+   token (Zone → *Cache Purge*) on the box; there is none today.
+
+   **Do not** "build into a fresh dir and swap" — it reads like a fix and is
+   not one. Asset filenames are content-hashed, so the old build's hashes do
+   not exist in the new directory at all. An atomic swap removes the
+   build-time window and opens an identical one at swap time: during
+   `pm2 reload` the still-running old worker serves pages referencing hashes
+   that are now gone. It narrows the window; it does not close it. Item 1 is
+   what actually closes the failure mode.
 
 ### `www` vs apex
 
