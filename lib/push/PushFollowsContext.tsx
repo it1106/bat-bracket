@@ -16,6 +16,9 @@ export interface PushFollowsValue {
   isFollowingClub(tournamentId: string, clubName: string | undefined): boolean
   follow(target: FollowTarget): Promise<FollowOutcome>
   unfollow(target: FollowTarget): Promise<void>
+  /** Whether this device asked to be told about new tournaments, draws and schedules. */
+  siteNews: boolean
+  setSiteNews(on: boolean): Promise<FollowOutcome>
 }
 
 // The same rule the server uses for club names (lib/push/alerts.ts), kept
@@ -30,6 +33,8 @@ const OFF: PushFollowsValue = {
   isFollowingClub: () => false,
   follow: async () => 'error',
   unfollow: async () => {},
+  siteNews: false,
+  setSiteNews: async () => 'error',
 }
 
 const Ctx = createContext<PushFollowsValue>(OFF)
@@ -45,6 +50,7 @@ export function PushFollowsProvider({ children, client = browserPushClient }: { 
   const [status, setStatus] = useState<PushFollowsValue['status']>('off')
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [follows, setFollows] = useState<PushFollow[]>([])
+  const [siteNews, setSiteNewsState] = useState(false)
   const keyRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -60,7 +66,9 @@ export function PushFollowsProvider({ children, client = browserPushClient }: { 
       const sub = await client.currentSubscription()
       if (!live || !sub?.endpoint) return
       const known = await client.state(sub.endpoint)
-      if (live && known) setFollows(known)
+      if (!live || !known) return
+      setFollows(known.follows)
+      setSiteNewsState(known.site)
     })()
     return () => { live = false }
   }, [client])
@@ -85,6 +93,34 @@ export function PushFollowsProvider({ children, client = browserPushClient }: { 
     if (next) setFollows(next)
   }, [client])
 
+  const setSiteNews = useCallback(async (on: boolean): Promise<FollowOutcome> => {
+    const key = keyRef.current
+    if (!key || client.environment() !== 'ok') return 'error'
+    // Switching off must never put a permission prompt in front of someone:
+    // the device is already subscribed, or there is nothing to switch off.
+    if (!on) {
+      const current = await client.currentSubscription()
+      if (!current?.endpoint) { setSiteNewsState(false); return 'ok' }
+      const off = await client.setSite(current, lang, false)
+      if (!('follows' in off)) return off.reason ? 'limit' : 'error'
+      setFollows(off.follows)
+      setSiteNewsState(off.site)
+      return 'ok'
+    }
+    if (client.permission() === 'denied') { setPermission('denied'); return 'denied' }
+    const sub = await client.subscribe(key)
+    setPermission(client.permission())
+    if (sub === 'denied' || sub === 'dismissed') return sub
+    if (!sub) return 'error'
+    const result = await client.setSite(sub, lang, true)
+    if ('follows' in result) {
+      setFollows(result.follows)
+      setSiteNewsState(result.site)
+      return 'ok'
+    }
+    return result.reason ? 'limit' : 'error'
+  }, [client, lang])
+
   const value = useMemo<PushFollowsValue>(() => ({
     status,
     permission,
@@ -97,7 +133,9 @@ export function PushFollowsProvider({ children, client = browserPushClient }: { 
     },
     follow,
     unfollow,
-  }), [status, permission, follows, follow, unfollow])
+    siteNews,
+    setSiteNews,
+  }), [status, permission, follows, follow, unfollow, siteNews, setSiteNews])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

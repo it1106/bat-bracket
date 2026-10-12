@@ -130,4 +130,42 @@ describe('PushFollowsProvider', () => {
     expect(value.status).toBe('off')
     expect(value.isFollowingPlayer(TID, '1')).toBe(false)
   })
+
+  it('switches site news on, subscribing the device on the way', async () => {
+    const client = fakeClient()
+    mount(client)
+    await waitFor(() => expect(value.status).toBe('ok'))
+    expect(value.siteNews).toBe(false)
+    await act(async () => { expect(await value.setSiteNews(true)).toBe('ok') })
+    expect(value.siteNews).toBe(true)
+    expect(client.calls).toContain('subscribe')
+    await act(async () => { await value.setSiteNews(false) })
+    expect(value.siteNews).toBe(false)
+  })
+
+  it('reports the switch the server already holds for this device', async () => {
+    const client = fakeClient({
+      currentSubscription: async () => SUB,
+      state: async () => ({ follows: [], site: true }),
+    })
+    mount(client)
+    await waitFor(() => expect(value.siteNews).toBe(true))
+  })
+
+  it('switches off without asking for permission again', async () => {
+    const client = fakeClient({ currentSubscription: async () => SUB, state: async () => ({ follows: [], site: true }) })
+    mount(client)
+    await waitFor(() => expect(value.siteNews).toBe(true))
+    await act(async () => { expect(await value.setSiteNews(false)).toBe('ok') })
+    expect(value.siteNews).toBe(false)
+    expect(client.calls).not.toContain('subscribe')
+  })
+
+  it('does not switch site news on when notifications are blocked', async () => {
+    const client = fakeClient({ permission: () => 'denied' })
+    mount(client)
+    await waitFor(() => expect(value.status).toBe('ok'))
+    await act(async () => { expect(await value.setSiteNews(true)).toBe('denied') })
+    expect(value.siteNews).toBe(false)
+  })
 })

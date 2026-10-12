@@ -21,6 +21,7 @@ export function fakeClient(over: Partial<PushClient> = {}): PushClient & { calls
   const calls: string[] = []
   let server: PushFollow[] = []
   let subscribed = false
+  let site = false
   const client: PushClient & { calls: string[] } = {
     calls,
     environment: () => 'ok',
@@ -34,7 +35,8 @@ export function fakeClient(over: Partial<PushClient> = {}): PushClient & { calls
       server = server.filter((f) => !same(f, target))
       return server
     },
-    state: async () => { calls.push('state'); return server },
+    setSite: async (_s, lang, on) => { calls.push(`setSite:${lang}:${on}`); site = on; return { follows: server, site } },
+    state: async () => { calls.push('state'); return { follows: server, site } },
     ...over,
   }
   return client

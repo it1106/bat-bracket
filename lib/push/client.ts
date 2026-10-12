@@ -56,7 +56,9 @@ export interface PushClient {
   subscribe(publicKey: string): Promise<PushSubscriptionJSON | 'denied' | 'dismissed' | null>
   follow(subscription: PushSubscriptionJSON, lang: Lang, target: FollowTarget): Promise<{ follows: PushFollow[] } | { error: string; reason?: string }>
   unfollow(endpoint: string, target: FollowTarget): Promise<PushFollow[] | null>
-  state(endpoint: string): Promise<PushFollow[] | null>
+  state(endpoint: string): Promise<{ follows: PushFollow[]; site: boolean } | null>
+  /** Turns the site-news switch on or off for this device. */
+  setSite(subscription: PushSubscriptionJSON, lang: Lang, on: boolean): Promise<{ follows: PushFollow[]; site: boolean } | { error: string; reason?: string }>
 }
 
 async function postJson(path: string, body: unknown): Promise<{ status: number; data: unknown }> {
@@ -120,11 +122,21 @@ export const browserPushClient: PushClient = {
       return null
     }
   },
+  async setSite(subscription, lang, on) {
+    try {
+      const { status, data } = await postJson('/api/push/site', { subscription, lang, on })
+      const d = (data ?? {}) as { follows?: PushFollow[]; site?: boolean; error?: string; reason?: string }
+      if (status === 200 && Array.isArray(d.follows)) return { follows: d.follows, site: d.site === true }
+      return { error: d.error ?? `HTTP ${status}`, ...(d.reason && { reason: d.reason }) }
+    } catch {
+      return { error: 'network' }
+    }
+  },
   async state(endpoint) {
     try {
       const { status, data } = await postJson('/api/push/state', { endpoint })
-      const follows = (data as { follows?: PushFollow[] } | null)?.follows
-      return status === 200 && Array.isArray(follows) ? follows : null
+      const d = (data ?? {}) as { follows?: PushFollow[]; site?: boolean }
+      return status === 200 && Array.isArray(d.follows) ? { follows: d.follows, site: d.site === true } : null
     } catch {
       return null
     }
