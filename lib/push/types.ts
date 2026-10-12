@@ -47,6 +47,10 @@ export interface PushSubscriptionRecord {
    *  Absent on a device last seen before this was kept. Never the user agent
    *  itself: see lib/push/user-agent.ts. */
   os?: DeviceOs
+  /** This device asked to be told when something new is published on the
+   *  site: a tournament, its draws, its schedule. Independent of follows —
+   *  a device may have this on and follow nobody. Absent means off. */
+  site?: boolean
 }
 
 /** `soon` comes before a match, `playing` once it is on court, `result` once
