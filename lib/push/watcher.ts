@@ -281,6 +281,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     now: () => Date.now(),
     todayIso: () => getTodayIso(),
     isBatDown: () => !!batDownSince(),
+    isLeader: opts.isLeader,
     listTournaments: publicationTournaments,
     fetchDraws: publications.makeFetchDraws(opts.origin),
     probeBracket: publications.makeProbeBracket(opts.origin),

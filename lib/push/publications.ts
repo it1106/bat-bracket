@@ -44,8 +44,11 @@ export const PROBE_CAP = 5
  *  day that is about to be published is always the nearest. */
 export const SCHEDULE_PROBE_CAP = 3
 
+// A draw with no name could only render as an empty item in the body, so it
+// is not announceable and is not recorded: it is named on a later pass, once
+// upstream gives it a name.
 const entered = (draws: DrawSnapshot[]): DrawSnapshot[] =>
-  draws.filter((d) => !!d.drawNum && typeof d.entrantCount === 'number' && d.entrantCount > 0)
+  draws.filter((d) => !!d.drawNum && !!d.name.trim() && typeof d.entrantCount === 'number' && d.entrantCount > 0)
 
 const playingDays = (days: DaySnapshot[], todayIso: string): string[] =>
   Array.from(new Set(days.filter((d) => !!d.dateIso && d.dateIso > todayIso && d.hasMatches === true).map((d) => d.dateIso))).sort()
@@ -57,12 +60,24 @@ export function dayProbeTargets(
   announced: ReadonlySet<string>,
   todayIso: string,
   cap: number,
-): DaySnapshot[] {
-  return days
+  cursor = 0,
+): { days: DaySnapshot[]; nextCursor: number } {
+  const want = days
     .filter((d) => !!d.dateIso && !!d.date && d.dateIso > todayIso)
     .filter((d) => !announced.has(d.dateIso) && d.hasMatches === undefined)
     .sort((a, b) => (a.dateIso < b.dateIso ? -1 : a.dateIso > b.dateIso ? 1 : 0))
-    .slice(0, cap)
+  if (want.length === 0) return { days: [], nextCursor: 0 }
+  // The cursor rotates the window. Without it, a few near day tabs that never
+  // get matches — a registration day, a cancelled one, a day BAT simply never
+  // publishes — would be re-probed for ever and the real day behind them
+  // would never be reached, since a "no matches" answer is not recorded
+  // anywhere (it cannot be: tomorrow it may turn into a yes).
+  const start = ((cursor % want.length) + want.length) % want.length
+  const take = Math.min(cap, want.length)
+  return {
+    days: Array.from({ length: take }, (_, i) => want[(start + i) % want.length]),
+    nextCursor: (start + take) % want.length,
+  }
 }
 
 /** The draws worth a bracket fetch: not yet announced, and not already known
@@ -185,6 +200,11 @@ export interface PublicationDeps {
    *  whole tournament's day tabs from the start. Null when it could not be
    *  read, which is never taken for "no matches". */
   probeDay: (tournamentId: string, date: string) => Promise<boolean | null>
+  /** Whether this worker still holds the leader lease. Checked again before
+   *  the state is written and before anything is sent: a pass can run for
+   *  minutes, and a lease that moved mid-pass would have two workers sending
+   *  the same notifications. */
+  isLeader: () => boolean
   loadState: () => Promise<PublishedState>
   saveState: (state: PublishedState) => Promise<void>
   listRecords: () => Promise<PushSubscriptionRecord[]>
@@ -198,9 +218,12 @@ export interface PublicationDeps {
  *  covered over several passes. In memory: a restart simply starts again at
  *  the first un-announced draw. */
 const probeCursors = new Map<string, number>()
+/** The same, for schedule days. */
+const dayCursors = new Map<string, number>()
 
 export function __resetPublicationsForTesting(): void {
   probeCursors.clear()
+  dayCursors.clear()
 }
 
 /** One publication pass. Detection and the state write happen whether or not
@@ -220,21 +243,31 @@ export async function runPublicationPass(deps: PublicationDeps): Promise<{ publi
   }
 
   const snapshots: TournamentSnapshot[] = []
+  const isNewToState = (id: string) => !state.tournaments[id]
+  // Everything already published must be recorded in one go on a pass that
+  // will not announce it: the first pass ever, and a tournament's first
+  // sighting. Otherwise the next pass announces what was already out.
+  const seedingAll = !state.seeded
   for (const t of listed) {
     if (t.done) continue
     const id = t.id.toUpperCase()
+    const isNew = seedingAll || isNewToState(id)
+
     let draws = await deps.fetchDraws(id).catch(() => null)
     if (draws) {
       const announced = new Set(state.tournaments[id]?.draws ?? [])
-      const isNew = !state.tournaments[id]
       const probe = async (drawNums: string[]) => {
-        for (const drawNum of drawNums) await deps.probeBracket(id, drawNum).catch(() => undefined)
+        for (const drawNum of drawNums) {
+          // A pass that is itself pushing BAT over the edge must stop rather
+          // than deepen the outage: match alerts are gated on the same signal.
+          if (deps.isBatDown()) return
+          await deps.probeBracket(id, drawNum).catch(() => undefined)
+        }
         draws = (await deps.fetchDraws(id).catch(() => null)) ?? draws
       }
       const entriesFound = () => !!draws && entered(draws).some((d) => !announced.has(d.drawNum))
-      // A tournament the state has never seen is probed in full, so its one
-      // arrival notice carries a complete baseline instead of being chased by
-      // a string of bracket notices.
+      // A tournament this pass will not announce draws for is probed in full,
+      // so its baseline is complete and nothing is left to announce later.
       if (isNew) {
         await probe(probeTargets(draws, announced, Number.MAX_SAFE_INTEGER, 0).drawNums)
       } else {
@@ -253,20 +286,54 @@ export async function runPublicationPass(deps: PublicationDeps): Promise<{ publi
         }
       }
     }
+
     let days = await deps.fetchDays(id).catch(() => null)
     if (days) {
       const announcedDays = new Set(state.tournaments[id]?.days ?? [])
-      const targets = dayProbeTargets(days, announcedDays, deps.todayIso(), SCHEDULE_PROBE_CAP)
-      if (targets.length > 0) {
-        const answers = new Map<string, boolean>()
+      const answers = new Map<string, boolean>()
+      const askAbout = async (targets: DaySnapshot[]) => {
         for (const d of targets) {
+          if (deps.isBatDown()) return
+          if (answers.has(d.dateIso)) continue
           const has = await deps.probeDay(id, d.date!).catch(() => null)
           if (has !== null) answers.set(d.dateIso, has)
         }
-        days = days.map((d) => (answers.has(d.dateIso) ? { ...d, hasMatches: answers.get(d.dateIso) } : d))
       }
+      const applied = () => days!.map((d) => (answers.has(d.dateIso) ? { ...d, hasMatches: answers.get(d.dateIso) } : d))
+
+      if (isNew) {
+        // Same rule as the draws: a pass that will not announce must record
+        // the whole schedule, or the pass after it announces days already out.
+        await askAbout(dayProbeTargets(days, announcedDays, deps.todayIso(), Number.MAX_SAFE_INTEGER).days)
+      } else {
+        const { days: targets, nextCursor } = dayProbeTargets(days, announcedDays, deps.todayIso(), SCHEDULE_PROBE_CAP, dayCursors.get(id) ?? 0)
+        dayCursors.set(id, nextCursor)
+        await askAbout(targets)
+        // One day answering yes means the schedule has been published; the
+        // days around it almost certainly went out in the same publish, so
+        // they are announced together rather than three per pass.
+        if (Array.from(answers.values()).some(Boolean)) {
+          await askAbout(dayProbeTargets(applied(), announcedDays, deps.todayIso(), Number.MAX_SAFE_INTEGER).days)
+          dayCursors.set(id, 0)
+        }
+      }
+      days = applied()
     }
+
+    // A failed read is not evidence that nothing is published, so a first
+    // sighting whose reads did not both land is left for a later pass: an
+    // empty baseline recorded now would announce the whole tournament's
+    // draws and schedule as "new" the moment the read succeeds.
+    if (isNewToState(id) && (!draws || !days)) continue
     snapshots.push({ id, name: t.name, draws, days })
+  }
+
+  // BAT went down while this pass was reading. What it holds is a partial
+  // picture, and a partial picture is exactly what announces things that are
+  // not new: abandon the pass and let the next one read a whole one.
+  if (deps.isBatDown()) {
+    console.warn('[push] BAT went down mid-pass — publication pass abandoned')
+    return tally
   }
 
   const decided = duePublications({
@@ -277,10 +344,29 @@ export async function runPublicationPass(deps: PublicationDeps): Promise<{ publi
   })
   tally.publications = decided.publications.length
 
+  // The lease can move while a pass is probing. A worker that is no longer
+  // the leader stops here: the one that took over will decide the same
+  // publications, and two workers sending them is two notifications.
+  if (!deps.isLeader()) {
+    console.warn('[push] lease moved mid-pass — publications dropped, the new leader will send them')
+    return { publications: 0, sent: 0, failed: 0, gone: 0 }
+  }
+
   // Written before anything is sent: delivery is at-most-once on purpose (the
   // state is global, so a retry would re-notify every device already reached),
   // and a reload mid-send must not announce twice.
-  await deps.saveState(prunePublished(decided.state, new Set(snapshots.map((s) => s.id)), deps.now()))
+  // Pruning keys off the whole listed set, `done` tournaments included, and
+  // off when each was last listed — not off the snapshots this pass happened
+  // to read, and not off when it was first seen. A tournament dropped for
+  // either of those reasons would be announced as new when it came back.
+  const nowIso = new Date(deps.now()).toISOString()
+  const listedIds = new Set(listed.map((t) => t.id.toUpperCase()))
+  const stamped: PublishedState = {
+    ...decided.state,
+    tournaments: Object.fromEntries(Object.entries(decided.state.tournaments).map(([id, entry]) =>
+      [id, listedIds.has(id) ? { ...entry, lastListedAt: nowIso } : entry])),
+  }
+  await deps.saveState(prunePublished(stamped, listedIds, deps.now()))
   if (decided.publications.length === 0) return tally
 
   const records = (await deps.listRecords()).filter((r) => r.site === true)

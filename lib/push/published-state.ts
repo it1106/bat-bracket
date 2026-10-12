@@ -11,6 +11,12 @@ import path from 'path'
 export interface PublishedTournament {
   name: string
   firstSeenAt: string
+  /** When the site last listed this tournament. Pruning keys off this, not
+   *  `firstSeenAt`: a tournament the site has shown for months must not be
+   *  dropped — and then announced again as new — because one pass could not
+   *  read the discovery store. Absent on an entry written before it was
+   *  kept, which falls back to `firstSeenAt`. */
+  lastListedAt?: string
   announced: boolean
   /** Draw numbers announced as published with entries. */
   draws: string[]
@@ -71,6 +77,7 @@ function parse(raw: string): PublishedState {
     tournaments[id.toUpperCase()] = {
       name: v.name,
       firstSeenAt: typeof v.firstSeenAt === 'string' ? v.firstSeenAt : '',
+      ...(typeof v.lastListedAt === 'string' ? { lastListedAt: v.lastListedAt } : {}),
       announced: v.announced === true,
       draws: strings(v.draws),
       days: strings(v.days),
@@ -107,10 +114,14 @@ export function mergePublished(a: PublishedState, b: PublishedState): PublishedS
     const y = b.tournaments[id]
     if (!x || !y) { tournaments[id] = (x ?? y)!; continue }
     const firstSeenAt = [x.firstSeenAt, y.firstSeenAt].filter(Boolean).sort()[0] ?? ''
+    // The later sighting wins: either worker may have been the one that saw
+    // the tournament listed most recently.
+    const lastListedAt = [x.lastListedAt, y.lastListedAt].filter(Boolean).sort().pop()
     tournaments[id] = {
       // The newer write carries the name upstream shows now.
       name: y.name || x.name,
       firstSeenAt,
+      ...(lastListedAt ? { lastListedAt } : {}),
       announced: x.announced || y.announced,
       draws: Array.from(new Set([...x.draws, ...y.draws])),
       days: Array.from(new Set([...x.days, ...y.days])).sort(),
@@ -122,7 +133,7 @@ export function mergePublished(a: PublishedState, b: PublishedState): PublishedS
 export function prunePublished(state: PublishedState, listed: ReadonlySet<string>, now: number): PublishedState {
   const tournaments: Record<string, PublishedTournament> = {}
   for (const [id, entry] of Object.entries(state.tournaments)) {
-    const seen = Date.parse(entry.firstSeenAt)
+    const seen = Date.parse(entry.lastListedAt ?? entry.firstSeenAt)
     const old = !Number.isNaN(seen) && now - seen > PRUNE_AFTER_MS
     if (!listed.has(id) && old) continue
     tournaments[id] = entry

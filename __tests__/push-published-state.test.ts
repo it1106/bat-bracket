@@ -77,3 +77,30 @@ describe('published state on disk', () => {
     expect(Object.keys(pruned.tournaments).sort()).toEqual(['AAAAAAAA-0000-0000-0000-000000000001', 'GONE_NEW'])
   })
 })
+
+describe('pruning keys off when a tournament was last listed', () => {
+  it('keeps a long-running tournament that is missing from one pass', () => {
+    const old = new Date(T0 - 60 * DAY).toISOString()
+    const s = state({ tournaments: { [TID]: entry({ firstSeenAt: old, lastListedAt: new Date(T0 - DAY).toISOString() }) } })
+    expect(Object.keys(prunePublished(s, new Set(), T0).tournaments)).toEqual([TID])
+  })
+
+  it('drops one that has been off the site for more than 30 days', () => {
+    const s = state({ tournaments: { [TID]: entry({
+      firstSeenAt: new Date(T0 - 90 * DAY).toISOString(),
+      lastListedAt: new Date(T0 - 31 * DAY).toISOString(),
+    }) } })
+    expect(prunePublished(s, new Set(), T0).tournaments).toEqual({})
+  })
+
+  it('falls back to firstSeenAt for an entry written before lastListedAt existed', () => {
+    const s = state({ tournaments: { [TID]: entry({ firstSeenAt: new Date(T0 - 31 * DAY).toISOString() }) } })
+    expect(prunePublished(s, new Set(), T0).tournaments).toEqual({})
+  })
+
+  it('keeps the later lastListedAt when two workers merge', () => {
+    const a = state({ tournaments: { [TID]: entry({ lastListedAt: '2026-10-01T00:00:00.000Z' }) } })
+    const b = state({ tournaments: { [TID]: entry({ lastListedAt: '2026-10-12T00:00:00.000Z' }) } })
+    expect(mergePublished(a, b).tournaments[TID].lastListedAt).toBe('2026-10-12T00:00:00.000Z')
+  })
+})

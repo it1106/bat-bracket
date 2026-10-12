@@ -280,4 +280,12 @@ describe('POST /api/push/state — site news', () => {
     touch.mockResolvedValue(null)
     expect(await (await state(post({ endpoint: ENDPOINT }))).json()).toEqual({ follows: [], site: false })
   })
+
+  it('does not spend a new-device slot on switching off an endpoint the server never had', async () => {
+    setSiteMock.mockResolvedValue({ ok: true, follows: [], site: false })
+    allow.mockReturnValue(false)
+    const res = await site(post({ subscription: SUB, on: false }))
+    expect(res.status).toBe(200)
+    expect(setSiteMock).toHaveBeenCalled()
+  })
 })

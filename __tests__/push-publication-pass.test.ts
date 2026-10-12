@@ -22,6 +22,7 @@ function world(over: Partial<PublicationDeps> & {
   days?: Record<string, Array<{ dateIso: string; date?: string; hasMatches?: boolean }> | null>
   results?: Record<string, SendResult>
   probeDay?: PublicationDeps['probeDay']
+  isLeader?: PublicationDeps['isLeader']
 } = {}) {
   const pushes: Array<{ to: string; payload: PushPayload }> = []
   const saved: PublishedState[] = []
@@ -37,6 +38,7 @@ function world(over: Partial<PublicationDeps> & {
     probeBracket: async (id, drawNum) => { probed.push(`${id}:${drawNum}`) },
     fetchDays: async (id) => (over.days ?? { [TID]: [] })[id] ?? null,
     probeDay: async () => null,
+    isLeader: () => true,
     loadState: async () => over.state ?? seeded(),
     saveState: async (s) => { saved.push(s) },
     listRecords: async () => over.records ?? [device('a')],
@@ -239,6 +241,7 @@ describe('runPublicationPass — the schedule day probe', () => {
       state: seeded({ [TID]: entry() }),
       days: { [TID]: futureDays },
       probeDay: async () => null,
+    isLeader: () => true,
     })
     expect((await runPublicationPass(w.deps)).publications).toBe(0)
     expect(w.saved[0].tournaments[TID].days).toEqual([])
@@ -254,5 +257,160 @@ describe('runPublicationPass — the schedule day probe', () => {
     })
     await runPublicationPass(w.deps)
     expect(asked).toEqual(['20261101', '20261102', '20261103'])
+  })
+})
+
+describe('runPublicationPass — the seed must leave nothing announceable behind', () => {
+  const sevenDays = Array.from({ length: 7 }, (_, i) => ({ dateIso: `2026-11-0${i + 1}`, date: `2026110${i + 1}` }))
+  const draws33 = Array.from({ length: 33 }, (_, i) => ({ drawNum: String(i + 1), name: `D${i + 1}`, entrantCount: 16 }))
+
+  it('seeds a tournament with 33 draws and 7 published days, then says nothing on the next pass', async () => {
+    const w = world({
+      state: EMPTY_PUBLISHED,
+      draws: { [TID]: draws33 },
+      days: { [TID]: sevenDays },
+      probeDay: async () => true,
+    })
+    expect((await runPublicationPass(w.deps)).publications).toBe(0)
+    expect(w.saved[0].tournaments[TID].days).toHaveLength(7)
+
+    const second = world({
+      state: w.saved[0],
+      draws: { [TID]: draws33 },
+      days: { [TID]: sevenDays },
+      probeDay: async () => true,
+    })
+    expect((await runPublicationPass(second.deps)).publications).toBe(0)
+    expect(second.pushes).toEqual([])
+  })
+
+  it('announces a whole schedule published at once as one notification', async () => {
+    const w = world({
+      state: seeded({ [TID]: entry() }),
+      days: { [TID]: sevenDays },
+      probeDay: async () => true,
+    })
+    const r = await runPublicationPass(w.deps)
+    expect(r.publications).toBe(1)
+    expect(w.pushes).toHaveLength(1)
+    expect(w.pushes[0].payload.body).toBe('THE MALL 2026 · 1 Nov, 2 Nov, 3 Nov, 4 Nov +3 more')
+    expect(w.saved[0].tournaments[TID].days).toHaveLength(7)
+  })
+
+  it('a brand-new tournament records every published day with its arrival notice, and nothing follows', async () => {
+    const w = world({
+      state: seeded(),
+      days: { [TID]: sevenDays },
+      probeDay: async () => true,
+    })
+    const r = await runPublicationPass(w.deps)
+    expect(w.pushes.map((p) => p.payload.title)).toEqual(['New tournament'])
+    expect(r.publications).toBe(1)
+    expect(w.saved[0].tournaments[TID].days).toHaveLength(7)
+  })
+
+  it('does not let days with no matches block the days behind them for ever', async () => {
+    // Three near tabs that never get matches, then a real one.
+    const days = [
+      { dateIso: '2026-11-01', date: '20261101' },
+      { dateIso: '2026-11-02', date: '20261102' },
+      { dateIso: '2026-11-03', date: '20261103' },
+      { dateIso: '2026-11-04', date: '20261104' },
+    ]
+    let state = seeded({ [TID]: entry() })
+    const asked: string[][] = []
+    let announced = 0
+    for (let pass = 0; pass < 3; pass++) {
+      const round: string[] = []
+      const w = world({
+        state,
+        days: { [TID]: days },
+        probeDay: async (_id, date) => { round.push(date); return date === '20261104' },
+      })
+      const r = await runPublicationPass(w.deps)
+      announced += r.publications
+      asked.push(round)
+      state = w.saved[0]
+    }
+    expect(asked.flat()).toContain('20261104')
+    expect(announced).toBe(1)
+    expect(state.tournaments[TID].days).toEqual(['2026-11-04'])
+  })
+})
+
+describe('runPublicationPass — a read that failed is never a baseline', () => {
+  it('records nothing for a tournament seen for the first time whose draws could not be read', async () => {
+    const w = world({
+      state: seeded(),
+      draws: { [TID]: null },
+      days: { [TID]: [] },
+    })
+    expect((await runPublicationPass(w.deps)).publications).toBe(0)
+    expect(w.pushes).toEqual([])
+    expect(w.saved[0]?.tournaments[TID]).toBeUndefined()
+  })
+
+  it('records nothing for a first sighting whose schedule could not be read', async () => {
+    const w = world({ state: seeded(), draws: { [TID]: [] }, days: { [TID]: null } })
+    await runPublicationPass(w.deps)
+    expect(w.saved[0]?.tournaments[TID]).toBeUndefined()
+  })
+
+  it('announces the tournament once the reads succeed, with its draws folded in', async () => {
+    const first = world({ state: seeded(), draws: { [TID]: null }, days: { [TID]: [] } })
+    await runPublicationPass(first.deps)
+    const w = world({
+      state: first.saved[0],
+      draws: { [TID]: [{ drawNum: '1', name: 'BS U15', entrantCount: 16 }] },
+      days: { [TID]: [] },
+    })
+    const r = await runPublicationPass(w.deps)
+    expect(w.pushes.map((p) => p.payload.title)).toEqual(['New tournament'])
+    expect(r.publications).toBe(1)
+    expect(w.saved[0].tournaments[TID].draws).toEqual(['1'])
+  })
+})
+
+describe('runPublicationPass — it stops when it is no longer the leader or BAT goes down', () => {
+  it('sends nothing and records nothing once the lease has moved', async () => {
+    let leader = true
+    const w = world({
+      state: seeded({ [TID]: entry() }),
+      draws: { [TID]: [{ drawNum: '1', name: 'BS U15', entrantCount: 16 }] },
+      isLeader: () => leader,
+      probeBracket: async () => { leader = false },
+      fetchDraws: async () => { leader = false; return [{ drawNum: '1', name: 'BS U15', entrantCount: 16 }] },
+    })
+    await runPublicationPass(w.deps)
+    expect(w.pushes).toEqual([])
+    expect(w.saved).toEqual([])
+  })
+
+  it('stops probing when BAT goes down mid-pass', async () => {
+    let down = false
+    const probed: string[] = []
+    const w = world({
+      state: seeded({ [TID]: entry() }),
+      draws: { [TID]: Array.from({ length: 5 }, (_, i) => ({ drawNum: String(i + 1), name: `D${i}`, entrantCount: 0 })) },
+      isBatDown: () => down,
+      probeBracket: async (_id, drawNum) => { probed.push(drawNum); down = true },
+    })
+    await runPublicationPass(w.deps)
+    expect(probed).toHaveLength(1)
+    expect(w.saved).toEqual([])
+  })
+})
+
+describe('runPublicationPass — a draw with no name', () => {
+  it('never renders an empty item in the body', async () => {
+    const w = world({
+      state: seeded({ [TID]: entry() }),
+      draws: { [TID]: [
+        { drawNum: '1', name: '', entrantCount: 16 },
+        { drawNum: '2', name: 'GS U15', entrantCount: 8 },
+      ] },
+    })
+    await runPublicationPass(w.deps)
+    expect(w.pushes[0].payload.body).toBe('THE MALL 2026 · GS U15')
   })
 })

@@ -18,8 +18,11 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as { subscription?: unknown; lang?: unknown; on?: unknown } | null
   const subscription = parseSubscription(body?.subscription)
   if (!subscription || typeof body?.on !== 'boolean') return answer({ error: 'subscription and on required' }, 400)
-  // Only a device the server has not seen counts against the address.
-  if (!(await getRecord(subscription.endpoint)) && !allowNewDevice(clientAddress(request), Date.now())) {
+  // Only a device the server has not seen counts against the address, and
+  // only when it is being switched on: switching off an endpoint the server
+  // does not have creates nothing, and must not spend a slot that a real
+  // first-time subscriber behind the same address needs.
+  if (body.on && !(await getRecord(subscription.endpoint)) && !allowNewDevice(clientAddress(request), Date.now())) {
     return answer({ error: 'too many new devices from this address today' }, 429)
   }
   const lang = body?.lang === 'th' ? 'th' : 'en'
