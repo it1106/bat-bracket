@@ -3,7 +3,8 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import BracketCanvas from '@/components/BracketCanvas'
 import EventBundleView from '@/components/EventBundleView'
-import MatchSchedule from '@/components/MatchSchedule'
+import MatchSchedule, { matchesQuery } from '@/components/MatchSchedule'
+import PlayerSearchBox from '@/components/PlayerSearchBox'
 import PlayerModal from '@/components/PlayerModal'
 import { exportBracketAsJpg } from '@/components/ExportButton'
 import H2HModal from '@/components/H2HModal'
@@ -52,6 +53,12 @@ import { longRoundL } from '@/lib/i18n'
 import { useTheme } from '@/lib/ThemeContext'
 import { useLiveScore } from '@/lib/useLiveScore'
 import { matchLiveCourt } from '@/lib/live-score'
+import {
+  andPrefix,
+  candidatesFromBracketHtml,
+  candidatesFromMatches,
+  type Suggestion,
+} from '@/lib/searchSuggestions'
 import { setPersonProps, track } from '@/lib/analytics'
 import { getTodayIso } from '@/lib/today'
 import type { BracketData, ApiError, TournamentInfo, DrawInfo, MatchDay, MatchScheduleGroup, MatchesData, PlayerProfile, H2HData, MatchEntry, EventBundle, TournamentOverview, SeedEvent } from '@/lib/types'
@@ -250,6 +257,35 @@ export default function Home() {
     .filter((g) => g.matches.length > 0)
   const liveMatchCount = liveGroups.reduce((n, g) => n + g.matches.length, 0)
   const hasLiveData = liveMatchCount > 0
+
+  // What the search box can complete: the players and event types the view
+  // the reader is looking at would actually filter on, so a picked suggestion
+  // always leaves matches on screen. Each view therefore draws on its own
+  // source — the schedule, the live subset, or the bracket — rather than
+  // everything the page happens to have loaded.
+  const bracketCandidates = useMemo(() => candidatesFromBracketHtml(bracketHtml), [bracketHtml])
+  // Already-typed AND groups ("BS U15 & " in "BS U15 & som") narrow the view
+  // first, so the list never offers a name that the rest of the query excludes.
+  const searchPrefix = andPrefix(playerQuery)
+  const searchCandidates: Suggestion[] = useMemo(() => {
+    if (viewMode === 'bracket') {
+      // A bracket is one draw, highlighted with a flat OR over the query, so
+      // there is nothing to narrow and no event type worth suggesting.
+      return eventBundle
+        ? candidatesFromMatches(...eventBundle.groups.map((g) => g.matches))
+        : bracketCandidates
+    }
+    const all = (viewMode === 'live' ? liveGroups : matchGroups).flatMap((g) => g.matches)
+    const shown = all.filter(
+      (m) =>
+        (!searchPrefix || matchesQuery(m, searchPrefix, playerClubMap)) &&
+        (!excludeCompleted || m.winner === null),
+    )
+    return candidatesFromMatches(shown)
+    // liveGroups is derived from matchGroups + liveByCourt on every render,
+    // so depend on those rather than on the new array it returns.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, matchGroups, liveByCourt, eventBundle, bracketCandidates, searchPrefix, playerClubMap, excludeCompleted])
 
   useEffect(() => {
     if (viewMode === 'live' && !hasLiveData) setViewMode('matches')
@@ -1140,24 +1176,12 @@ export default function Home() {
               </span>
             </div>
             <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-              <div className="relative min-w-[150px] shrink-0">
-                <input
-                  ref={playerSearchRef}
-                  type="text"
-                  placeholder={t('searchPlaceholder')}
-                  value={playerQuery}
-                  onChange={(e) => setPlayerQuery(e.target.value)}
-                  className="w-full border border-[var(--border)] rounded-md pl-2.5 pr-7 py-1.5 text-xs bg-[var(--surface)] text-[var(--fg)] focus:outline-none focus:border-[var(--brand)]"
-                />
-                {playerQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setPlayerQuery('')}
-                    aria-label={t('clearSearch')}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--border)] text-[length:calc(11px*var(--text-scale))] leading-none"
-                  >✕</button>
-                )}
-              </div>
+              <PlayerSearchBox
+                ref={playerSearchRef}
+                value={playerQuery}
+                onChange={setPlayerQuery}
+                candidates={searchCandidates}
+              />
               <label className="flex items-center gap-1 text-xs text-[var(--fg)] whitespace-nowrap cursor-pointer select-none">
                 <input
                   type="checkbox"

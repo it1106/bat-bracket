@@ -144,6 +144,8 @@ export type TKey =
   | 'vsMatch'
   | 'tbdOr'
   | 'clearSearch'
+  | 'searchSuggestions'
+  | 'eventType'
   | 'highlight'
   | 'excludeCompleted'
   | 'sortByCourt'
@@ -481,6 +483,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     vsMatch: 'vs.',
     tbdOr: 'or',
     clearSearch: 'Clear search',
+    searchSuggestions: 'Matching players and events',
+    eventType: 'Event',
     highlight: 'Highlight',
     excludeCompleted: 'Excl. Completed Matches',
     sortByCourt: 'By court',
@@ -850,6 +854,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     vsMatch: 'พบ',
     tbdOr: 'หรือ',
     clearSearch: 'ล้างคำค้น',
+    searchSuggestions: 'นักกีฬาและประเภทที่ตรงกับคำค้น',
+    eventType: 'ประเภท',
     highlight: 'ไฮไลท์',
     excludeCompleted: 'ไม่รวมคู่ที่จบแล้ว',
     sortByCourt: 'ตามคอร์ท',
