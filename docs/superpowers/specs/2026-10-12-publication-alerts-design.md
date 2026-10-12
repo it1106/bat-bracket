@@ -102,8 +102,9 @@ uses, so a browser that cannot do push never shows it. A device whose
 permission is `denied` sees the switch disabled with the same explanation the
 follow buttons give. `track('site_news_toggled', { on })`.
 
-Because the switch can be the panel's only content, `AlertBell`'s
-`hasFollowing` gate must open the panel for it too.
+The switch can be the panel's only content, and `AlertBell` already handles
+that: `app/page.tsx` passes `hasFollowing={pushFollows.status === 'ok'}`, which
+is exactly when the switch renders. No change to `AlertBell` is needed.
 
 ### 3. Detection state — `.cache/push/published.json`
 
@@ -320,6 +321,7 @@ before the code that satisfies it.
 |---|---|
 | `lib/push/types.ts` | `site` on the record, `Stage` widened, `Publication` types |
 | `lib/push/store.ts` | `setSite`, record kept while `site` is on |
+| `lib/push/tournaments.ts` | `publicationTournaments()` — the listed BAT tournaments with their names, since `alertTournaments()` carries none and gates discovered ones on `hasBracket` |
 | `lib/push/published-state.ts` | new — the disk-backed state |
 | `lib/push/publications.ts` | new — `duePublications`, `runPublicationPass` |
 | `lib/push/text.ts` | the three payload builders |
@@ -329,6 +331,5 @@ before the code that satisfies it.
 | `app/api/push/site/route.ts` | new |
 | `app/api/push/state/route.ts` | answers with `site` |
 | `components/SiteNewsSwitch.tsx` | new — the switch |
-| `components/AlertBell.tsx` | panel opens for the switch alone |
 | `lib/i18n.ts` | labels and the three titles |
 | `components/BmStats.tsx` | local `stage` type widened |
