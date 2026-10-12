@@ -488,7 +488,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     darkMode: 'Dark mode',
     lightMode: 'Light mode',
     close: 'Close',
-    pathToFinal: 'Path to final',
+    pathToFinal: 'Road to Final',
     pathLikely: 'Likely',
     pathOthers: '+{n} others',
     pathOthersOne: '+1 other',
