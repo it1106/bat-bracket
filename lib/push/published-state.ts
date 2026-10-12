@@ -102,7 +102,7 @@ export async function loadPublished(): Promise<PublishedState> {
  *  never go back to false, and the earlier `firstSeenAt` wins. */
 export function mergePublished(a: PublishedState, b: PublishedState): PublishedState {
   const tournaments: Record<string, PublishedTournament> = {}
-  for (const id of new Set([...Object.keys(a.tournaments), ...Object.keys(b.tournaments)])) {
+  for (const id of Array.from(new Set([...Object.keys(a.tournaments), ...Object.keys(b.tournaments)]))) {
     const x = a.tournaments[id]
     const y = b.tournaments[id]
     if (!x || !y) { tournaments[id] = (x ?? y)!; continue }
