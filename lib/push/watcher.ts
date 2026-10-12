@@ -285,6 +285,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     fetchDraws: publications.makeFetchDraws(opts.origin),
     probeBracket: publications.makeProbeBracket(opts.origin),
     fetchDays: publications.makeFetchScheduleDays(opts.origin),
+    probeDay: publications.makeProbeDay(opts.origin),
     loadState: published.loadPublished,
     saveState: published.savePublished,
     listRecords: store.listRecords,

@@ -19,8 +19,9 @@ function world(over: Partial<PublicationDeps> & {
   records?: PushSubscriptionRecord[]
   state?: PublishedState
   draws?: Record<string, Array<{ drawNum: string; name: string; entrantCount?: number }> | null>
-  days?: Record<string, Array<{ dateIso: string; hasMatches?: boolean }> | null>
+  days?: Record<string, Array<{ dateIso: string; date?: string; hasMatches?: boolean }> | null>
   results?: Record<string, SendResult>
+  probeDay?: PublicationDeps['probeDay']
 } = {}) {
   const pushes: Array<{ to: string; payload: PushPayload }> = []
   const saved: PublishedState[] = []
@@ -35,6 +36,7 @@ function world(over: Partial<PublicationDeps> & {
     fetchDraws: async (id) => (over.draws ?? { [TID]: [] })[id] ?? null,
     probeBracket: async (id, drawNum) => { probed.push(`${id}:${drawNum}`) },
     fetchDays: async (id) => (over.days ?? { [TID]: [] })[id] ?? null,
+    probeDay: async () => null,
     loadState: async () => over.state ?? seeded(),
     saveState: async (s) => { saved.push(s) },
     listRecords: async () => over.records ?? [device('a')],
@@ -196,5 +198,61 @@ describe('runPublicationPass', () => {
     expect(w.noted[0]).toEqual(expect.objectContaining({
       stage: 'bracket', result: 'ok', draw: 'THE MALL 2026', round: '', match: 'THE MALL 2026 · BS U15', via: 'site news',
     }))
+  })
+})
+
+describe('runPublicationPass — the schedule day probe', () => {
+  const futureDays = [
+    { dateIso: '2026-10-11', date: '20261011' },
+    { dateIso: '2026-10-20', date: '20261020' },
+    { dateIso: '2026-10-21', date: '20261021' },
+  ]
+
+  it('asks each un-announced future day whether it has matches, and announces the ones that do', async () => {
+    const asked: string[] = []
+    const w = world({
+      state: seeded({ [TID]: entry() }),
+      days: { [TID]: futureDays },
+      probeDay: async (_id, date) => { asked.push(date); return date === '20261020' },
+    })
+    const r = await runPublicationPass(w.deps)
+    expect(asked).toEqual(['20261020', '20261021'])
+    expect(r.publications).toBe(1)
+    expect(w.pushes[0].payload.title).toBe('Schedule published')
+    expect(w.pushes[0].payload.body).toBe('THE MALL 2026 · 20 Oct')
+    expect(w.saved[0].tournaments[TID].days).toEqual(['2026-10-20'])
+  })
+
+  it('never asks about a day it has already announced', async () => {
+    const asked: string[] = []
+    const w = world({
+      state: seeded({ [TID]: entry({ days: ['2026-10-20'] }) }),
+      days: { [TID]: futureDays },
+      probeDay: async (_id, date) => { asked.push(date); return false },
+    })
+    await runPublicationPass(w.deps)
+    expect(asked).toEqual(['20261021'])
+  })
+
+  it('leaves a day unannounced when it could not be read', async () => {
+    const w = world({
+      state: seeded({ [TID]: entry() }),
+      days: { [TID]: futureDays },
+      probeDay: async () => null,
+    })
+    expect((await runPublicationPass(w.deps)).publications).toBe(0)
+    expect(w.saved[0].tournaments[TID].days).toEqual([])
+  })
+
+  it('asks about the nearest days first and no more than the cap in one pass', async () => {
+    const many = Array.from({ length: 8 }, (_, i) => ({ dateIso: `2026-11-0${i + 1}`, date: `202611 0${i + 1}`.replace(' ', '') }))
+    const asked: string[] = []
+    const w = world({
+      state: seeded({ [TID]: entry() }),
+      days: { [TID]: many },
+      probeDay: async (_id, date) => { asked.push(date); return false },
+    })
+    await runPublicationPass(w.deps)
+    expect(asked).toEqual(['20261101', '20261102', '20261103'])
   })
 })

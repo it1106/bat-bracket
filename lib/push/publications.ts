@@ -16,6 +16,11 @@ export interface DrawSnapshot {
 
 export interface DaySnapshot {
   dateIso: string
+  /** BAT's own key for the day, which is what a per-day read asks with. */
+  date?: string
+  /** Undefined means nobody has looked yet: `/api/matches` does not set this,
+   *  the reader's browser fills it in after fetching the day (app/page.tsx),
+   *  and the publication pass probes for it the same way. */
   hasMatches?: boolean
 }
 
@@ -34,11 +39,31 @@ export interface TournamentSnapshot {
  *  for its reason: a tournament with 33 empty draws must not take 33 fetches. */
 export const PROBE_CAP = 5
 
+/** Future days asked about per tournament per pass, nearest first. Lower than
+ *  the bracket cap because each one is an uncached upstream day read, and the
+ *  day that is about to be published is always the nearest. */
+export const SCHEDULE_PROBE_CAP = 3
+
 const entered = (draws: DrawSnapshot[]): DrawSnapshot[] =>
   draws.filter((d) => !!d.drawNum && typeof d.entrantCount === 'number' && d.entrantCount > 0)
 
 const playingDays = (days: DaySnapshot[], todayIso: string): string[] =>
   Array.from(new Set(days.filter((d) => !!d.dateIso && d.dateIso > todayIso && d.hasMatches === true).map((d) => d.dateIso))).sort()
+
+/** The future days worth asking about: not yet announced, and not already
+ *  known either way. Nearest first — a schedule is published front to back. */
+export function dayProbeTargets(
+  days: DaySnapshot[],
+  announced: ReadonlySet<string>,
+  todayIso: string,
+  cap: number,
+): DaySnapshot[] {
+  return days
+    .filter((d) => !!d.dateIso && !!d.date && d.dateIso > todayIso)
+    .filter((d) => !announced.has(d.dateIso) && d.hasMatches === undefined)
+    .sort((a, b) => (a.dateIso < b.dateIso ? -1 : a.dateIso > b.dateIso ? 1 : 0))
+    .slice(0, cap)
+}
 
 /** The draws worth a bracket fetch: not yet announced, and not already known
  *  to hold entries. A cached zero is included — `cachedEntrantCounts` has no
@@ -155,6 +180,11 @@ export interface PublicationDeps {
   probeBracket: (tournamentId: string, drawNum: string) => Promise<void>
   /** The tournament's schedule days, or null when they could not be read. */
   fetchDays: (tournamentId: string) => Promise<DaySnapshot[] | null>
+  /** Whether one day holds any matches yet — the only signal there is that a
+   *  day's schedule has been published, since the day list itself carries the
+   *  whole tournament's day tabs from the start. Null when it could not be
+   *  read, which is never taken for "no matches". */
+  probeDay: (tournamentId: string, date: string) => Promise<boolean | null>
   loadState: () => Promise<PublishedState>
   saveState: (state: PublishedState) => Promise<void>
   listRecords: () => Promise<PushSubscriptionRecord[]>
@@ -223,7 +253,19 @@ export async function runPublicationPass(deps: PublicationDeps): Promise<{ publi
         }
       }
     }
-    const days = await deps.fetchDays(id).catch(() => null)
+    let days = await deps.fetchDays(id).catch(() => null)
+    if (days) {
+      const announcedDays = new Set(state.tournaments[id]?.days ?? [])
+      const targets = dayProbeTargets(days, announcedDays, deps.todayIso(), SCHEDULE_PROBE_CAP)
+      if (targets.length > 0) {
+        const answers = new Map<string, boolean>()
+        for (const d of targets) {
+          const has = await deps.probeDay(id, d.date!).catch(() => null)
+          if (has !== null) answers.set(d.dateIso, has)
+        }
+        days = days.map((d) => (answers.has(d.dateIso) ? { ...d, hasMatches: answers.get(d.dateIso) } : d))
+      }
+    }
     snapshots.push({ id, name: t.name, draws, days })
   }
 
@@ -308,7 +350,30 @@ export function makeFetchScheduleDays(origin: string, fetchFn: FetchLike = fetch
     if (!Array.isArray(days)) return []
     return days
       .filter((d) => typeof d.dateIso === 'string' && d.dateIso)
-      .map((d) => ({ dateIso: d.dateIso, ...(d.hasMatches === undefined ? {} : { hasMatches: d.hasMatches }) }))
+      .map((d) => ({
+        dateIso: d.dateIso,
+        ...(d.date ? { date: d.date } : {}),
+        ...(d.hasMatches === undefined ? {} : { hasMatches: d.hasMatches }),
+      }))
+  }
+}
+
+/** Asks whether one day holds any matches, the way the reader's browser does
+ *  (app/page.tsx): a day read whose groups are empty is a day whose schedule
+ *  is not out. `/api/matches` never sets `hasMatches` itself — BAT's day tabs
+ *  carry no published-or-not signal (lib/scraper.ts), so every day tab exists
+ *  from the start and only the day's own content answers the question.
+ *  Null when the day could not be read: that is not a "no". */
+export function makeProbeDay(origin: string, fetchFn: FetchLike = fetch as unknown as FetchLike) {
+  return async (tournamentId: string, date: string): Promise<boolean | null> => {
+    try {
+      const res = await fetchFn(`${origin}/api/matches?tournament=${encodeURIComponent(tournamentId)}&date=${encodeURIComponent(date)}`, signal())
+      if (!res.ok) return null
+      const groups = ((await res.json()) as Pick<MatchesData, 'groups'>).groups
+      return Array.isArray(groups) ? groups.length > 0 : null
+    } catch {
+      return null
+    }
   }
 }
 
