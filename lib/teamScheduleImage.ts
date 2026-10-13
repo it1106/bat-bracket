@@ -77,21 +77,21 @@ export function commonCourt(rows: TeamScheduleRow[]): string {
 export function buildTeamScheduleNode(image: TeamScheduleImage): HTMLElement {
   const root = el('div', `width:${WIDTH}px;background:#ffffff;color:${INK};font-family:${FONT};padding:18px 18px 14px;box-sizing:border-box;`)
 
-  // When most matches are at the same place (the venue, on days scheduled by
-  // time), say it once in the header; a row then shows its court only if it
-  // differs — as a match in play does, once it has been given a court.
+  // The place goes in the header only when every row is at it — then no row
+  // needs to repeat it. Hoisting a mere majority left the rest of the rows
+  // looking as if their place were missing, so when the day is split across
+  // places each row carries its own and the header stays out of it.
   const sharedCourt = commonCourt(image.rows)
+  const headerCourt = image.rows.every((r) => r.court === sharedCourt) ? sharedCourt : ''
   // Nothing to put in the right-hand column (no results, nobody playing, no
   // same-day next match): leave it out so the names get the room.
   const showResults = image.rows.some((r) => r.status !== 'upcoming' || r.nextTime !== '')
-
-  const everyRowAtSharedCourt = sharedCourt !== '' && image.rows.every((r) => r.court === sharedCourt)
 
   root.append(
     el('div', `font-size:17px;font-weight:700;color:${BRAND};line-height:1.3;`, image.tournamentName),
     el('div', `font-size:14px;font-weight:600;margin-top:4px;`, `${image.teamLabel} · ${image.dateLabel}`),
   )
-  if (sharedCourt) root.append(el('div', `font-size:12px;color:${INK};margin-top:2px;`, sharedCourt))
+  if (headerCourt) root.append(el('div', `font-size:12px;color:${INK};margin-top:2px;`, headerCourt))
   root.append(
     el('div', `font-size:11px;color:${MUTED};margin-top:2px;padding-bottom:10px;border-bottom:2px solid ${BRAND};`, image.labels.disclaimer),
   )
@@ -102,9 +102,9 @@ export function buildTeamScheduleNode(image: TeamScheduleImage): HTMLElement {
     // A running number, so a match can be pointed at ("the 3rd one").
     const index = el('div', `width:20px;flex-shrink:0;text-align:right;font-size:13px;line-height:20px;color:${MUTED};`, String(i + 1))
 
-    const when = el('div', `width:${everyRowAtSharedCourt ? 64 : 112}px;flex-shrink:0;`)
+    const when = el('div', `width:${headerCourt ? 64 : 112}px;flex-shrink:0;`)
     when.append(el('div', `font-size:15px;font-weight:700;`, row.when || row.order || '–'))
-    const place = [row.when && row.order, row.court === sharedCourt ? '' : row.court].filter(Boolean).join(' · ')
+    const place = [row.when && row.order, row.court === headerCourt ? '' : row.court].filter(Boolean).join(' · ')
     if (place) when.append(el('div', `font-size:11px;color:${MUTED};margin-top:1px;`, place))
 
     const event = el('div', `width:86px;flex-shrink:0;`)

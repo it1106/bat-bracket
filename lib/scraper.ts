@@ -869,15 +869,24 @@ function nextMatchesFrom(
   return result
 }
 
+// A tournament's street address rather than a court: BAT writes these with
+// the Thai preposition "ณ" ("at"), as in "ณ สนามกีฬาแบดมินตัน สปิริตสเตเดียม".
+// Venue names that do name a playing area ("ยิมฯ 6 สนาม", "Main Location - 5")
+// never carry it, so the prefix alone separates the two.
+const VENUE_ADDRESS_RE = /^ณ[\s\u00a0]/
+
 // Splits a "Duration: 23m | Main Location - 5" tooltip into its parts.
-// Either segment may be missing; venue-address-only tooltips fall through
-// as `court` (caller decides whether to keep that or discard it).
+// Either segment may be missing. An address segment is dropped rather than
+// returned as `court`: it is the whole tournament's location, so it says
+// nothing about where this match is played, and printing it in a court column
+// — a schedule row, a court-usage tally, a push notification — reads as noise.
 function parseLocationTooltip(tooltip: string): { court: string; duration?: string } {
   let duration: string | undefined
   let court = ''
   for (const part of tooltip.split('|').map((s) => s.trim()).filter(Boolean)) {
     if (/^duration\s*:/i.test(part)) duration = part.replace(/^duration\s*:\s*/i, '')
-    else court = part
+    // Skipped per segment, so a real court alongside an address still wins.
+    else if (!VENUE_ADDRESS_RE.test(part)) court = part
   }
   return { court, duration }
 }
@@ -1136,9 +1145,9 @@ export function parsePlayerProfile(
 
     const msgText = $(matchEl).find('.match__message').text().trim()
     const nowPlaying = ($(matchEl).html() ?? '').includes('icon-sport2')
-    // Player profile tooltips include venue-address strings on upcoming matches
-    // (e.g. "ณ สนามแบดมินตัน..."), which would leak into court if we kept it.
     // Only the duration half is used here; court is intentionally discarded.
+    // (Address strings are dropped by parseLocationTooltip itself now, but a
+    // profile's own court reading stays out of this path either way.)
     const tooltip = $(matchEl)
       .find('.match__header-aside-block:not(.match__header-aside-block--primary)')
       .filter((_, el) => !!$(el).attr('title'))

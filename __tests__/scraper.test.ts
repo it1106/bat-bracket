@@ -321,6 +321,36 @@ describe('parseMatchesPartial — court field', () => {
     expect(groups[0].matches[0].court).toBe('Main Location - 2')
     expect(groups[0].matches[0].duration).toBeUndefined()
   })
+
+  // Matches with no court yet carry the tournament's address instead, which
+  // says nothing about where the match is played.
+  it('drops a venue-address tooltip rather than reading it as a court', () => {
+    const html = wrap(`
+      <span class="match__header-aside-block" title="ณ สนามกีฬาแบดมินตัน สปิริตสเตเดียม"></span>
+    `)
+    const { groups } = parseMatchesPartial(html)
+    expect(groups[0].matches[0].court).toBe('')
+  })
+
+  // The guard is the "ณ" prefix alone: a hall that does name a playing area
+  // is a perfectly good court, and some tournaments only ever give these.
+  it('keeps a venue name that is not an address', () => {
+    const html = wrap(`
+      <span class="match__header-aside-block" title="Duration: 20m | ยิมฯ 6 สนาม"></span>
+    `)
+    const { groups } = parseMatchesPartial(html)
+    expect(groups[0].matches[0].court).toBe('ยิมฯ 6 สนาม')
+    expect(groups[0].matches[0].duration).toBe('20m')
+  })
+
+  it('keeps the court when an address rides along in the same tooltip', () => {
+    const html = wrap(`
+      <span class="match__header-aside-block" title="Duration: 20m | Main Location - 3 | ณ สนามกีฬาแบดมินตัน สปิริตสเตเดียม"></span>
+    `)
+    const { groups } = parseMatchesPartial(html)
+    expect(groups[0].matches[0].court).toBe('Main Location - 3')
+    expect(groups[0].matches[0].duration).toBe('20m')
+  })
 })
 
 describe('orderScheduleGroups', () => {
