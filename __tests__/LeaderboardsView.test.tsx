@@ -221,3 +221,84 @@ describe('Next Ranking (beta) checkbox', () => {
     expect(screen.queryByText('Player 49')).toBeNull()
   })
 })
+
+describe('Winners tab', () => {
+  const winnerRow = (
+    rank: number, slug: string, name: string,
+    tournamentName: string, tournamentDateIso: string,
+    partners?: Array<{ name: string; slug: string }>,
+  ) => ({
+    rank, slug, name, primaryClub: 'Bangkok BC',
+    value: Number(tournamentDateIso.replace(/-/g, '')),
+    display: tournamentDateIso, tournamentName, tournamentDateIso,
+    ...(partners ? { partners } : {}),
+  })
+
+  const winnersLB: Leaderboards = {
+    version: 1, provider: 'bat', generatedAt: 'T', sourceVersion: 'v',
+    boards: [
+      { id: 'headline.titles', titleKey: 'lbMostTitles', icon: '🏆', category: 'headline',
+        entries: [{ rank: 1, slug: 'a', name: 'Anuwat', primaryClub: 'Bangkok BC', value: 12, display: '12' }] },
+      { id: 'winners-2026-bs-u13', titleKey: 'BS U13', icon: '🏆', category: 'winners',
+        entries: [winnerRow(1, 'n', 'Nattapon', 'Trang Open 2026', '2026-04-17')] },
+      { id: 'winners-2025-bs-u13', titleKey: 'BS U13', icon: '🏆', category: 'winners',
+        entries: [winnerRow(1, 'a', 'Anuwat', 'THE MALL 2025', '2025-10-03')] },
+      { id: 'winners-2025-xd-u17', titleKey: 'XD U17', icon: '🏆', category: 'winners',
+        entries: [winnerRow(1, 'a', 'Anuwat', 'THE MALL 2025', '2025-10-03', [{ name: 'Boon', slug: 'b' }])] },
+    ],
+  }
+
+  const openWinners = () => {
+    renderLB(winnersLB)
+    fireEvent.click(screen.getByText(/^Winners$/i))
+  }
+
+  it('offers a Winners tab', () => {
+    renderLB(winnersLB)
+    expect(screen.getByText(/^Winners$/i)).toBeTruthy()
+  })
+
+  it('shows the newest year by default and its event boards', () => {
+    openWinners()
+    expect(screen.getByText('Trang Open 2026')).toBeTruthy()
+    expect(screen.queryByText('THE MALL 2025')).toBeNull()
+  })
+
+  it('switches year and swaps the boards', () => {
+    openWinners()
+    fireEvent.change(screen.getByLabelText('Year'), { target: { value: '2025' } })
+    // Both 2025 boards (BS U13, XD U17) were won at the same tournament.
+    expect(screen.getAllByText('THE MALL 2025').length).toBe(2)
+    expect(screen.getByText('XD U17')).toBeTruthy()
+    expect(screen.queryByText('Trang Open 2026')).toBeNull()
+  })
+
+  it('lists only the years present in the data, newest first', () => {
+    openWinners()
+    const opts = Array.from(
+      (screen.getByLabelText('Year') as HTMLSelectElement).options,
+    ).map(o => o.value)
+    expect(opts).toEqual(['2026', '2025'])
+  })
+
+  it('links both champions of a doubles title', () => {
+    openWinners()
+    fireEvent.change(screen.getByLabelText('Year'), { target: { value: '2025' } })
+    const card = screen.getByText('XD U17').closest('.lb-card')!
+    const hrefs = Array.from(card.querySelectorAll('a[href*="/player/"]'))
+      .map(a => a.getAttribute('href'))
+    expect(hrefs).toEqual(expect.arrayContaining(['/player/bat/a', '/player/bat/b']))
+  })
+
+  it('shows a trophy instead of a rank number on winners rows', () => {
+    openWinners()
+    const card = screen.getByText('BS U13').closest('.lb-card')!
+    expect(card.querySelector('.lb-rk-n')).toBeNull()
+    expect(card.querySelector('.lb-rk-trophy')).not.toBeNull()
+  })
+
+  it('hides the Winners tab when no winners boards exist', () => {
+    renderLB(sample)
+    expect(screen.queryByText(/^Winners$/i)).toBeNull()
+  })
+})

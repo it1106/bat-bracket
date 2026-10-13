@@ -390,7 +390,7 @@ export type TKey =
   | 'leaderboards'
   | 'leaderboardsSub'
   | 'lbHeadline' | 'lbDiscipline' | 'lbCharacter' | 'lbActivity' | 'lbRanking'
-  | 'lbPoints'
+  | 'lbPoints' | 'lbWinners' | 'lbWinnersHelp' | 'lbWinnersYear'
   | 'lbRankingAsOf'
   | 'lbRankingSource'
   | 'leaderboardsShowMore' | 'leaderboardsShowLess'
@@ -742,6 +742,9 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbActivity: 'Activity',
     lbRanking: 'Ranking',
     lbPoints: 'Points',
+    lbWinners: 'Winners',
+    lbWinnersHelp: 'Event champions of each tournament in the selected year, by event. A doubles or mixed title names both champions.',
+    lbWinnersYear: 'Year',
     lbRankingAsOf: 'Published',
     lbRankingSource: 'View on tournamentsoftware.com',
     leaderboardsShowMore: 'Show more',
@@ -1115,6 +1118,9 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbActivity: 'กิจกรรม',
     lbRanking: 'อันดับ',
     lbPoints: 'ตารางคะแนน',
+    lbWinners: 'แชมป์',
+    lbWinnersHelp: 'แชมป์แต่ละรายการในปีที่เลือก แยกตามประเภท รายการคู่และคู่ผสมจะแสดงชื่อแชมป์ทั้งสองคน',
+    lbWinnersYear: 'ปี',
     lbRankingAsOf: 'แรงค์กิ้งของวันที่',
     lbRankingSource: 'ดูบน tournamentsoftware.com',
     leaderboardsShowMore: 'ดูเพิ่มเติม',

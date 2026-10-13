@@ -1,7 +1,9 @@
 import path from 'path'
 import fs from 'fs'
 import { buildIndex, buildLeaderboards } from '@/lib/playerIndex'
-import type { MatchesData, PlayerIndexTournamentInput, PlayerRecord } from '@/lib/types'
+import type {
+  Discipline, MatchesData, PlayerEventResult, PlayerIndexTournamentInput, PlayerRecord,
+} from '@/lib/types'
 
 function disc() { return { wins: 0, losses: 0, titles: 0, finals: 0, semis: 0 } }
 function synthPlayer(slug: string, name: string, opts: {
@@ -41,7 +43,11 @@ describe('buildIndex — leaderboards', () => {
 
   it('produces all 14 v1 boards', () => {
     const { leaderboards } = buildIndex('bat', [toyota, trang])
-    const ids = leaderboards.boards.map(b => b.id).sort()
+    // Winners boards are data-driven — one per (year, event) actually won —
+    // so they are not part of this fixed roster.
+    const ids = leaderboards.boards
+      .filter(b => b.category !== 'winners')
+      .map(b => b.id).sort()
     expect(ids).toEqual([
       'activity.matchesLast90', 'activity.tournamentsEntered',
       'character.comebacks', 'character.deciderRecord', 'character.threeGamers', 'character.threeSetterWins',
@@ -50,9 +56,15 @@ describe('buildIndex — leaderboards', () => {
     ])
   })
 
-  it('caps every board at 25 entries', () => {
+  it('caps every ranked board at 25 entries', () => {
     const { leaderboards } = buildIndex('bat', [toyota, trang])
-    for (const b of leaderboards.boards) expect(b.entries.length).toBeLessThanOrEqual(25)
+    // Winners boards are exempt: they list one row per tournament of the year
+    // that crowned a champion in that event, and dropping the tail would hide
+    // a real title rather than a long tail of also-rans.
+    for (const b of leaderboards.boards) {
+      if (b.category === 'winners') continue
+      expect(b.entries.length).toBeLessThanOrEqual(25)
+    }
   })
 
   it('ranks are 1-indexed and contiguous', () => {
@@ -185,5 +197,175 @@ describe('buildIndex — leaderboards', () => {
     expect(board.entries.map(e => e.display)).toEqual([
       '40m (25)', '36m (20)', '30m (30)',
     ])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Winners boards: per-event champion lists, grouped by year.
+// ---------------------------------------------------------------------------
+
+interface TitleSpec {
+  tournamentId: string
+  tournamentName: string
+  dateIso: string
+  eventName: string
+  discipline?: Discipline
+  partnerName?: string
+}
+
+/** A player record carrying nothing but the titles it won. Mirrors what
+ *  buildIndex writes: every title appears both in `titles` and inside the
+ *  matching `tournaments[].events` entry. */
+function championPlayer(slug: string, name: string, club: string, titles: TitleSpec[]): PlayerRecord {
+  const rec = synthPlayer(slug, name, { wins: titles.length, losses: 0 })
+  rec.clubs = [club]
+  const byTournament = new Map<string, PlayerRecord['tournaments'][number]>()
+  for (const spec of titles) {
+    const event: PlayerEventResult = {
+      tournamentId: spec.tournamentId,
+      eventId: `${spec.tournamentId}-${spec.eventName}`,
+      eventName: spec.eventName,
+      discipline: spec.discipline ?? 'singles',
+      bestFinish: 'Champion',
+      wins: 1, losses: 0,
+      ...(spec.partnerName ? { partnerName: spec.partnerName } : {}),
+    }
+    rec.titles.push(event)
+    let t = byTournament.get(spec.tournamentId)
+    if (!t) {
+      t = {
+        tournamentId: spec.tournamentId,
+        tournamentName: spec.tournamentName,
+        tournamentDateIso: spec.dateIso,
+        events: [],
+      }
+      byTournament.set(spec.tournamentId, t)
+    }
+    t.events.push(event)
+  }
+  rec.tournaments = Array.from(byTournament.values())
+  return rec
+}
+
+const MALL = { tournamentId: 'T1', tournamentName: 'THE MALL 2025', dateIso: '2025-10-03' }
+const PHIT = { tournamentId: 'T2', tournamentName: 'Phitsanulok Cup 2025', dateIso: '2025-10-09' }
+const TRANG26 = { tournamentId: 'T3', tournamentName: 'Trang Open 2026', dateIso: '2026-04-17' }
+
+describe('buildLeaderboards — winners boards', () => {
+  it('builds one board per year and event, keyed winners-<year>-<event>', () => {
+    const players: Record<string, PlayerRecord> = {
+      a: championPlayer('a', 'Anuwat', 'Bangkok BC', [
+        { ...MALL, eventName: 'BS U13' },
+        { ...TRANG26, eventName: 'BS U13' },
+      ]),
+      b: championPlayer('b', 'Boon', 'Hat Yai', [{ ...MALL, eventName: 'GS U15' }]),
+    }
+    const lb = buildLeaderboards('bat', players)
+    const ids = lb.boards.filter(b => b.category === 'winners').map(b => b.id)
+    expect(ids).toEqual(expect.arrayContaining([
+      'winners-2026-bs-u13', 'winners-2025-bs-u13', 'winners-2025-gs-u15',
+    ]))
+    expect(ids.filter(id => id.startsWith('winners-2025-')).length).toBe(2)
+  })
+
+  it('titles the board with the raw event label and tags it winners', () => {
+    const players: Record<string, PlayerRecord> = {
+      a: championPlayer('a', 'Anuwat', 'Bangkok BC', [{ ...MALL, eventName: 'XD U17', discipline: 'mixed', partnerName: 'Boon' }]),
+      b: championPlayer('b', 'Boon', 'Hat Yai', [{ ...MALL, eventName: 'XD U17', discipline: 'mixed', partnerName: 'Anuwat' }]),
+    }
+    const lb = buildLeaderboards('bat', players)
+    const board = lb.boards.find(b => b.id === 'winners-2025-xd-u17')!
+    expect(board.titleKey).toBe('XD U17')
+    expect(board.category).toBe('winners')
+  })
+
+  it('collapses a doubles title into one row naming both champions', () => {
+    const players: Record<string, PlayerRecord> = {
+      a: championPlayer('a', 'Anuwat', 'Bangkok BC', [{ ...MALL, eventName: 'BD U15', discipline: 'doubles', partnerName: 'Boon' }]),
+      b: championPlayer('b', 'Boon', 'Bangkok BC', [{ ...MALL, eventName: 'BD U15', discipline: 'doubles', partnerName: 'Anuwat' }]),
+    }
+    const lb = buildLeaderboards('bat', players)
+    const board = lb.boards.find(b => b.id === 'winners-2025-bd-u15')!
+    expect(board.entries.length).toBe(1)
+    const row = board.entries[0]
+    // Both halves of the pairing are linkable: one on the row, one in partners.
+    expect([row.slug, ...(row.partners ?? []).map(p => p.slug)].sort()).toEqual(['a', 'b'])
+    expect([row.name, ...(row.partners ?? []).map(p => p.name)].sort()).toEqual(['Anuwat', 'Boon'])
+  })
+
+  it('names both clubs when a pairing is split across two', () => {
+    const players: Record<string, PlayerRecord> = {
+      a: championPlayer('a', 'Anuwat', 'Bangkok BC', [{ ...MALL, eventName: 'BD U15', discipline: 'doubles', partnerName: 'Boon' }]),
+      b: championPlayer('b', 'Boon', 'Hat Yai', [{ ...MALL, eventName: 'BD U15', discipline: 'doubles', partnerName: 'Anuwat' }]),
+    }
+    const lb = buildLeaderboards('bat', players)
+    const row = lb.boards.find(b => b.id === 'winners-2025-bd-u15')!.entries[0]
+    expect(row.clubs).toEqual(['Bangkok BC', 'Hat Yai'])
+  })
+
+  it('leaves clubs unset when a singles row is covered by primaryClub', () => {
+    const players: Record<string, PlayerRecord> = {
+      a: championPlayer('a', 'Anuwat', 'Bangkok BC', [{ ...MALL, eventName: 'BS U13' }]),
+    }
+    const lb = buildLeaderboards('bat', players)
+    const row = lb.boards.find(b => b.id === 'winners-2025-bs-u13')!.entries[0]
+    expect(row.primaryClub).toBe('Bangkok BC')
+    expect(row.clubs).toBeUndefined()
+    expect(row.partners).toBeUndefined()
+  })
+
+  it('carries the tournament name and date, newest tournament first', () => {
+    const players: Record<string, PlayerRecord> = {
+      a: championPlayer('a', 'Anuwat', 'Bangkok BC', [{ ...MALL, eventName: 'BS U13' }]),
+      b: championPlayer('b', 'Boon', 'Hat Yai', [{ ...PHIT, eventName: 'BS U13' }]),
+    }
+    const lb = buildLeaderboards('bat', players)
+    const board = lb.boards.find(b => b.id === 'winners-2025-bs-u13')!
+    expect(board.entries.map(e => e.tournamentName)).toEqual(['Phitsanulok Cup 2025', 'THE MALL 2025'])
+    expect(board.entries.map(e => e.tournamentDateIso)).toEqual(['2025-10-09', '2025-10-03'])
+    // `display` carries the date, not a second copy of the long name.
+    expect(board.entries.map(e => e.display)).toEqual(['2025-10-09', '2025-10-03'])
+    expect(board.entries.map(e => e.rank)).toEqual([1, 2])
+  })
+
+  it('orders boards newest year first, open events before age groups', () => {
+    const t = (eventName: string, base = MALL) => ({ ...base, eventName })
+    const players: Record<string, PlayerRecord> = {
+      a: championPlayer('a', 'Anuwat', 'Bangkok BC', [
+        t('BS U13'), t('MS'), t('GS U17'), t('WS'), t('BS U13', TRANG26),
+      ]),
+    }
+    const lb = buildLeaderboards('bat', players)
+    const ids = lb.boards.filter(b => b.category === 'winners').map(b => b.id)
+    expect(ids).toEqual([
+      'winners-2026-bs-u13',
+      'winners-2025-ms', 'winners-2025-ws', 'winners-2025-gs-u17', 'winners-2025-bs-u13',
+    ])
+  })
+
+  it('builds no winners boards for BWF, whose event labels are untreated', () => {
+    const players: Record<string, PlayerRecord> = {
+      a: championPlayer('a', 'Anuwat', 'Thailand', [{ ...MALL, eventName: 'MS' }]),
+    }
+    expect(buildLeaderboards('bwf', players).boards.filter(b => b.category === 'winners')).toEqual([])
+    expect(buildLeaderboards('bat', players).boards.filter(b => b.category === 'winners').length).toBe(1)
+  })
+
+  it('builds no winners boards when nobody won a title', () => {
+    const players: Record<string, PlayerRecord> = {
+      a: synthPlayer('a', 'Alpha', { wins: 5, losses: 5 }),
+    }
+    const lb = buildLeaderboards('bat', players)
+    expect(lb.boards.filter(b => b.category === 'winners')).toEqual([])
+  })
+
+  it('does not write winners rows back to PlayerRecord.ranks', () => {
+    const players: Record<string, PlayerRecord> = {
+      a: championPlayer('a', 'Anuwat', 'Bangkok BC', [{ ...MALL, eventName: 'BS U13' }]),
+    }
+    buildLeaderboards('bat', players)
+    // `titles` is the headline board's rank field; no winners-specific key
+    // should appear alongside it.
+    expect(Object.keys(players.a.ranks).every(k => !k.startsWith('winners'))).toBe(true)
   })
 })

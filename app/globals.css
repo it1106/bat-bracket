@@ -3734,6 +3734,20 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 /* Ranking rows for BAT doubles/mixed, which rank per PAIRING: both names on
    one row, each linking to its own profile. The row itself can't be a link
    when it holds two, so give it the same pointer affordance. */
+/* Winners rows: tournament on the left, champion(s) right-aligned. The
+   trophy replaces the rank number, so the first slot keeps the 22px width
+   every other row uses and the columns stay aligned across categories. */
+.lb-row-winner { grid-template-columns: 22px 1fr; align-items: start; }
+.lb-row-winner .lb-rk-trophy { text-align: center; font-size: calc(12px * var(--text-scale)); line-height: 1.4; }
+.lb-winner-names { font-weight: 600; line-height: 1.35; }
+.lb-winner-tn { color: var(--fg); font-size: calc(12px * var(--text-scale)); line-height: 1.35; }
+/* The year picker above the Winners grid. */
+.lb-winners-year { display: flex; align-items: center; gap: 8px; }
+.lb-winners-year select {
+  background: var(--card-bg, var(--bg)); color: var(--fg);
+  border: 1px solid var(--row-sep); border-radius: 6px;
+  padding: 2px 6px; font-size: calc(13px * var(--text-scale));
+}
 .lb-row .lb-pair { display: inline; }
 .lb-pair-name { color: inherit; text-decoration: none; }
 .lb-pair-name:hover { text-decoration: underline; }
