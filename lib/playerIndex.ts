@@ -4,7 +4,8 @@
 import type {
   Discipline, MatchEntry, ProviderTag,
   PlayerIndex, PlayerRecord, PlayerMatchRef, PlayerIndexTournamentInput,
-  Leaderboards, LeaderboardBoard, DisciplineSummary, PlayerEventResult, PlayerRanks,
+  Leaderboards, LeaderboardBoard, LeaderboardEntry, DisciplineSummary,
+  PlayerEventResult, PlayerRanks,
   PlayerTournamentMatch,
   OpponentRecord, OpponentTimeWindow,
 } from './types'
@@ -188,8 +189,154 @@ export function buildLeaderboards(
     }
   }
 
+  // BAT only: the winners boards are built around BAT's event labels
+  // ("BS U13", "XD U17"), and BWF's board set has not been reviewed for this
+  // treatment. Nothing here is BAT-specific in the code — dropping the guard
+  // is all it would take.
+  if (provider === 'bat') boards.push(...buildWinnersBoards(players))
+
   leaderboards.boards = boards
   return leaderboards
+}
+
+// Open (no age group) events come first in the order BAT lists them, then the
+// age groups from oldest to youngest. An event we don't recognise sorts after
+// everything known, alphabetically, so a new label still shows up.
+const OPEN_EVENT_ORDER = ['MS', 'WS', 'MD', 'WD', 'XD']
+const AGE_EVENT_ORDER = ['BS', 'GS', 'BD', 'GD', 'XD']
+
+/** Sort key for an event label: [group, ageRank, typeRank, label]. Open events
+ *  form group 0; age-group events (`BS U13`) group 1, ordered oldest age band
+ *  first; anything unparsed lands in group 2. */
+function eventSortKey(eventName: string): [number, number, number, string] {
+  const open = OPEN_EVENT_ORDER.indexOf(eventName)
+  if (open >= 0) return [0, 0, open, eventName]
+  const m = eventName.match(/^([A-Z]{2})\s*U(\d+)$/i)
+  if (m) {
+    const type = AGE_EVENT_ORDER.indexOf(m[1].toUpperCase())
+    // Older age bands first: negate so U19 precedes U9.
+    return [1, -parseInt(m[2], 10), type < 0 ? AGE_EVENT_ORDER.length : type, eventName]
+  }
+  return [2, 0, 0, eventName]
+}
+
+function compareEvents(a: string, b: string): number {
+  const ka = eventSortKey(a); const kb = eventSortKey(b)
+  for (let i = 0; i < 3; i++) {
+    if (ka[i] !== kb[i]) return (ka[i] as number) - (kb[i] as number)
+  }
+  return a.localeCompare(b)
+}
+
+/** `BS U13` → `bs-u13`, so the board id stays URL- and anchor-safe. */
+function eventSlug(eventName: string): string {
+  return eventName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
+/** One board per (year, event) listing that event's champions, newest
+ *  tournament first.
+ *
+ *  A title is held by every player on the winning side, so the same title is
+ *  reached once per champion while walking the players. Collapsing on
+ *  `tournamentId + eventName` turns a doubles pair's two records back into the
+ *  single row the pairing actually won — and collecting the players on the way
+ *  is what gives the row both slugs, which `PlayerEventResult.partnerName`
+ *  (a bare name) could not. */
+function buildWinnersBoards(players: Record<string, PlayerRecord>): LeaderboardBoard[] {
+  interface Title {
+    tournamentId: string
+    tournamentName: string
+    tournamentDateIso: string
+    eventName: string
+    champions: Array<{ slug: string; name: string; club: string }>
+  }
+  const titles = new Map<string, Title>()
+  for (const p of Object.values(players)) {
+    for (const t of p.tournaments) {
+      for (const ev of t.events) {
+        if (ev.bestFinish !== 'Champion') continue
+        const key = `${t.tournamentId}\u0000${ev.eventName}`
+        let title = titles.get(key)
+        if (!title) {
+          title = {
+            tournamentId: t.tournamentId,
+            tournamentName: t.tournamentName,
+            tournamentDateIso: t.tournamentDateIso,
+            eventName: ev.eventName,
+            champions: [],
+          }
+          titles.set(key, title)
+        }
+        title.champions.push({ slug: p.key.slug, name: p.displayName, club: p.clubs[0] || p.country || '' })
+      }
+    }
+  }
+
+  // Group into boards keyed `${year}\u0000${eventName}`.
+  const byBoard = new Map<string, Title[]>()
+  for (const title of Array.from(titles.values())) {
+    const year = title.tournamentDateIso.slice(0, 4)
+    if (!/^\d{4}$/.test(year)) continue
+    const key = `${year}\u0000${title.eventName}`
+    const arr = byBoard.get(key)
+    if (arr) arr.push(title)
+    else byBoard.set(key, [title])
+  }
+
+  const boards: LeaderboardBoard[] = []
+  const keys = Array.from(byBoard.keys()).sort((a, b) => {
+    const [ya, ea] = a.split('\u0000')
+    const [yb, eb] = b.split('\u0000')
+    // Newest year first, then the event order above.
+    if (ya !== yb) return yb.localeCompare(ya)
+    return compareEvents(ea, eb)
+  })
+  for (const key of keys) {
+    const [year, eventName] = key.split('\u0000')
+    const rows = byBoard.get(key)!
+      .sort((a, b) =>
+        b.tournamentDateIso.localeCompare(a.tournamentDateIso) ||
+        a.tournamentName.localeCompare(b.tournamentName))
+    const entries: LeaderboardEntry[] = rows.map((title, i) => {
+      // Stable order within a pairing: the index is built by walking an
+      // unordered player map, so sort before deciding whose name leads.
+      const champions = [...title.champions].sort((x, y) => x.slug.localeCompare(y.slug))
+      const [first, ...rest] = champions
+      const clubs = champions.map(c => c.club)
+      const distinctClubs = Array.from(new Set(clubs.filter(Boolean)))
+      return {
+        // Chronological position, not a standing — the view renders a trophy
+        // here rather than the number, but LeaderboardEntry.rank is required
+        // and the ranks stay 1-indexed and contiguous like every other board.
+        rank: i + 1,
+        slug: first.slug,
+        name: first.name,
+        primaryClub: first.club,
+        // Only name both clubs when they differ; one shared club is already
+        // covered by primaryClub.
+        ...(distinctClubs.length > 1 ? { clubs: distinctClubs } : {}),
+        // Sortable date, so a consumer ordering by value gets newest first.
+        value: Number(title.tournamentDateIso.replace(/-/g, '')) || 0,
+        // The generic `display` holds the date, not the tournament name:
+        // these rows are long Thai strings, and carrying each one twice per
+        // row tripled the leaderboards payload the page ships to the client.
+        display: title.tournamentDateIso,
+        tournamentName: title.tournamentName,
+        tournamentDateIso: title.tournamentDateIso,
+        ...(rest.length > 0 ? { partners: rest.map(c => ({ name: c.name, slug: c.slug })) } : {}),
+      }
+    })
+    boards.push({
+      id: `winners-${year}-${eventSlug(eventName)}`,
+      // The raw event label: translate() falls back to the key itself, the
+      // same way ranking boards carry their upstream event name.
+      titleKey: eventName,
+      icon: '🏆',
+      category: 'winners',
+      entries,
+    })
+  }
+  return boards
 }
 
 function emptyDisc(): DisciplineSummary {

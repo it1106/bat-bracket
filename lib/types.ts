@@ -839,12 +839,19 @@ export interface LeaderboardEntry {
   /** Mirrors RankingEntry.previousRank. Populated only on ranking-category
    *  entries; other categories ignore it. */
   previousRank?: number
-  /** The other players on a per-pairing ranking row (BAT doubles/mixed).
-   *  Absent on singles and on every non-ranking board. */
+  /** The other players on a row that belongs to more than one player: a
+   *  per-pairing ranking row (BAT doubles/mixed), or a doubles/mixed title on
+   *  a winners board. Absent on singles rows. */
   partners?: { name: string; slug: string }[]
+  /** The tournament a winners-board row was won at. Populated only on
+   *  `winners` boards, where the row identifies a tournament rather than a
+   *  rank; other categories leave both unset. */
+  tournamentName?: string
+  tournamentDateIso?: string
 }
 
-export type LeaderboardCategory = 'headline' | 'discipline' | 'character' | 'activity' | 'ranking'
+export type LeaderboardCategory =
+  | 'headline' | 'discipline' | 'character' | 'activity' | 'ranking' | 'winners'
 
 export interface LeaderboardBoard {
   id: string

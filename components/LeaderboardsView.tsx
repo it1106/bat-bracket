@@ -55,6 +55,15 @@ const U15_PROJECTED_BOARDS: Record<string, string> = {
 // ranking board's depth.
 const PROJECTED_DISPLAY_LIMIT = 30;
 
+// Winners board ids are `winners-<year>-<event-slug>` (built in
+// lib/playerIndex.ts). The year is read back off the id so the view needs no
+// second source of truth for which years the data covers.
+const WINNERS_BOARD_RE = /^winners-(\d{4})-/
+
+function winnersYearOf(boardId: string): string | null {
+  return WINNERS_BOARD_RE.exec(boardId)?.[1] ?? null
+}
+
 interface Props {
   leaderboards: Leaderboards[];
   rankingPublishDates?: Partial<Record<ProviderTag, string>>;
@@ -72,6 +81,7 @@ interface Props {
 // no boards on the current provider — see effectiveActive below).
 const CATEGORIES: Array<{ id: LeaderboardCategory; key: TKey }> = [
   { id: 'ranking', key: 'lbRanking' },
+  { id: 'winners', key: 'lbWinners' },
   { id: 'headline', key: 'lbHeadline' },
   { id: 'discipline', key: 'lbDiscipline' },
   { id: 'character', key: 'lbCharacter' },
@@ -111,6 +121,9 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
     ? weekKeyFromPublishDate(activeRankingPublishDate, getRankingConfig(activeProvider).dateFormat)
     : null
   const [openHelp, setOpenHelp] = useState<string | null>(null)
+  // Which year the Winners tab is showing. Null until the user picks one, so
+  // the newest year in the data stays the default even as the data moves on.
+  const [winnersYear, setWinnersYear] = useState<string | null>(null)
   // Set of board IDs the user has expanded to see beyond the top 10.
   // Per-board state (not global) so expanding "U23 Men's singles" doesn't
   // also blow open every other board.
@@ -188,10 +201,12 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
 
   // Switching tabs (esp. away from Ranking with 34 boards) leaves the viewport
   // scrolled into dead space below the new, shorter grid.
+  // Switching the winners year swaps the whole grid for a shorter or taller
+  // one, same as switching tabs, so it needs the same scroll reset.
   useEffect(() => {
     if (!didMountRef.current) { didMountRef.current = true; return }
     window.scrollTo(0, 0)
-  }, [active])
+  }, [active, winnersYear])
 
   // Fire-once page-view event. Runs on mount only — provider/tab changes
   // are intentionally not tracked here; if we want those they're separate
@@ -238,7 +253,20 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
   const effectiveActive = pointsActive
     ? active
     : (availableCategories.some(c => c.id === active) ? (active as LeaderboardCategory) : availableCategories[0]?.id ?? (active as LeaderboardCategory))
-  const visible = lb.boards.filter(b => b.category === effectiveActive)
+  // Years present on this provider's winners boards, newest first.
+  const winnersYears = Array.from(new Set(
+    lb.boards.flatMap(b => {
+      const y = b.category === 'winners' ? winnersYearOf(b.id) : null
+      return y ? [y] : []
+    }),
+  )).sort((a, b) => b.localeCompare(a))
+  const selectedWinnersYear =
+    winnersYear && winnersYears.includes(winnersYear) ? winnersYear : winnersYears[0] ?? null
+  const visible = effectiveActive === 'winners'
+    // One year at a time: every event is listed per year, so showing them all
+    // at once would repeat each event board once per year.
+    ? lb.boards.filter(b => b.category === 'winners' && winnersYearOf(b.id) === selectedWinnersYear)
+    : lb.boards.filter(b => b.category === effectiveActive)
   const multiProvider = leaderboards.length > 1
 
   return (
@@ -326,10 +354,25 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
           )}
         </div>
       )}
+      {!pointsActive && effectiveActive === 'winners' && winnersYears.length > 0 && (
+        <div className="lb-sub lb-winners-year">
+          <label htmlFor="lb-winners-year">{t('lbWinnersYear')}</label>
+          <select
+            id="lb-winners-year"
+            value={selectedWinnersYear ?? ''}
+            onChange={(e) => setWinnersYear(e.target.value)}
+          >
+            {winnersYears.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+      )}
       {pointsActive && <PointsTableReference />}
       {!pointsActive && <div className="lb-grid">
         {visible.map(b => {
-          const helpKey = `${b.titleKey}Help` as TKey
+          // Winners boards are titled with the raw event label ("BS U13"), so
+          // the per-board help convention would look up "BS U13Help" and fall
+          // back to printing that string; they share one explanation instead.
+          const helpKey = (b.category === 'winners' ? 'lbWinnersHelp' : `${b.titleKey}Help`) as TKey
           const isOpen = openHelp === b.id
           return (
           <div key={b.id} className="lb-card" id={b.id}>
@@ -425,6 +468,37 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
                 <>
                   {visibleEntries.map(e => {
                     const provider = e.provider ?? lb.provider
+                    // A winners row identifies a tournament, not a standing:
+                    // the trophy replaces the rank number, the tournament
+                    // leads, and the champion (or both champions of a pairing)
+                    // sits where the value normally does.
+                    if (b.category === 'winners') {
+                      const champions = [{ name: e.name, slug: e.slug }, ...(e.partners ?? [])]
+                      return (
+                        <div key={`${e.rank}-${e.slug}`} className="lb-row lb-row-winner">
+                          <div className="lb-rk lb-rk-trophy" aria-hidden="true">🏆</div>
+                          <div>
+                            {/* Champion first: these cards are narrow, and a
+                                side-by-side split wraps long tournament names
+                                into a four-line column. */}
+                            <div className="lb-pair lb-winner-names">
+                              {champions.map((c, i) => (
+                                <span key={`${i}-${c.slug}`}>
+                                  {i > 0 && <span className="lb-pair-sep"> / </span>}
+                                  <Link href={`/player/${provider}/${c.slug}`} prefetch={false}
+                                    className="lb-pair-name">{c.name}</Link>
+                                </span>
+                              ))}
+                            </div>
+                            <div className="lb-winner-tn">{e.tournamentName ?? e.display}</div>
+                            <div className="lb-club">
+                              {[e.tournamentDateIso, (e.clubs ?? [e.primaryClub]).filter(Boolean).join(' · ')]
+                                .filter(Boolean).join(' · ')}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    }
                     const rowClass = `lb-row${e.extra ? ' lb-row-extra' : ''}${b.category === 'ranking' ? ' lb-row-ranking' : ''}`
                     const rank = (
                       <div className={`lb-rk ${e.rank === 1 ? 'lb-r1' : e.rank === 2 ? 'lb-r2' : e.rank === 3 ? 'lb-r3' : ''}`}>

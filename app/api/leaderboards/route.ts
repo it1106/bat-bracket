@@ -3,7 +3,7 @@ import { readLeaderboardsCache } from '@/lib/player-index-cache'
 import type { ProviderTag, LeaderboardCategory } from '@/lib/types'
 
 const PROVIDERS = new Set<ProviderTag>(['bat', 'bwf', 'combined'])
-const CATEGORIES = new Set<LeaderboardCategory>(['headline', 'discipline', 'character', 'activity'])
+const CATEGORIES = new Set<LeaderboardCategory>(['headline', 'discipline', 'character', 'activity', 'winners'])
 
 export async function GET(req: Request) {
   const u = new URL(req.url)
