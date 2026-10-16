@@ -183,7 +183,16 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
 }
 
 /* ── bk-wrap: root bracket container ── */
+/* The bracket's geometry is baked into the generated HTML as fixed pixels —
+   slot tops, round height and the SVG connector coordinates all come from the
+   SLOT_PITCH_* constants in lib/scraper.ts. Growing only the fonts therefore
+   makes a match box (two team rows plus the scheduled-time footer) outgrow its
+   slot and overlap the box below. So inside the bracket the reader's text step
+   is applied as a zoom on the whole wrapper instead, with --text-scale pinned
+   to 1: text and geometry grow together and the connectors stay aligned. */
 .bk-wrap {
+  --text-scale: 1;
+  zoom: var(--text-user);
   display: flex;
   flex-direction: row;
   align-items: flex-start;
