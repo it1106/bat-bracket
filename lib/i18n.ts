@@ -150,6 +150,8 @@ export type TKey =
   | 'excludeCompleted'
   | 'sortByCourt'
   | 'sortByMatchNum'
+  | 'venue'
+  | 'allVenues'
   | 'darkMode'
   | 'lightMode'
   | 'close'
@@ -491,6 +493,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     excludeCompleted: 'Excl. Completed Matches',
     sortByCourt: 'By court',
     sortByMatchNum: 'By match #',
+    venue: 'Venue',
+    allVenues: 'All venues',
     darkMode: 'Dark mode',
     lightMode: 'Light mode',
     close: 'Close',
@@ -867,6 +871,8 @@ const dict: Record<Lang, Record<TKey, string>> = {
     excludeCompleted: 'ไม่รวมคู่ที่จบแล้ว',
     sortByCourt: 'ตามคอร์ท',
     sortByMatchNum: 'ตามลำดับแมตช์',
+    venue: 'สนามแข่ง',
+    allVenues: 'ทุกสนามแข่ง',
     darkMode: 'โหมดมืด',
     lightMode: 'โหมดสว่าง',
     close: 'ปิด',

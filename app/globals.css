@@ -1516,6 +1516,36 @@ html[lang="th"] .pm-section-title {
   margin-bottom: 14px;
 }
 
+/* Venue picker — only rendered for events spread over more than one venue. */
+.ms-venue-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ms-venue-label {
+  font-size: calc(12px * var(--text-scale));
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ms-venue-select {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: calc(12px * var(--text-scale));
+  font-weight: 600;
+  color: var(--fg);
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.ms-venue-select:hover {
+  background: var(--bg);
+}
+
 .match-schedule__time-group {
   margin-bottom: 20px;
 }

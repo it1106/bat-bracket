@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo, useRef, useState, useEffect } from 'react'
+import { useId, useMemo, useRef, useState, useEffect } from 'react'
 import type { MatchScheduleGroup, MatchDay, MatchEntry, MatchPlayer } from '@/lib/types'
 import { matchLiveCourt, type CourtLive } from '@/lib/live-score'
 import { useLanguage } from '@/lib/LanguageContext'
 import { useFirstUnplayed } from '@/lib/useFirstUnplayed'
 import { computePlayingOrder } from '@/lib/playingOrder'
+import { ALL_VENUES, collectVenues, filterGroupsByVenue } from '@/lib/venues'
 import { expandSearchQuery, parseSearchQuery, useSearchAliasesVersion } from '@/lib/searchAliases'
 import { abbrevRoundL, longRoundL } from '@/lib/i18n'
 import { queryMatchesCountry } from '@/lib/countryCodes'
@@ -318,21 +319,40 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
     return () => { cancelled = true }
   }, [batIdsKey, tournamentId])
 
+  // Multi-venue events (one tournament spread over two gyms) can be narrowed
+  // to a single venue. The filter is applied to the groups themselves rather
+  // than at render time, so everything derived below — the playing-order
+  // "up next" count, the jump-to-next target, the schedule picture — sees only
+  // the selected venue's matches.
+  const venues = useMemo(() => collectVenues(groups), [groups])
+  const venueSelectId = useId()
+  const [selectedVenue, setSelectedVenue] = useState<string>(ALL_VENUES)
+  useEffect(() => {
+    setSelectedVenue(ALL_VENUES)
+  }, [tournamentId])
+  // A day that doesn't use the picked venue (or a tournament with one venue)
+  // shows everything instead of an empty schedule.
+  const activeVenue = venues.includes(selectedVenue) ? selectedVenue : ALL_VENUES
+  const venueGroups = useMemo(
+    () => filterGroupsByVenue(groups, activeVenue),
+    [groups, activeVenue],
+  )
+
   const hasCourtSchedule = useMemo(
     () =>
-      groups.some((g) => g.type === 'court') &&
-      groups.some((g) => g.matches.some((m) => matchNumberOf(m) !== null)),
-    [groups],
+      venueGroups.some((g) => g.type === 'court') &&
+      venueGroups.some((g) => g.matches.some((m) => matchNumberOf(m) !== null)),
+    [venueGroups],
   )
   // In "by match #" mode, flatten every court group and re-group by the match
   // number so "Match 1" lists the first match on each court, "Match 2" the
   // second, etc. Rows without a number sink to a trailing group. Any other case
   // (default, or non-court days) renders the groups untouched.
   const displayGroups = useMemo<MatchScheduleGroup[]>(() => {
-    if (sortMode !== 'matchNum' || !hasCourtSchedule) return groups
+    if (sortMode !== 'matchNum' || !hasCourtSchedule) return venueGroups
     const byNum = new Map<number, MatchEntry[]>()
     const noNum: MatchEntry[] = []
-    for (const g of groups) {
+    for (const g of venueGroups) {
       for (const m of g.matches) {
         const n = matchNumberOf(m)
         if (n === null) { noNum.push(m); continue }
@@ -346,13 +366,13 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       .map(([n, ms]) => ({ type: 'time', time: `Match ${n}`, matches: ms }))
     if (noNum.length) out.push({ type: 'time', time: '—', matches: noNum })
     return out
-  }, [groups, sortMode, hasCourtSchedule])
+  }, [venueGroups, sortMode, hasCourtSchedule])
 
   const { targetKey, registerTargetRef, isTargetInView, scrollToTarget } =
     useFirstUnplayed(displayGroups, playerQuery, playerClubMap)
   const playingOrder = useMemo(
-    () => computePlayingOrder({ groups, liveByCourt: liveByCourt ?? null }),
-    [groups, liveByCourt],
+    () => computePlayingOrder({ groups: venueGroups, liveByCourt: liveByCourt ?? null }),
+    [venueGroups, liveByCourt],
   )
   const scoreTr = { walkover: t('walkover'), vsMatch: t('vsMatch'), retired: t('retired') }
   const seenMatchIds = useRef<Set<string>>(new Set())
@@ -368,9 +388,9 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
 
   const matchByKey = useMemo(() => {
     const map = new Map<string, MatchEntry>()
-    for (const g of groups) for (const m of g.matches) map.set(matchKeyFor(m), m)
+    for (const g of venueGroups) for (const m of g.matches) map.set(matchKeyFor(m), m)
     return map
-  }, [groups])
+  }, [venueGroups])
 
   // Time-grouped matches don't carry m.scheduledTime — only the parent
   // group.time has it. We index per-match here so the share capture can
@@ -379,7 +399,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   // renders the date separately, so collapse to HH:MM here.
   const matchTimeByKey = useMemo(() => {
     const map = new Map<string, string>()
-    for (const g of groups) {
+    for (const g of venueGroups) {
       for (const m of g.matches) {
         const raw = m.scheduledTime || (g.type === 'time' ? g.time : '')
         if (!raw) continue
@@ -388,7 +408,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       }
     }
     return map
-  }, [groups])
+  }, [venueGroups])
 
   const containerRef = useRef<HTMLDivElement>(null)
   const preparedFileRef = useRef<File | null>(null)
@@ -758,11 +778,34 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         </div>
       )}
 
-      {selectedDay !== 'stats' && !loading && groups.length === 0 && (
+      {selectedDay !== 'stats' && !loading && venueGroups.length === 0 && (
         <div className="p-8 text-center text-gray-400 text-sm">{t('noMatchesScheduled')}</div>
       )}
 
-      {selectedDay !== 'stats' && !loading && groups.length > 0 && hasCourtSchedule && (
+      {selectedDay !== 'stats' && !loading && venues.length > 1 && (
+        <div className="ms-venue-filter">
+          <label className="ms-venue-label" htmlFor={venueSelectId}>{t('venue')}</label>
+          <select
+            id={venueSelectId}
+            className="ms-venue-select"
+            value={activeVenue}
+            onChange={(e) => {
+              setSelectedVenue(e.target.value)
+              track('schedule_venue_filtered', {
+                tournament_id: tournamentId,
+                venue: e.target.value === ALL_VENUES ? 'all' : e.target.value,
+              })
+            }}
+          >
+            <option value={ALL_VENUES}>{t('allVenues')}</option>
+            {venues.map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {selectedDay !== 'stats' && !loading && venueGroups.length > 0 && hasCourtSchedule && (
         <div className="ms-sort-toggle" role="group" aria-label={t('sortByCourt')}>
           <button
             className={`match-schedule__day-tab${sortMode === 'court' ? ' active' : ''}`}
@@ -824,7 +867,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         })
 
         const hasVisible = rendered.some((r) => r !== null)
-        if (!hasVisible && groups.length > 0 && playerQuery.trim() !== '') {
+        if (!hasVisible && venueGroups.length > 0 && playerQuery.trim() !== '') {
           return (
             <div className="p-8 text-center text-gray-400 text-sm">{t('searchNotFound')}</div>
           )
