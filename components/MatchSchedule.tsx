@@ -379,6 +379,8 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   const nextOppMap = useMemo(() => buildNextOppMap(displayGroups), [displayGroups])
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
   const [lockedKey, setLockedKey] = useState<string | null>(null)
+  // Now Playing pills flipped to show when the match went on court, by matchKeyFor.
+  const [onCourtShown, setOnCourtShown] = useState<Set<string>>(new Set())
 
   const matchKeyFor = (m: MatchEntry): string => {
     const a = m.team1[0]?.playerId ?? ''
@@ -559,6 +561,11 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       : ''
     const resultLabel = [durationLabel, publishedAt].filter(Boolean).join(' · ')
     const resultTitle = publishedAt ? `${t('resultPublishedAt')} ${publishedAt}` : undefined
+    // When the match first showed up Now Playing, on the same clock.
+    const onCourtAt = m.winner === null && m.nowPlaying && m.playingAt
+      ? new Date(m.playingAt).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })
+      : ''
+    const onCourtTitle = onCourtAt ? `${t('onCourtSince')} ${onCourtAt}` : undefined
     return (
     <div
       key={matchKey}
@@ -613,7 +620,24 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         {m.nowPlaying && !isLive && (
           <span className="ms-now-playing-wrap">
             <span className="ms-now-playing" title={t('nowPlaying')} />
-            <span className="ms-now-playing-pill">{t('nowPlaying')}</span>
+            {onCourtAt
+              ? (
+                <button
+                  type="button"
+                  className="ms-now-playing-pill ms-now-playing-pill--toggle"
+                  title={onCourtTitle}
+                  aria-pressed={onCourtShown.has(matchKeyFor(m))}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOnCourtShown((prev) => {
+                      const next = new Set(prev)
+                      if (!next.delete(matchKeyFor(m))) next.add(matchKeyFor(m))
+                      return next
+                    })
+                  }}
+                >{onCourtShown.has(matchKeyFor(m)) ? onCourtTitle : t('nowPlaying')}</button>
+              )
+              : <span className="ms-now-playing-pill">{t('nowPlaying')}</span>}
           </span>
         )}
         {m.h2hUrl && onH2HClick && m.team1.length > 0 && m.team2.length > 0 && (

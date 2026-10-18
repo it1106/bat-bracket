@@ -62,6 +62,43 @@ describe('applyResultTimes', () => {
   })
 })
 
+describe('applyResultTimes — on court', () => {
+  const playing = (m: MatchEntry): MatchEntry => ({ ...m, nowPlaying: true })
+
+  it('gives no time to a match already playing on first sight', () => {
+    const groups = day(playing(match('1', 'a', 'b', null)))
+    const { state } = applyResultTimes(EMPTY_RESULT_TIMES, groups, 1_000)
+    expect(groups[0].matches[0].playingAt).toBeUndefined()
+    expect(state.playingAt).toEqual({})
+  })
+
+  it('stamps a match that went from waiting to playing, and keeps it', () => {
+    const first = applyResultTimes(EMPTY_RESULT_TIMES, day(match('1', 'a', 'b', null)), 1_000)
+    const groups = day(playing(match('1', 'a', 'b', null)))
+    const second = applyResultTimes(first.state, groups, 61_000)
+    expect(second.changed).toBe(true)
+    expect(groups[0].matches[0].playingAt).toBe(61_000)
+    const later = day(playing(match('1', 'a', 'b', null)))
+    applyResultTimes(second.state, later, 121_000)
+    expect(later[0].matches[0].playingAt).toBe(61_000)
+  })
+
+  it('does not stamp a match that went on court across a long gap', () => {
+    const first = applyResultTimes(EMPTY_RESULT_TIMES, day(match('1', 'a', 'b', null)), 1_000)
+    const groups = day(playing(match('1', 'a', 'b', null)))
+    applyResultTimes(first.state, groups, 1_000 + MAX_GAP_MS + 1)
+    expect(groups[0].matches[0].playingAt).toBeUndefined()
+  })
+
+  it('still stamps after an empty read in between', () => {
+    const first = applyResultTimes(EMPTY_RESULT_TIMES, day(match('1', 'a', 'b', null)), 1_000)
+    const empty = applyResultTimes(first.state, [], 61_000)
+    const groups = day(playing(match('1', 'a', 'b', null)))
+    applyResultTimes(empty.state, groups, 121_000)
+    expect(groups[0].matches[0].playingAt).toBe(121_000)
+  })
+})
+
 describe('stampResultTimes', () => {
   const cwd = process.cwd()
   let dir: string

@@ -1770,6 +1770,13 @@ html[lang="th"] .pm-section-title {
   line-height: 1.5;
 }
 
+/* A pill that knows when the match went on court flips to that time on tap. */
+.ms-now-playing-pill--toggle {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 .ms-order-pill {
   display: inline-block;
   font-size: calc(12px * var(--text-scale));

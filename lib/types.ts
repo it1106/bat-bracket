@@ -121,6 +121,9 @@ export interface MatchEntry {
   // Epoch ms the scoreline was first seen published (lib/result-times). Only
   // on results that arrived while the server was watching the day.
   resultAt?: number
+  // Epoch ms the match was first seen Now Playing (lib/result-times), same
+  // rule: only when the server saw it go on court.
+  playingAt?: number
   walkover: boolean
   retired: boolean
   nowPlaying: boolean
