@@ -552,6 +552,13 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
       ? ((m.court && !/^now\s*playing$/i.test(m.court) ? m.court : '') || live?.courtName || '')
       : ''
     const durationLabel = m.winner !== null && m.duration ? m.duration : ''
+    // When the scoreline was published, Bangkok time to line up with BAT's
+    // own schedule times. Only results the server saw arrive carry one.
+    const publishedAt = m.winner !== null && m.resultAt
+      ? new Date(m.resultAt).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })
+      : ''
+    const resultLabel = [durationLabel, publishedAt].filter(Boolean).join(' · ')
+    const resultTitle = publishedAt ? `${t('resultPublishedAt')} ${publishedAt}` : undefined
     return (
     <div
       key={matchKey}
@@ -581,7 +588,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         })()}
         <span className="ms-round">{longRound(m.round)}</span>
         {courtLabel && <span className={`ms-court${sortMode === 'matchNum' ? ' ms-court--accent' : ' ms-d'}`}>{courtLabel}</span>}
-        {durationLabel && <span className="ms-duration ms-d">{durationLabel}</span>}
+        {resultLabel && <span className="ms-duration ms-d" title={resultTitle}>{resultLabel}</span>}
         {sortMode === 'matchNum'
           ? (() => {
               // "By match #" mode: the group header already reads "Match N", so
@@ -722,11 +729,11 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
         // the estimated time), so drop it from the mobile footer to avoid
         // showing it twice.
         const footerCourt = sortMode === 'matchNum' ? '' : courtLabel
-        if (!footerCourt && !durationLabel) return null
+        if (!footerCourt && !resultLabel) return null
         return (
           <div className="ms-footer ms-m">
             {footerCourt && <span className="ms-court">{footerCourt}</span>}
-            {durationLabel && <span className="ms-duration">{durationLabel}</span>}
+            {resultLabel && <span className="ms-duration" title={resultTitle}>{resultLabel}</span>}
           </div>
         )
       })()}

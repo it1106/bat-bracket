@@ -118,6 +118,9 @@ export interface MatchEntry {
   scores: MatchScore[]
   court: string
   duration?: string
+  // Epoch ms the scoreline was first seen published (lib/result-times). Only
+  // on results that arrived while the server was watching the day.
+  resultAt?: number
   walkover: boolean
   retired: boolean
   nowPlaying: boolean
