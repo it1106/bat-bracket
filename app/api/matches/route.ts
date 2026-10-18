@@ -8,6 +8,7 @@ import { staleHeaders } from '@/lib/stale-headers'
 import { readLastGoodDay, writeLastGoodDay, readLastGoodFull, writeLastGoodFull } from '@/lib/schedule-last-good'
 import { providerFor } from '@/lib/providers/resolve'
 import { getTodayIso } from '@/lib/today'
+import { stampResultTimes } from '@/lib/result-times'
 import { persistMetaIfChanged } from '@/lib/tournament-meta'
 import { MATCHES_FULL_TTL_MS, getMatchesFull, setMatchesFull } from '@/lib/matches-full-memcache'
 import type { MatchScheduleGroup, MatchEntry, MatchesData, MatchPlayer } from '@/lib/types'
@@ -322,6 +323,8 @@ export async function GET(request: Request) {
         // Fetch succeeded — BAT is healthy again, clear any stale backoff
         // so future calls aren't suppressed.
         clearBatFailure(memKey)
+        // Before any cache write below, so every stored copy carries the times.
+        await stampResultTimes(tournamentId, dateIso, data.groups)
       } catch (err) {
         // BAT (or another upstream) failed. Mark the key as failing so
         // subsequent requests within BAT_BACKOFF_MS skip BAT entirely. If we

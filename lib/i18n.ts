@@ -130,6 +130,7 @@ export type TKey =
   | 'yob'
   | 'bye'
   | 'walkover'
+  | 'resultPublishedAt'
   | 'retired'
   | 'live'
   | 'nowPlaying'
@@ -473,6 +474,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     yob: 'YOB',
     bye: 'Bye',
     walkover: 'Walkover',
+    resultPublishedAt: 'Score published at',
     retired: 'Ret.',
     live: 'LIVE',
     nowPlaying: 'Now Playing',
@@ -851,6 +853,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     yob: 'ปีเกิด',
     bye: 'บาย',
     walkover: 'ถอนตัว',
+    resultPublishedAt: 'ผลการแข่งขันประกาศเมื่อ',
     retired: 'รีไทร์',
     live: 'สด',
     nowPlaying: 'กำลังแข่ง',
