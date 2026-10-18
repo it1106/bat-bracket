@@ -47,6 +47,14 @@ describe('applyResultTimes', () => {
     expect(groups[0].matches[0].resultAt).toBeUndefined()
   })
 
+  it('still stamps a result after an empty read in between', () => {
+    const first = applyResultTimes(EMPTY_RESULT_TIMES, day(match('1', 'a', 'b', null)), 1_000)
+    const empty = applyResultTimes(first.state, [], 61_000)
+    const groups = day(match('1', 'a', 'b', 1))
+    applyResultTimes(empty.state, groups, 121_000)
+    expect(groups[0].matches[0].resultAt).toBe(121_000)
+  })
+
   it('skips slots still waiting on players', () => {
     const tbd = { ...match('1', 'a', 'b', null), team2: [] }
     const { state } = applyResultTimes(EMPTY_RESULT_TIMES, day(tbd), 1_000)

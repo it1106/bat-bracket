@@ -44,19 +44,26 @@ export function applyResultTimes(
   const wasOpen = now - prev.lastSeenAt <= MAX_GAP_MS ? new Set(prev.open) : new Set<string>()
   const at = { ...prev.at }
   const open: string[] = []
+  const seen = new Set<string>()
   let changed = false
   for (const group of groups) {
     for (const m of group.matches) {
       // A slot still waiting on its players has no stable identity yet.
       if (m.team1.length === 0 || m.team2.length === 0) continue
       const key = resultKey(m)
+      seen.add(key)
       if (m.winner === null) { open.push(key); continue }
       if (at[key] === undefined && wasOpen.has(key)) { at[key] = now; changed = true }
       if (at[key] !== undefined) m.resultAt = at[key]
     }
   }
-  const sameOpen = open.length === prev.open.length && open.every((k, i) => k === prev.open[i])
-  if (!sameOpen) changed = true
+  // A match missing from this read (an empty or partial BAT answer) stays
+  // open: only a read that shows it decided closes it.
+  for (const key of Array.from(wasOpen)) {
+    if (!seen.has(key)) open.push(key)
+  }
+  const prevOpen = new Set(prev.open)
+  if (open.length !== prevOpen.size || open.some((k) => !prevOpen.has(k))) changed = true
   return { state: { lastSeenAt: now, open, at }, changed }
 }
 
