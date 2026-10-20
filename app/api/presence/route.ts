@@ -4,6 +4,7 @@ import { ensurePresenceLoaded, schedulePresenceSave } from '@/lib/presence-persi
 import { observeHigh } from '@/lib/records'
 import { noteDaily } from '@/lib/daily-history'
 import { clientOf } from '@/lib/access-log'
+import { isBotUserAgent } from '@/lib/bot-ua'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +41,14 @@ export async function POST(request: Request) {
   }
   ensurePresenceLoaded()
   const now = Date.now()
+  // A crawler running our JavaScript gets the same answer as anyone else, but
+  // is not counted — see lib/bot-ua.ts.
+  if (isBotUserAgent(request.headers.get('user-agent'))) {
+    return NextResponse.json(
+      { online: presence.count(now), peak: presence.peak(now).count, users: presence.users(now) },
+      { headers: { 'Cache-Control': 'no-store' } },
+    )
+  }
   // The visitor's country as Cloudflare reports it, for /bmstats.
   const { country } = clientOf({
     'cf-connecting-ip': request.headers.get('cf-connecting-ip') ?? undefined,

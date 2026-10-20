@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { pageKind, recordPageLoad } from '@/lib/pageview-stats'
+import { isBotUserAgent } from '@/lib/bot-ua'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
   }
   const kind = pageKind(path)
   if (!kind) return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
-  recordPageLoad(kind)
+  // A crawler's load is answered but not counted — see lib/bot-ua.ts.
+  if (!isBotUserAgent(request.headers.get('user-agent'))) recordPageLoad(kind)
   return new NextResponse(null, { status: 204, headers: { 'Cache-Control': 'no-store' } })
 }
