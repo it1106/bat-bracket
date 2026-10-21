@@ -39,3 +39,23 @@ export function getMatchesFull(tournamentId: string): FullEntry | undefined {
 export function setMatchesFull(tournamentId: string, data: MatchesData, ts = Date.now()): void {
   matchesFullCache.set(cacheKey(tournamentId), { data, ts })
 }
+
+/** Whether a freshly-parsed full schedule may be cached and promoted to the
+ *  tournament's "last good" copy on disk.
+ *
+ *  A real matches page always carries day tabs, even on a day with nothing
+ *  scheduled, so zero days AND zero groups means the parse found no schedule
+ *  at all — in practice a degraded 200 from BAT (truncated or shell page)
+ *  rather than a tournament with no matches. Caching that reproduced the
+ *  เทศบาลนครนครสวรรค์ incident (2026-10-21): one such response was written to
+ *  `last-good/<tid>/full.json` as 40 bytes of `{"days":[],"groups":[]}` and
+ *  served to every visitor until a `fresh=1` forced a refetch.
+ *
+ *  This is the full-schedule twin of `shouldMemcacheDayResult` in day-cache.ts,
+ *  which has guarded the per-day path since the SAT NSDF case. An empty parse
+ *  is still *returned* to the caller — a tournament whose schedule genuinely
+ *  isn't published yet must render as empty — it just never becomes cached
+ *  truth, and never overwrites a schedule we already have. */
+export function shouldPersistFullResult(data: MatchesData): boolean {
+  return data.days.length > 0 || data.groups.length > 0
+}
