@@ -158,7 +158,7 @@ describe('LeaderboardsView ranking delta badge', () => {
 })
 
 describe('Next Ranking (beta) checkbox', () => {
-  const u15LB: Leaderboards = {
+  const projectedLB: Leaderboards = {
     version: 1, provider: 'bat', generatedAt: 'T', sourceVersion: 'v',
     boards: [
       { id: 'ranking-u15_ms', titleKey: 'U15 Boys singles', icon: '🏸', category: 'ranking',
@@ -167,35 +167,48 @@ describe('Next Ranking (beta) checkbox', () => {
         entries: [{ rank: 1, slug: 'w0', name: 'W0', primaryClub: 'C', value: 1000, display: '1,000 pts', previousRank: 1 }] },
       { id: 'ranking-u15_md', titleKey: 'U15 Boys doubles', icon: '🏸', category: 'ranking',
         entries: [{ rank: 1, slug: 'd0', name: 'D0', primaryClub: 'C', value: 1000, display: '1,000 pts', previousRank: 1 }] },
+      { id: 'ranking-u17_ms', titleKey: 'U17 Boys singles', icon: '🏸', category: 'ranking',
+        entries: [{ rank: 1, slug: 's0', name: 'S0', primaryClub: 'C', value: 1000, display: '1,000 pts', previousRank: 1 }] },
+      { id: 'ranking-u17_mxd', titleKey: 'U17 Mixed doubles', icon: '🏸', category: 'ranking',
+        entries: [{ rank: 1, slug: 'x0', name: 'X0', primaryClub: 'C', value: 1000, display: '1,000 pts', previousRank: 1 }] },
     ],
   }
   const renderWith = (ready: { ready: boolean; have: number; total: number }) =>
     render(
       <LanguageProvider>
         <LeaderboardsView
-          leaderboards={[u15LB]}
+          leaderboards={[projectedLB]}
           rankingPublishDates={{ bat: '23/6/2569' }}
           projectedReady={ready}
         />
       </LanguageProvider>,
     )
 
-  it('renders a checkbox on every projected U15 board, disabled with progress when not ready', () => {
-    renderWith({ ready: false, have: 12, total: 250 })
+  it('renders a checkbox on every projected board, disabled with progress when not ready', () => {
+    renderWith({ ready: false, have: 12, total: 500 })
     const cbs = screen.getAllByLabelText(/Next Ranking/i) as HTMLInputElement[]
-    expect(cbs).toHaveLength(3)            // boys + girls singles, boys doubles
+    // U15 boys + girls singles and boys doubles, plus U17 boys singles and mixed.
+    expect(cbs).toHaveLength(5)
     expect(cbs.every(cb => cb.disabled)).toBe(true)
-    expect(screen.getAllByText(/12\/250/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/12\/500/).length).toBeGreaterThan(0)
+  })
+
+  it('offers the projection on U17 boards too', () => {
+    renderWith({ ready: true, have: 500, total: 500 })
+    for (const title of ['U17 Boys singles', 'U17 Mixed doubles']) {
+      const card = screen.getByText(title).closest('.lb-card')!
+      expect(card.querySelector('input[type="checkbox"]')).not.toBeNull()
+    }
   })
 
   it('offers the projection on the doubles board too', () => {
-    renderWith({ ready: true, have: 250, total: 250 })
+    renderWith({ ready: true, have: 500, total: 500 })
     const doublesCard = screen.getByText('U15 Boys doubles').closest('.lb-card')!
     expect(doublesCard.querySelector('input[type="checkbox"]')).not.toBeNull()
   })
 
   it('is enabled when ready', () => {
-    renderWith({ ready: true, have: 250, total: 250 })
+    renderWith({ ready: true, have: 500, total: 500 })
     const cbs = screen.getAllByLabelText(/Next Ranking/i) as HTMLInputElement[]
     expect(cbs.every(cb => !cb.disabled)).toBe(true)
   })
@@ -211,14 +224,28 @@ describe('Next Ranking (beta) checkbox', () => {
     })
     ;(global as unknown as { fetch: jest.Mock }).fetch = fetchMock
 
-    renderWith({ ready: true, have: 250, total: 250 })
-    const cb = screen.getAllByLabelText(/Next Ranking/i)[0] as HTMLInputElement // boys singles
+    renderWith({ ready: true, have: 500, total: 500 })
+    const cb = screen.getAllByLabelText(/Next Ranking/i)[0] as HTMLInputElement // U15 boys singles
     await act(async () => { fireEvent.click(cb) })
 
     expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('event=U15_MS'))
     expect(screen.getByText('Player 29')).toBeTruthy()
     expect(screen.queryByText('Player 30')).toBeNull()
     expect(screen.queryByText('Player 49')).toBeNull()
+  })
+
+  it('fetches the U17 event code from a U17 board', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      json: async () => ({ ready: true, publishDate: '23/6/2569', event: 'U17_MS', entries: [] }),
+    })
+    ;(global as unknown as { fetch: jest.Mock }).fetch = fetchMock
+
+    renderWith({ ready: true, have: 500, total: 500 })
+    const card = screen.getByText('U17 Boys singles').closest('.lb-card')!
+    const cb = card.querySelector('input[type="checkbox"]') as HTMLInputElement
+    await act(async () => { fireEvent.click(cb) })
+
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('event=U17_MS'))
   })
 })
 

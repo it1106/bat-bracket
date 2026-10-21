@@ -25,7 +25,7 @@ function renderRankDelta(rank: number, previousRank: number | undefined): React.
   return <span className="lb-rk-delta-down">▼{rank - previousRank}</span>
 }
 
-// Next Ranking (beta) — U15 boards pilot. Mirrors the /api/ranking/projected
+// Next Ranking (beta) — U15 + U17 boards. Mirrors the /api/ranking/projected
 // payload (declared locally to keep this client component off server modules).
 interface ProjectedEntryRow {
   slug: string; name: string;
@@ -39,16 +39,21 @@ type ProjectedBoardResponse =
   | { ready: true; publishDate: string; event: string; entries: ProjectedEntryRow[] }
   | { ready: false; have: number; total: number };
 
-// The U15 ranking boards the projection covers, mapping each leaderboard board
-// id to its ranking event code (kept in sync with lib/ranking/u15-cohort's
-// `projected` flag). No entry here means no "Next Ranking (beta)" checkbox on
-// the board.
-const U15_PROJECTED_BOARDS: Record<string, string> = {
+// The ranking boards the projection covers, mapping each leaderboard board id
+// to its ranking event code (kept in sync with lib/ranking/u15-cohort's
+// PROJECTED_BOARDS / `projected` flag). No entry here means no "Next Ranking
+// (beta)" checkbox on the board.
+const PROJECTED_BOARDS: Record<string, string> = {
   'ranking-u15_ms': 'U15_MS',
   'ranking-u15_ws': 'U15_WS',
   'ranking-u15_md': 'U15_MD',
   'ranking-u15_wd': 'U15_WD',
   'ranking-u15_mxd': 'U15_MXD',
+  'ranking-u17_ms': 'U17_MS',
+  'ranking-u17_ws': 'U17_WS',
+  'ranking-u17_md': 'U17_MD',
+  'ranking-u17_wd': 'U17_WD',
+  'ranking-u17_mxd': 'U17_MXD',
 };
 // Project over the full 50-player cohort (so a player ranked >30 who surges can
 // still appear), but display only the top 30 projected — matching the official
@@ -71,7 +76,7 @@ interface Props {
   /** Provider tab to open on first render (from a `?provider=` deep link,
    *  e.g. the ranking-update alert). Ignored if that provider has no boards. */
   initialProvider?: ProviderTag;
-  /** SSR readiness of the BS U15 projection cohort (BAT only). Undefined when
+  /** SSR readiness of the projection cohort (BAT only). Undefined when
    *  not computed. */
   projectedReady?: { ready: boolean; have: number; total: number };
 }
@@ -128,7 +133,7 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
   // Per-board state (not global) so expanding "U23 Men's singles" doesn't
   // also blow open every other board.
   const [expandedBoards, setExpandedBoards] = useState<Set<string>>(new Set())
-  // Next Ranking (beta) — per U15 board. Each board toggles independently and
+  // Next Ranking (beta) — per board. Each board toggles independently and
   // fetches its own projection once; the shared SSR `projectedReady` flag gates
   // every board's checkbox enabled state. Keyed by leaderboard board id.
   const [projectedOn, setProjectedOn] = useState<Set<string>>(new Set())
@@ -143,7 +148,7 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
     if (on && !projectedData[boardId]) {
       setProjectedLoading((prev) => new Set(prev).add(boardId))
       try {
-        const r = await fetch(`/api/ranking/projected?provider=bat&event=${U15_PROJECTED_BOARDS[boardId]}`)
+        const r = await fetch(`/api/ranking/projected?provider=bat&event=${PROJECTED_BOARDS[boardId]}`)
         const j = (await r.json()) as ProjectedBoardResponse
         if (j.ready) setProjectedData((prev) => ({ ...prev, [boardId]: j }))
       } finally {
@@ -394,7 +399,7 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
                   </span>
                 )}
               </span>
-              {U15_PROJECTED_BOARDS[b.id] && activeProvider === 'bat' && projectedReady && (
+              {PROJECTED_BOARDS[b.id] && activeProvider === 'bat' && projectedReady && (
                 <label
                   className="lb-projected-toggle"
                   title="Projection of next week's publication. Top-50 cohort, top-30 shown — Δ is movement within this group. In-progress tournaments count at their next-round floor and refresh within ~15 min. Excludes tournaments BAT counts but we haven't ingested. Right after a publish the projection nearly matches official and diverges through the week."
@@ -416,7 +421,7 @@ export default function LeaderboardsView({ leaderboards, rankingPublishDates, ra
               {b.qualifier && <span className="lb-card-qual">{t(b.qualifier as TKey)}</span>}
             </h3>
             {(() => {
-              if (U15_PROJECTED_BOARDS[b.id] && projectedOn.has(b.id)) {
+              if (PROJECTED_BOARDS[b.id] && projectedOn.has(b.id)) {
                 const data = projectedData[b.id]
                 if (!data?.ready) {
                   return <div className="lb-empty" style={{ padding: '12px 0' }}>{projectedLoading.has(b.id) ? '…' : '—'}</div>
