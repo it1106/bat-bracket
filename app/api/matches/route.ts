@@ -10,7 +10,7 @@ import { providerFor } from '@/lib/providers/resolve'
 import { getTodayIso } from '@/lib/today'
 import { stampResultTimes } from '@/lib/result-times'
 import { persistMetaIfChanged } from '@/lib/tournament-meta'
-import { MATCHES_FULL_TTL_MS, getMatchesFull, setMatchesFull } from '@/lib/matches-full-memcache'
+import { MATCHES_FULL_TTL_MS, getMatchesFull, setMatchesFull, shouldPersistFullResult } from '@/lib/matches-full-memcache'
 import type { MatchScheduleGroup, MatchEntry, MatchesData, MatchPlayer } from '@/lib/types'
 
 export const maxDuration = 30
@@ -449,6 +449,20 @@ export async function GET(request: Request) {
         }
         throw err
       }
+      // A 200 that parses to no days AND no groups is a degraded response, not
+      // a schedule (see shouldPersistFullResult). Never let it become cached
+      // truth: serve whatever good copy we already hold, and if we hold none,
+      // return the empty result without recording it. Writing one as last-good
+      // is what blanked เทศบาลนครนครสวรรค์ for every visitor on 2026-10-21.
+      if (!shouldPersistFullResult(data)) {
+        const known = getMatchesFull(tournamentId)?.data ?? await readLastGoodFull(tournamentId)
+        if (known) {
+          console.log(`[matches] empty full parse ignored tournament=${tournamentId}`)
+          return NextResponse.json(known, { headers: staleHeaders() })
+        }
+        return NextResponse.json(data)
+      }
+
       // Sibling enrichment is skipped on the full-schedule path — it costs an
       // extra BAT round-trip per draw (2-5 s on cold tournaments) and the
       // client backfills siblings by immediately fetching the per-day endpoint
