@@ -5,7 +5,7 @@ import type { Discipline } from '@/lib/ranking/player-view'
 
 export const COHORT_SIZE = 50
 
-export interface U15Board {
+export interface ProjectedBoard {
   /** Ranking event code in ranking-bat.json, e.g. 'U15_MS'. */
   eventCode: string
   /** Leaderboard board id (page.tsx builds `ranking-<eventcode-lowercased>`). */
@@ -15,11 +15,11 @@ export interface U15Board {
    *  the filters. */
   discipline: Discipline
   /** `U<NN>` tier the board ranks. Since BAT split its list, a result credits
-   *  only its own age group's ranking — a cohort member's U17 or U13 results do
-   *  not feed their U15 total — so the tier has to filter rows, not just
+   *  only its own age group's ranking — a U15 cohort member's U17 or U13 results
+   *  do not feed their U15 total — so the tier has to filter rows, not just
    *  select the board. */
   ageTier: number
-  /** Whether the projection is served for this board. True for all five: the
+  /** Whether the projection is served for this board. True for all ten: the
    *  projection is pair-aware, so a doubles/mixed row scores the PAIRING BAT
    *  ranks rather than the player across every partner (which read ~8x high).
    *
@@ -28,18 +28,26 @@ export interface U15Board {
   projected: boolean
 }
 
-/** The five U15 ranking boards the Projected Ranking (beta) pilot covers. */
-export const U15_BOARDS: U15Board[] = [
+/** The ranking boards the Next Ranking (beta) projection covers: all five
+ *  disciplines of U15 and U17. The projection logic is tier-agnostic (it
+ *  filters rows on `ageTier`), so another tier is a matter of listing it here
+ *  plus the board-id map in components/LeaderboardsView.tsx. */
+export const PROJECTED_BOARDS: ProjectedBoard[] = [
   { eventCode: 'U15_MS',  boardId: 'ranking-u15_ms',  discipline: 'singles', ageTier: 15, projected: true },
   { eventCode: 'U15_WS',  boardId: 'ranking-u15_ws',  discipline: 'singles', ageTier: 15, projected: true },
   { eventCode: 'U15_MD',  boardId: 'ranking-u15_md',  discipline: 'doubles', ageTier: 15, projected: true },
   { eventCode: 'U15_WD',  boardId: 'ranking-u15_wd',  discipline: 'doubles', ageTier: 15, projected: true },
   { eventCode: 'U15_MXD', boardId: 'ranking-u15_mxd', discipline: 'mixed',   ageTier: 15, projected: true },
+  { eventCode: 'U17_MS',  boardId: 'ranking-u17_ms',  discipline: 'singles', ageTier: 17, projected: true },
+  { eventCode: 'U17_WS',  boardId: 'ranking-u17_ws',  discipline: 'singles', ageTier: 17, projected: true },
+  { eventCode: 'U17_MD',  boardId: 'ranking-u17_md',  discipline: 'doubles', ageTier: 17, projected: true },
+  { eventCode: 'U17_WD',  boardId: 'ranking-u17_wd',  discipline: 'doubles', ageTier: 17, projected: true },
+  { eventCode: 'U17_MXD', boardId: 'ranking-u17_mxd', discipline: 'mixed',   ageTier: 17, projected: true },
 ]
 
-/** Boards whose projection is served — see `U15Board.projected`. */
-export function u15BoardByEvent(eventCode: string): U15Board | undefined {
-  return U15_BOARDS.find(b => b.eventCode === eventCode && b.projected)
+/** Boards whose projection is served — see `ProjectedBoard.projected`. */
+export function projectedBoardByEvent(eventCode: string): ProjectedBoard | undefined {
+  return PROJECTED_BOARDS.find(b => b.eventCode === eventCode && b.projected)
 }
 
 export interface CohortPlayer {
@@ -55,9 +63,9 @@ export interface CohortPlayer {
   partnerName: string | null
 }
 
-/** Top-COHORT_SIZE players (by rank) of one U15 board from the current BAT
- *  ranking, plus the rankingId/publishDate needed to fetch their details. null
- *  when no ranking is cached or the event is missing. Players without a
+/** Top-COHORT_SIZE players (by rank) of one projected board from the current
+ *  BAT ranking, plus the rankingId/publishDate needed to fetch their details.
+ *  null when no ranking is cached or the event is missing. Players without a
  *  globalPlayerId are skipped (all have one in practice). */
 export async function loadCohort(eventCode: string): Promise<
   { rankingId: string; publishDate: string; players: CohortPlayer[] } | null
@@ -78,24 +86,26 @@ export async function loadCohort(eventCode: string): Promise<
       // `globalPlayerId` track its first entry, so the partner is the second.
       partnerName: e.players && e.players.length > 1 ? e.players[1].name : null,
     }))
-  // U15 lives in the Junior series, whose publication id differs from the
-  // snapshot's primary (Open) one — resolve it from the event itself.
+  // The junior tiers live in the Junior series, whose publication id differs
+  // from the snapshot's primary (Open) one — resolve it from the event itself.
   return { rankingId: rankingIdForEvent(ranking, ev), publishDate: ranking.publishDate, players }
 }
 
-/** The union of every U15 board's top-50 globalPlayerIds — the set the backfill
- *  fills. A single detail fetch covers all of a player's disciplines, so we pay
- *  per unique player, not per board. */
+/** The union of every projected board's top-50 globalPlayerIds — the set the
+ *  backfill fills. A single detail fetch covers all of a player's disciplines,
+ *  so we pay per unique player, not per board (and a player ranked in both U15
+ *  and U17 is fetched once). */
 export async function loadU15BackfillSet(): Promise<
   { rankingId: string; publishDate: string; gids: string[] } | null
 > {
   const ranking = await readRankingCache('bat')
   if (!ranking) return null
   const gids = new Set<string>()
-  // Every U15 board sits in the same (Junior) series, so one publication id
-  // covers the whole union — take it from the first board we find.
+  // Every projected board (U15 and U17 alike) sits in the same (Junior)
+  // series, so one publication id covers the whole union — take it from the
+  // first board we find.
   let rankingId: string | null = null
-  for (const board of U15_BOARDS) {
+  for (const board of PROJECTED_BOARDS) {
     const ev = ranking.events.find(e => e.eventCode === board.eventCode)
     if (!ev) continue
     rankingId ??= rankingIdForEvent(ranking, ev)
@@ -129,8 +139,9 @@ export async function isCohortPlayerReady(gid: string, publishDate: string): Pro
   return false
 }
 
-/** Readiness over the union of all U15 boards' players. One gate: because the
- *  backfill is combined, every board's checkbox enables together. */
+/** Readiness over the union of every projected board's players. One gate:
+ *  because the backfill is combined, every board's checkbox (U15 and U17)
+ *  enables together. */
 export async function cohortReadiness(): Promise<{ ready: boolean; have: number; total: number }> {
   const set = await loadU15BackfillSet()
   if (!set || set.gids.length === 0) return { ready: false, have: 0, total: set?.gids.length ?? 0 }

@@ -3682,7 +3682,7 @@ html.dark .pp-ev-chip.pp-active { background: rgba(52,211,153,0.16);
 .pp-ev-chip-pts { color: var(--muted); font-variant-numeric: tabular-nums; }
 .pp-ev-chip-pts-superseded { text-decoration: line-through; opacity: 0.6; }
 
-/* Projected Ranking (beta) — BS U15 pilot: toggle + dual official|projected table. */
+/* Projected Ranking (beta) — U15 + U17 boards: toggle + dual official|projected table. */
 .lb-projected-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: calc(12px * var(--text-scale)); font-weight: 400; margin-left: 8px; cursor: pointer; }
 .lb-projected-toggle input { cursor: pointer; }
 .lb-projected-toggle input:disabled { cursor: default; }

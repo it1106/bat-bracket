@@ -23,7 +23,7 @@ Android.
 - **Rankings** — BAT and BWF ranking boards, week-over-week movement, and a
   per-player ranking detail view showing which tournaments count, which are
   expiring, and when points drop out. A projected next-week ranking runs as a
-  pilot on the U15 boards.
+  beta on the U15 and U17 boards.
 - **Leaderboards** — career titles, wins, win percentage and court time.
 - **Tournament stats** — entry and country breakdowns, a country head-to-head
   matrix (also as a standalone full-page view), and an event breakdown table.

@@ -6,13 +6,14 @@ import {
   __setRankingPlayerCacheRootForTesting, writeRankingPlayerDetail,
 } from '@/lib/ranking/player-cache'
 import {
-  loadCohort, loadU15BackfillSet, cohortReadiness, u15BoardByEvent,
-  U15_BOARDS, COHORT_SIZE,
+  loadCohort, loadU15BackfillSet, cohortReadiness, projectedBoardByEvent,
+  PROJECTED_BOARDS, COHORT_SIZE,
 } from '@/lib/ranking/u15-cohort'
 
-// Build a ranking with all five U15 boards. Each board has 60 players; boards
-// share some globalPlayerIds (a player appears across disciplines) so the
-// backfill union is smaller than the naive sum.
+// Build a ranking with every projected board (all five disciplines of U15 and
+// U17). Each board has 60 players; boards share some globalPlayerIds (a player
+// appears across disciplines) so the backfill union is smaller than the naive
+// sum.
 function eventEntries(prefix: string) {
   return Array.from({ length: 60 }, (_, i) => ({
     rank: i + 1, name: `${prefix}P${i}`, slug: `${prefix.toLowerCase()}p${i}`, club: 'C',
@@ -21,7 +22,7 @@ function eventEntries(prefix: string) {
 }
 
 async function seedRanking(dir: string) {
-  const events = U15_BOARDS.map(b => ({
+  const events = PROJECTED_BOARDS.map(b => ({
     eventCode: b.eventCode, eventName: b.eventCode, entries: eventEntries(b.eventCode),
   }))
   await fs.writeFile(path.join(dir, 'ranking-bat.json'), JSON.stringify({
@@ -30,7 +31,7 @@ async function seedRanking(dir: string) {
   }))
 }
 
-describe('u15-cohort (all U15 boards)', () => {
+describe('u15-cohort (all projected boards)', () => {
   let dir: string
   beforeEach(async () => {
     dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cohort-'))
@@ -39,21 +40,31 @@ describe('u15-cohort (all U15 boards)', () => {
     await seedRanking(dir)
   })
 
-  it('maps every board id/discipline', () => {
-    expect(U15_BOARDS).toHaveLength(5)
-    expect(U15_BOARDS.find(b => b.eventCode === 'U15_MD'))
-      .toMatchObject({ boardId: 'ranking-u15_md', discipline: 'doubles' })
-    expect(U15_BOARDS.find(b => b.eventCode === 'U15_MXD')).toMatchObject({ discipline: 'mixed' })
+  it('maps every board id/discipline/tier', () => {
+    expect(PROJECTED_BOARDS).toHaveLength(10)
+    expect(PROJECTED_BOARDS.find(b => b.eventCode === 'U15_MD'))
+      .toMatchObject({ boardId: 'ranking-u15_md', discipline: 'doubles', ageTier: 15 })
+    expect(PROJECTED_BOARDS.find(b => b.eventCode === 'U15_MXD')).toMatchObject({ discipline: 'mixed' })
+    expect(PROJECTED_BOARDS.find(b => b.eventCode === 'U17_MD'))
+      .toMatchObject({ boardId: 'ranking-u17_md', discipline: 'doubles', ageTier: 17 })
+    expect(PROJECTED_BOARDS.find(b => b.eventCode === 'U17_MXD'))
+      .toMatchObject({ discipline: 'mixed', ageTier: 17 })
+    // Every U15 board has a U17 twin: the tiers are listed, not special-cased.
+    expect(PROJECTED_BOARDS.filter(b => b.ageTier === 17)).toHaveLength(5)
   })
 
   it('resolves every board whose projection is served, and nothing else', () => {
-    // The projection is pair-aware, so all five boards serve. u15BoardByEvent
-    // still filters on `projected`, which is how a board would be withheld
-    // again without losing the detail backfill's coverage of its players.
-    for (const code of ['U15_MS', 'U15_WS', 'U15_MD', 'U15_WD', 'U15_MXD']) {
-      expect(u15BoardByEvent(code)).toMatchObject({ eventCode: code, projected: true })
+    // The projection is pair-aware, so all ten boards serve.
+    // projectedBoardByEvent still filters on `projected`, which is how a board
+    // would be withheld again without losing the detail backfill's coverage of
+    // its players.
+    for (const code of [
+      'U15_MS', 'U15_WS', 'U15_MD', 'U15_WD', 'U15_MXD',
+      'U17_MS', 'U17_WS', 'U17_MD', 'U17_WD', 'U17_MXD',
+    ]) {
+      expect(projectedBoardByEvent(code)).toMatchObject({ eventCode: code, projected: true })
     }
-    expect(u15BoardByEvent('NOPE')).toBeUndefined()
+    expect(projectedBoardByEvent('NOPE')).toBeUndefined()
   })
 
   it('loads exactly the top COHORT_SIZE players of a named board', async () => {
@@ -64,14 +75,16 @@ describe('u15-cohort (all U15 boards)', () => {
 
   it('backfill set is the de-duped union of all boards top-50', async () => {
     const set = await loadU15BackfillSet()
-    // 5 boards x 50, all distinct gids here -> 250 unique.
-    expect(set!.gids).toHaveLength(250)
-    expect(new Set(set!.gids).size).toBe(250)
+    // 10 boards x 50, all distinct gids here -> 500 unique.
+    expect(set!.gids).toHaveLength(500)
+    expect(new Set(set!.gids).size).toBe(500)
+    // Both tiers are in the union — the backfill feeds U17 as well as U15.
+    expect(set!.gids).toContain('U17_MXDg0')
   })
 
   it('readiness is false until every union player is present, then true', async () => {
     const before = await cohortReadiness()
-    expect(before).toMatchObject({ ready: false, have: 0, total: 250 })
+    expect(before).toMatchObject({ ready: false, have: 0, total: 500 })
 
     const set = await loadU15BackfillSet()
     for (const gid of set!.gids) {
@@ -80,7 +93,7 @@ describe('u15-cohort (all U15 boards)', () => {
         scrapedAt: new Date().toISOString(), tournaments: [],
       })
     }
-    expect(await cohortReadiness()).toMatchObject({ ready: true, have: 250, total: 250 })
+    expect(await cohortReadiness()).toMatchObject({ ready: true, have: 500, total: 500 })
   })
 
   it('keys readiness on publishDate ONLY — a stale-but-current scrape stays ready', async () => {
@@ -93,7 +106,7 @@ describe('u15-cohort (all U15 boards)', () => {
         scrapedAt: '2000-01-01T00:00:00.000Z', tournaments: [],
       })
     }
-    expect(await cohortReadiness()).toMatchObject({ ready: true, have: 250, total: 250 })
+    expect(await cohortReadiness()).toMatchObject({ ready: true, have: 500, total: 500 })
   })
 
   it('readiness is false when cached details are for a previous publication', async () => {
@@ -104,6 +117,6 @@ describe('u15-cohort (all U15 boards)', () => {
         scrapedAt: new Date().toISOString(), tournaments: [],
       })
     }
-    expect(await cohortReadiness()).toMatchObject({ ready: false, have: 0, total: 250 })
+    expect(await cohortReadiness()).toMatchObject({ ready: false, have: 0, total: 500 })
   })
 })

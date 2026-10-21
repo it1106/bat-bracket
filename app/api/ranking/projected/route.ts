@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { loadCohort, cohortReadiness, u15BoardByEvent } from '@/lib/ranking/u15-cohort'
+import { loadCohort, cohortReadiness, projectedBoardByEvent } from '@/lib/ranking/u15-cohort'
 import { assembleProjectedBoard } from '@/lib/ranking/projection-board'
 import { buildProjectionContext } from '@/lib/ranking/projection-context'
 import { readRankingPlayerDetail } from '@/lib/ranking/player-cache'
@@ -11,12 +11,13 @@ export async function GET(req: Request) {
   const provider = url.searchParams.get('provider') ?? 'bat'
   if (provider !== 'bat') return NextResponse.json({ error: 'bat only' }, { status: 400 })
 
-  // Which U15 board to project. Defaults to Boys Singles for back-compat.
+  // Which board to project (U15 or U17). Defaults to U15 Boys Singles for
+  // back-compat.
   const eventCode = url.searchParams.get('event') ?? 'U15_MS'
-  const board = u15BoardByEvent(eventCode)
-  if (!board) return NextResponse.json({ error: 'unknown U15 board' }, { status: 400 })
+  const board = projectedBoardByEvent(eventCode)
+  if (!board) return NextResponse.json({ error: 'unknown projected board' }, { status: 400 })
 
-  // Readiness is shared across all U15 boards (one combined backfill).
+  // Readiness is shared across every projected board (one combined backfill).
   const readiness = await cohortReadiness()
   if (!readiness.ready) {
     return NextResponse.json({ ready: false, have: readiness.have, total: readiness.total })
