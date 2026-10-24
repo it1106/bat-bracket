@@ -67,6 +67,8 @@ describe('deviceRows', () => {
       kind: 'player',
       name: 'ปริญญา พุฒิไพรสกุล',
       playerId: '2588',
+      scope: 'tournament',
+      tier: 'full',
       tournamentId: TID,
       tournamentName: 'LI-NING Pathumthani Championship',
       addedAt: '2026-10-09T03:21:36.386Z',
@@ -78,6 +80,8 @@ describe('deviceRows', () => {
     expect(devices[0].follows).toEqual([{
       kind: 'club',
       name: 'UNITY&RAWIN',
+      scope: 'tournament',
+      tier: 'result',
       tournamentId: TID,
       tournamentName: 'LI-NING Pathumthani Championship',
       addedAt: '2026-10-09T03:24:06.219Z',
@@ -127,5 +131,28 @@ describe('deviceRows', () => {
     expect(json).not.toContain('auth-secret')
     expect(Object.keys(devices[0])).not.toContain('endpoint')
     expect(Object.keys(devices[0])).not.toContain('keys')
+  })
+})
+
+describe('deviceRows — scope and tier', () => {
+  it('says a per-tournament follow is one, and that it gets every alert', () => {
+    const { devices } = deviceRows([record({ follows: [player()] })], names)
+    expect(devices[0].follows[0]).toMatchObject({ scope: 'tournament', tier: 'full', tournamentName: 'LI-NING Pathumthani Championship' })
+  })
+
+  it('shows a player followed everywhere with no tournament of their own', () => {
+    const follow = player({ tournamentId: '', playerId: '', slug: 'anan_dee', playerName: 'Anan Dee' })
+    const { devices } = deviceRows([record({ follows: [follow] })], names)
+    expect(devices[0].follows[0]).toMatchObject({ scope: 'everywhere', name: 'Anan Dee', tournamentId: '', tournamentName: '' })
+  })
+
+  it('shows a results-only follow as one', () => {
+    const { devices } = deviceRows([record({ follows: [player({ tier: 'result' })] })], names)
+    expect(devices[0].follows[0].tier).toBe('result')
+  })
+
+  it('shows a club follow as results-only, which is all a club has ever brought', () => {
+    const { devices } = deviceRows([record({ follows: [club()] })], names)
+    expect(devices[0].follows[0].tier).toBe('result')
   })
 })

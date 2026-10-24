@@ -1,4 +1,5 @@
-import type { FollowTarget, PushKeys } from './types'
+import { followSlug } from './follows'
+import type { AlertTier, FollowTarget, PushKeys } from './types'
 
 // The server sends a request to whatever address a subscription names, so
 // only the push services browsers actually use are accepted.
@@ -42,20 +43,48 @@ export function parseSubscription(value: unknown): { endpoint: string; keys: Pus
 
 const tidy = (s: string) => s.replace(/\s+/g, ' ').trim()
 
+/** The tier a request asks for: `'result'` when it says so, undefined for
+ *  the everything a request with no tier means, and null when it is neither,
+ *  which is a request to turn away rather than to read as everything. */
+function readTier(value: unknown): AlertTier | undefined | null {
+  if (value === undefined) return undefined
+  if (value === 'full') return undefined
+  return value === 'result' ? 'result' : null
+}
+
 /** A follow or unfollow target, with the tournament id upper-cased and names
- *  tidied. Following a player needs the name to show in the list. */
+ *  tidied. Following a player needs the name to show in the list.
+ *
+ *  A request that names no scope or tier is one from before either existed —
+ *  a page a service worker is still serving from its cache, say — and means
+ *  what it meant then: this tournament, every alert. */
 export function parseTarget(value: unknown, forFollow: boolean): FollowTarget | null {
   if (typeof value !== 'object' || value === null) return null
   const v = value as Record<string, unknown>
+  if (v.kind === 'player' && v.scope === 'everywhere') {
+    // No tournament and no local id, either of which would only say where
+    // this follow was made. The name is the whole of it, both ways: there is
+    // nothing else to unfollow it by.
+    const tier = readTier(v.tier)
+    if (tier === null) return null
+    if (typeof v.playerName !== 'string' || v.playerName.length > 120) return null
+    const playerName = tidy(v.playerName)
+    const slug = followSlug(playerName)
+    if (!playerName || !slug) return null
+    return { kind: 'player', scope: 'everywhere', slug, playerName, ...(tier && { tier }) }
+  }
   if (!isGuid(v.tournamentId)) return null
   const tournamentId = v.tournamentId.toUpperCase()
   if (v.kind === 'player') {
+    const tier = readTier(v.tier)
+    if (tier === null) return null
+    const withTier = <T extends object>(t: T) => ({ ...t, ...(tier && { tier }) })
     if (typeof v.playerId !== 'string' || !/^\d{1,12}$/.test(v.playerId)) return null
     if (typeof v.playerName === 'string' && v.playerName.length <= 120 && tidy(v.playerName)) {
-      return { kind: 'player', tournamentId, playerId: v.playerId, playerName: tidy(v.playerName) }
+      return withTier({ kind: 'player' as const, tournamentId, playerId: v.playerId, playerName: tidy(v.playerName) })
     }
     if (v.playerName !== undefined || forFollow) return null
-    return { kind: 'player', tournamentId, playerId: v.playerId }
+    return withTier({ kind: 'player' as const, tournamentId, playerId: v.playerId })
   }
   if (v.kind === 'club') {
     if (typeof v.clubName !== 'string' || v.clubName.length > 120 || !tidy(v.clubName)) return null

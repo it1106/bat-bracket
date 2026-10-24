@@ -289,3 +289,24 @@ describe('POST /api/push/state — site news', () => {
     expect(setSiteMock).toHaveBeenCalled()
   })
 })
+
+describe('POST /api/push/follow — following a player in every tournament', () => {
+  const EVERYWHERE = { kind: 'player', scope: 'everywhere', playerName: 'Anan Dee' }
+
+  it('is accepted although it names no tournament', async () => {
+    const res = await follow(post({ subscription: SUB, lang: 'en', target: EVERYWHERE }))
+    expect(res.status).toBe(200)
+    expect(add.mock.calls[0][2]).toEqual({ kind: 'player', scope: 'everywhere', slug: 'anan_dee', playerName: 'Anan Dee' })
+  })
+
+  it('asks the list of tournaments nothing: there is none to check', async () => {
+    await follow(post({ subscription: SUB, lang: 'en', target: EVERYWHERE }))
+    expect(listed).not.toHaveBeenCalled()
+  })
+
+  it('is unfollowed by name, with no tournament either', async () => {
+    const res = await unfollow(post({ endpoint: ENDPOINT, target: EVERYWHERE }))
+    expect(res.status).toBe(200)
+    expect(remove.mock.calls[0][1]).toMatchObject({ scope: 'everywhere', slug: 'anan_dee' })
+  })
+})

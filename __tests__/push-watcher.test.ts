@@ -35,6 +35,7 @@ function world(over: Partial<WatcherDeps> & { records?: PushSubscriptionRecord[]
     isBatDown: () => false,
     listRecords: async () => over.records ?? [],
     isWatchable: () => true,
+    watchableTournaments: () => [],
     fetchDay: async (tid) => { fetched.push(tid); return (over.days ?? { [TID]: QUEUE() })[tid] ?? null },
     clubOf: async () => () => undefined,
     hasSent: (k) => sent.has(k),
@@ -405,5 +406,43 @@ describe('runWatcherTick records what it sent', () => {
     expect(w.noted).toHaveLength(1)
     expect(w.noted[0].stage).toBe('result')
     expect(w.noted[0].via).toBe('UNITY&RAWIN')
+  })
+})
+
+describe('runWatcherTick — a follow that names no tournament', () => {
+  const everywhere = (playerName: string): PushFollow =>
+    ({ kind: 'player', tournamentId: '', playerId: '', slug: playerName.toLowerCase(), playerName, addedAt: '' })
+
+  it('asks about every tournament worth watching, not only the ones named', async () => {
+    const w = world({
+      records: [device('a', [everywhere('P1')])],
+      days: { [TID]: null, [TID2]: QUEUE() },
+      watchableTournaments: () => [TID, TID2],
+    })
+    expect(await runWatcherTick(w.deps)).toEqual({ sent: 1, failed: 0, gone: 0 })
+    expect(w.fetched.sort()).toEqual([TID, TID2])
+    expect(w.pushes[0].payload.title).toBe('Now Playing')
+  })
+
+  it('asks about nothing extra when every follow names its tournament', async () => {
+    const w = world({ records: [device('a', [follow('1')])], watchableTournaments: () => [TID, TID2] })
+    await runWatcherTick(w.deps)
+    expect(w.fetched).toEqual([TID])
+  })
+})
+
+describe('finishedTournaments — a follow that names no tournament', () => {
+  it('is not asked about: there is no tournament of its own to end', async () => {
+    const asked: string[] = []
+    const over = await finishedTournaments({
+      todayIso: () => DAY,
+      isBatDown: () => false,
+      listRecords: async () => [device('a', [{ kind: 'player', tournamentId: '', playerId: '', slug: 'p1', playerName: 'P1', addedAt: '' }])],
+      isListed: () => true,
+      isDone: () => false,
+      fetchDays: async (id: string) => { asked.push(id); return null },
+    })
+    expect(asked).toEqual([])
+    expect(over).toEqual([])
   })
 })

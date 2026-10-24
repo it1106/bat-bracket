@@ -8,14 +8,21 @@ import type { FollowTarget, PushFollow } from './types'
 
 export const FAKE_SUBSCRIPTION = { endpoint: 'https://fcm.googleapis.com/fcm/send/x', keys: { p256dh: 'p', auth: 'a' } }
 
-const asFollow = (t: FollowTarget): PushFollow =>
-  t.kind === 'player'
-    ? { kind: 'player', tournamentId: t.tournamentId, playerId: t.playerId, playerName: t.playerName ?? '', addedAt: '' }
-    : { kind: 'club', tournamentId: t.tournamentId, clubName: t.clubName, addedAt: '' }
+const asFollow = (t: FollowTarget): PushFollow => {
+  if (t.kind === 'club') return { kind: 'club', tournamentId: t.tournamentId, clubName: t.clubName, addedAt: '' }
+  const tier = t.tier === 'result' ? { tier: 'result' as const } : {}
+  return t.scope === 'everywhere'
+    ? { kind: 'player', tournamentId: '', playerId: '', slug: t.slug, playerName: t.playerName, addedAt: '', ...tier }
+    : { kind: 'player', tournamentId: t.tournamentId, playerId: t.playerId, playerName: t.playerName ?? '', addedAt: '', ...tier }
+}
 
-const same = (f: PushFollow, t: FollowTarget) =>
-  f.kind === t.kind && f.tournamentId === t.tournamentId &&
-  (f.kind === 'player' && t.kind === 'player' ? f.playerId === t.playerId : f.kind === 'club' && t.kind === 'club' ? f.clubName === t.clubName : false)
+const same = (f: PushFollow, t: FollowTarget) => {
+  if (f.kind !== t.kind) return false
+  if (t.kind === 'player' && t.scope === 'everywhere') return f.kind === 'player' && !f.tournamentId && f.slug === t.slug
+  if (f.kind === 'player' && !f.tournamentId) return false
+  if (f.tournamentId !== t.tournamentId) return false
+  return f.kind === 'player' && t.kind === 'player' ? f.playerId === t.playerId : f.kind === 'club' && t.kind === 'club' ? f.clubName === t.clubName : false
+}
 
 export function fakeClient(over: Partial<PushClient> = {}): PushClient & { calls: string[] } {
   const calls: string[] = []
@@ -29,7 +36,14 @@ export function fakeClient(over: Partial<PushClient> = {}): PushClient & { calls
     publicKey: async () => 'PUB',
     currentSubscription: async () => (subscribed ? FAKE_SUBSCRIPTION : null),
     subscribe: async () => { calls.push('subscribe'); subscribed = true; return FAKE_SUBSCRIPTION },
-    follow: async (_s, lang, target) => { calls.push(`follow:${lang}`); server = [...server, asFollow(target)]; return { follows: server } },
+    follow: async (_s, lang, target) => {
+      calls.push(`follow:${lang}`)
+      // Following again changes the follow that is there, as the store does.
+      server = server.some((f) => same(f, target))
+        ? server.map((f) => (same(f, target) ? asFollow(target) : f))
+        : [...server, asFollow(target)]
+      return { follows: server }
+    },
     unfollow: async (_e, target) => {
       calls.push('unfollow')
       server = server.filter((f) => !same(f, target))

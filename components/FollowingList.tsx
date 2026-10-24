@@ -3,6 +3,7 @@
 import { useLanguage } from '@/lib/LanguageContext'
 import { usePushFollows } from '@/lib/push/PushFollowsContext'
 import { track } from '@/lib/analytics'
+import { isEverywhere, tierOf } from '@/lib/push/follows'
 import type { PushFollow } from '@/lib/push/types'
 
 /** What this device follows, clubs first, each with a way to stop. Renders
@@ -19,11 +20,22 @@ export default function FollowingList({ tournamentNames }: { tournamentNames: Re
     if (f.kind === 'club') {
       await push.unfollow({ kind: 'club', tournamentId: f.tournamentId, clubName: f.clubName })
       track('match_alert_unfollowed', { tournament_id: f.tournamentId, kind: 'club', club: f.clubName })
+    } else if (isEverywhere(f)) {
+      // The name key is the whole of such a follow; there is nothing else to
+      // name it by, here or on the server.
+      await push.unfollow({ kind: 'player', scope: 'everywhere', slug: f.slug ?? '', playerName: f.playerName })
+      track('match_alert_unfollowed', { tournament_id: '', kind: 'player', player_id: '' })
     } else {
       await push.unfollow({ kind: 'player', tournamentId: f.tournamentId, playerId: f.playerId })
       track('match_alert_unfollowed', { tournament_id: f.tournamentId, kind: 'player', player_id: f.playerId })
     }
   }
+
+  // Where a follow reaches, and how much it brings. A follow in one
+  // tournament for every alert is what every follow once was, and says
+  // neither: only what is unusual about a follow is worth the line.
+  const where = (f: PushFollow) => (isEverywhere(f) ? t('followingEverywhere') : tournamentNames[f.tournamentId] ?? '')
+  const howMuch = (f: PushFollow) => (f.kind === 'player' && tierOf(f) === 'result' ? t('followTierResult') : '')
 
   return (
     <div className="following">
@@ -33,10 +45,12 @@ export default function FollowingList({ tournamentNames }: { tournamentNames: Re
       ) : (
         <ul className="following-list">
           {sorted.map((f) => (
-            <li className="following-row" key={`${f.kind}:${f.tournamentId}:${f.kind === 'club' ? f.clubName : f.playerId}`}>
+            <li className="following-row" key={`${f.kind}:${f.tournamentId}:${f.kind === 'club' ? f.clubName : f.slug ?? f.playerId}`}>
               <span>
                 <span>{nameOf(f)}</span>
-                {tournamentNames[f.tournamentId] && <span className="following-where"> · {tournamentNames[f.tournamentId]}</span>}
+                {[where(f), howMuch(f)].filter(Boolean).map((note) => (
+                  <span className="following-where" key={note}> · {note}</span>
+                ))}
               </span>
               <button type="button" className="follow-copy" aria-label={`${t('unfollow')} ${nameOf(f)}`} onClick={() => void stop(f)}>
                 {t('unfollow')}

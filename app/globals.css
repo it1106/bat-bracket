@@ -4192,6 +4192,38 @@ html.dark .follow-beta {
 
 .follow-btn--on:hover { background: var(--brand); }
 
+/* Where the alerts come from, and how many: four small chips under the
+   bell, two to a pair, with a gap between the pairs so they read as two
+   questions rather than one row of four. */
+.follow-opts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.follow-opts-gap { width: 8px; }
+
+.follow-chip {
+  font-size: calc(11px * var(--text-scale));
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.follow-chip:hover { background: var(--border); }
+.follow-chip:disabled { opacity: 0.6; cursor: default; }
+
+.follow-chip--on {
+  color: var(--brand-fg);
+  border-color: var(--brand);
+}
+
 .follow-note {
   font-size: calc(12px * var(--text-scale));
   color: var(--muted);

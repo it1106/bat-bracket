@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Lang } from '@/lib/i18n'
-import type { PushSubscriptionRecord } from './types'
+import { isEverywhere, tierOf } from './follows'
+import type { AlertTier, PushSubscriptionRecord } from './types'
 import type { DeviceOs } from './user-agent'
 
 // What the status page shows about the devices following a match alert. The
@@ -17,6 +18,11 @@ export interface DeviceFollowRow {
   name: string
   /** Players only: BAT's tournament-local id. */
   playerId?: string
+  /** `everywhere` is a player followed wherever they play, which names no
+   *  tournament; both tournament fields are then empty. */
+  scope: 'tournament' | 'everywhere'
+  /** What this follow is told about: everything, or the result alone. */
+  tier: AlertTier
   tournamentId: string
   /** The tournament's name, or the start of its id when it is not listed. */
   tournamentName: string
@@ -55,11 +61,16 @@ function followRow(
   follow: PushSubscriptionRecord['follows'][number],
   tournamentName: (id: string) => string | null,
 ): DeviceFollowRow {
+  const everywhere = isEverywhere(follow)
   const row = {
     kind: follow.kind,
     name: follow.kind === 'player' ? follow.playerName : follow.clubName,
+    scope: everywhere ? ('everywhere' as const) : ('tournament' as const),
+    tier: tierOf(follow),
     tournamentId: follow.tournamentId,
-    tournamentName: tournamentName(follow.tournamentId) ?? follow.tournamentId.slice(0, 8),
+    // A follow that names no tournament has no name to show for one either:
+    // the page says where it reaches from the scope instead.
+    tournamentName: everywhere ? '' : tournamentName(follow.tournamentId) ?? follow.tournamentId.slice(0, 8),
     addedAt: follow.addedAt,
   }
   return follow.kind === 'player' ? { ...row, playerId: follow.playerId } : row

@@ -2,7 +2,8 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import type { Lang } from '@/lib/i18n'
 import { normalizeClub } from './alerts'
-import type { FollowTarget, PushFollow, PushKeys, PushSubscriptionRecord } from './types'
+import type { AlertTier, FollowTarget, PlayerFollow, PushFollow, PushKeys, PushSubscriptionRecord } from './types'
+import { isEverywhere } from './follows'
 import type { DeviceOs } from './user-agent'
 
 // The devices that asked for match alerts and what each one follows. One JSON
@@ -121,10 +122,26 @@ function change<T>(fn: (map: Map<string, PushSubscriptionRecord>) => { value: T;
 }
 
 function sameTarget(f: PushFollow, t: FollowTarget): boolean {
-  if (f.kind !== t.kind || f.tournamentId !== t.tournamentId.toUpperCase()) return false
+  if (f.kind !== t.kind) return false
+  // A player followed everywhere is matched on the name key alone: the follow
+  // names no tournament, and the local id it was made from means nothing
+  // outside the one it came from.
+  if (t.kind === 'player' && t.scope === 'everywhere') return isEverywhere(f) && (f as PlayerFollow).slug === t.slug
+  if (isEverywhere(f)) return false
+  if (f.tournamentId !== t.tournamentId.toUpperCase()) return false
   if (f.kind === 'player' && t.kind === 'player') return f.playerId === t.playerId
   if (f.kind === 'club' && t.kind === 'club') return normalizeClub(f.clubName) === normalizeClub(t.clubName)
   return false
+}
+
+/** Writes the tier a target asks for onto a follow. `full` is what a follow
+ *  with no tier already is, so it is stored as the absence of one: the file
+ *  stays the size it was, and a record written before tiers reads exactly as
+ *  one that asked for everything. */
+function setTier(follow: PushFollow, tier: AlertTier | undefined): void {
+  if (follow.kind !== 'player') return
+  if (tier === 'result') follow.tier = 'result'
+  else delete follow.tier
 }
 
 export async function listRecords(): Promise<PushSubscriptionRecord[]> {
@@ -148,16 +165,25 @@ export async function addFollow(
     if (!existing && map.size >= MAX_DEVICES) return { value: { ok: false, reason: 'device-limit' }, dirty: false }
     const rec: PushSubscriptionRecord = existing ?? { endpoint: sub.endpoint, keys: sub.keys, lang, follows: [], createdAt: at, lastSeenAt: at }
 
-    if (!rec.follows.some((f) => sameTarget(f, target))) {
+    const already = rec.follows.find((f) => sameTarget(f, target))
+    if (already) {
+      // Following again is how the bell changes a follow's tier: the follow
+      // stays the one it was, with the date it was first made.
+      if (target.kind === 'player') setTier(already, target.tier)
+    } else {
       const count = rec.follows.filter((f) => f.kind === target.kind).length
       if (target.kind === 'player' && count >= MAX_PLAYER_FOLLOWS) return { value: { ok: false, reason: 'player-limit' }, dirty: false }
       if (target.kind === 'club' && count >= MAX_CLUB_FOLLOWS) return { value: { ok: false, reason: 'club-limit' }, dirty: false }
-      const tournamentId = target.tournamentId.toUpperCase()
-      rec.follows.push(
-        target.kind === 'player'
-          ? { kind: 'player', tournamentId, playerId: target.playerId, playerName: target.playerName ?? '', addedAt: at }
-          : { kind: 'club', tournamentId, clubName: target.clubName.replace(/\s+/g, ' ').trim(), addedAt: at },
-      )
+      const added: PushFollow =
+        target.kind === 'club'
+          ? { kind: 'club', tournamentId: target.tournamentId.toUpperCase(), clubName: target.clubName.replace(/\s+/g, ' ').trim(), addedAt: at }
+          : target.scope === 'everywhere'
+            // No tournament and no local id: what this follow is matched on
+            // is the name key, in whichever tournament the player turns up.
+            ? { kind: 'player', tournamentId: '', playerId: '', slug: target.slug, playerName: target.playerName, addedAt: at }
+            : { kind: 'player', tournamentId: target.tournamentId.toUpperCase(), playerId: target.playerId, playerName: target.playerName ?? '', addedAt: at }
+      if (target.kind === 'player') setTier(added, target.tier)
+      rec.follows.push(added)
     }
     rec.keys = sub.keys
     rec.lang = lang

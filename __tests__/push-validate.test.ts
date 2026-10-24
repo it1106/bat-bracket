@@ -82,6 +82,29 @@ describe('parseTarget', () => {
     { kind: 'club', tournamentId: TID, clubName: '   ' },
     { kind: 'club', tournamentId: TID, clubName: 'C'.repeat(121) },
   ])('rejects %p', (v) => { expect(parseTarget(v, true)).toBeNull() })
+  it('reads a player followed in every tournament, keyed by the name', () => {
+    expect(parseTarget({ kind: 'player', scope: 'everywhere', playerName: ' Anan  Dee ' }, true))
+      .toEqual({ kind: 'player', scope: 'everywhere', slug: 'anan_dee', playerName: 'Anan Dee' })
+  })
+  it('needs the name to unfollow one too: the name is all it is keyed by', () => {
+    expect(parseTarget({ kind: 'player', scope: 'everywhere' }, false)).toBeNull()
+  })
+  it('ignores the tournament such a follow was made from', () => {
+    const t = parseTarget({ kind: 'player', scope: 'everywhere', tournamentId: TID, playerId: '42', playerName: 'Anan Dee' }, true)
+    expect(t).not.toHaveProperty('tournamentId')
+    expect(t).not.toHaveProperty('playerId')
+  })
+  it('reads a results-only tier, and carries none for the everything a request without one asks for', () => {
+    expect(parseTarget({ kind: 'player', tournamentId: TID, playerId: '42', playerName: 'A', tier: 'result' }, true))
+      .toMatchObject({ tier: 'result' })
+    expect(parseTarget({ kind: 'player', tournamentId: TID, playerId: '42', playerName: 'A' }, true))
+      .not.toHaveProperty('tier')
+    expect(parseTarget({ kind: 'player', tournamentId: TID, playerId: '42', playerName: 'A', tier: 'loud' }, true)).toBeNull()
+  })
+  it('takes no tier on a club: a club is followed for its results and never brought more', () => {
+    expect(parseTarget({ kind: 'club', tournamentId: TID, clubName: 'Red Club', tier: 'full' }, true))
+      .toEqual({ kind: 'club', tournamentId: TID.toUpperCase(), clubName: 'Red Club' })
+  })
   it('knows a GUID', () => {
     expect(isGuid(TID)).toBe(true)
     expect(isGuid(TID.toUpperCase())).toBe(true)

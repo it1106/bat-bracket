@@ -59,3 +59,33 @@ describe('FollowingList', () => {
     expect(rows()[0]).toContain('Red Club')
   })
 })
+
+describe('FollowingList — a player followed everywhere', () => {
+  const seededEverywhere = async () => {
+    const client = fakeClient()
+    await client.subscribe('PUB')
+    await client.follow(SUB, 'en', { kind: 'player', scope: 'everywhere', slug: 'anan_dee', playerName: 'Anan Dee' })
+    return client
+  }
+
+  it('says where it reaches instead of naming a tournament', async () => {
+    mount(await seededEverywhere())
+    await waitFor(() => expect(rows()).toEqual(['Anan Dee · Every tournamentUnfollow']))
+  })
+
+  it('is unfollowed by the name it is keyed by', async () => {
+    const client = await seededEverywhere()
+    mount(client)
+    await waitFor(() => expect(rows()).toHaveLength(1))
+    fireEvent.click(screen.getByText('Unfollow'))
+    await waitFor(() => expect(rows()).toEqual([]))
+  })
+
+  it('says a results-only follow is one', async () => {
+    const client = fakeClient()
+    await client.subscribe('PUB')
+    await client.follow(SUB, 'en', { kind: 'player', tournamentId: TID, playerId: '1', playerName: 'Anan Dee', tier: 'result' })
+    mount(client)
+    await waitFor(() => expect(rows()).toEqual(['Anan Dee · The Open 2026 · Results onlyUnfollow']))
+  })
+})

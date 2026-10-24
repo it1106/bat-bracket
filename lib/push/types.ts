@@ -2,15 +2,29 @@ import type { MatchEntry, MatchPlayer } from '@/lib/types'
 import type { Lang } from '@/lib/i18n'
 import type { DeviceOs } from './user-agent'
 
+/** Which alerts a follow brings. `full` is the match coming up, going on
+ *  court and its result; `result` is the published score alone. A follow
+ *  stored before tiers existed has none, and is read as `full`. */
+export type AlertTier = 'full' | 'result'
+
 export interface PlayerFollow {
   kind: 'player'
-  /** Upper-case GUID. */
+  /** Upper-case GUID, or '' for a player followed in every tournament.
+   *  Empty rather than absent so that every reader which upper-cases it goes
+   *  on working — including the one in a deploy rolled back to before this. */
   tournamentId: string
-  /** BAT's tournament-local player id. */
+  /** BAT's tournament-local player id, which means nothing outside the
+   *  tournament it came from: '' on a follow that names no tournament. */
   playerId: string
+  /** The site's own cross-tournament player key, `nameToSlug(playerName)` —
+   *  the same one `/player/bat/<slug>` and the player index use. Only on a
+   *  follow that names no tournament; it is what such a follow matches on. */
+  slug?: string
   /** As shown when followed, for the list. */
   playerName: string
   addedAt: string
+  /** Absent means `full`, which is what every follow was before tiers. */
+  tier?: AlertTier
 }
 
 export interface ClubFollow {
@@ -24,9 +38,12 @@ export interface ClubFollow {
 
 export type PushFollow = PlayerFollow | ClubFollow
 
-/** What a follow or unfollow request names. */
+/** What a follow or unfollow request names. A player is named either in one
+ *  tournament, by BAT's local id, or in every tournament, by the name key.
+ *  A club is always one tournament's: the name is only BAT's within it. */
 export type FollowTarget =
-  | { kind: 'player'; tournamentId: string; playerId: string; playerName?: string }
+  | { kind: 'player'; scope?: 'tournament'; tournamentId: string; playerId: string; playerName?: string; tier?: AlertTier }
+  | { kind: 'player'; scope: 'everywhere'; slug: string; playerName: string; tier?: AlertTier }
   | { kind: 'club'; tournamentId: string; clubName: string }
 
 export interface PushKeys {

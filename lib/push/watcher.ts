@@ -3,6 +3,7 @@ import { dueAlerts, dueResults } from './alerts'
 import { alertPayload, digestPayload, matchTag, resultPayload } from './text'
 import type { Sender, SendResult } from './sender'
 import { endpointHash } from './devices'
+import { isEverywhere } from './follows'
 import type { RecentSend } from './recent-sends'
 import type { DueAlert, PushSubscriptionRecord } from './types'
 import type { MatchPlayer } from '@/lib/types'
@@ -18,6 +19,9 @@ export interface WatcherDeps {
   listRecords: () => Promise<PushSubscriptionRecord[]>
   /** Whether a tournament is worth asking about: listed, BAT, not finished. */
   isWatchable: (tournamentId: string) => boolean
+  /** Every tournament worth asking about. Only read when some device follows
+   *  a player wherever they play, which names no tournament to ask about. */
+  watchableTournaments: () => string[]
   /** Today's schedule for a tournament, or null when it has none today. */
   fetchDay: (tournamentId: string, dateIso: string) => Promise<MatchScheduleGroup[] | null>
   clubOf: (tournamentId: string) => Promise<(playerId: string) => string | undefined>
@@ -84,7 +88,13 @@ export async function runWatcherTick(deps: WatcherDeps): Promise<{ sent: number;
   const dateIso = deps.todayIso()
   const minuteKey = new Date(deps.now()).toISOString().slice(0, 16)
   // A follow left on a finished tournament must not cost a request a minute.
-  const tournaments = Array.from(new Set(records.flatMap((r) => r.follows.map((f) => f.tournamentId.toUpperCase()))))
+  // A follow that names no tournament has to be looked for in all of them.
+  // That costs no more upstream than it looks: the schedules of the
+  // tournaments playing today are the ones the app's own warmer keeps hot,
+  // and one with no day today is answered from the cached full schedule.
+  const everywhere = records.some((r) => r.follows.some(isEverywhere))
+  const named = records.flatMap((r) => r.follows.map((f) => f.tournamentId.toUpperCase()).filter(Boolean))
+  const tournaments = Array.from(new Set(everywhere ? [...named, ...deps.watchableTournaments()] : named))
     .filter((id) => deps.isWatchable(id))
   const goneEndpoints = new Set<string>()
 
@@ -221,7 +231,8 @@ export interface FinishedDeps {
 export async function finishedTournaments(deps: FinishedDeps): Promise<string[]> {
   if (deps.isBatDown()) return []
   const records = await deps.listRecords()
-  const followed = Array.from(new Set(records.flatMap((r) => r.follows.map((f) => f.tournamentId.toUpperCase()))))
+  // A follow with no tournament of its own cannot have one that is over.
+  const followed = Array.from(new Set(records.flatMap((r) => r.follows.map((f) => f.tournamentId.toUpperCase()).filter(Boolean))))
   const yesterday = new Date(Date.parse(`${deps.todayIso()}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
   const out: string[] = []
   for (const id of followed) {
@@ -267,6 +278,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     isBatDown: () => !!batDownSince(),
     listRecords: store.listRecords,
     isWatchable: (id) => { const t = listed.get(id); return !!t && !t.done },
+    watchableTournaments: () => Array.from(listed).flatMap(([id, t]) => (t.done ? [] : [id])),
     fetchDay: makeFetchDay(opts.origin),
     clubOf: async (tournamentId) => (await clubLookup(tournamentId)).clubOf,
     hasSent: sentLog.hasSent,

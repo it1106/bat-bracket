@@ -6,7 +6,7 @@ import FollowButton from '@/components/FollowButton'
 import { PushFollowsProvider } from '@/lib/push/PushFollowsContext'
 import { LanguageProvider } from '@/lib/LanguageContext'
 import type { PushClient } from '@/lib/push/client'
-import { fakeClient } from '@/lib/push/fake-client'
+import { fakeClient, FAKE_SUBSCRIPTION } from '@/lib/push/fake-client'
 
 jest.mock('../lib/analytics', () => ({ track: jest.fn() }))
 import { track } from '@/lib/analytics'
@@ -147,5 +147,80 @@ describe('FollowButton', () => {
     localStorage.setItem('batbracket.lang', 'th')
     mount(fakeClient())
     await waitFor(() => expect(button()?.textContent).toContain('ติดตาม'))
+  })
+})
+
+describe('FollowButton — where the alerts come from, and how many', () => {
+  const chip = (label: string) => screen.getByRole('button', { name: label })
+  const pressed = (label: string) => chip(label).getAttribute('aria-pressed') === 'true'
+
+  it('offers this tournament and every tournament, this one to begin with', async () => {
+    mount(fakeClient())
+    await waitFor(() => expect(button()).not.toBeNull())
+    expect(pressed('This tournament')).toBe(true)
+    expect(pressed('Every tournament')).toBe(false)
+  })
+
+  it('offers every alert and results only, every alert to begin with', async () => {
+    mount(fakeClient())
+    await waitFor(() => expect(button()).not.toBeNull())
+    expect(pressed('All alerts')).toBe(true)
+    expect(pressed('Results only')).toBe(false)
+  })
+
+  it('follows the player wherever they play once that is chosen', async () => {
+    const client = fakeClient()
+    mount(client)
+    await waitFor(() => expect(button()).not.toBeNull())
+    fireEvent.click(chip('Every tournament'))
+    fireEvent.click(button()!)
+    await waitFor(() => expect(button()!.getAttribute('aria-pressed')).toBe('true'))
+    const follows = (await client.state('e'))!.follows
+    expect(follows).toEqual([expect.objectContaining({ kind: 'player', tournamentId: '', slug: 'anan_dee', playerName: 'Anan Dee' })])
+  })
+
+  it('follows for the results alone once that is chosen', async () => {
+    const client = fakeClient()
+    mount(client)
+    await waitFor(() => expect(button()).not.toBeNull())
+    fireEvent.click(chip('Results only'))
+    fireEvent.click(button()!)
+    await waitFor(() => expect(button()!.getAttribute('aria-pressed')).toBe('true'))
+    expect((await client.state('e'))!.follows[0]).toMatchObject({ tier: 'result' })
+  })
+
+  it('changes a follow already made instead of leaving it as it was', async () => {
+    const client = fakeClient()
+    mount(client)
+    await waitFor(() => expect(button()).not.toBeNull())
+    fireEvent.click(button()!)
+    await waitFor(() => expect(button()!.getAttribute('aria-pressed')).toBe('true'))
+    fireEvent.click(chip('Results only'))
+    await waitFor(async () => expect((await client.state('e'))!.follows[0]).toMatchObject({ tier: 'result' }))
+    expect((await client.state('e'))!.follows).toHaveLength(1)
+  })
+
+  it('widens a follow to every tournament without ever leaving the player unfollowed', async () => {
+    const client = fakeClient()
+    mount(client)
+    await waitFor(() => expect(button()).not.toBeNull())
+    fireEvent.click(button()!)
+    await waitFor(() => expect(button()!.getAttribute('aria-pressed')).toBe('true'))
+    fireEvent.click(chip('Every tournament'))
+    await waitFor(async () => expect((await client.state('e'))!.follows).toEqual([
+      expect.objectContaining({ tournamentId: '', slug: 'anan_dee' }),
+    ]))
+    // The wider follow is made before the narrower one goes, so a failure
+    // between the two leaves the player followed, never dropped.
+    expect(client.calls.indexOf('follow:en')).toBeLessThan(client.calls.lastIndexOf('unfollow'))
+  })
+
+  it('reads "Following" for a player followed everywhere, with no tournament named', async () => {
+    const client = fakeClient()
+    await client.subscribe('PUB')
+    await client.follow(FAKE_SUBSCRIPTION, 'en', { kind: 'player', scope: 'everywhere', slug: 'anan_dee', playerName: 'Anan Dee' })
+    mount(client)
+    await waitFor(() => expect(button()?.textContent).toContain('Following'))
+    expect(pressed('Every tournament')).toBe(true)
   })
 })

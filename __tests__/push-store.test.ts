@@ -6,6 +6,8 @@ import {
   MAX_PLAYER_FOLLOWS, MAX_CLUB_FOLLOWS, STALE_DAYS, __setPushRootForTesting,
 } from '@/lib/push/store'
 import type { FollowTarget } from '@/lib/push/types'
+import { isEverywhere, tierOf } from '@/lib/push/follows'
+import { dueAlerts } from '@/lib/push/alerts'
 
 const TID = 'AAAAAAAA-0000-0000-0000-000000000001'
 const sub = (name: string) => ({ endpoint: `https://fcm.googleapis.com/fcm/send/${name}`, keys: { p256dh: 'p', auth: 'a' } })
@@ -289,5 +291,111 @@ describe('push store — site news', () => {
     const touched = await touchRecord(sub('a').endpoint, T0 + 2 * DAY)
     expect(touched).toEqual({ follows: [expect.objectContaining({ playerId: '1' })], site: true })
     expect(await touchRecord(sub('zz').endpoint, T0)).toBeNull()
+  })
+})
+
+describe('push store — following a player in every tournament', () => {
+  const everywhere = (playerName: string): FollowTarget => ({ kind: 'player', scope: 'everywhere', slug: playerName.toLowerCase().replace(/\s+/g, '_'), playerName })
+
+  it('stores no tournament and the name key the rest of the site uses', async () => {
+    const r = await addFollow(sub('a'), 'en', everywhere('Anan Dee'), T0)
+    expect(r.ok && r.follows).toEqual([
+      { kind: 'player', tournamentId: '', playerId: '', slug: 'anan_dee', playerName: 'Anan Dee', addedAt: new Date(T0).toISOString() },
+    ])
+  })
+
+  it('is a different follow from the same player in one tournament', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    const r = await addFollow(sub('a'), 'en', everywhere('P1'), T0)
+    expect(r.ok && r.follows).toHaveLength(2)
+  })
+
+  it('is not added twice', async () => {
+    await addFollow(sub('a'), 'en', everywhere('Anan Dee'), T0)
+    const r = await addFollow(sub('a'), 'en', everywhere('Anan Dee'), T0 + 5)
+    expect(r.ok && r.follows).toHaveLength(1)
+  })
+
+  it('is unfollowed by the same name key', async () => {
+    await addFollow(sub('a'), 'en', everywhere('Anan Dee'), T0)
+    expect(await removeFollow(sub('a').endpoint, everywhere('Anan Dee'))).toEqual([])
+  })
+
+  it('survives a tournament ending, which names no tournament of its own', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    await addFollow(sub('a'), 'en', everywhere('Anan Dee'), T0)
+    expect(await removeFollowsIn([TID])).toBe(1)
+    expect((await getRecord(sub('a').endpoint))!.follows).toHaveLength(1)
+  })
+})
+
+describe('push store — alert tier', () => {
+  it('records a results-only follow, and writes nothing for the full one it already was', async () => {
+    const full = await addFollow(sub('a'), 'en', { ...player('1'), tier: 'full' } as FollowTarget, T0)
+    expect(full.ok && full.follows[0]).not.toHaveProperty('tier')
+    const some = await addFollow(sub('b'), 'en', { ...player('2'), tier: 'result' } as FollowTarget, T0)
+    expect(some.ok && some.follows[0]).toMatchObject({ tier: 'result' })
+  })
+
+  it('changes the tier of a follow already there instead of adding another', async () => {
+    await addFollow(sub('a'), 'en', player('1'), T0)
+    const r = await addFollow(sub('a'), 'en', { ...player('1'), tier: 'result' } as FollowTarget, T0 + 5)
+    expect(r.ok && r.follows).toHaveLength(1)
+    expect(r.ok && r.follows[0]).toMatchObject({ tier: 'result' })
+  })
+
+  it('drops the tier again when the follow goes back to every alert', async () => {
+    await addFollow(sub('a'), 'en', { ...player('1'), tier: 'result' } as FollowTarget, T0)
+    const r = await addFollow(sub('a'), 'en', { ...player('1'), tier: 'full' } as FollowTarget, T0 + 5)
+    expect(r.ok && r.follows[0]).not.toHaveProperty('tier')
+  })
+})
+
+describe('push store — a file written before scopes and tiers', () => {
+  // Literally what the server wrote before this change, not a record built
+  // from today's types: the point is that the file on the box still works.
+  const OLD = JSON.stringify({
+    version: 1,
+    records: [{
+      endpoint: 'https://fcm.googleapis.com/fcm/send/old',
+      keys: { p256dh: 'p', auth: 'a' },
+      lang: 'th',
+      follows: [
+        { kind: 'player', tournamentId: TID, playerId: '42', playerName: 'Anan Dee', addedAt: '2026-10-01T00:00:00.000Z' },
+        { kind: 'club', tournamentId: TID, clubName: 'Red Club', addedAt: '2026-10-01T00:00:00.000Z' },
+      ],
+      createdAt: '2026-10-01T00:00:00.000Z',
+      lastSeenAt: '2026-10-09T00:00:00.000Z',
+    }],
+  })
+
+  beforeEach(async () => { await fs.writeFile(path.join(tmp, 'subscriptions.json'), OLD, 'utf8') })
+
+  it('loads, and reads as the whole-tournament, every-alert follow it was', async () => {
+    const [rec] = await listRecords()
+    expect(rec.follows).toHaveLength(2)
+    expect(tierOf(rec.follows[0])).toBe('full')
+    expect(isEverywhere(rec.follows[0])).toBe(false)
+  })
+
+  it('still alerts the player it named', async () => {
+    const [rec] = await listRecords()
+    const out = dueAlerts({
+      tournamentId: TID, dateIso: '2026-10-09', records: [rec],
+      groups: [{ type: 'time', time: '9:00', matches: [{
+        draw: 'BS U15', drawNum: '21', round: 'Round of 32',
+        team1: [{ name: 'Anan Dee', playerId: '42' }], team2: [{ name: 'Other', playerId: '43' }],
+        winner: null, scores: [], court: 'Court 1', walkover: false, retired: false, nowPlaying: true,
+      }] }],
+      clubOf: () => undefined, alreadySent: () => false, nowMinutes: 12 * 60,
+    })
+    expect(out.map((a) => a.stage)).toEqual(['playing'])
+  })
+
+  it('takes a tier on top of it without touching what is already there', async () => {
+    await addFollow(sub('old'), 'th', { kind: 'player', tournamentId: TID, playerId: '42', playerName: 'Anan Dee', tier: 'result' }, T0)
+    const [rec] = await listRecords()
+    expect(rec.follows).toHaveLength(2)
+    expect(rec.follows[0]).toMatchObject({ playerId: '42', tier: 'result', addedAt: '2026-10-01T00:00:00.000Z' })
   })
 })
