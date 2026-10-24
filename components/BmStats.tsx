@@ -72,6 +72,8 @@ interface Status {
         kind: 'player' | 'club'
         name: string
         playerId?: string
+        scope?: 'tournament' | 'everywhere'
+        tier?: 'full' | 'result'
         tournamentId: string
         tournamentName: string
         addedAt: string
@@ -786,11 +788,18 @@ export default function BmStats() {
                           ) : (
                             <>
                               {device.follows.map((follow) => (
-                                <div key={`${follow.kind}|${follow.tournamentId}|${follow.playerId ?? follow.name}`}>
+                                <div key={`${follow.kind}|${follow.tournamentId}|${follow.playerId || follow.name}`}>
                                   {follow.name}
                                   {follow.playerId ? ` (${follow.playerId})` : ''}
                                   {follow.kind === 'club' ? ' — club' : ''}
-                                  <span className="bms-note"> · {follow.tournamentName}</span>
+                                  {/* Where the follow reaches, then how much it brings. One
+                                      written before either was stored reads as what it has
+                                      always been: this tournament, every alert. */}
+                                  <span className="bms-note">
+                                    {' · '}
+                                    {follow.scope === 'everywhere' ? 'all tournaments' : follow.tournamentName}
+                                    {follow.tier === 'result' ? ' · results only' : ''}
+                                  </span>
                                 </div>
                               ))}
                               {device.site && <div>site news</div>}

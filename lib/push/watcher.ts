@@ -3,6 +3,7 @@ import { dueAlerts, dueResults } from './alerts'
 import { alertPayload, digestPayload, matchTag, resultPayload } from './text'
 import type { Sender, SendResult } from './sender'
 import { endpointHash } from './devices'
+import { isEverywhere } from './follows'
 import type { RecentSend } from './recent-sends'
 import type { DueAlert, PushSubscriptionRecord } from './types'
 import type { MatchPlayer } from '@/lib/types'
@@ -18,6 +19,9 @@ export interface WatcherDeps {
   listRecords: () => Promise<PushSubscriptionRecord[]>
   /** Whether a tournament is worth asking about: listed, BAT, not finished. */
   isWatchable: (tournamentId: string) => boolean
+  /** Every tournament worth asking about. Only read when some device follows
+   *  a player wherever they play, which names no tournament to ask about. */
+  watchableTournaments: () => string[]
   /** Today's schedule for a tournament, or null when it has none today. */
   fetchDay: (tournamentId: string, dateIso: string) => Promise<MatchScheduleGroup[] | null>
   clubOf: (tournamentId: string) => Promise<(playerId: string) => string | undefined>
@@ -84,7 +88,15 @@ export async function runWatcherTick(deps: WatcherDeps): Promise<{ sent: number;
   const dateIso = deps.todayIso()
   const minuteKey = new Date(deps.now()).toISOString().slice(0, 16)
   // A follow left on a finished tournament must not cost a request a minute.
-  const tournaments = Array.from(new Set(records.flatMap((r) => r.follows.map((f) => f.tournamentId.toUpperCase()))))
+  // A follow that names no tournament has to be looked for in all of them,
+  // which `watchableTournaments` keeps down to the ones that could still be
+  // playing. A tournament with no day today costs one cached read; one that
+  // is live is read once a minute, which the app's own warmer only does
+  // every four, so a live tournament nobody is watching can cost a BAT
+  // schedule fetch a minute while someone follows a player everywhere.
+  const everywhere = records.some((r) => r.follows.some(isEverywhere))
+  const named = records.flatMap((r) => r.follows.map((f) => f.tournamentId.toUpperCase()).filter(Boolean))
+  const tournaments = Array.from(new Set(everywhere ? [...named, ...deps.watchableTournaments()] : named))
     .filter((id) => deps.isWatchable(id))
   const goneEndpoints = new Set<string>()
 
@@ -221,7 +233,8 @@ export interface FinishedDeps {
 export async function finishedTournaments(deps: FinishedDeps): Promise<string[]> {
   if (deps.isBatDown()) return []
   const records = await deps.listRecords()
-  const followed = Array.from(new Set(records.flatMap((r) => r.follows.map((f) => f.tournamentId.toUpperCase()))))
+  // A follow with no tournament of its own cannot have one that is over.
+  const followed = Array.from(new Set(records.flatMap((r) => r.follows.map((f) => f.tournamentId.toUpperCase()).filter(Boolean))))
   const yesterday = new Date(Date.parse(`${deps.todayIso()}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
   const out: string[] = []
   for (const id of followed) {
@@ -230,6 +243,25 @@ export async function finishedTournaments(deps: FinishedDeps): Promise<string[]>
     const dates = await deps.fetchDays(id).catch(() => null)
     if (!dates || dates.length === 0) continue
     if (dates.reduce((a, b) => (a > b ? a : b)) < yesterday) out.push(id)
+  }
+  return out
+}
+
+/** Of the tournaments worth asking about, the ones a follow that names none
+ *  is looked for in: everything not finished. Hand-marked done is one way to
+ *  be finished; the other is the pinned full schedule the app writes once
+ *  every day of a tournament is past, which is how a discovered tournament —
+ *  never marked done by anyone — stops being asked about. A tournament the
+ *  disk cannot answer for is kept: only a plain "this is over" drops one. */
+export async function everywhereTournaments(
+  listed: Map<string, { done: boolean }>,
+  isPinned: (tournamentId: string) => Promise<boolean>,
+): Promise<string[]> {
+  const out: string[] = []
+  for (const [id, t] of Array.from(listed)) {
+    if (t.done) continue
+    if (await isPinned(id).catch(() => false)) continue
+    out.push(id)
   }
   return out
 }
@@ -267,6 +299,9 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     isBatDown: () => !!batDownSince(),
     listRecords: store.listRecords,
     isWatchable: (id) => { const t = listed.get(id); return !!t && !t.done },
+    // Refreshed once a tick, beside the list itself, so the tick's own set is
+    // already in hand: deciding it needs a disk look per tournament.
+    watchableTournaments: () => everywhereIds,
     fetchDay: makeFetchDay(opts.origin),
     clubOf: async (tournamentId) => (await clubLookup(tournamentId)).clubOf,
     hasSent: sentLog.hasSent,
@@ -298,8 +333,12 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     noteSend: recent.recordSend,
   }
 
-  // Which tournaments are worth asking about, refreshed before every tick.
+  // Which tournaments are worth asking about, refreshed before every tick,
+  // and of those the ones a follow naming no tournament is looked for in.
   let listed = new Map<string, { done: boolean }>()
+  let everywhereIds: string[] = []
+  const { readFullCacheMtimeMs } = await import('@/lib/day-cache')
+  const isPinned = async (id: string) => (await readFullCacheMtimeMs(id)) != null
   let busy = false
   // The publication pass runs every fifth tick, on the same lease. It has its
   // own in-flight flag and never holds `busy`: a bracket probe can take tens of
@@ -315,6 +354,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     try {
       await loaded
       listed = await alertTournaments()
+      everywhereIds = await everywhereTournaments(listed, isPinned)
       const today = deps.todayIso()
       if (today !== lastPruneDay) {
         lastPruneDay = today

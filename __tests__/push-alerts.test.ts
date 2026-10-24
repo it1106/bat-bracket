@@ -367,3 +367,71 @@ describe('dueResults', () => {
     expect(results(day(done), [device('a', [other])])).toEqual([])
   })
 })
+
+describe('following a player in every tournament', () => {
+  const OTHER = 'BBBBBBBB-0000-0000-0000-000000000002'
+  const everywhere = (playerName: string): PushFollow =>
+    ({ kind: 'player', tournamentId: '', playerId: '', slug: playerName.toLowerCase(), playerName, addedAt: '' })
+
+  it('alerts in a tournament the follow never named', () => {
+    const groups = day(DONE, m(['1'], ['2'], { nowPlaying: true }))
+    const out = dueAlerts({
+      tournamentId: OTHER, dateIso: DAY, groups, records: [device('a', [everywhere('P1')])],
+      nowMinutes: 12 * 60, clubOf: () => undefined, alreadySent: () => false,
+    })
+    expect(out.map((o) => o.stage)).toEqual(['playing'])
+    expect(out[0].directPlayers.map((p) => p.name)).toEqual(['P1'])
+  })
+
+  it('goes by the name, not by the local id, which another tournament reuses for someone else', () => {
+    const groups = day(DONE, m(['7'], ['2'], { nowPlaying: true }))
+    // P7 is the player followed; the id 1 they were followed under is now
+    // another player's altogether.
+    const out = dueAlerts({
+      tournamentId: OTHER, dateIso: DAY, groups,
+      records: [device('a', [{ ...everywhere('P7'), playerId: '1' } as PushFollow])],
+      nowMinutes: 12 * 60, clubOf: () => undefined, alreadySent: () => false,
+    })
+    expect(out.map((o) => o.directPlayers[0].name)).toEqual(['P7'])
+  })
+
+  it('reports their result in that tournament too', () => {
+    const done = m(['1'], ['2'], { winner: 1, scores: [{ t1: 15, t2: 2 }] })
+    const out = dueResults({
+      tournamentId: OTHER, dateIso: DAY, groups: day(done), records: [device('a', [everywhere('P1')])],
+      alreadySent: () => false, resultSeenAt: () => Date.UTC(2026, 9, 9, 5, 0), clubOf: () => undefined,
+    })
+    expect(out.map((o) => o.stage)).toEqual(['result'])
+  })
+})
+
+describe('alert tier', () => {
+  const resultOnly = (playerId: string): PushFollow =>
+    ({ kind: 'player', tournamentId: TID, playerId, playerName: `P${playerId}`, addedAt: '', tier: 'result' })
+
+  it('sends nothing before the match to a follow that asked only for the result', () => {
+    const groups = day(DONE, m(['1'], ['2'], { nowPlaying: true }))
+    expect(decide(groups, [device('a', [resultOnly('1')])])).toEqual([])
+  })
+
+  it('still reports the result to it', () => {
+    const done = m(['1'], ['2'], { winner: 1, scores: [{ t1: 15, t2: 2 }] })
+    const out = dueResults({
+      tournamentId: TID, dateIso: DAY, groups: day(done), records: [device('a', [resultOnly('1')])],
+      alreadySent: () => false, resultSeenAt: () => Date.UTC(2026, 9, 9, 5, 0), clubOf: () => undefined,
+    })
+    expect(out.map((o) => o.stage)).toEqual(['result'])
+  })
+
+  it('gives a player followed twice the wider of the two tiers', () => {
+    const groups = day(DONE, m(['1'], ['2'], { nowPlaying: true }))
+    const everywhereFull: PushFollow = { kind: 'player', tournamentId: '', playerId: '', slug: 'p1', playerName: 'P1', addedAt: '' }
+    expect(brief(decide(groups, [device('a', [resultOnly('1'), everywhereFull])]))).toEqual(['a:playing:1v2@0'])
+  })
+
+  it('names only the player who asked for an early alert as the reason for one', () => {
+    const groups = day(DONE, m(['1'], ['2'], { nowPlaying: true }))
+    const out = decide(groups, [device('a', [player('1'), resultOnly('2')])])
+    expect(out[0].directPlayers.map((p) => p.name)).toEqual(['P1'])
+  })
+})

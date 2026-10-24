@@ -12,8 +12,9 @@ export const dynamic = 'force-dynamic'
 const NO_STORE = { 'Cache-Control': 'no-store' }
 const answer = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: NO_STORE })
 
-// Follow a player or a club in one tournament from one device. The device is
-// its push subscription; nothing else identifies it.
+// Follow a player — in one tournament, or wherever they play — or a club in
+// one tournament, from one device. The device is its push subscription;
+// nothing else identifies it.
 export async function POST(request: Request) {
   if (!pushConfig()) return answer({ error: 'match alerts are not set up' }, 404)
   const body = (await request.json().catch(() => null)) as { subscription?: unknown; lang?: unknown; target?: unknown } | null
@@ -22,7 +23,10 @@ export async function POST(request: Request) {
   if (!subscription || !target) return answer({ error: 'subscription and target required' }, 400)
   // Only a BAT tournament the site lists: the watcher asks for the schedule
   // of every followed tournament, so a made-up id must never get this far.
-  if (!(await alertTournaments()).has(target.tournamentId)) {
+  // A player followed wherever they play names none, and so has none to
+  // check: the watcher goes by the tournaments it already watches.
+  const named = target.kind === 'club' || target.scope !== 'everywhere' ? target : null
+  if (named && !(await alertTournaments()).has(named.tournamentId)) {
     return answer({ error: 'match alerts are for BAT tournaments listed on this site' }, 400)
   }
   // A club follow can only name a club that tournament has.

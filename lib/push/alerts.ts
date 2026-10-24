@@ -2,7 +2,8 @@ import { createHash } from 'crypto'
 import type { MatchEntry, MatchPlayer, MatchScheduleGroup } from '@/lib/types'
 import { computePlayingOrder } from '@/lib/playingOrder'
 import { matchTag } from './text'
-import type { DueAlert, PushSubscriptionRecord, Stage } from './types'
+import { followSlug, isEverywhere, tierOf, widerTier } from './follows'
+import type { AlertTier, DueAlert, PushFollow, PushSubscriptionRecord, Stage } from './types'
 
 /** Club names are compared trimmed, with runs of spaces collapsed and case
  *  folded. Two clubs BAT spells differently stay two clubs. */
@@ -41,6 +42,42 @@ function playHasStarted(groups: MatchScheduleGroup[]): boolean {
   return groups.some((g) => g.matches.some((m) => m.nowPlaying || (m.winner !== null && !m.walkover)))
 }
 
+/** What one device follows that could bear on this tournament: players by
+ *  BAT's local id here, players by name key wherever they play, and clubs.
+ *  Each player carries the tier its follow asked for. */
+interface Watching {
+  players: Map<string, AlertTier>
+  everywhere: Map<string, AlertTier>
+  clubs: Map<string, string>
+}
+
+function followedBy(follows: PushFollow[], tid: string): Watching {
+  const players = new Map<string, AlertTier>()
+  const everywhere = new Map<string, AlertTier>()
+  const clubs = new Map<string, string>()
+  const widen = (map: Map<string, AlertTier>, key: string, tier: AlertTier) => {
+    const had = map.get(key)
+    map.set(key, had ? widerTier(had, tier) : tier)
+  }
+  for (const f of follows) {
+    if (isEverywhere(f)) { widen(everywhere, f.kind === 'player' ? f.slug ?? '' : '', tierOf(f)); continue }
+    if (f.tournamentId.toUpperCase() !== tid) continue
+    if (f.kind === 'player') widen(players, f.playerId, tierOf(f))
+    else if (normalizeClub(f.clubName)) clubs.set(normalizeClub(f.clubName), f.clubName)
+  }
+  return { players, everywhere, clubs }
+}
+
+/** The tier this device follows this player at, by either route, or null when
+ *  it does not follow them by name at all. Followed twice — here for the
+ *  results, everywhere for everything — the wider of the two answers. */
+function tierFor(w: Watching, p: MatchPlayer): AlertTier | null {
+  const here = p.playerId ? w.players.get(p.playerId) : undefined
+  const anywhere = w.everywhere.get(followSlug(p.name))
+  if (here && anywhere) return widerTier(here, anywhere)
+  return here ?? anywhere ?? null
+}
+
 /** The alerts due now: for each device, each match with a player it follows
  *  by name that is on court (`playing`) or two to four places from the front
  *  of the queue (`soon`) and has not been sent yet. A club follow brings none of these --
@@ -59,18 +96,8 @@ export function dueAlerts(input: {
   const tid = input.tournamentId.toUpperCase()
 
   const watching = records
-    .map((r) => {
-      const here = r.follows.filter((f) => f.tournamentId.toUpperCase() === tid)
-      const players = new Set(here.flatMap((f) => (f.kind === 'player' ? [f.playerId] : [])))
-      const clubs = new Map<string, string>()
-      for (const f of here) {
-        if (f.kind !== 'club') continue
-        const key = normalizeClub(f.clubName)
-        if (key) clubs.set(key, f.clubName)
-      }
-      return { record: r, players, clubs }
-    })
-    .filter((w) => w.players.size > 0 || w.clubs.size > 0)
+    .map((r) => ({ record: r, ...followedBy(r.follows, tid) }))
+    .filter((w) => w.players.size > 0 || w.everywhere.size > 0 || w.clubs.size > 0)
   if (watching.length === 0) return []
 
   const order = computePlayingOrder({ groups, liveByCourt: null })
@@ -111,7 +138,9 @@ export function dueAlerts(input: {
         for (const p of inMatch) {
           const viaClub = w.clubs.get(normalizeClub(clubOf(p.playerId)))
           if (viaClub) clubs.add(viaClub)
-          const byName = !!p.playerId && w.players.has(p.playerId)
+          // A follow that asked only for the result is no reason to say
+          // anything before the match, and must not be named as one either.
+          const byName = tierFor(w, p) === 'full'
           if (byName) directPlayers.push(p)
           if (viaClub || byName) players.push(p)
         }
@@ -159,19 +188,18 @@ export function dueResults(input: {
       for (const record of records) {
         // Only follows already in place when the result arrived count, by name
         // or by club.
-        const here = record.follows.filter((f) =>
-          f.tournamentId.toUpperCase() === tid && !(Date.parse(f.addedAt) > seenAt))
-        const followed = new Set(here.flatMap((f) => (f.kind === 'player' ? [f.playerId] : [])))
-        const clubsWatched = new Map(here.flatMap((f) => (f.kind === 'club' ? [[normalizeClub(f.clubName), f.clubName] as const] : [])))
-        if (followed.size === 0 && clubsWatched.size === 0) continue
+        const inTime = record.follows.filter((f) => !(Date.parse(f.addedAt) > seenAt))
+        const w = followedBy(inTime, tid)
+        if (w.players.size === 0 && w.everywhere.size === 0 && w.clubs.size === 0) continue
 
         const players: MatchPlayer[] = []
         const directPlayers: MatchPlayer[] = []
         const clubs = new Set<string>()
         for (const p of [...match.team1, ...match.team2]) {
-          const viaClub = clubsWatched.get(normalizeClub(clubOf(p.playerId)))
+          const viaClub = w.clubs.get(normalizeClub(clubOf(p.playerId)))
           if (viaClub) clubs.add(viaClub)
-          const byName = !!p.playerId && followed.has(p.playerId)
+          // Every tier asks for the result, so any follow by name counts here.
+          const byName = tierFor(w, p) !== null
           if (byName) directPlayers.push(p)
           if (viaClub || byName) players.push(p)
         }

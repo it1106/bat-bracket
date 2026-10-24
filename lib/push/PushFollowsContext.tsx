@@ -3,7 +3,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLanguage } from '@/lib/LanguageContext'
 import { browserPushClient, type PushClient, type PushEnvironment } from './client'
-import type { FollowTarget, PushFollow } from './types'
+import { followSlug, isEverywhere } from './follows'
+import type { FollowTarget, PlayerFollow, PushFollow } from './types'
 
 export type FollowOutcome = 'ok' | 'denied' | 'dismissed' | 'limit' | 'error'
 
@@ -12,7 +13,11 @@ export interface PushFollowsValue {
   status: 'off' | PushEnvironment
   permission: NotificationPermission
   follows: PushFollow[]
-  isFollowingPlayer(tournamentId: string, playerId: string): boolean
+  isFollowingPlayer(tournamentId: string, playerId: string, playerName?: string): boolean
+  /** What this device has on one player: the follow in this tournament, and
+   *  the one that follows them wherever they play. Either may be there
+   *  without the other, and both may be at once. */
+  playerFollows(tournamentId: string, playerId: string, playerName: string): { here: PlayerFollow | null; everywhere: PlayerFollow | null }
   isFollowingClub(tournamentId: string, clubName: string | undefined): boolean
   follow(target: FollowTarget): Promise<FollowOutcome>
   unfollow(target: FollowTarget): Promise<void>
@@ -25,11 +30,24 @@ export interface PushFollowsValue {
 // here so the browser bundle does not pull in the server's hashing.
 const clubKey = (name: string | undefined) => (name ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
 
+/** The two follows one player can have on a device, picked out of the list.
+ *  A follow that names no tournament is matched on the name key, the same
+ *  one the server stores and the watcher compares against the schedule. */
+function playerFollowsIn(follows: PushFollow[], tournamentId: string, playerId: string, playerName: string) {
+  const slug = followSlug(playerName)
+  const players = follows.filter((f): f is PlayerFollow => f.kind === 'player')
+  return {
+    here: players.find((f) => !isEverywhere(f) && f.tournamentId === tournamentId.toUpperCase() && f.playerId === playerId) ?? null,
+    everywhere: (slug && players.find((f) => isEverywhere(f) && f.slug === slug)) || null,
+  }
+}
+
 const OFF: PushFollowsValue = {
   status: 'off',
   permission: 'default',
   follows: [],
   isFollowingPlayer: () => false,
+  playerFollows: () => ({ here: null, everywhere: null }),
   isFollowingClub: () => false,
   follow: async () => 'error',
   unfollow: async () => {},
@@ -125,8 +143,11 @@ export function PushFollowsProvider({ children, client = browserPushClient }: { 
     status,
     permission,
     follows,
-    isFollowingPlayer: (tournamentId, playerId) =>
-      follows.some((f) => f.kind === 'player' && f.tournamentId === tournamentId.toUpperCase() && f.playerId === playerId),
+    isFollowingPlayer: (tournamentId, playerId, playerName) => {
+      const { here, everywhere } = playerFollowsIn(follows, tournamentId, playerId, playerName ?? '')
+      return !!here || !!everywhere
+    },
+    playerFollows: (tournamentId, playerId, playerName) => playerFollowsIn(follows, tournamentId, playerId, playerName),
     isFollowingClub: (tournamentId, clubName) => {
       const want = clubKey(clubName)
       return !!want && follows.some((f) => f.kind === 'club' && f.tournamentId === tournamentId.toUpperCase() && clubKey(f.clubName) === want)
