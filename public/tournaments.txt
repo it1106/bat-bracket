@@ -54,3 +54,4 @@ B169A1C1-6C1E-4D84-9CC8-5C6AD417B94E SPONSOR-REDBULL- YONEX-T.THAILAND CHAMPIONS
 
 @bwf https://bwfbadminton.com/tournament/5726/mith-yonex-pathumthanee-u13-u15-u17-international-junior-2026/ [done]
 @bwf https://bwfbadminton.com/tournament/5738/yonex-sunrise-pembangunan-jaya-raya-junior-international-grand-prix-2026/
+@bwf https://bwfbadminton.com/tournament/5777/yonex-bty-junior-international-series-2026/
