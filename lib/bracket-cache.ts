@@ -4,6 +4,8 @@ import * as cheerio from 'cheerio'
 import { parseBracket, parsePlayersPage } from './scraper'
 import { cache as drawsCache, getCached as getCachedDraws } from './draws-cache'
 import { batFetch } from './bat-fetch'
+import { isLegacyOnlyResponse, legacyBracketData } from './legacy-scraper'
+import { fetchLegacySheet, fetchLegacyBracket, markLegacyOnly, isKnownLegacyOnly } from './legacy-bat-fetch'
 import { readFullCacheMtimeMs } from './day-cache'
 import { providerFor } from '@/lib/providers/resolve'
 import { resolveRef } from '@/lib/tournaments-registry'
@@ -202,6 +204,16 @@ export function makeBracketKey(guid: string, drawNum: string) {
   return `${guid.toLowerCase()}:${drawNum}`
 }
 
+/** Reads a legacy draw's sheet and keeps it in rawHtmlCache beside the modern
+ *  HTML, so collapsing to a round re-slices the sheet this worker already has
+ *  instead of asking BAT again. The two are told apart by their markup. */
+async function fetchLegacySheetCached(guid: string, drawNum: string): Promise<BracketData | null> {
+  const sheet = await fetchLegacySheet(guid.toUpperCase(), drawNum)
+  if (sheet === null) return null
+  rawHtmlCache.set(makeBracketKey(guid, drawNum), sheet)
+  return legacyBracketData(sheet, '')
+}
+
 export async function fetchBracket(guid: string, drawNum: string): Promise<BracketData> {
   const ref = resolveRef(guid) ?? { id: guid.toUpperCase(), provider: 'bat' as const }
 
@@ -209,6 +221,13 @@ export async function fetchBracket(guid: string, drawNum: string): Promise<Brack
     const data = await providerFor(ref).getBracket(ref, drawNum)
     if (!data) throw new Error(`[bracket-cache] no bracket for ${guid} draw ${drawNum}`)
     return data
+  }
+
+  // Known legacy-only event: its brackets are only on drawsheet.aspx, so skip
+  // the modern request that would just redirect.
+  if (isKnownLegacyOnly(guid)) {
+    const legacy = await fetchLegacySheetCached(guid, drawNum)
+    if (legacy) return legacy
   }
 
   // BAT path: raw HTML is preserved in rawHtmlCache to support fromRound re-parsing
@@ -228,6 +247,17 @@ export async function fetchBracket(guid: string, drawNum: string): Promise<Brack
       const res = await batFetch('bracket', apiUrl, { headers, signal: controller.signal })
       if (res.ok) {
         const html = await res.text()
+        // Events published only on the legacy pages send every modern route
+        // back to their old overview page, which parses as an empty bracket.
+        // Their draws come off drawsheet.aspx instead; the raw-HTML cache
+        // stays empty for them, since the schedule's sibling and feeder reads
+        // expect modern markup.
+        if (isLegacyOnlyResponse(res.url, html)) {
+          markLegacyOnly(guid)
+          const legacy = await fetchLegacySheetCached(guid, drawNum)
+          if (legacy) return legacy
+          throw new Error(`[bracket-cache] no legacy bracket for ${guid} draw ${drawNum}`)
+        }
         rawHtmlCache.set(makeBracketKey(guid, drawNum), html)
         extractPlayerClubs(html, guid)
         return parseBracket(html)
@@ -243,10 +273,16 @@ export async function fetchBracket(guid: string, drawNum: string): Promise<Brack
   throw new Error('fetch failed')
 }
 
-/** For non-BAT providers: rebuild bracket HTML from a specific round without caching the variant. */
+/** For non-BAT providers, and for BAT events served off the legacy pages:
+ *  rebuild bracket HTML from a specific round without caching the variant.
+ *  Collapsing a round normally re-parses the cached modern HTML, which a
+ *  legacy-only event has none of — its sheet is re-read instead. */
 export async function fetchBracketFromRound(guid: string, drawNum: string, fromRound: number): Promise<BracketData | null> {
   const ref = resolveRef(guid) ?? { id: guid.toUpperCase(), provider: 'bat' as const }
-  if (ref.provider === 'bat') return null
+  if (ref.provider === 'bat') {
+    if (!isKnownLegacyOnly(guid)) return null
+    return fetchLegacyBracket(guid.toUpperCase(), drawNum, fromRound)
+  }
   return providerFor(ref).getBracket(ref, drawNum, fromRound)
 }
 

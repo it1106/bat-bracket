@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { parseMatchesFull, parseMatchesPartial, parseBracketContext } from '@/lib/scraper'
 import { cache as bracketCache, bracketHtmlForSchedule, siblingLookupCache, feederLookupCache, nextLookupCache, resultLookupCache, resultsBracketLacks, refreshBracketForResult, makeBracketKey, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
+import { isLegacyOnlyResponse } from '@/lib/legacy-scraper'
+import { fetchLegacyMatches, markLegacyOnly, isKnownLegacyOnly } from '@/lib/legacy-bat-fetch'
 import { readDayCache, writeDayCache, isDayComplete, shouldMemcacheDayResult, readFullCache, writeFullCache, isAllPast, fetchDayMatchGroups } from '@/lib/day-cache'
 import { resolveRef } from '@/lib/tournaments-registry'
 import { staleHeaders } from '@/lib/stale-headers'
@@ -297,6 +299,11 @@ export async function GET(request: Request) {
       try {
         if (ref.provider !== 'bat') {
           data = await fetchDayMatchGroups(tournamentId, dateIso)
+        } else if (isKnownLegacyOnly(tournamentId)) {
+          // Already known to live on the old pages, so skip the modern probe:
+          // it only redirects, and BAT is unreliable about serving it.
+          const legacy = await fetchLegacyMatches(tournamentId, date)
+          data = { groups: legacy?.groups ?? [] }
         } else {
           const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/Matches/MatchesInDay?date=${date}`
           // Always no-store. Next's data cache here has been observed to capture
@@ -317,8 +324,18 @@ export async function GET(request: Request) {
             timeoutMs,
           })
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
-          data = parseMatchesPartial(await res.text())
-          await enrichBracketContext(tournamentId, data.groups)
+          const dayHtml = await res.text()
+          if (isLegacyOnlyResponse(res.url, dayHtml)) {
+            // Legacy-only event (see lib/legacy-scraper.ts): one day per page
+            // on legacymatches.aspx. No bracket context — that enrichment
+            // reads modern bracket markup these events don't have.
+            markLegacyOnly(tournamentId)
+            const legacy = await fetchLegacyMatches(tournamentId, date)
+            data = { groups: legacy?.groups ?? [] }
+          } else {
+            data = parseMatchesPartial(dayHtml)
+            await enrichBracketContext(tournamentId, data.groups)
+          }
         }
         // Fetch succeeded — BAT is healthy again, clear any stale backoff
         // so future calls aren't suppressed.
@@ -419,13 +436,29 @@ export async function GET(request: Request) {
           const result = await providerFor(fullRef).getMatchesFull(fullRef)
           if (!result) throw new Error('Provider returned no matches data')
           data = result
+        } else if (isKnownLegacyOnly(tournamentId)) {
+          // Known legacy-only: straight to matches.aspx, same reasoning as
+          // the day branch above.
+          const legacy = await fetchLegacyMatches(tournamentId)
+          if (!legacy) throw new Error('legacy matches page returned nothing')
+          data = legacy
         } else {
           const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
           // Same adaptive-timeout policy as the day branch.
           const timeoutMs = fullMemEntry ? BAT_TIMEOUT_WITH_FALLBACK_MS : undefined
           const res = await batFetch('matches-full', url, { headers: HEADERS, cache: 'no-store', timeoutMs })
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
-          data = parseMatchesFull(await res.text())
+          const fullHtml = await res.text()
+          if (isLegacyOnlyResponse(res.url, fullHtml)) {
+            // Legacy-only event: the day list and the current day's ties both
+            // come off matches.aspx (see lib/legacy-scraper.ts).
+            markLegacyOnly(tournamentId)
+            const legacy = await fetchLegacyMatches(tournamentId)
+            if (!legacy) throw new Error('legacy matches page returned nothing')
+            data = legacy
+          } else {
+            data = parseMatchesFull(fullHtml)
+          }
         }
         clearBatFailure(tournamentId)
       } catch (err) {
