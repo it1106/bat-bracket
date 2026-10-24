@@ -1,4 +1,4 @@
-import { runWatcherTick, makeFetchDay, makeFetchDays, finishedTournaments, __resetWatcherForTesting, type WatcherDeps } from '@/lib/push/watcher'
+import { runWatcherTick, makeFetchDay, makeFetchDays, finishedTournaments, everywhereTournaments, __resetWatcherForTesting, type WatcherDeps } from '@/lib/push/watcher'
 import type { PushFollow, PushPayload, PushSubscriptionRecord } from '@/lib/push/types'
 import type { MatchEntry, MatchPlayer, MatchScheduleGroup } from '@/lib/types'
 import type { SendResult } from '@/lib/push/sender'
@@ -444,5 +444,22 @@ describe('finishedTournaments — a follow that names no tournament', () => {
     })
     expect(asked).toEqual([])
     expect(over).toEqual([])
+  })
+})
+
+describe('everywhereTournaments', () => {
+  it('leaves out the ones marked done by hand', async () => {
+    const listed = new Map([[TID, { done: false }], [TID2, { done: true }]])
+    expect(await everywhereTournaments(listed, async () => false)).toEqual([TID])
+  })
+
+  it('leaves out one whose whole schedule is pinned, which is how a tournament ends by itself', async () => {
+    const listed = new Map([[TID, { done: false }], [TID2, { done: false }]])
+    expect(await everywhereTournaments(listed, async (id) => id === TID2)).toEqual([TID])
+  })
+
+  it('keeps one it cannot tell about: a tournament is dropped only when something says it is over', async () => {
+    const listed = new Map([[TID, { done: false }]])
+    expect(await everywhereTournaments(listed, async () => { throw new Error('disk') })).toEqual([TID])
   })
 })

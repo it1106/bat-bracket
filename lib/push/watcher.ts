@@ -88,10 +88,12 @@ export async function runWatcherTick(deps: WatcherDeps): Promise<{ sent: number;
   const dateIso = deps.todayIso()
   const minuteKey = new Date(deps.now()).toISOString().slice(0, 16)
   // A follow left on a finished tournament must not cost a request a minute.
-  // A follow that names no tournament has to be looked for in all of them.
-  // That costs no more upstream than it looks: the schedules of the
-  // tournaments playing today are the ones the app's own warmer keeps hot,
-  // and one with no day today is answered from the cached full schedule.
+  // A follow that names no tournament has to be looked for in all of them,
+  // which `watchableTournaments` keeps down to the ones that could still be
+  // playing. A tournament with no day today costs one cached read; one that
+  // is live is read once a minute, which the app's own warmer only does
+  // every four, so a live tournament nobody is watching can cost a BAT
+  // schedule fetch a minute while someone follows a player everywhere.
   const everywhere = records.some((r) => r.follows.some(isEverywhere))
   const named = records.flatMap((r) => r.follows.map((f) => f.tournamentId.toUpperCase()).filter(Boolean))
   const tournaments = Array.from(new Set(everywhere ? [...named, ...deps.watchableTournaments()] : named))
@@ -245,6 +247,25 @@ export async function finishedTournaments(deps: FinishedDeps): Promise<string[]>
   return out
 }
 
+/** Of the tournaments worth asking about, the ones a follow that names none
+ *  is looked for in: everything not finished. Hand-marked done is one way to
+ *  be finished; the other is the pinned full schedule the app writes once
+ *  every day of a tournament is past, which is how a discovered tournament —
+ *  never marked done by anyone — stops being asked about. A tournament the
+ *  disk cannot answer for is kept: only a plain "this is over" drops one. */
+export async function everywhereTournaments(
+  listed: Map<string, { done: boolean }>,
+  isPinned: (tournamentId: string) => Promise<boolean>,
+): Promise<string[]> {
+  const out: string[] = []
+  for (const [id, t] of Array.from(listed)) {
+    if (t.done) continue
+    if (await isPinned(id).catch(() => false)) continue
+    out.push(id)
+  }
+  return out
+}
+
 const TICK_MS = 60_000
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -278,7 +299,9 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     isBatDown: () => !!batDownSince(),
     listRecords: store.listRecords,
     isWatchable: (id) => { const t = listed.get(id); return !!t && !t.done },
-    watchableTournaments: () => Array.from(listed).flatMap(([id, t]) => (t.done ? [] : [id])),
+    // Refreshed once a tick, beside the list itself, so the tick's own set is
+    // already in hand: deciding it needs a disk look per tournament.
+    watchableTournaments: () => everywhereIds,
     fetchDay: makeFetchDay(opts.origin),
     clubOf: async (tournamentId) => (await clubLookup(tournamentId)).clubOf,
     hasSent: sentLog.hasSent,
@@ -310,8 +333,12 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     noteSend: recent.recordSend,
   }
 
-  // Which tournaments are worth asking about, refreshed before every tick.
+  // Which tournaments are worth asking about, refreshed before every tick,
+  // and of those the ones a follow naming no tournament is looked for in.
   let listed = new Map<string, { done: boolean }>()
+  let everywhereIds: string[] = []
+  const { readFullCacheMtimeMs } = await import('@/lib/day-cache')
+  const isPinned = async (id: string) => (await readFullCacheMtimeMs(id)) != null
   let busy = false
   // The publication pass runs every fifth tick, on the same lease. It has its
   // own in-flight flag and never holds `busy`: a bracket probe can take tens of
@@ -327,6 +354,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     try {
       await loaded
       listed = await alertTournaments()
+      everywhereIds = await everywhereTournaments(listed, isPinned)
       const today = deps.todayIso()
       if (today !== lastPruneDay) {
         lastPruneDay = today
