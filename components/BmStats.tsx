@@ -7,7 +7,6 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { setSearchAliases } from '@/lib/searchAliases'
-import { outageEvents } from '@/lib/batOutageEvents'
 import CountryDonut from '@/components/CountryDonut'
 import PlatformDonut from '@/components/PlatformDonut'
 import { useTheme } from '@/lib/ThemeContext'
@@ -117,7 +116,7 @@ interface Status {
     users: number
     countries?: Array<{ country: string; count: number }>
     platforms?: Array<{ platform: string; count: number }>
-    onlineIds?: Array<{ id: string; lastSeenAt: string }>
+    onlineIds?: Array<{ id: string; lastSeenAt: string; platform?: string }>
   }
 }
 
@@ -134,12 +133,6 @@ function dateOf(iso: string, withTime: boolean): string {
     timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric',
   })
   return withTime ? `${date}, ${clock(iso)}` : date
-}
-
-/** "Mon 5 Oct 2026, 00:42:13" in Bangkok time. */
-function fullTime(iso: string): string {
-  const weekday = new Date(iso).toLocaleDateString('en-GB', { timeZone: 'Asia/Bangkok', weekday: 'short' })
-  return `${weekday} ${dateOf(iso, false)}, ${clock(iso, true)}`
 }
 
 /** The Bangkok calendar day (YYYY-MM-DD) of a moment. */
@@ -892,29 +885,6 @@ export default function BmStats() {
               </table>
             </div>
           )}
-          {outages.recent.length > 0 && (
-            <>
-              <h3 className="bms-subtitle">Event log</h3>
-              <ul className="bms-events">
-                {outageEvents(outages.recent).map((event) => (
-                  <li key={`${event.type}${event.at}`}>
-                    <time dateTime={event.at}>{fullTime(event.at)}</time>
-                    <span className="bms-meter-state">
-                      <span
-                        className="bms-dot"
-                        style={{ background: event.type === 'down' ? 'var(--red)' : 'var(--win-fg)' }}
-                        aria-hidden="true"
-                      />
-                      {event.type === 'down' ? 'BAT went down' : 'BAT came back up'}
-                    </span>
-                    <span className="bms-events-note">
-                      {event.type === 'down' ? event.detail : `after ${duration(event.downSeconds ?? 0)}`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
           <p className="bms-note">
             An outage is five or more BAT requests failing in a row over at least 30 seconds; it ends at the first of
             three answers in a row. This is BAT as seen from this server, so a break in the server&apos;s own
@@ -1065,13 +1035,15 @@ export default function BmStats() {
               <thead>
                 <tr>
                   <th scope="col" className="bms-th">Visitor ID</th>
+                  <td className="bms-th">Device</td>
                   <td className="bms-th">Last seen</td>
                 </tr>
               </thead>
               <tbody>
-                {visitors.onlineIds.map(({ id, lastSeenAt }) => (
+                {visitors.onlineIds.map(({ id, lastSeenAt, platform }) => (
                   <tr key={id}>
                     <th scope="row" className="bms-id">{id}</th>
+                    <td>{platform || '—'}</td>
                     <td>{ago(status.generatedAt, lastSeenAt)}</td>
                   </tr>
                 ))}

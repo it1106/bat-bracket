@@ -40,8 +40,8 @@ describe('PresenceStore online list', () => {
     s.touch('device-bbbb', 2000)
     s.touch('device-aaaa', 3000)
     expect(s.online(3000)).toEqual([
-      { id: 'device-aaaa', lastSeen: 3000 },
-      { id: 'device-bbbb', lastSeen: 2000 },
+      { id: 'device-aaaa', lastSeen: 3000, platform: '' },
+      { id: 'device-bbbb', lastSeen: 2000, platform: '' },
     ])
   })
 
@@ -49,7 +49,7 @@ describe('PresenceStore online list', () => {
     const s = new PresenceStore()
     s.touch('device-aaaa', 0)
     s.touch('device-bbbb', 60_000)
-    expect(s.online(ONLINE_WINDOW_MS + 1)).toEqual([{ id: 'device-bbbb', lastSeen: 60_000 }])
+    expect(s.online(ONLINE_WINDOW_MS + 1)).toEqual([{ id: 'device-bbbb', lastSeen: 60_000, platform: '' }])
   })
 })
 
