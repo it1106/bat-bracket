@@ -1,5 +1,7 @@
 import { batFetch } from './bat-fetch'
 import { parseMatchesFull } from './scraper'
+import { isLegacyOnlyResponse } from './legacy-scraper'
+import { fetchLegacyMatches, markLegacyOnly, isKnownLegacyOnly } from './legacy-bat-fetch'
 import { readFullCache, writeFullCache, isAllPast, readFullCacheMtimeMs, deleteFullCache } from './day-cache'
 import { getTodayIso } from './today'
 import { persistMetaIfChanged } from './tournament-meta'
@@ -36,10 +38,20 @@ export async function fetchSchedule(tournamentId: string): Promise<MatchesData |
   if (ref.provider !== 'bat') {
     return await providerFor(ref).getMatchesFull(ref)
   }
+  if (isKnownLegacyOnly(tournamentId)) return fetchLegacyMatches(tournamentId)
   const url = `https://bat.tournamentsoftware.com/tournament/${tournamentId}/matches`
   const res = await batFetch('matches-full-prewarm', url, { headers: HEADERS, cache: 'no-store' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return parseMatchesFull(await res.text())
+  const html = await res.text()
+  // A legacy-only event (see lib/legacy-scraper.ts) answers with its old
+  // overview page, which parses as an empty schedule. Warming the cache with
+  // that is worse than not warming it: the route then serves the empty copy
+  // for the whole TTL.
+  if (isLegacyOnlyResponse(res.url, html)) {
+    markLegacyOnly(tournamentId)
+    return fetchLegacyMatches(tournamentId)
+  }
+  return parseMatchesFull(html)
 }
 
 // The set of tournament ids worth warming/pinning: every registered tournament
