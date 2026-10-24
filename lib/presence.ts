@@ -94,10 +94,15 @@ export class PresenceStore {
     return online
   }
 
-  /** The devices online right now, most recently seen first. */
-  online(now: number): Array<{ id: string; lastSeen: number }> {
+  /** The devices online right now, most recently seen first, each with the
+   *  platform today's first heartbeat from it reported ('' if none did). */
+  online(now: number): Array<{ id: string; lastSeen: number; platform: DeviceOs }> {
     this.count(now)
-    return Array.from(this.lastSeen, ([id, lastSeen]) => ({ id, lastSeen })).reverse()
+    return Array.from(this.lastSeen, ([id, lastSeen]) => ({
+      id,
+      lastSeen,
+      platform: this.seenToday.get(id)?.platform ?? '',
+    })).reverse()
   }
 
   /** Highest count seen so far today. */

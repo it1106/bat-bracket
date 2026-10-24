@@ -93,9 +93,10 @@ export async function GET(request: Request) {
         users: presence.users(now),
         countries: presence.usersByCountry(now),
         platforms: presence.usersByPlatform(now),
-        onlineIds: presence.online(now).slice(0, MAX_ONLINE_IDS).map(({ id, lastSeen }) => ({
+        onlineIds: presence.online(now).slice(0, MAX_ONLINE_IDS).map(({ id, lastSeen, platform }) => ({
           id,
           lastSeenAt: new Date(lastSeen).toISOString(),
+          platform,
         })),
       },
     },

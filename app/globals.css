@@ -3915,7 +3915,6 @@ html.dark .bms-theme-to-dark { display: none; }
 .bms-events li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 6px 0; border-top: 1px solid var(--border); }
 .bms-events li:first-child { border-top: 0; }
 .bms-events time { font-variant-numeric: tabular-nums; min-width: 190px; }
-.bms-events-note { color: var(--muted); }
 .bms-scroll { overflow-x: auto; }
 .bms-history { min-width: 520px; }
 .bms-history th { white-space: nowrap; font-weight: 500; }

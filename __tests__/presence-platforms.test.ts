@@ -86,4 +86,25 @@ describe("today's users by device", () => {
     }, NOON)
     expect(s.usersByPlatform(NOON)).toEqual([{ platform: UNKNOWN_PLATFORM, count: 2 }])
   })
+
+  it('names the platform of each device online now', () => {
+    const s = new PresenceStore()
+    s.touch('device-aaaa', NOON, 'TH', 'iPadOS')
+    s.touch('device-bbbb', NOON + 1000, 'TH')
+    expect(s.online(NOON + 2000)).toEqual([
+      { id: 'device-bbbb', lastSeen: NOON + 1000, platform: '' },
+      { id: 'device-aaaa', lastSeen: NOON, platform: 'iPadOS' },
+    ])
+  })
+
+  it('still names the platform of a device restored from a snapshot', () => {
+    const a = new PresenceStore()
+    a.touch('device-aaaa', NOON, 'TH', 'Android')
+    const b = new PresenceStore()
+    b.restore(a.snapshot(NOON), NOON)
+    // Restored devices are not online until they ping again.
+    expect(b.online(NOON)).toEqual([])
+    b.touch('device-aaaa', NOON + 1000)
+    expect(b.online(NOON + 1000)).toEqual([{ id: 'device-aaaa', lastSeen: NOON + 1000, platform: 'Android' }])
+  })
 })
