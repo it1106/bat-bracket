@@ -25,21 +25,27 @@ export const BELL = (
 
 type Scope = 'tournament' | 'everywhere'
 
-/** Follow one player: in this tournament, or wherever they play, and either
- *  for every alert or for the results alone. The permission prompt appears
- *  only after a tap here. Hidden where alerts cannot work at all.
+/** Follow one player, wherever they play, for every alert or for the results
+ *  alone. The permission prompt appears only after a tap here. Hidden where
+ *  alerts cannot work at all.
  *
- *  The two choices sit under the button rather than behind it. Before the
- *  follow is made they say what the tap will do; after it they are what the
- *  follow is, and changing one changes the follow there and then — the same
- *  control doing the same thing, whichever side of the tap it is on. */
+ *  Following is not asked where: a player is one person in whichever
+ *  tournament they turn up, and being told about them only in the one the
+ *  bell happened to be opened in was never what anyone wanted. Follows made
+ *  before that was settled are still pinned to their tournament and are
+ *  honoured as they are — shown, retiered and unfollowed where they sit —
+ *  but no new one is made that way.
+ *
+ *  How much it says does sit under the button. Before the follow is made the
+ *  choice says what the tap will do; after it, it is what the follow is, and
+ *  changing it changes the follow there and then. */
 export default function FollowButton({ tournamentId, playerId, playerName, clubName }: Props) {
   const { t } = useLanguage()
   const push = usePushFollows()
   const [note, setNote] = useState<TKey | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [wanted, setWanted] = useState<{ scope: Scope; tier: AlertTier }>({ scope: 'tournament', tier: 'full' })
+  const [wantedTier, setWantedTier] = useState<AlertTier>('full')
 
   if (push.status === 'off' || push.status === 'unsupported') return null
 
@@ -49,31 +55,26 @@ export default function FollowButton({ tournamentId, playerId, playerName, clubN
   const viaClub = !direct && push.isFollowingClub(tournamentId, clubName)
   const label = direct ? t('followingPlayer') : viaClub ? t('followingViaClub') : t('followPlayer')
   const props = { tournament_id: tournamentId, kind: 'player', player_id: playerId }
-  // While following, the follow itself says what the choices are; before it,
-  // what the next tap will make. Everything is followed everywhere second:
-  // a player followed both ways is shown as the wider of the two.
-  const scope: Scope = current ? (everywhere ? 'everywhere' : 'tournament') : wanted.scope
-  const tier: AlertTier = current ? (current.tier === 'result' ? 'result' : 'full') : wanted.tier
+  // A new follow goes everywhere. An older one keeps the scope it has, so
+  // that the tap which unfollows it names the follow that is really there.
+  const scope: Scope = current && !everywhere ? 'tournament' : 'everywhere'
+  const tier: AlertTier = current ? (current.tier === 'result' ? 'result' : 'full') : wantedTier
 
   const targetFor = (s: Scope, k: AlertTier): FollowTarget =>
     s === 'everywhere'
       ? { kind: 'player', scope: 'everywhere', slug: followSlug(playerName), playerName, tier: k }
       : { kind: 'player', tournamentId, playerId, playerName, tier: k }
 
-  /** Picks where the alerts come from, or how many. While the player is
-   *  already followed it moves that follow: the new one is made before the
-   *  old one goes, so a failure between the two leaves them followed more
-   *  widely than asked, never followed by nothing. */
-  const choose = async (next: { scope?: Scope; tier?: AlertTier }) => {
-    const s = next.scope ?? scope
-    const k = next.tier ?? tier
-    setWanted({ scope: s, tier: k })
+  /** Picks how much the alerts say. While the player is already followed it
+   *  changes that follow where it is: following again is what the server
+   *  reads as a change of tier. */
+  const choose = async (k: AlertTier) => {
+    setWantedTier(k)
     if (!current || busy) return
     setBusy(true)
     try {
-      const outcome = await push.follow(targetFor(s, k))
-      if (outcome !== 'ok') return setNote(outcome === 'limit' ? 'followLimit' : 'followError')
-      if (s !== scope) await push.unfollow(targetFor(scope, tier))
+      const outcome = await push.follow(targetFor(scope, k))
+      if (outcome !== 'ok') setNote(outcome === 'limit' ? 'followLimit' : 'followError')
     } finally {
       setBusy(false)
     }
@@ -133,11 +134,8 @@ export default function FollowButton({ tournamentId, playerId, playerName, clubN
         <span className="follow-beta">beta</span>
       </div>
       <div className="follow-opts">
-        <Chip on={scope === 'tournament'} busy={busy} label={t('followScopeHere')} onPick={() => void choose({ scope: 'tournament' })} />
-        <Chip on={scope === 'everywhere'} busy={busy} label={t('followScopeEverywhere')} onPick={() => void choose({ scope: 'everywhere' })} />
-        <span className="follow-opts-gap" />
-        <Chip on={tier === 'full'} busy={busy} label={t('followTierFull')} onPick={() => void choose({ tier: 'full' })} />
-        <Chip on={tier === 'result'} busy={busy} label={t('followTierResult')} onPick={() => void choose({ tier: 'result' })} />
+        <Chip on={tier === 'full'} busy={busy} label={t('followTierFull')} onPick={() => void choose('full')} />
+        <Chip on={tier === 'result'} busy={busy} label={t('followTierResult')} onPick={() => void choose('result')} />
       </div>
       {note && (
         <div className="follow-note" role="status">
