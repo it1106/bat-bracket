@@ -4,6 +4,8 @@ import * as cheerio from 'cheerio'
 import { parseBracket, parsePlayersPage } from './scraper'
 import { cache as drawsCache, getCached as getCachedDraws } from './draws-cache'
 import { batFetch } from './bat-fetch'
+import { isLegacyOnlyResponse } from './legacy-scraper'
+import { fetchLegacyBracket, markLegacyOnly, isKnownLegacyOnly } from './legacy-bat-fetch'
 import { readFullCacheMtimeMs } from './day-cache'
 import { providerFor } from '@/lib/providers/resolve'
 import { resolveRef } from '@/lib/tournaments-registry'
@@ -211,6 +213,13 @@ export async function fetchBracket(guid: string, drawNum: string): Promise<Brack
     return data
   }
 
+  // Known legacy-only event: its brackets are only on drawsheet.aspx, so skip
+  // the modern request that would just redirect.
+  if (isKnownLegacyOnly(guid)) {
+    const legacy = await fetchLegacyBracket(guid.toUpperCase(), drawNum)
+    if (legacy) return legacy
+  }
+
   // BAT path: raw HTML is preserved in rawHtmlCache to support fromRound re-parsing
   // and sibling enrichment; playerClubCache is populated for club display.
   const apiUrl = `https://bat.tournamentsoftware.com/tournament/${guid}/Draw/${drawNum}/GetDrawContent?tabindex=1&X-Requested-With=XMLHttpRequest`
@@ -228,6 +237,17 @@ export async function fetchBracket(guid: string, drawNum: string): Promise<Brack
       const res = await batFetch('bracket', apiUrl, { headers, signal: controller.signal })
       if (res.ok) {
         const html = await res.text()
+        // Events published only on the legacy pages send every modern route
+        // back to their old overview page, which parses as an empty bracket.
+        // Their draws come off drawsheet.aspx instead; the raw-HTML cache
+        // stays empty for them, since the schedule's sibling and feeder reads
+        // expect modern markup.
+        if (isLegacyOnlyResponse(res.url, html)) {
+          markLegacyOnly(guid)
+          const legacy = await fetchLegacyBracket(guid.toUpperCase(), drawNum)
+          if (legacy) return legacy
+          throw new Error(`[bracket-cache] no legacy bracket for ${guid} draw ${drawNum}`)
+        }
         rawHtmlCache.set(makeBracketKey(guid, drawNum), html)
         extractPlayerClubs(html, guid)
         return parseBracket(html)

@@ -1,4 +1,6 @@
 import { batFetch } from '@/lib/bat-fetch'
+import { isLegacyOnlyResponse } from '@/lib/legacy-scraper'
+import { fetchLegacyMatches, markLegacyOnly } from '@/lib/legacy-bat-fetch'
 import {
   parseTournamentDraws,
   parseTournamentMeta,
@@ -92,6 +94,14 @@ export const batProvider: TournamentProvider = {
     const res = await batFetch('matches-full', `https://bat.tournamentsoftware.com/tournament/${ref.id}/matches`, { headers, cache: 'no-store' })
     if (!res.ok) return null
     const html = await res.text()
+    // A legacy-only event (see lib/legacy-scraper.ts) answers here with its
+    // old overview page; its schedule lives on matches.aspx instead.
+    if (isLegacyOnlyResponse(res.url, html)) {
+      markLegacyOnly(ref.id)
+      const legacy = await fetchLegacyMatches(ref.id)
+      if (!legacy) return null
+      return { ...legacy, groups: orderScheduleGroups(legacy.groups) }
+    }
     const data = parseMatchesFull(html)
     return { ...data, groups: orderScheduleGroups(data.groups) }
   },
