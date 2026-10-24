@@ -32,9 +32,15 @@ export function isLegacyOnlyResponse(finalUrl: string, html = ''): boolean {
   return isLegacyOnlyUrl(finalUrl) || isLegacyOnlyHtml(html)
 }
 
+// Only the two stops of the observed chain count. Anything broader would
+// catch a cookiewall, login or maintenance redirect as well, and since the
+// finding is remembered for the life of the worker, that would send a
+// perfectly modern tournament to the old pages until the next restart.
+const LEGACY_LANDING_RE = /^\/(unknown\/|sport\/tournament\.aspx)/i
+
 function isLegacyOnlyUrl(finalUrl: string): boolean {
   try {
-    return !/^\/tournament\//i.test(new URL(finalUrl).pathname)
+    return LEGACY_LANDING_RE.test(new URL(finalUrl).pathname)
   } catch {
     return false
   }
@@ -48,6 +54,12 @@ const MODERN_MARKERS = ['js-date-selection-tab', 'match-group__wrapper', 'bracke
 function isLegacyOnlyHtml(html: string): boolean {
   if (!html.includes(LEGACY_MARKER)) return false
   return !MODERN_MARKERS.some((marker) => html.includes(marker))
+}
+
+/** True for a drawsheet.aspx page, so a cached copy can be told apart from
+ *  the modern bracket HTML that sits in the same cache. */
+export function isLegacySheet(html: string): boolean {
+  return /<div class="draw"><table>/i.test(html)
 }
 
 export interface LegacySide {

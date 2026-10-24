@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cache, ttlMsFor, makeBracketKey, fetchAndCache, fetchBracketFromRound, rawHtmlCache, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { parseBracket } from '@/lib/scraper'
+import { isLegacySheet, legacyBracketData } from '@/lib/legacy-scraper'
 import { staleHeaders } from '@/lib/stale-headers'
 
 export const maxDuration = 60
@@ -11,6 +12,12 @@ export const maxDuration = 60
 const BAT_BACKOFF_MS = 30_000
 const batFailureAt = new Map<string, number>()
 
+
+// The cached HTML is either the modern bracket markup or, for an event served
+// off the old pages, its drawsheet — each needs its own parser.
+function reparse(html: string, fromRound: number) {
+  return isLegacySheet(html) ? legacyBracketData(html, '', fromRound) : parseBracket(html, fromRound)
+}
 
 function extractIds(url: string): { guid: string; drawNum: string } | null {
   const m = url.match(/\/tournament\/([0-9a-f-]{36})\/draw\/(\d+)/i)
@@ -55,7 +62,7 @@ export async function GET(request: Request) {
   // fromRound > 0: re-parse/rebuild from a specific round without re-caching
   if (fromRound > 0) {
     const rawHtml = rawHtmlCache.get(key)
-    if (rawHtml) return NextResponse.json(parseBracket(rawHtml, fromRound))
+    if (rawHtml) return NextResponse.json(reparse(rawHtml, fromRound))
     // Non-BAT providers rebuild bracket HTML directly
     const nonBat = await fetchBracketFromRound(guid, drawNum, fromRound)
     if (nonBat) return NextResponse.json(nonBat)
@@ -64,7 +71,7 @@ export async function GET(request: Request) {
 
   const cached = cache.get(key)
   if (cached && (cached.done || Date.now() - cached.ts < ttlMsFor(cached))) {
-    return NextResponse.json(fromRound > 0 ? parseBracket(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket)
+    return NextResponse.json(fromRound > 0 ? reparse(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket)
   }
 
   // Past its TTL but still the bracket as BAT last gave it.

@@ -5,6 +5,7 @@ import {
   legacyBracketData,
   parseLegacyMatchesFull,
   isLegacyOnlyResponse,
+  isLegacySheet,
 } from '@/lib/legacy-scraper'
 
 const fixtureHtml = (name: string) =>
@@ -32,6 +33,13 @@ describe('isLegacyOnlyResponse', () => {
     expect(isLegacyOnlyResponse('')).toBe(false)
   })
 
+  // The finding is remembered for the life of the worker, so a redirect that
+  // means something else entirely must not be read as "legacy-only".
+  it('does not mistake a cookiewall or login redirect for a legacy event', () => {
+    expect(isLegacyOnlyResponse('https://bat.tournamentsoftware.com/cookiewall?ReturnUrl=%2Ftournament%2Fabc%2Fmatches')).toBe(false)
+    expect(isLegacyOnlyResponse('https://bat.tournamentsoftware.com/member/login.aspx?returnurl=x')).toBe(false)
+  })
+
   // Next.js patches global fetch and returns a rebuilt Response whose url is
   // empty, so the body has to carry the signal on its own.
   it('recognises the legacy landing page with no URL to go by', () => {
@@ -43,6 +51,14 @@ describe('isLegacyOnlyResponse', () => {
       + '<div class="match-group__wrapper"></div></html>'
     expect(isLegacyOnlyResponse('', modern)).toBe(false)
     expect(isLegacyOnlyResponse('', '<html><body>something else entirely</body></html>')).toBe(false)
+  })
+})
+
+describe('isLegacySheet', () => {
+  it('tells a cached drawsheet apart from modern bracket markup', () => {
+    expect(isLegacySheet(fixtureHtml(DRAW_8))).toBe(true)
+    expect(isLegacySheet('<div class="bracket js-bracket"><swiper-container></swiper-container></div>')).toBe(false)
+    expect(isLegacySheet('')).toBe(false)
   })
 })
 

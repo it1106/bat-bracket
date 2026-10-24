@@ -42,6 +42,14 @@ export async function fetchLegacyMatches(id: string, date?: string): Promise<Mat
   return parseLegacyMatchesFull(await res.text())
 }
 
+/** One draw's sheet, as published. */
+export async function fetchLegacySheet(id: string, drawNum: string): Promise<string | null> {
+  const url = `${BASE}/drawsheet.aspx?id=${id}&draw=${drawNum}`
+  const res = await batFetch('legacy-bracket', url, { headers: HEADERS })
+  if (!res.ok) return null
+  return res.text()
+}
+
 /** One draw's bracket, rendered as the same bk-wrap HTML the modern path
  *  produces. */
 export async function fetchLegacyBracket(
@@ -49,8 +57,7 @@ export async function fetchLegacyBracket(
   drawNum: string,
   fromRound = 0,
 ): Promise<BracketData | null> {
-  const url = `${BASE}/drawsheet.aspx?id=${id}&draw=${drawNum}`
-  const res = await batFetch('legacy-bracket', url, { headers: HEADERS })
-  if (!res.ok) return null
-  return legacyBracketData(await res.text(), '', fromRound)
+  const html = await fetchLegacySheet(id, drawNum)
+  if (html === null) return null
+  return legacyBracketData(html, '', fromRound)
 }
