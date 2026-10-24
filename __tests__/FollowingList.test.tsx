@@ -68,9 +68,17 @@ describe('FollowingList — a player followed everywhere', () => {
     return client
   }
 
-  it('says where it reaches instead of naming a tournament', async () => {
+  it('names no tournament: reaching all of them is what following a player is', async () => {
     mount(await seededEverywhere())
-    await waitFor(() => expect(rows()).toEqual(['Anan Dee · Every tournamentUnfollow']))
+    await waitFor(() => expect(rows()).toEqual(['Anan DeeUnfollow']))
+  })
+
+  it('still says when it is for the results alone', async () => {
+    const client = fakeClient()
+    await client.subscribe('PUB')
+    await client.follow(SUB, 'en', { kind: 'player', scope: 'everywhere', slug: 'anan_dee', playerName: 'Anan Dee', tier: 'result' })
+    mount(client)
+    await waitFor(() => expect(rows()).toEqual(['Anan Dee · Results onlyUnfollow']))
   })
 
   it('is unfollowed by the name it is keyed by', async () => {
@@ -81,7 +89,7 @@ describe('FollowingList — a player followed everywhere', () => {
     await waitFor(() => expect(rows()).toEqual([]))
   })
 
-  it('says a results-only follow is one', async () => {
+  it('keeps naming the tournament of a follow pinned to one, which is now the unusual kind', async () => {
     const client = fakeClient()
     await client.subscribe('PUB')
     await client.follow(SUB, 'en', { kind: 'player', tournamentId: TID, playerId: '1', playerName: 'Anan Dee', tier: 'result' })

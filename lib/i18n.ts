@@ -351,7 +351,6 @@ export type TKey =
   | 'followLinkCopied'
   | 'followTierFull'
   | 'followTierResult'
-  | 'followingEverywhere'
   | 'followLimit'
   | 'followError'
   | 'followClub'
@@ -699,7 +698,6 @@ const dict: Record<Lang, Record<TKey, string>> = {
     followLinkCopied: 'Link copied',
     followTierFull: 'All alerts',
     followTierResult: 'Results only',
-    followingEverywhere: 'Every tournament',
     followLimit: 'You are following as many as this device allows. Unfollow some first.',
     followError: 'Could not follow just now. Please try again.',
     followClub: 'Follow club',
@@ -1082,7 +1080,6 @@ const dict: Record<Lang, Record<TKey, string>> = {
     followLinkCopied: 'คัดลอกลิงก์แล้ว',
     followTierFull: 'แจ้งเตือนทั้งหมด',
     followTierResult: 'เฉพาะผลการแข่งขัน',
-    followingEverywhere: 'ทุกทัวร์นาเมนต์',
     followLimit: 'ติดตามครบจำนวนที่อุปกรณ์นี้รองรับแล้ว กรุณาเลิกติดตามบางรายการก่อน',
     followError: 'ติดตามไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
     followClub: 'ติดตามสโมสร',

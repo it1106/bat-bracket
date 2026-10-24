@@ -31,10 +31,12 @@ export default function FollowingList({ tournamentNames }: { tournamentNames: Re
     }
   }
 
-  // Where a follow reaches, and how much it brings. A follow in one
-  // tournament for every alert is what every follow once was, and says
-  // neither: only what is unusual about a follow is worth the line.
-  const where = (f: PushFollow) => (isEverywhere(f) ? t('followingEverywhere') : tournamentNames[f.tournamentId] ?? '')
+  // Where a follow reaches, and how much it brings — only where that is
+  // worth a line. Following a player reaches every tournament now, so saying
+  // so on each row says nothing; what is worth marking is the follow that
+  // does not, pinned to the one tournament it was made in before that
+  // changed, and the club follow, which is a tournament's by its nature.
+  const where = (f: PushFollow) => (isEverywhere(f) ? '' : tournamentNames[f.tournamentId] ?? '')
   const howMuch = (f: PushFollow) => (f.kind === 'player' && tierOf(f) === 'result' ? t('followTierResult') : '')
 
   return (
