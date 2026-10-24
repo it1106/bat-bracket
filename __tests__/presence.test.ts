@@ -143,6 +143,7 @@ describe('PresenceStore users today', () => {
       peak: { count: 2, at: NOON },
       ids: ['device-aaaa', 'device-bbbb'],
       countries: ['', ''],
+      platforms: ['', ''],
     })
 
     const b = new PresenceStore()

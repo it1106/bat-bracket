@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { setSearchAliases } from '@/lib/searchAliases'
 import { outageEvents } from '@/lib/batOutageEvents'
 import CountryDonut from '@/components/CountryDonut'
+import PlatformDonut from '@/components/PlatformDonut'
 import { useTheme } from '@/lib/ThemeContext'
 
 const REFRESH_MS = 10_000
@@ -115,6 +116,7 @@ interface Status {
     peakAt: string | null
     users: number
     countries?: Array<{ country: string; count: number }>
+    platforms?: Array<{ platform: string; count: number }>
     onlineIds?: Array<{ id: string; lastSeenAt: string }>
   }
 }
@@ -1042,6 +1044,18 @@ export default function BmStats() {
           <Tile label="Peak today" value={num(visitors.peak)} note={visitors.peakAt ? `at ${clock(visitors.peakAt)}` : undefined} high={highs.peakOnline} highWithTime />
           <Tile label="Users today" value={num(visitors.users)} high={highs.usersDay} />
         </div>
+        {visitors.platforms && visitors.platforms.length > 0 && (
+          <>
+            <h3 className="bms-subtitle">Today&apos;s users by device</h3>
+            <PlatformDonut platforms={visitors.platforms} />
+            <p className="bms-note">
+              Each of today&apos;s {num(visitors.users)} users, by the operating system their browser reported when
+              they were first seen. An iPad claims to be a Mac, so it is told apart by the touch points its browser
+              reports. Unknown is a user whose browser we could not place, or who was last seen before devices were
+              being recorded.
+            </p>
+          </>
+        )}
         <h3 className="bms-subtitle">Online now</h3>
         {!visitors.onlineIds || visitors.onlineIds.length === 0 ? (
           <p className="bms-note">Nobody online.</p>
