@@ -589,6 +589,7 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
           return (
             <span
               className={`ms-event${canClick ? ' ms-event--link' : ''}`}
+              title={m.draw}
               onClick={canClick ? () => { recordMatchView(m); onEventClick!(targetDrawNum, m.round) } : undefined}
             >{m.draw}</span>
           )

@@ -1708,6 +1708,13 @@ html[lang="th"] .pm-section-title {
   color: var(--brand-fg);
   white-space: nowrap;
   font-size: calc(13px * var(--text-scale));
+  /* The draw name is whatever the organiser typed, and some run past 100
+   * characters — a team event names itself in full in every draw. Unclipped,
+   * nowrap text painted straight across the team and score columns, so it is
+   * cut to the meta column with the full name on the element's title. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .ms-round {
