@@ -76,6 +76,7 @@ interface Status {
         tournamentName: string
         addedAt: string
       }>
+      site?: boolean
     }>
     deviceTotal?: number
     recentSends?: Array<{
@@ -780,17 +781,20 @@ export default function BmStats() {
                             : dateOf(device.lastSeenAt, true)}
                         </td>
                         <td>
-                          {device.follows.length === 0 ? (
+                          {device.follows.length === 0 && !device.site ? (
                             <span className="bms-note">nothing</span>
                           ) : (
-                            device.follows.map((follow) => (
-                              <div key={`${follow.kind}|${follow.tournamentId}|${follow.playerId ?? follow.name}`}>
-                                {follow.name}
-                                {follow.playerId ? ` (${follow.playerId})` : ''}
-                                {follow.kind === 'club' ? ' — club' : ''}
-                                <span className="bms-note"> · {follow.tournamentName}</span>
-                              </div>
-                            ))
+                            <>
+                              {device.follows.map((follow) => (
+                                <div key={`${follow.kind}|${follow.tournamentId}|${follow.playerId ?? follow.name}`}>
+                                  {follow.name}
+                                  {follow.playerId ? ` (${follow.playerId})` : ''}
+                                  {follow.kind === 'club' ? ' — club' : ''}
+                                  <span className="bms-note"> · {follow.tournamentName}</span>
+                                </div>
+                              ))}
+                              {device.site && <div>site news</div>}
+                            </>
                           )}
                         </td>
                       </tr>

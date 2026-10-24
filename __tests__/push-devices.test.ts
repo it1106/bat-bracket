@@ -56,6 +56,19 @@ describe('deviceRows', () => {
     expect(devices.map((d) => d.service)).toEqual(hosts.map(([, label]) => label))
   })
 
+  it('reports whether site news is on, which a device may have with no follows at all', () => {
+    const { devices } = deviceRows([
+      record({ endpoint: 'https://fcm.googleapis.com/fcm/send/site-only', site: true }),
+      record({ endpoint: 'https://fcm.googleapis.com/fcm/send/both', site: true, follows: [player()] }),
+      record({ endpoint: 'https://fcm.googleapis.com/fcm/send/follows-only', follows: [player()] }),
+    ], names)
+    expect(devices.map((d) => ({ site: d.site, follows: d.follows.length }))).toEqual([
+      { site: true, follows: 0 },
+      { site: true, follows: 1 },
+      { site: false, follows: 1 },
+    ])
+  })
+
   it('falls back to the hostname for a push service it does not know', () => {
     const { devices } = deviceRows([record({ endpoint: 'https://push.example.org/send/x' })], names)
     expect(devices[0].service).toBe('push.example.org')
