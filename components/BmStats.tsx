@@ -78,6 +78,7 @@ interface Status {
         tournamentName: string
         addedAt: string
       }>
+      site?: boolean
     }>
     deviceTotal?: number
     recentSends?: Array<{
@@ -782,24 +783,27 @@ export default function BmStats() {
                             : dateOf(device.lastSeenAt, true)}
                         </td>
                         <td>
-                          {device.follows.length === 0 ? (
+                          {device.follows.length === 0 && !device.site ? (
                             <span className="bms-note">nothing</span>
                           ) : (
-                            device.follows.map((follow) => (
-                              <div key={`${follow.kind}|${follow.tournamentId}|${follow.playerId || follow.name}`}>
-                                {follow.name}
-                                {follow.playerId ? ` (${follow.playerId})` : ''}
-                                {follow.kind === 'club' ? ' — club' : ''}
-                                {/* Where the follow reaches, then how much it brings. One
-                                    written before either was stored reads as what it has
-                                    always been: this tournament, every alert. */}
-                                <span className="bms-note">
-                                  {' · '}
-                                  {follow.scope === 'everywhere' ? 'all tournaments' : follow.tournamentName}
-                                  {follow.tier === 'result' ? ' · results only' : ''}
-                                </span>
-                              </div>
-                            ))
+                            <>
+                              {device.follows.map((follow) => (
+                                <div key={`${follow.kind}|${follow.tournamentId}|${follow.playerId || follow.name}`}>
+                                  {follow.name}
+                                  {follow.playerId ? ` (${follow.playerId})` : ''}
+                                  {follow.kind === 'club' ? ' — club' : ''}
+                                  {/* Where the follow reaches, then how much it brings. One
+                                      written before either was stored reads as what it has
+                                      always been: this tournament, every alert. */}
+                                  <span className="bms-note">
+                                    {' · '}
+                                    {follow.scope === 'everywhere' ? 'all tournaments' : follow.tournamentName}
+                                    {follow.tier === 'result' ? ' · results only' : ''}
+                                  </span>
+                                </div>
+                              ))}
+                              {device.site && <div>site news</div>}
+                            </>
                           )}
                         </td>
                       </tr>

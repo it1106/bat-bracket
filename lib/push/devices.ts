@@ -40,6 +40,9 @@ export interface DeviceRow {
   createdAt: string
   lastSeenAt: string
   follows: DeviceFollowRow[]
+  /** Site news is on. Independent of follows: it names no tournament, and it
+   *  alone is enough to keep a device on the store. */
+  site: boolean
 }
 
 /** How a device is named everywhere outside the store. */
@@ -93,6 +96,7 @@ export function deviceRows(
       createdAt: r.createdAt,
       lastSeenAt: r.lastSeenAt,
       follows: r.follows.map((f) => followRow(f, tournamentName)),
+      site: !!r.site,
     }))
   return { devices, total: records.length }
 }
