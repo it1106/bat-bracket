@@ -349,8 +349,6 @@ export type TKey =
   | 'followInAppBrowser'
   | 'followCopyLink'
   | 'followLinkCopied'
-  | 'followScopeHere'
-  | 'followScopeEverywhere'
   | 'followTierFull'
   | 'followTierResult'
   | 'followingEverywhere'
@@ -699,8 +697,6 @@ const dict: Record<Lang, Record<TKey, string>> = {
     followInAppBrowser: 'Alerts do not work inside this app\'s browser. Open BATMatch in Chrome or Safari.',
     followCopyLink: 'Copy link',
     followLinkCopied: 'Link copied',
-    followScopeHere: 'This tournament',
-    followScopeEverywhere: 'Every tournament',
     followTierFull: 'All alerts',
     followTierResult: 'Results only',
     followingEverywhere: 'Every tournament',
@@ -1084,8 +1080,6 @@ const dict: Record<Lang, Record<TKey, string>> = {
     followInAppBrowser: 'การแจ้งเตือนใช้ไม่ได้ในเบราว์เซอร์ของแอปนี้ กรุณาเปิด BATMatch ใน Chrome หรือ Safari',
     followCopyLink: 'คัดลอกลิงก์',
     followLinkCopied: 'คัดลอกลิงก์แล้ว',
-    followScopeHere: 'ทัวร์นาเมนต์นี้',
-    followScopeEverywhere: 'ทุกทัวร์นาเมนต์',
     followTierFull: 'แจ้งเตือนทั้งหมด',
     followTierResult: 'เฉพาะผลการแข่งขัน',
     followingEverywhere: 'ทุกทัวร์นาเมนต์',

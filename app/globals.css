@@ -4192,17 +4192,13 @@ html.dark .follow-beta {
 
 .follow-btn--on:hover { background: var(--brand); }
 
-/* Where the alerts come from, and how many: four small chips under the
-   bell, two to a pair, with a gap between the pairs so they read as two
-   questions rather than one row of four. */
+/* How much a follow says: two small chips under the bell. */
 .follow-opts {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
 }
-
-.follow-opts-gap { width: 8px; }
 
 .follow-chip {
   font-size: calc(11px * var(--text-scale));
