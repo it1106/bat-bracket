@@ -37,11 +37,17 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
     if (!id) return
     let timer: ReturnType<typeof setInterval> | null = null
 
+    // An iPad sends a desktop Safari user agent, so the server cannot tell one
+    // from a Mac. Its touch points can: no Mac has a touch screen. One bit,
+    // used only to pick which word the device is counted under and never
+    // stored — see lib/push/user-agent.
+    const touch = navigator.maxTouchPoints > 1
+
     const ping = () => {
       fetch('/api/presence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, touch }),
       })
         .then((r) => (r.ok ? r.json() : null))
         .then((data: { online?: number; peak?: number; users?: number } | null) => {

@@ -1,3 +1,5 @@
+import { isDeviceOs, type DeviceOs } from './push/user-agent'
+
 // In-memory "who's online" tracker behind /api/presence.
 //
 // Each open tab pings with its device id while visible; a device counts as
@@ -36,10 +38,16 @@ export interface PresenceSnapshot {
   /** Each device's country, in the order of `ids`; '' where it is not known.
    *  Absent in snapshots saved before countries were kept. */
   countries?: string[]
+  /** Each device's operating system, in the order of `ids`; '' where it is not
+   *  known. Absent in snapshots saved before platforms were kept. */
+  platforms?: string[]
 }
 
 /** The country of a device nobody has told us the country of. */
 export const UNKNOWN_COUNTRY = 'XX'
+/** The platform of a device whose user agent we did not recognise, or which
+ *  was last seen before platforms were being recorded. */
+export const UNKNOWN_PLATFORM = 'unknown'
 
 // What a heartbeat may report: a two-character code as Cloudflare sends it, or
 // 'direct' for a request that did not come through Cloudflare.
@@ -54,16 +62,16 @@ export interface PresenceHooks {
 export class PresenceStore {
   private lastSeen = new Map<string, number>()
   private day = ''
-  /** Device → its country ('' until a heartbeat reports one). */
-  private seenToday = new Map<string, string>()
+  /** Device → what we know about it ('' for either until a heartbeat says). */
+  private seenToday = new Map<string, { country: string; platform: DeviceOs }>()
   private peakCount = 0
   private peakAt: number | null = null
 
   constructor(private hooks: PresenceHooks = {}) {}
 
-  touch(id: string, now: number, country?: string): void {
+  touch(id: string, now: number, country?: string, platform?: string): void {
     this.rollDay(now)
-    this.see(id, isCountry(country) ? country : '')
+    this.see(id, isCountry(country) ? country : '', isDeviceOs(platform) ? platform : '')
     // Re-insert so Map iteration order stays oldest-first for pruning.
     this.lastSeen.delete(id)
     this.lastSeen.set(id, now)
@@ -108,12 +116,24 @@ export class PresenceStore {
   usersByCountry(now: number): Array<{ country: string; count: number }> {
     this.rollDay(now)
     const counts = new Map<string, number>()
-    for (const country of Array.from(this.seenToday.values())) {
+    for (const { country } of Array.from(this.seenToday.values())) {
       const key = country || UNKNOWN_COUNTRY
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
     return Array.from(counts, ([country, count]) => ({ country, count }))
       .sort((a, b) => b.count - a.count || a.country.localeCompare(b.country))
+  }
+
+  /** Today's distinct devices by operating system, most first. */
+  usersByPlatform(now: number): Array<{ platform: string; count: number }> {
+    this.rollDay(now)
+    const counts = new Map<string, number>()
+    for (const { platform } of Array.from(this.seenToday.values())) {
+      const key = platform || UNKNOWN_PLATFORM
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return Array.from(counts, ([platform, count]) => ({ platform, count }))
+      .sort((a, b) => b.count - a.count || a.platform.localeCompare(b.platform))
   }
 
   snapshot(now: number): PresenceSnapshot {
@@ -122,7 +142,8 @@ export class PresenceStore {
       day: this.day,
       peak: { count: this.peakCount, at: this.peakAt },
       ids: Array.from(this.seenToday.keys()),
-      countries: Array.from(this.seenToday.values()),
+      countries: Array.from(this.seenToday.values(), (s) => s.country),
+      platforms: Array.from(this.seenToday.values(), (s) => s.platform),
     }
   }
 
@@ -133,7 +154,9 @@ export class PresenceStore {
     if (snap.day !== this.day) return
     snap.ids.forEach((id, i) => {
       const country = snap.countries?.[i]
-      if (isValidDeviceId(id)) this.see(id, isCountry(country) ? country : '')
+      const platform = snap.platforms?.[i]
+      if (!isValidDeviceId(id)) return
+      this.see(id, isCountry(country) ? country : '', isDeviceOs(platform) ? platform : '')
     })
     if (snap.peak.count > this.peakCount) {
       this.peakCount = snap.peak.count
@@ -141,16 +164,18 @@ export class PresenceStore {
     }
   }
 
-  // Records a device as seen today. Its first known country is kept: one
-  // visitor is one slice of the day, wherever they roam later.
-  private see(id: string, country: string): void {
+  // Records a device as seen today. Its first known country and platform are
+  // kept: one visitor is one slice of the day, wherever they roam later and
+  // whatever they switch to.
+  private see(id: string, country: string, platform: DeviceOs): void {
     const known = this.seenToday.get(id)
     if (known === undefined) {
       // Same cap as the online map: random ids can't grow the set without bound.
-      if (this.seenToday.size < MAX_DEVICES) this.seenToday.set(id, country)
-    } else if (!known && country) {
-      this.seenToday.set(id, country)
+      if (this.seenToday.size < MAX_DEVICES) this.seenToday.set(id, { country, platform })
+      return
     }
+    if (!known.country && country) known.country = country
+    if (!known.platform && platform) known.platform = platform
   }
 
   private rollDay(now: number): void {

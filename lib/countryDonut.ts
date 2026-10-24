@@ -1,3 +1,5 @@
+import type { DonutSlice } from './donut'
+
 // The slices of the "By country" donut on /bmstats: the busiest few countries
 // and everything else as one "Other" slice, so the ring never has more parts
 // than can be told apart.
@@ -7,16 +9,8 @@ export const MAX_COUNTRIES = 5
 /** The home country always wears the first colour. */
 const HOME = 'TH'
 
-export interface CountrySlice {
-  /** Country code, or 'other'. */
-  key: string
-  name: string
-  count: number
-  /** 0–100. */
-  percent: number
-  /** Colour slot 1–5, or 0 for "Other". */
-  slot: number
-}
+/** A country's slice: `key` is its code, or 'other'. */
+export type CountrySlice = DonutSlice
 
 const SPECIAL: Record<string, string> = {
   direct: 'Not through Cloudflare',
@@ -92,9 +86,5 @@ export function countrySlices(countries: Array<{ country: string; count: number 
   return slices
 }
 
-/** "95.2%", "<0.1%" for a sliver, "100%" for everything. */
-export function percentLabel(percent: number): string {
-  if (percent >= 99.95) return '100%'
-  if (percent > 0 && percent < 0.1) return '<0.1%'
-  return `${percent.toFixed(1)}%`
-}
+// Where it used to live; still imported from here by its own tests and callers.
+export { percentLabel } from './donut'
