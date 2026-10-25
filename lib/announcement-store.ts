@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
+import { MAX_ANNOUNCEMENT } from './announcements'
 
 // Server-side home of the announcement managed on /bmstats. Lives in
 // .cache/announcement.json (not in Git, so a deploy doesn't touch it) and is
@@ -12,7 +13,7 @@ import path from 'path'
 // on, so a new text is a new id and shows, while re-saving the same text
 // changes nothing. Empty text means no announcement at all.
 
-export const MAX_ANNOUNCEMENT = 500
+export { MAX_ANNOUNCEMENT } from './announcements'
 
 export interface Announcement {
   text: string

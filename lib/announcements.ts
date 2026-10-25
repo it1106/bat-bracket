@@ -5,6 +5,10 @@
 // no bounded set of ids to keep keys for, and comparing against a single
 // remembered id is what makes a changed announcement show again.
 
+/** Longest announcement the owner can save. Lives here, not in the store, so
+ *  client components can read it without pulling in a server-only module. */
+export const MAX_ANNOUNCEMENT = 500
+
 const SEEN_KEY = 'batbracket.announcementSeen'
 
 export function lastSeenAnnouncement(): string | null {

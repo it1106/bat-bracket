@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { setSearchAliases } from '@/lib/searchAliases'
+import { MAX_ANNOUNCEMENT } from '@/lib/announcements'
 import CountryDonut from '@/components/CountryDonut'
 import PlatformDonut from '@/components/PlatformDonut'
 import { useTheme } from '@/lib/ThemeContext'
@@ -302,6 +303,100 @@ function MinuteChart({ perMinute, generatedAt, noun, label }: {
         <span>{minuteAt(perMinute.length - 1)}</span>
       </div>
     </div>
+  )
+}
+
+// The announcement shown to visitors as a one-time popup. Saved on the server;
+// the text's id is derived from the text, so editing it here shows the popup
+// again to everyone, and an empty box turns it off.
+export function AnnouncementEditor() {
+  const [saved, setSaved] = useState<{ text: string; id: string; updatedAt: number } | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const [text, setText] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const apply = async (res: Response) => {
+    const data = (await res.json().catch(() => null)) as
+      | { announcement?: { text: string; id: string; updatedAt: number } | null; error?: string }
+      | null
+    if (res.ok && data && 'announcement' in data) {
+      const next = data.announcement ?? null
+      setSaved(next)
+      setText(next?.text ?? '')
+      setLoaded(true)
+      setError(null)
+      return true
+    }
+    setError(data?.error ?? 'Could not save. Try again.')
+    return false
+  }
+
+  useEffect(() => {
+    fetch('/api/bmstats/announcement', { cache: 'no-store' })
+      .then(apply)
+      .catch(() => setError('Could not load the announcement.'))
+  }, [])
+
+  const post = async (value: string) => {
+    if (busy) return
+    setBusy(true)
+    try {
+      await apply(await fetch('/api/bmstats/announcement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: value }),
+      }))
+    } catch {
+      setError('Could not reach the server. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const unchanged = loaded && text === (saved?.text ?? '')
+  return (
+    <Card title="Announcement">
+      <p className="bms-note">
+        Visitors see this once as a popup and click OK. Change the text and everyone sees it again,
+        including people who already closed the old one. Empty the box to turn the popup off.
+        Changes reach visitors the next time they load a page.
+      </p>
+      <p className="bms-note">
+        {saved
+          ? `On — last changed ${clock(saved.updatedAt)}`
+          : 'Off — no popup is shown.'}
+      </p>
+      <textarea
+        className="bms-announcement-textarea"
+        aria-label="Announcement text"
+        rows={4}
+        maxLength={MAX_ANNOUNCEMENT}
+        placeholder="e.g. 🎉 ฟีเจอร์ใหม่ : …"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <p className="bms-note">{text.trim().length} / {MAX_ANNOUNCEMENT}</p>
+      <div className="bms-alias-form">
+        <button
+          className="bms-login-button"
+          type="button"
+          disabled={busy || unchanged}
+          onClick={() => post(text)}
+        >
+          Save
+        </button>
+        <button
+          className="bms-logout"
+          type="button"
+          disabled={busy || (loaded && !saved)}
+          onClick={() => { setText(''); post('') }}
+        >
+          Clear
+        </button>
+      </div>
+      {error && <p className="bms-login-error" role="alert">{error}</p>}
+    </Card>
   )
 }
 
@@ -1118,6 +1213,7 @@ export default function BmStats() {
         </Card>
       )}
 
+      <AnnouncementEditor />
       <AliasEditor />
     </div>
   )
