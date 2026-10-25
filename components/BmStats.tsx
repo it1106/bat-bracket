@@ -354,7 +354,7 @@ export function AnnouncementEditor() {
     }
   }
 
-  const unchanged = loaded && text === (saved?.text ?? '')
+  const unchanged = text === (saved?.text ?? '')
   return (
     <Card title="Announcement">
       <p className="bms-note">
@@ -363,9 +363,11 @@ export function AnnouncementEditor() {
         Changes reach visitors the next time they load a page.
       </p>
       <p className="bms-note">
-        {saved
-          ? `On — last changed ${clock(saved.updatedAt)}`
-          : 'Off — no popup is shown.'}
+        {!loaded
+          ? 'Loading…'
+          : saved
+            ? `On — last changed ${dateOf(new Date(saved.updatedAt).toISOString(), true)}`
+            : 'Off — no popup is shown.'}
       </p>
       <textarea
         className="bms-announcement-textarea"
@@ -381,7 +383,7 @@ export function AnnouncementEditor() {
         <button
           className="bms-login-button"
           type="button"
-          disabled={busy || unchanged}
+          disabled={busy || !loaded || unchanged}
           onClick={() => post(text)}
         >
           Save
@@ -389,7 +391,7 @@ export function AnnouncementEditor() {
         <button
           className="bms-logout"
           type="button"
-          disabled={busy || (loaded && !saved)}
+          disabled={busy || !loaded || !saved}
           onClick={() => { setText(''); post('') }}
         >
           Clear

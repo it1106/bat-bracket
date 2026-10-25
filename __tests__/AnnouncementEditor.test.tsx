@@ -76,4 +76,33 @@ describe('AnnouncementEditor', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'same!' } })
     expect(screen.getByRole('button', { name: /save/i })).toBeEnabled()
   })
+
+  it('keeps Save and Clear disabled, and claims nothing, until the load resolves', async () => {
+    let release: (v: unknown) => void = () => {}
+    fetchMock.mockReturnValueOnce(new Promise((r) => { release = r }))
+    render(<AnnouncementEditor />)
+    // Still loading: neither button may act, and the status must not claim Off.
+    expect(screen.getByRole('button', { name: /save/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /clear/i })).toBeDisabled()
+    expect(screen.queryByText(/^Off —/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^On —/)).not.toBeInTheDocument()
+    release(reply({ announcement: { text: 'live', id: 'aaa', updatedAt: Date.now() } }))
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('live'))
+    expect(screen.getByRole('button', { name: /clear/i })).toBeEnabled()
+  })
+
+  it('keeps both buttons disabled when the load fails', async () => {
+    fetchMock.mockRejectedValue(new Error('offline'))
+    render(<AnnouncementEditor />)
+    await screen.findByRole('alert')
+    expect(screen.getByRole('button', { name: /save/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /clear/i })).toBeDisabled()
+  })
+
+  it('shows the date as well as the time of the last change', async () => {
+    const at = Date.UTC(2026, 0, 15, 3, 0, 0) // 10:00 Bangkok, 15 Jan 2026
+    fetchMock.mockResolvedValue(reply({ announcement: { text: 'dated', id: 'aaa', updatedAt: at } }))
+    render(<AnnouncementEditor />)
+    expect(await screen.findByText(/15 Jan 2026/)).toBeInTheDocument()
+  })
 })

@@ -62,7 +62,7 @@ export default function AnnouncementPopup() {
     return () => window.clearTimeout(id)
   }, [shown])
 
-  if (!shown) return null
+  if (!shown || suppressed) return null
 
   return (
     <div className="pm-overlay" onClick={close}>

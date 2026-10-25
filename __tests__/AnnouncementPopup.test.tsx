@@ -120,4 +120,22 @@ describe('AnnouncementPopup', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(global.fetch).not.toHaveBeenCalled()
   })
+
+  it('shows nothing when a 200 carries a body that is not JSON', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true, json: async () => { throw new SyntaxError('Unexpected token <') },
+    }) as unknown as typeof fetch
+    render(<AnnouncementPopup />)
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('goes away when a client navigation lands on /bmstats while it is open', async () => {
+    serve({ id: 'aaa', text: 'hello' })
+    const { rerender } = render(<AnnouncementPopup />)
+    expect(await screen.findByText('hello')).toBeInTheDocument()
+    pathname = '/bmstats'
+    rerender(<AnnouncementPopup />)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
 })
