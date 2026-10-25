@@ -20,16 +20,11 @@ import { useLongPress } from '@/lib/useLongPress'
 import { areAllDrawsUnentered, isAwaitingBracketPublication, isDrawWithoutEntries } from '@/lib/bracket-state'
 import { usePointerReorder } from '@/lib/usePointerReorder'
 import { schedulePollUrl } from '@/lib/schedulePoll'
-import AnnouncementBanner from '@/components/AnnouncementBanner'
 import StaleCacheBanner from '@/components/StaleCacheBanner'
 import { noteBatDownSince } from '@/lib/batDownSince'
 import DiskCacheBadge from '@/components/DiskCacheBadge'
 import OnlinePill from '@/components/OnlinePill'
 import TextSizeButton from '@/components/TextSizeButton'
-import {
-  ANN_CUSTOM_TABS_MULTI,
-  ANN_CUSTOM_TABS_MULTI_TEXT_TH,
-} from '@/lib/announcements'
 import AlertBell from '@/components/AlertBell'
 import {
   getAlerts,
@@ -1268,12 +1263,6 @@ export default function Home() {
       </div>
 
       <StaleCacheBanner visible={staleCache} />
-
-      <AnnouncementBanner
-        id={ANN_CUSTOM_TABS_MULTI}
-        text={ANN_CUSTOM_TABS_MULTI_TEXT_TH}
-        visible={!!selectedTournament}
-      />
 
       {/* View mode tabs */}
       {selectedTournament && (
