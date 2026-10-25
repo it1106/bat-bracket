@@ -1,21 +1,28 @@
-export const ANN_CUSTOM_TABS_MULTI = 'customTabs2026-05'
-export const ANN_CUSTOM_TABS_MULTI_TEXT_TH =
-  '🎉 ฟีเจอร์ใหม่ : สร้าง custom search ได้ถึง 3 ชุด กดเครื่องหมาย + บน tab bar ด้านล่างเพื่อทดลองใช้งาน'
+// Which announcement this browser has already acknowledged.
+//
+// One key, holding the id of the last announcement the visitor clicked OK on —
+// not one key per announcement. The text is editable from /bmstats, so there is
+// no bounded set of ids to keep keys for, and comparing against a single
+// remembered id is what makes a changed announcement show again.
 
-const KEY_PREFIX = 'batbracket.announcements.'
+/** Longest announcement the owner can save. Lives here, not in the store, so
+ *  client components can read it without pulling in a server-only module. */
+export const MAX_ANNOUNCEMENT = 500
 
-export function isAnnouncementDismissed(id: string): boolean {
-  if (typeof window === 'undefined') return false
+const SEEN_KEY = 'batbracket.announcementSeen'
+
+export function lastSeenAnnouncement(): string | null {
+  if (typeof window === 'undefined') return null
   try {
-    return localStorage.getItem(KEY_PREFIX + id) === '1'
+    return localStorage.getItem(SEEN_KEY)
   } catch {
-    return false
+    return null
   }
 }
 
-export function dismissAnnouncement(id: string): void {
+export function markAnnouncementSeen(id: string): void {
   if (typeof window === 'undefined') return
   try {
-    localStorage.setItem(KEY_PREFIX + id, '1')
+    localStorage.setItem(SEEN_KEY, id)
   } catch {}
 }

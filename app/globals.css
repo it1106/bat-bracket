@@ -254,33 +254,6 @@ html.dark .ms-share-capture .ms-board-set.live { color: #ef4444; }
   animation: bk-round-hint-pulse 1.4s ease-in-out 3;
 }
 
-.announcement-marquee {
-  display: flex;
-  overflow: hidden;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-.announcement-marquee__track {
-  display: inline-flex;
-  gap: 4rem;
-  padding-left: 100%;
-  animation: announcement-marquee 35s linear infinite;
-}
-.announcement-marquee:hover .announcement-marquee__track {
-  animation-play-state: paused;
-}
-@keyframes announcement-marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-100%); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .announcement-marquee__track {
-    animation: none;
-    padding-left: 0;
-  }
-}
-
 .bk-match-slot {
   position: absolute;
   left: 8px;
@@ -4264,3 +4237,17 @@ html.dark .follow-beta {
   color: var(--muted);
   font-size: calc(11px * var(--text-scale));
 }
+
+.bms-announcement-textarea {
+  width: 100%;
+  font-size: 16px; /* 16px stops iOS zooming the page on focus */
+  font-family: inherit;
+  line-height: 1.5;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  resize: vertical;
+}
+.bms-announcement-textarea:focus-visible { outline: 2px solid var(--brand-fg); outline-offset: 1px; }

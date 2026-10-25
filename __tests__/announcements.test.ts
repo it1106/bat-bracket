@@ -1,41 +1,40 @@
 /**
  * @jest-environment jsdom
  */
-import {
-  isAnnouncementDismissed,
-  dismissAnnouncement,
-  ANN_CUSTOM_TABS_MULTI,
-  ANN_CUSTOM_TABS_MULTI_TEXT_TH,
-} from '@/lib/announcements'
+import { lastSeenAnnouncement, markAnnouncementSeen } from '@/lib/announcements'
 
-beforeEach(() => {
-  localStorage.clear()
-})
+beforeEach(() => localStorage.clear())
 
-describe('announcements storage', () => {
-  it('returns false when nothing is stored', () => {
-    expect(isAnnouncementDismissed('any-id')).toBe(false)
+describe('announcement dismissal state', () => {
+  it('reports nothing seen to start with', () => {
+    expect(lastSeenAnnouncement()).toBeNull()
   })
 
-  it('round-trips a dismissal', () => {
-    dismissAnnouncement('an-id')
-    expect(isAnnouncementDismissed('an-id')).toBe(true)
+  it('round-trips the last seen id', () => {
+    markAnnouncementSeen('abc123')
+    expect(lastSeenAnnouncement()).toBe('abc123')
   })
 
-  it('isolates ids', () => {
-    dismissAnnouncement('first')
-    expect(isAnnouncementDismissed('first')).toBe(true)
-    expect(isAnnouncementDismissed('second')).toBe(false)
+  it('keeps one key, replacing the previous id', () => {
+    markAnnouncementSeen('first')
+    markAnnouncementSeen('second')
+    expect(lastSeenAnnouncement()).toBe('second')
+    expect(Object.keys(localStorage).filter((k) => k.startsWith('batbracket.announcement'))).toEqual(
+      ['batbracket.announcementSeen'],
+    )
   })
 
-  it('writes under the batbracket.announcements.<id> key', () => {
-    dismissAnnouncement('demo')
-    expect(localStorage.getItem('batbracket.announcements.demo')).toBe('1')
+  it('writes under batbracket.announcementSeen', () => {
+    markAnnouncementSeen('xyz')
+    expect(localStorage.getItem('batbracket.announcementSeen')).toBe('xyz')
   })
 
-  it('exports the custom-tabs announcement metadata', () => {
-    expect(ANN_CUSTOM_TABS_MULTI).toBe('customTabs2026-05')
-    expect(ANN_CUSTOM_TABS_MULTI_TEXT_TH).toContain('ฟีเจอร์ใหม่')
-    expect(ANN_CUSTOM_TABS_MULTI_TEXT_TH).toContain('custom search')
+  it('survives storage that throws', () => {
+    const spy = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked') })
+    expect(() => markAnnouncementSeen('x')).not.toThrow()
+    spy.mockRestore()
+    const get = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked') })
+    expect(lastSeenAnnouncement()).toBeNull()
+    get.mockRestore()
   })
 })
