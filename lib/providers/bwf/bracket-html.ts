@@ -232,7 +232,7 @@ export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0)
         const orderNo = courtName ? orderOfPlayNumber(match.oopRound) : ''
         const courtHtml = courtName ? `<span class="bk-court">${esc(courtName)}</span>` : ''
         const orderHtml = orderNo
-          ? `<span class="bk-oop" title="Match ${esc(orderNo)} on ${esc(courtName)}">#${esc(orderNo)}</span>`
+          ? `<span class="bk-oop" title="Match ${esc(orderNo)} on ${esc(courtName)}">M${esc(orderNo)}</span>`
           : ''
         const footerHtml = isUnplayed && (timeHtml || courtHtml)
           ? `<div class="bk-footer">` +
