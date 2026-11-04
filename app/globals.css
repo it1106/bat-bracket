@@ -572,6 +572,18 @@ html.dark .ms-share-capture .wo-pill {
   opacity: 0.85;
 }
 
+/* Order of play: the match's place in its court's queue for the day, the
+   number the schedule prints as "Match 5. Followed by". Sits right after the
+   court it counts against, and never pushes the court off its line. */
+.bk-oop {
+  flex-shrink: 0;
+  font-size: calc(11px * var(--text-scale));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--info-fg);
+  opacity: 0.7;
+}
+
 .bk-conn {
   position: relative;
   width: 24px;

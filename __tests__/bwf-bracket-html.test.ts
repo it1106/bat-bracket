@@ -68,18 +68,57 @@ describe('buildBracketHtml', () => {
     expect(html).not.toContain('class="bk-time"')
   })
 
+  it('shows the order-of-play number beside the court', () => {
+    // 0-1 is the upcoming match: Court 2, oopRound 4. 0-0 is finished.
+    const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
+    expect(html).toContain('<span class="bk-court">Court 2</span><span class="bk-oop"')
+    expect(html).toContain('>#4</span>')
+    expect(html).not.toContain('>#3</span>')
+  })
+
+  it('leaves the order-of-play number out when there is no court', () => {
+    const html = buildBracketHtml({
+      gameTypeId: 1,
+      results: {
+        '0-0': { match: {
+          winner: 0, roundName: 'Final', matchTime: '2026-11-05 15:30:00', oopRound: 9,
+        } },
+      },
+    }, 'BS U13')
+    expect(html).toContain('class="bk-time"')
+    expect(html).not.toContain('bk-oop')
+  })
+
+  it('drops an order-of-play value that is not a queue position', () => {
+    const html = buildBracketHtml({
+      gameTypeId: 1,
+      results: {
+        '0-0': { match: {
+          winner: 0, roundName: 'Final', courtName: 'Court 4', oopRound: 0,
+        } },
+        '0-1': { match: {
+          winner: 0, roundName: 'Final', courtName: 'Court 5', oopRound: 'n/a',
+        } },
+      },
+    }, 'BS U13')
+    expect(html).toContain('<span class="bk-court">Court 4</span>')
+    expect(html).toContain('<span class="bk-court">Court 5</span>')
+    expect(html).not.toContain('bk-oop')
+  })
+
   it('hides the court when the order of play says it is TBA', () => {
     const html = buildBracketHtml({
       gameTypeId: 1,
       results: {
         '0-0': { match: {
           winner: 0, roundName: 'Final', courtName: 'Court 13',
-          matchTime: '2026-11-05 15:30:00', oopText: 'Court and time TBA',
+          matchTime: '2026-11-05 15:30:00', oopText: 'Court and time TBA', oopRound: 14,
         } },
       },
     }, 'BS U13')
     expect(html).toContain('class="bk-time"')
     expect(html).not.toContain('bk-court')
+    expect(html).not.toContain('bk-oop')
   })
 
   it('keeps the court on a "Followed by" order-of-play line', () => {
@@ -88,11 +127,12 @@ describe('buildBracketHtml', () => {
       results: {
         '0-0': { match: {
           winner: 0, roundName: 'Final', courtName: 'Court 13',
-          matchTime: '2026-11-05 15:30:00', oopText: 'Followed by',
+          matchTime: '2026-11-05 15:30:00', oopText: 'Followed by', oopRound: 6,
         } },
       },
     }, 'BS U13')
     expect(html).toContain('<span class="bk-court">Court 13</span>')
+    expect(html).toContain('>#6</span>')
   })
 
   it('marks the wrapper roomy so the wider column CSS applies', () => {
