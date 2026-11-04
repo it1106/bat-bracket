@@ -1,10 +1,16 @@
 // Generates bk-wrap HTML matching the BAT scraper's output so existing CSS applies.
 
-const SLOT_PITCH_BASE_SINGLES = 100
-const SLOT_PITCH_BASE_DOUBLES = 150
+// Slot pitch is the vertical distance between two match slots in the first
+// displayed round. A match box measures ~88px (singles) / ~127px (doubles)
+// once it carries a footer, so the pitch is set to leave ~26px of air between
+// boxes — at the old 100/150 the singles rounds read as one solid column.
+const SLOT_PITCH_BASE_SINGLES = 114
+const SLOT_PITCH_BASE_DOUBLES = 154
 const LABEL_OFFSET = 46
-const SLOT_HEIGHT_APPROX_SINGLES = 64
-const SLOT_HEIGHT_APPROX_DOUBLES = 100
+// Height of the tallest box in a round, used only to pad the round container
+// so the last slot isn't clipped. Measured on a box with a footer.
+const SLOT_HEIGHT_APPROX_SINGLES = 92
+const SLOT_HEIGHT_APPROX_DOUBLES = 132
 const SLOT_CENTER_OFFSET_SINGLES = 32
 const SLOT_CENTER_OFFSET_DOUBLES = 50
 
@@ -22,6 +28,16 @@ function formatBracketMatchTime(raw: string): string {
   if (!m) return raw
   const [, yyyy, mm, dd, hh, mi] = m
   return `${dd}/${mm}/${yyyy.slice(2)} ${hh}:${mi}`
+}
+
+// BWF keeps a planned court on a match whose order-of-play line says the court
+// is not settled ("Court and time TBA"), so printing it would send a player to
+// a court the source itself doesn't stand behind. Only the TBA wording hides
+// the court: "Followed by", "Not before 2:00 PM" and "Starting at 10:00 AM"
+// are real assignments. A "Time TBA" line keeps its court.
+function courtIsTba(oopText: string | null | undefined): boolean {
+  if (!oopText) return false
+  return /court/i.test(oopText) && /\bTBA\b/i.test(oopText)
 }
 
 function abbrevRound(name: string): string {
@@ -58,6 +74,8 @@ interface BwfMatch {
   score?: Array<{ home: number; away: number }>
   scoreStatus?: number
   roundName?: string; matchTime?: string
+  courtName?: string | null
+  oopText?: string | null
 }
 
 interface BwfDrawDataResponse {
@@ -125,7 +143,7 @@ export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0)
   const cells = data.results ?? {}
 
   if (Object.keys(cells).length === 0) {
-    return `<div class="bk-wrap"><div class="bk-round"><div class="bk-round-label">${esc(drawName)}</div><div style="padding:12px;color:var(--muted)">No data available</div></div></div>`
+    return `<div class="bk-wrap bk-wrap--roomy"><div class="bk-round"><div class="bk-round-label">${esc(drawName)}</div><div style="padding:12px;color:var(--muted)">No data available</div></div></div>`
   }
 
   // gameTypeId: 1=singles, 2=doubles, 3=mixed doubles
@@ -141,7 +159,7 @@ export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0)
   }
 
   const allCols = Array.from(byCol.keys()).sort((a, b) => a - b)
-  if (allCols.length === 0) return `<div class="bk-wrap"></div>`
+  if (allCols.length === 0) return `<div class="bk-wrap bk-wrap--roomy"></div>`
 
   const clampedFrom = Math.max(0, Math.min(fromRound, allCols.length - 1))
   const cols = allCols.slice(clampedFrom)
@@ -187,11 +205,23 @@ export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0)
         const row2Html = teamRowHtml(match.team2, match.team2seed, 2, winner, score, isWalkover, isRetired)
 
         const isUnplayed = winner === null && !isWalkover
-        const footerHtml = isUnplayed && match.matchTime
+        // Court is shown on upcoming matches only: BWF pre-assigns a court to
+        // queued matches hours ahead, and a finished match's court is noise.
+        // Later rounds have no court yet, so each part is rendered only when
+        // the payload has it.
+        const courtName = isUnplayed && !courtIsTba(match.oopText)
+          ? (match.courtName ?? '').trim()
+          : ''
+        const timeHtml = match.matchTime
+          ? `<span class="bk-clock">${BK_CLOCK_SVG}</span>` +
+            `<span class="bk-time">${esc(formatBracketMatchTime(match.matchTime))}</span>`
+          : ''
+        const courtHtml = courtName ? `<span class="bk-court">${esc(courtName)}</span>` : ''
+        const footerHtml = isUnplayed && (timeHtml || courtHtml)
           ? `<div class="bk-footer">` +
             `<span class="bk-round-tag">${esc(abbrevRound(roundName))}</span>` +
-            `<span class="bk-clock">${BK_CLOCK_SVG}</span>` +
-            `<span class="bk-time">${esc(formatBracketMatchTime(match.matchTime))}</span>` +
+            timeHtml +
+            courtHtml +
             `</div>`
           : ''
 
@@ -213,5 +243,9 @@ export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0)
       `</div>` + connHtml
   }
 
-  return `<div class="bk-wrap">${bkWrapHtml}</div>`
+  // bk-wrap--roomy widens the round columns past the shared 220px default:
+  // BWF prints full "Firstname SURNAME" pairs plus a flag, a seed and a court,
+  // which the narrow column clipped. Scoped to this builder so BAT brackets,
+  // whose geometry comes from lib/scraper.ts, are left as they are.
+  return `<div class="bk-wrap bk-wrap--roomy">${bkWrapHtml}</div>`
 }
