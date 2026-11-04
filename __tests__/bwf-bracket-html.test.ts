@@ -8,7 +8,7 @@ const fixture = (name: string) =>
 describe('buildBracketHtml', () => {
   it('produces bk-wrap structure with rounds and match slots', () => {
     const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
-    expect(html).toContain('class="bk-wrap"')
+    expect(html).toContain('class="bk-wrap bk-wrap--roomy"')
     expect(html).toContain('class="bk-round"')
     expect(html).toContain('class="bk-match-slot"')
     expect(html).toContain('data-round-index="0"')
@@ -47,6 +47,81 @@ describe('buildBracketHtml', () => {
     const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
     expect(html).toContain('<span class="bk-time">19/05/26 11:00</span>')
     expect(html).not.toContain('2026-05-19T11:00:00Z')
+  })
+
+  it('shows the court on an upcoming match only', () => {
+    // M1 (0-0) is finished on "Court 1"; M2 (0-1) is upcoming on "Court 2".
+    const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
+    expect(html).toContain('<span class="bk-court">Court 2</span>')
+    expect(html).not.toContain('Court 1')
+  })
+
+  it('renders a court-only footer when the upcoming match has no time', () => {
+    const html = buildBracketHtml({
+      gameTypeId: 1,
+      results: {
+        '0-0': { match: { winner: 0, roundName: 'Final', courtName: 'Court 7' } },
+      },
+    }, 'BS U13')
+    expect(html).toContain('class="bk-footer"')
+    expect(html).toContain('<span class="bk-court">Court 7</span>')
+    expect(html).not.toContain('class="bk-time"')
+  })
+
+  it('hides the court when the order of play says it is TBA', () => {
+    const html = buildBracketHtml({
+      gameTypeId: 1,
+      results: {
+        '0-0': { match: {
+          winner: 0, roundName: 'Final', courtName: 'Court 13',
+          matchTime: '2026-11-05 15:30:00', oopText: 'Court and time TBA',
+        } },
+      },
+    }, 'BS U13')
+    expect(html).toContain('class="bk-time"')
+    expect(html).not.toContain('bk-court')
+  })
+
+  it('keeps the court on a "Followed by" order-of-play line', () => {
+    const html = buildBracketHtml({
+      gameTypeId: 1,
+      results: {
+        '0-0': { match: {
+          winner: 0, roundName: 'Final', courtName: 'Court 13',
+          matchTime: '2026-11-05 15:30:00', oopText: 'Followed by',
+        } },
+      },
+    }, 'BS U13')
+    expect(html).toContain('<span class="bk-court">Court 13</span>')
+  })
+
+  it('marks the wrapper roomy so the wider column CSS applies', () => {
+    const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
+    expect(html).toContain('class="bk-wrap bk-wrap--roomy"')
+  })
+
+  it('marks the wrapper roomy on the empty-draw placeholder too', () => {
+    const html = buildBracketHtml({ drawsize: 0, drawendcol: 0, results: {} }, 'X')
+    expect(html).toContain('class="bk-wrap bk-wrap--roomy"')
+  })
+
+  it('leaves room under the last slot of a round', () => {
+    const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
+    const roundH = Number(/<div class="bk-round" style="height:(\d+)px"/.exec(html)![1])
+    const tops = (html.match(/bk-match-slot" style="position:absolute;top:\d+px/g) ?? [])
+      .map((m) => Number(/top:(\d+)px/.exec(m)![1]))
+    // A match box with a footer measures ~88px; the round must outlast it.
+    expect(roundH).toBeGreaterThan(Math.max(...tops) + 88)
+  })
+
+  it('keeps the footer off an upcoming match with neither time nor court', () => {
+    const html = buildBracketHtml({
+      gameTypeId: 1,
+      results: {
+        '0-0': { match: { winner: 0, roundName: 'Final' } },
+      },
+    }, 'BS U13')
+    expect(html).not.toContain('class="bk-footer"')
   })
 
   it('respects fromRound by slicing columns', () => {

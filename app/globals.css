@@ -557,6 +557,21 @@ html.dark .ms-share-capture .wo-pill {
   color: var(--info-fg);
 }
 
+/* Court assignment, shown in the footer of upcoming matches only. Pushed to
+   the footer's trailing edge and allowed to shrink so the footer stays on one
+   line however narrow the round column is. */
+.bk-court {
+  margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: calc(11px * var(--text-scale));
+  font-weight: 600;
+  color: var(--info-fg);
+  opacity: 0.85;
+}
+
 .bk-conn {
   position: relative;
   width: 24px;
@@ -617,6 +632,14 @@ html.dark .ms-share-capture .wo-pill {
 
 .bk-wrap .bk-round {
   width: 220px;
+}
+
+/* BWF brackets (lib/providers/bwf/bracket-html.ts) print a flag, a full
+   "Firstname SURNAME" for each player — two of them per row in doubles — a
+   seed and a court, which the 220px column clipped. Their slot geometry is
+   generated to match this width; BAT brackets keep the narrower column. */
+.bk-wrap--roomy .bk-round {
+  width: 272px;
 }
 
 .subheading:last-child {
