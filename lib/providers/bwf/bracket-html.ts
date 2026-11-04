@@ -40,6 +40,15 @@ function courtIsTba(oopText: string | null | undefined): boolean {
   return /court/i.test(oopText) && /\bTBA\b/i.test(oopText)
 }
 
+// BWF's oopRound is the match's position in its court's queue for the day —
+// the number the schedule prints as "Match 5. Followed by". Only a positive
+// integer is a position; anything else is dropped.
+function orderOfPlayNumber(oopRound: number | string | null | undefined): string {
+  if (oopRound === null || oopRound === undefined || oopRound === '') return ''
+  const n = Number(oopRound)
+  return Number.isInteger(n) && n > 0 ? String(n) : ''
+}
+
 function abbrevRound(name: string): string {
   const n = name.trim()
   if (/^final$/i.test(n)) return 'F'
@@ -76,6 +85,7 @@ interface BwfMatch {
   roundName?: string; matchTime?: string
   courtName?: string | null
   oopText?: string | null
+  oopRound?: number | string | null
 }
 
 interface BwfDrawDataResponse {
@@ -216,12 +226,20 @@ export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0)
           ? `<span class="bk-clock">${BK_CLOCK_SVG}</span>` +
             `<span class="bk-time">${esc(formatBracketMatchTime(match.matchTime))}</span>`
           : ''
+        // The queue position rides with the court: it counts matches on that
+        // court, so it means nothing without one (and is withheld on TBA for
+        // the same reason the court is).
+        const orderNo = courtName ? orderOfPlayNumber(match.oopRound) : ''
         const courtHtml = courtName ? `<span class="bk-court">${esc(courtName)}</span>` : ''
+        const orderHtml = orderNo
+          ? `<span class="bk-oop" title="Match ${esc(orderNo)} on ${esc(courtName)}">#${esc(orderNo)}</span>`
+          : ''
         const footerHtml = isUnplayed && (timeHtml || courtHtml)
           ? `<div class="bk-footer">` +
             `<span class="bk-round-tag">${esc(abbrevRound(roundName))}</span>` +
             timeHtml +
             courtHtml +
+            orderHtml +
             `</div>`
           : ''
 
