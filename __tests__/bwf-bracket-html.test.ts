@@ -72,8 +72,8 @@ describe('buildBracketHtml', () => {
     // 0-1 is the upcoming match: Court 2, oopRound 4. 0-0 is finished.
     const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
     expect(html).toContain('<span class="bk-court">Court 2</span><span class="bk-oop"')
-    expect(html).toContain('>#4</span>')
-    expect(html).not.toContain('>#3</span>')
+    expect(html).toContain('>M4</span>')
+    expect(html).not.toContain('>M3</span>')
   })
 
   it('leaves the order-of-play number out when there is no court', () => {
@@ -132,7 +132,7 @@ describe('buildBracketHtml', () => {
       },
     }, 'BS U13')
     expect(html).toContain('<span class="bk-court">Court 13</span>')
-    expect(html).toContain('>#6</span>')
+    expect(html).toContain('>M6</span>')
   })
 
   it('marks the wrapper roomy so the wider column CSS applies', () => {
