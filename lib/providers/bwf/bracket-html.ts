@@ -118,7 +118,11 @@ function teamRowHtml(
         // the bracket text (only encoded in the flag image URL).
         const country = p.countryCode ?? team?.countryCode ?? ''
         const countryAttr = country ? ` data-country="${esc(country.toLowerCase())}"` : ''
-        return `<span class="bk-player"${countryAttr}>${flagHtml}${esc(p.nameDisplay ?? '')}${seedSuffix}</span>`
+        // The bracket's click handler only fires on a span carrying an id, and
+        // it is what /api/player looks the player up by.
+        const id = p.id === undefined || p.id === null || p.id === '' ? '' : String(p.id)
+        const idAttr = id ? ` data-player-id="${esc(id)}"` : ''
+        return `<span class="bk-player"${idAttr}${countryAttr}>${flagHtml}${esc(p.nameDisplay ?? '')}${seedSuffix}</span>`
       }).join('')
     : '<span class="bk-player"></span>'
 
