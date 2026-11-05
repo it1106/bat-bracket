@@ -89,4 +89,22 @@ describe('tournaments registry', () => {
   it('returns bat by default for unknown IDs (backward-compat)', () => {
     expect(resolveRef('CCCC3333-2222-3333-4444-555555555555')?.provider).toBe('bat')
   })
+
+  // Built while the sidecar could not be read, the registry holds no BWF
+  // tournament at all — every one of them looks like a BAT event. It must not
+  // sit on that for the whole refresh window: the next lookup rebuilds.
+  it('rebuilds at once after a registry built on an unreadable sidecar', () => {
+    const file = path.join(tmpDir, 'public', 'bwf-cache.json')
+    const good = fs.readFileSync(file, 'utf-8')
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+    fs.writeFileSync(file, '{"https://bwfbadminton.com/tournament/5726/x/": {"tmtI')
+    resetSidecarForTesting(file)
+    _refreshRegistryForTesting(tmpDir)
+    expect(resolveRef('AAAA1111-2222-3333-4444-555555555555')?.provider).toBe('bat')
+
+    fs.writeFileSync(file, good)
+    expect(resolveRef('AAAA1111-2222-3333-4444-555555555555')?.provider).toBe('bwf')
+    warn.mockRestore()
+  })
 })
