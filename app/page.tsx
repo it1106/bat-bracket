@@ -852,11 +852,6 @@ export default function Home() {
     finally { setModalLoading(false) }
   }, [selectedTournament])
 
-  // BWF has no /api/player implementation, so the modal would just spin.
-  // Passing undefined also drops the .pm-player-link affordance everywhere.
-  const playerClickHandler = tournaments.find((x) => x.id === selectedTournament)?.provider === 'bwf'
-    ? undefined
-    : handlePlayerClick
 
   const handleModalClose = useCallback(() => {
     setModalProfile(null)
@@ -1491,7 +1486,7 @@ export default function Home() {
               playerQuery={playerQuery}
               playerClubMap={playerClubMap}
               tournamentId={selectedTournament}
-              onPlayerClick={playerClickHandler}
+              onPlayerClick={handlePlayerClick}
               onRoundClick={handleRoundClick}
               bracketRef={bracketRef}
             />
@@ -1507,7 +1502,7 @@ export default function Home() {
               playerQuery={playerQuery}
               bracketRef={bracketRef}
               onRoundClick={handleRoundClick}
-              onPlayerClick={playerClickHandler}
+              onPlayerClick={handlePlayerClick}
               playerClubMap={playerClubMap}
             />
           )}
@@ -1527,7 +1522,7 @@ export default function Home() {
           onEventClick={handleOpenBracketAtRound}
           eventToPlayoffDrawNum={eventToPlayoffDrawNum}
           playerClubMap={playerClubMap}
-          onPlayerClick={playerClickHandler}
+          onPlayerClick={handlePlayerClick}
           onH2HClick={handleH2HClick}
           liveByCourt={liveByCourt}
           tournamentId={selectedTournament}
@@ -1552,7 +1547,7 @@ export default function Home() {
             highlightMatches={false}
             onEventClick={handleOpenBracketAtRound}
             playerClubMap={playerClubMap}
-            onPlayerClick={playerClickHandler}
+            onPlayerClick={handlePlayerClick}
             onH2HClick={handleH2HClick}
             liveByCourt={liveByCourt}
             tournamentId={selectedTournament}
@@ -1574,7 +1569,7 @@ export default function Home() {
           showJumpToNext={false}
           onEventClick={handleOpenBracketAtRound}
           playerClubMap={playerClubMap}
-          onPlayerClick={playerClickHandler}
+          onPlayerClick={handlePlayerClick}
           onH2HClick={handleH2HClick}
           liveByCourt={liveByCourt}
           tournamentId={selectedTournament}
@@ -1589,7 +1584,7 @@ export default function Home() {
           loading={modalLoading}
           onClose={handleModalClose}
           onH2HClick={handleH2HClick}
-          onPlayerClick={playerClickHandler}
+          onPlayerClick={handlePlayerClick}
           provider={tournaments.find((x) => x.id === selectedTournament)?.provider}
           draws={draws}
           onPathClick={handlePathClick}
@@ -1605,7 +1600,7 @@ export default function Home() {
           drawName={pathTarget.drawName}
           playerId={pathTarget.playerId}
           onClose={closePath}
-          onPlayerClick={(id) => { closePath(); playerClickHandler?.(id) }}
+          onPlayerClick={(id) => { closePath(); handlePlayerClick(id) }}
         />
       )}
 

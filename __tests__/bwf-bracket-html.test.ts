@@ -37,6 +37,21 @@ describe('buildBracketHtml', () => {
     expect(html).toContain('https://example/tha.svg')
   })
 
+  it('stamps each player span with its id so the player panel can open', () => {
+    const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
+    expect(html).toContain('data-player-id="111"')
+    expect(html).toContain('data-player-id="222"')
+  })
+
+  it('leaves the id off an empty slot', () => {
+    const html = buildBracketHtml({
+      gameTypeId: 1,
+      results: { '0-0': { match: { winner: 0, roundName: 'Final' } } },
+    }, 'BS U13')
+    expect(html).toContain('<span class="bk-player"></span>')
+    expect(html).not.toContain('data-player-id')
+  })
+
   it('stamps each player span with a lowercase data-country for search', () => {
     const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
     expect(html).toContain('data-country="tha"')
