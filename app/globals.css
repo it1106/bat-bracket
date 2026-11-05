@@ -839,7 +839,9 @@ html.dark .ms-share-capture .wo-pill {
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
   width: 100%;
-  max-width: 850px;
+  /* Wide enough that a long name, a start time and an opponent each keep their
+     own room: the match row's four columns no longer run into each other. */
+  max-width: 980px;
   max-height: 85vh;
   overflow-y: auto;
   position: relative;
@@ -1068,7 +1070,7 @@ html[lang="th"] .pm-section-title {
 
 .pm-match {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr) 150px minmax(0, 1fr);
+  grid-template-columns: 150px minmax(0, 1fr) 170px minmax(0, 1fr);
   grid-template-areas:
     "meta team1 score team2"
     "meta sched sched sched";
@@ -1108,6 +1110,35 @@ html[lang="th"] .pm-section-title {
 .pm-match-duration {
   font-size: calc(11px * var(--text-scale));
   color: var(--muted);
+}
+
+/* Where a match still to be played will happen: its court and its place in
+   that court's queue, in the slot a finished match gives to its duration. */
+.pm-match-where {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pm-match-court {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: calc(11px * var(--text-scale));
+  font-weight: 600;
+  color: var(--info-fg);
+  opacity: 0.85;
+}
+
+.pm-match-oop {
+  flex-shrink: 0;
+  font-size: calc(11px * var(--text-scale));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--info-fg);
+  opacity: 0.7;
 }
 
 .pm-match-team {
@@ -1258,6 +1289,9 @@ html[lang="th"] .pm-section-title {
   }
 
   .pm-board-scheduled {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
     font-size: calc(12px * var(--text-scale));
     color: var(--muted);
     margin-top: 6px;
