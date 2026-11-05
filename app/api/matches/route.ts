@@ -13,6 +13,7 @@ import { getTodayIso } from '@/lib/today'
 import { stampResultTimes } from '@/lib/result-times'
 import { persistMetaIfChanged } from '@/lib/tournament-meta'
 import { MATCHES_FULL_TTL_MS, getMatchesFull, setMatchesFull, shouldPersistFullResult } from '@/lib/matches-full-memcache'
+import { inBackoff, markUpstreamFailure as markBatFailure, clearUpstreamFailure as clearBatFailure } from '@/lib/upstream-backoff'
 import type { MatchScheduleGroup, MatchEntry, MatchesData, MatchPlayer } from '@/lib/types'
 
 export const maxDuration = 30
@@ -45,15 +46,12 @@ function dayCacheTtlMs(dateIso: string, todayIso: string, data?: Pick<MatchesDat
   return data && hasLiveMatches(data) ? 60_000 : TODAY_CALM_TTL_MS // today: live vs calm
 }
 
-// Circuit breaker for BAT outages. When a fetch fails for a given mem-cache
-// key, remember it. Subsequent requests for the same key skip BAT entirely
-// for BAT_BACKOFF_MS and serve stale immediately. The first request after
-// the backoff window expires retries upstream — if BAT is back, fresh data
-// flows; if still down, the timestamp is refreshed and another backoff
-// window starts. Keyed per memKey (tournament+date for day, tournament for
-// full) so a single bad date doesn't pause requests for other dates.
-const BAT_BACKOFF_MS = 30_000
-const batFailureAt = new Map<string, number>()
+// Circuit breaker for upstream outages — the shared one in
+// lib/upstream-backoff, keyed per memKey (tournament+date for day,
+// tournament for full) so a single bad date doesn't pause requests for other
+// dates. The player panel resolves the same full schedule and shares the
+// breaker on the tournament key, so an outage either of them hits is an
+// outage for both.
 // When mem-cache has a stale entry to fall back on, cap BAT fetches tighter
 // than the 30 s default so users don't wait that long just to be served
 // cache. Sized to accommodate normal BAT response times (handshake is
@@ -65,19 +63,6 @@ const batFailureAt = new Map<string, number>()
 // through to bat-fetch's default — better a slow real answer than a 500
 // for a first-time visitor.
 const BAT_TIMEOUT_WITH_FALLBACK_MS = 15_000
-
-function inBackoff(key: string): boolean {
-  const t = batFailureAt.get(key)
-  return t != null && Date.now() - t < BAT_BACKOFF_MS
-}
-
-function markBatFailure(key: string): void {
-  batFailureAt.set(key, Date.now())
-}
-
-function clearBatFailure(key: string): void {
-  batFailureAt.delete(key)
-}
 
 // BAT uses Buddhist-year YYYYMMDD ("25690504"). Some callers may pass ISO
 // ("2026-05-04"). Normalize to ISO so date comparisons are valid.
@@ -344,7 +329,7 @@ export async function GET(request: Request) {
         await stampResultTimes(tournamentId, dateIso, data.groups)
       } catch (err) {
         // BAT (or another upstream) failed. Mark the key as failing so
-        // subsequent requests within BAT_BACKOFF_MS skip BAT entirely. If we
+        // subsequent requests within the backoff window skip BAT entirely. If we
         // have ANY previous answer in mem-cache — even one that's past TTL
         // or from a fresh=1 request the user explicitly wanted to bypass —
         // serving that stale copy beats a 500 that empties the schedule
@@ -423,7 +408,7 @@ export async function GET(request: Request) {
 
       // Same circuit-breaker shape as the day branch. The full-schedule key
       // is just the tournamentId so any failure pauses BAT for the whole
-      // tournament's full route for BAT_BACKOFF_MS.
+      // tournament's full route for the backoff window.
       const fullMemEntry = getMatchesFull(tournamentId)
       if (inBackoff(tournamentId) && fullMemEntry) {
         console.log(`[matches] backoff serve full tournament=${tournamentId}`)

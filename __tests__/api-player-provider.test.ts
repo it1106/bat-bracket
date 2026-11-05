@@ -7,9 +7,20 @@ const resolveRef = jest.fn()
 jest.mock('../lib/bat-player-fetch', () => ({
   fetchBatPlayerProfile: (...a: unknown[]) => fetchBatPlayerProfile(...a),
 }))
-jest.mock('../lib/bwf-player-fetch', () => ({
-  fetchBwfPlayerProfile: (...a: unknown[]) => fetchBwfPlayerProfile(...a),
-}))
+// The route tells an outage from a missing player by the error's class, so
+// the mock has to hand it the very class it will compare against. `var` so
+// the factory, which runs with the hoisted imports, can assign to it.
+/* eslint-disable no-var */
+var mockScheduleUnavailable: new (m?: string) => Error
+/* eslint-enable no-var */
+jest.mock('../lib/bwf-player-fetch', () => {
+  class ScheduleUnavailableError extends Error {}
+  mockScheduleUnavailable = ScheduleUnavailableError
+  return {
+    fetchBwfPlayerProfile: (...a: unknown[]) => fetchBwfPlayerProfile(...a),
+    ScheduleUnavailableError,
+  }
+})
 jest.mock('../lib/tournaments-registry', () => ({
   resolveRef: (...a: unknown[]) => resolveRef(...a),
 }))
@@ -56,5 +67,26 @@ describe('/api/player', () => {
     const res = await get('T1', '999')
 
     expect(res.status).toBe(404)
+  })
+
+  // A schedule we could not read says nothing about the player, so answering
+  // "not found" would be a lie the client renders as an empty panel.
+  it('503s when the tournament schedule itself could not be read', async () => {
+    resolveRef.mockReturnValue({ id: 'T1', provider: 'bwf' })
+    fetchBwfPlayerProfile.mockRejectedValue(new mockScheduleUnavailable('nope'))
+
+    const res = await get('T1')
+
+    expect(res.status).toBe(503)
+    expect(res.headers.get('Retry-After')).toBe('30')
+  })
+
+  it('500s on an error that is not an outage', async () => {
+    resolveRef.mockReturnValue({ id: 'T1', provider: 'bwf' })
+    fetchBwfPlayerProfile.mockRejectedValue(new Error('bug'))
+
+    const res = await get('T1')
+
+    expect(res.status).toBe(500)
   })
 })

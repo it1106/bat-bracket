@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { fetchBatPlayerProfile } from '@/lib/bat-player-fetch'
-import { fetchBwfPlayerProfile } from '@/lib/bwf-player-fetch'
+import { fetchBwfPlayerProfile, ScheduleUnavailableError } from '@/lib/bwf-player-fetch'
 import { resolveRef } from '@/lib/tournaments-registry'
 
 export const maxDuration = 30
@@ -25,6 +25,15 @@ export async function GET(request: Request) {
       }
       return NextResponse.json(profile)
     } catch (err) {
+      // A schedule we could not read says nothing about this player, so it
+      // must not answer "not found" — that renders as an empty panel and
+      // invites a retry storm against an upstream already in trouble.
+      if (err instanceof ScheduleUnavailableError) {
+        return NextResponse.json(
+          { error: 'Tournament schedule is temporarily unavailable' },
+          { status: 503, headers: { 'Retry-After': '30', 'Cache-Control': 'no-store' } },
+        )
+      }
       const message = err instanceof Error ? err.message : 'Unknown error'
       return NextResponse.json({ error: `Could not load player profile: ${message}` }, { status: 500 })
     }
