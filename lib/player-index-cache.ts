@@ -15,14 +15,31 @@ function identityMapPath(): string { return path.join(root, 'player-identity-map
 // wasteful. Reuse the parse until the file's mtime changes (i.e. a rebuild).
 const parseMemo = new Map<string, { mtimeMs: number; value: unknown }>()
 
+// One read per file at a time. The combined index has grown past 160 MB, and
+// reading it costs roughly a gigabyte of heap: the decoded string, then the
+// parsed objects. Each concurrent caller paying that for itself is what
+// pushed the worker past its limit — right after a restart, when the memo is
+// empty and a burst of player requests lands at once, two or three of them
+// together were enough to exhaust the heap. Followers wait for the one read.
+const inflight = new Map<string, Promise<unknown>>()
+
 async function readJsonMemo<T>(file: string): Promise<T | null> {
   try {
     const st = await fs.stat(file)
     const hit = parseMemo.get(file)
     if (hit && hit.mtimeMs === st.mtimeMs) return hit.value as T
-    const value = JSON.parse(await fs.readFile(file, 'utf8')) as T
-    parseMemo.set(file, { mtimeMs: st.mtimeMs, value })
-    return value
+    // A follower takes whatever the read in flight returns, even if the file
+    // changed again while it ran: one refresh behind beats a second copy of
+    // the index in memory. The next caller sees the new mtime and re-reads.
+    const running = inflight.get(file)
+    if (running) return (await running) as T
+    const load = (async () => {
+      const value = JSON.parse(await fs.readFile(file, 'utf8')) as T
+      parseMemo.set(file, { mtimeMs: st.mtimeMs, value })
+      return value
+    })().finally(() => { inflight.delete(file) })
+    inflight.set(file, load)
+    return (await load) as T
   } catch {
     return null
   }

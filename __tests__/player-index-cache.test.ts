@@ -1,4 +1,5 @@
 import fs from 'fs'
+import { promises as fsp } from 'fs'
 import os from 'os'
 import path from 'path'
 import {
@@ -106,5 +107,43 @@ describe('player-index-cache — large index writes', () => {
     const out = await readIndexCache('bat')
     expect(out?.sourceVersion).toBe('new')
     expect(Object.keys(out!.players)).toHaveLength(4)
+  })
+})
+
+// A 160 MB index costs the better part of a gigabyte of heap to read and
+// parse. Every concurrent caller doing that for itself is what pushed the
+// worker past its limit after a restart, when the memo is empty and a burst
+// of player requests arrives at once.
+describe('player-index-cache \u2014 one read per burst', () => {
+  let dir: string
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pic-sf-')); __setPlayersRootForTesting(dir) })
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }) })
+
+  it('reads the file once for a burst of concurrent callers', async () => {
+    await writeIndexCache(emptyIndex('bat'))
+    const spy = jest.spyOn(fsp, 'readFile')
+    const out = await Promise.all(Array.from({ length: 5 }, () => readIndexCache('bat')))
+    const reads = spy.mock.calls.filter(([f]) => String(f).endsWith('index-bat.json'))
+    spy.mockRestore()
+    expect(reads).toHaveLength(1)
+    for (const idx of out) expect(idx?.provider).toBe('bat')
+  })
+
+  it('still reads again once the file changes', async () => {
+    await writeIndexCache({ ...emptyIndex('bat'), sourceVersion: 'old' })
+    await Promise.all([readIndexCache('bat'), readIndexCache('bat')])
+    await writeIndexCache({ ...emptyIndex('bat'), sourceVersion: 'new' })
+    const out = await Promise.all([readIndexCache('bat'), readIndexCache('bat')])
+    expect(out.map((i) => i?.sourceVersion)).toEqual(['new', 'new'])
+  })
+
+  it('does not hold a failed read against the next caller', async () => {
+    const file = path.join(dir, 'index-bat.json')
+    fs.writeFileSync(file, '{"version":1,"provider":"bat","play')
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(await Promise.all([readIndexCache('bat'), readIndexCache('bat')])).toEqual([null, null])
+    warn.mockRestore()
+    await writeIndexCache(emptyIndex('bat'))
+    expect((await readIndexCache('bat'))?.provider).toBe('bat')
   })
 })
