@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import { parseTournamentsTxt } from '@/lib/tournaments-txt'
-import { listAllSidecar, lookupByGuid } from '@/lib/providers/bwf/sidecar'
+import { listAllSidecar, lookupByGuid, sidecarLoadFailed } from '@/lib/providers/bwf/sidecar'
 import { dayOf } from '@/lib/presence'
 import type { TournamentRef } from '@/lib/types'
 
@@ -58,7 +58,11 @@ function buildNow(): void {
   } catch (err) {
     console.warn('[registry] build failed:', err)
   }
-  lastBuilt = Date.now()
+  // A registry built while the BWF sidecar was unreadable holds no BWF
+  // tournament at all, and every one of them then resolves as a BAT event.
+  // Don't let that stand for the whole refresh window — leave it stale so the
+  // next lookup rebuilds.
+  lastBuilt = sidecarLoadFailed() ? 0 : Date.now()
 }
 
 const REFRESH_MS = 30_000
