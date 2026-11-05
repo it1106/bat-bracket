@@ -7,6 +7,7 @@ import { knockoutDrawsOf } from '@/lib/pathDraws'
 import FollowButton from '@/components/FollowButton'
 import { useLanguage } from '@/lib/LanguageContext'
 import { pct } from '@/lib/playerStats'
+import { formatMatchTime, upcomingCourt, upcomingMatchNo } from '@/lib/upcoming-match'
 
 interface Props {
   profile: PlayerProfile | null
@@ -208,6 +209,19 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                         >{p.name}</div>
                       )
                     }
+                    // A match still to be played says where and when instead of
+                    // how it went: the court it is on and its place in that
+                    // court's queue take the slot a finished match gives to its
+                    // duration.
+                    const toPlay = !!m.scheduledTime && !m.scores.length && !m.walkover
+                    const court = toPlay ? upcomingCourt(m) : ''
+                    const matchNo = toPlay ? upcomingMatchNo(m) : ''
+                    const whereHtml = court || matchNo ? (
+                      <span className="pm-match-where">
+                        {court && <span className="pm-match-court">{court}</span>}
+                        {matchNo && <span className="pm-match-oop" title={`Match ${matchNo} on ${court}`}>M{matchNo}</span>}
+                      </span>
+                    ) : null
                     return (
                     <div key={i} className="pm-match">
                       {/* Meta: draw + round */}
@@ -215,6 +229,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                         <span className="pm-match-draw">{m.draw}</span>
                         <span className="pm-match-round">{abbrevRound(m.round)}</span>
                         {m.winner !== null && m.duration && <span className="pm-match-duration">{m.duration}</span>}
+                        {whereHtml && <span className="pm-d">{whereHtml}</span>}
                         {m.nowPlaying && (
                           <span className="ms-now-playing-wrap">
                             <span className="ms-now-playing" title={t('nowPlaying')} />
@@ -235,7 +250,7 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                         {m.team1.length ? m.team1.map((p, pi) => renderName(p, pi, 1)) : m.winner !== null ? <div className="pm-bye">{t('bye')}</div> : null}
                       </div>
                       <div className="pm-match-score pm-d">
-                        {m.walkover ? <span className="wo-pill">{t('walkover')}</span> : m.scheduledTime && !m.scores.length ? m.scheduledTime : scoreStr(m, scoreTr)}
+                        {m.walkover ? <span className="wo-pill">{t('walkover')}</span> : toPlay ? formatMatchTime(m.scheduledTime!) : scoreStr(m, scoreTr)}
                         {m.retired && m.scores.length > 0 && <span className="wo-pill">{t('retired')}</span>}
                       </div>
                       <div className={`pm-match-team pm-d${m.winner === 2 ? ' winner' : ''}`}>
@@ -263,8 +278,11 @@ export default function PlayerModal({ profile, loading, onClose, onH2HClick, onP
                           }
                         </div>
                       </div>
-                      {m.scheduledTime && !m.scores.length && !m.walkover && (
-                        <div className="pm-board-scheduled pm-m">{m.scheduledTime}</div>
+                      {toPlay && (
+                        <div className="pm-board-scheduled pm-m">
+                          <span>{formatMatchTime(m.scheduledTime!)}</span>
+                          {whereHtml}
+                        </div>
                       )}
                     </div>
                   )})}

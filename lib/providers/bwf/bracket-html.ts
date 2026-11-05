@@ -1,4 +1,8 @@
 // Generates bk-wrap HTML matching the BAT scraper's output so existing CSS applies.
+//
+// The match time is formatted by lib/upcoming-match, shared with the player
+// panel so a match reads the same in both places.
+import { formatMatchTime } from '@/lib/upcoming-match'
 
 // Slot pitch is the vertical distance between two match slots in the first
 // displayed round. A match box measures ~88px (singles) / ~127px (doubles)
@@ -20,15 +24,6 @@ function esc(s: string): string {
 
 const BK_CLOCK_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
 
-// BWF's matchTime arrives as either "YYYY-MM-DD HH:MM:SS" or
-// "YYYY-MM-DDTHH:MM:SSZ"; the digits in the string are already tournament-
-// local, so we pull them out by regex instead of going through Date.
-function formatBracketMatchTime(raw: string): string {
-  const m = raw.match(/(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/)
-  if (!m) return raw
-  const [, yyyy, mm, dd, hh, mi] = m
-  return `${dd}/${mm}/${yyyy.slice(2)} ${hh}:${mi}`
-}
 
 // BWF keeps a planned court on a match whose order-of-play line says the court
 // is not settled ("Court and time TBA"), so printing it would send a player to
@@ -228,7 +223,7 @@ export function buildBracketHtml(json: unknown, drawName: string, fromRound = 0)
           : ''
         const timeHtml = match.matchTime
           ? `<span class="bk-clock">${BK_CLOCK_SVG}</span>` +
-            `<span class="bk-time">${esc(formatBracketMatchTime(match.matchTime))}</span>`
+            `<span class="bk-time">${esc(formatMatchTime(match.matchTime))}</span>`
           : ''
         // The queue position rides with the court: it counts matches on that
         // court, so it means nothing without one (and is withheld on TBA for
