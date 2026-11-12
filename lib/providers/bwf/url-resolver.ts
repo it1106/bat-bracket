@@ -12,8 +12,9 @@ const RX = {
   tournamentCode: /\btournamentCode\s*:\s*['"]([0-9A-Fa-f-]{36})['"]/,
   slug: /\btournamentSlug\s*:\s*['"]([^'"]+)['"]/,
   // title looks like: <title>Tournament | MITH YONEX ...</title>
-  // NOTE: only events with a Results tab title this way. A tournament that has
-  // not started yet lands on a Draw tab titled "Draw MD U15 - <Name>" — no pipe,
+  // NOTE: the landing tab — and so the title's prefix — varies. "Tournament |"
+  // and "Results |" both parse. But on 12-Nov-2026, tmtId 5774 (four days before
+  // its start, draws already published) served "Draw MD U15 - <Name>": no pipe,
   // so this misses and the caller must fall back to the detail API (see
   // sidecarFieldsFromDetail). Don't "fix" this by also splitting on " - ":
   // real event names contain it (e.g. "เทศบาลนครนครสวรรค์ - OPEN CHAMPIONSHIP 2025").
@@ -82,10 +83,12 @@ function isoDateOnly(raw: unknown): string {
 //
 // Two distinct triggers, not just one:
 //   - Cloudflare challenges the page (no HTML to parse at all);
-//   - the page parses but `name` doesn't, because a not-yet-started event has no
-//     Results tab and its Draw-tab <title> has no "|" (see RX.name above).
-// The second is a normal state for any event added before it starts, so this
-// path is routine rather than an emergency.
+//   - the page returns 200 but `name` doesn't extract, because the landing tab
+//     titled itself "Draw MD U15 - <Name>" with no "|" (see RX.name above).
+// The second was observed on tmtId 5774 and is not predictable from the dates
+// alone: fixtures/bwf/tournament-page.html was captured five days before 5726's
+// start and does have a pipe ("Tournament | ..."). So treat this path as
+// routine, not an emergency, and don't assume which events will need it.
 export function sidecarFieldsFromDetail(results: unknown): BwfSidecarFields | null {
   if (!results || typeof results !== 'object') return null
   const r = results as Record<string, unknown>

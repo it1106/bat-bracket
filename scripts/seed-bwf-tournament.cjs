@@ -20,12 +20,14 @@
  * TWO PATHS, same as lib/providers/bwf/url-resolver-runtime.ts:
  *   1. page HTML — the regexes below mirror url-resolver.ts.
  *   2. vue-tournament-detail API (keyed by the tmtId in the URL) when the HTML
- *      path comes up short. That happens for more than Cloudflare: a tournament
- *      that has not started yet has no results, so its page lands on a Draw tab
- *      whose <title> reads "Draw MD U15 - <Name>" instead of the usual
- *      "Results | <Name>", and the name regex (which keys off the "|") misses.
- *      Observed on tmtId 5774, four days before its start date; the runtime
- *      resolver hits the same wall and recovers the same way.
+ *      path comes up short. That happens for more than Cloudflare: the name
+ *      regex keys off a "|" in the <title>, and the prefix depends on which tab
+ *      the page lands on. "Tournament |" and "Results |" parse; on 12-Nov-2026
+ *      tmtId 5774 served "Draw MD U15 - <Name>", which does not, so the HTML
+ *      path returned null on a clean 200. The runtime resolver hits the same
+ *      wall and recovers the same way. One sample — don't assume you can tell
+ *      in advance which events need this (fixtures/bwf/tournament-page.html was
+ *      captured five days before its event started and does have a pipe).
  * Either path writes what the resolver would write for that path, so the result
  * stays a safe shortcut rather than a hand-made entry.
  *
@@ -102,7 +104,11 @@ function isoDateOnly(raw) {
 // mirrors sidecarFieldsFromDetail() in url-resolver.ts
 function fieldsFromDetail(results) {
   if (!results || typeof results !== 'object') return null
-  const id = typeof results.id === 'number' ? results.id : Number(results.id)
+  // Keep the TS ternary exactly: a bare Number(null)/Number('') would be 0,
+  // which passes isFinite and would seed tmtId: 0 where the TS version bails.
+  const id = typeof results.id === 'number' ? results.id
+    : typeof results.id === 'string' ? Number(results.id)
+    : NaN
   const code = typeof results.code === 'string' ? results.code : ''
   const name = typeof results.name === 'string' ? results.name : ''
   const slug = typeof results.slug === 'string' ? results.slug : ''

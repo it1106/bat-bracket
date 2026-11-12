@@ -54,9 +54,9 @@ is **not** a key in `public/bwf-cache.json`.
 
 A **fresh** headless-Chromium launch usually fares much better than the reused,
 Cloudflare-tainted context — that's what the seed script exploits. But "every
-time" (as this doc claimed until 12-Nov-2026) is too strong: on 12-Nov-2026 two
-fresh launches minutes apart got a clean 200 on tournament pages, while two more
-a few minutes later got **403** on the same URLs. Treat a fresh launch as
+time" (as this doc claimed until 12-Nov-2026) is too strong: on 12-Nov-2026,
+within about ten minutes, three fresh launches got a clean 200 on tournament
+pages and the next three got **403** on the same URLs. Treat a fresh launch as
 *likely* 200, not guaranteed; the seed script's detail-API fallback is what makes
 it reliable anyway (it resolved both 403 cases without a retry).
 
@@ -83,17 +83,20 @@ the resolver's own two paths, so it's a safe shortcut, not a hack.
 
 Like `resolveBwfUrl`, the script tries the page HTML first and falls back to the
 `vue-tournament-detail` API (keyed by the tmtId in the URL). The fallback is
-**not** just for Cloudflare:
+**not** just for Cloudflare — the name regex keys off a `|` in the `<title>`,
+and the title's prefix depends on which tab the page lands on:
 
-- A finished/live event's page titles itself `Results | <Name>`, and the name
-  regex keys off that `|`.
-- An event that **hasn't started** has no Results tab, so the page lands on a
-  Draw tab titled `Draw MD U15 - <Name>`. No pipe → `name` doesn't extract →
-  the whole HTML path returns null, even on a clean HTTP 200.
+- `Tournament | <Name>` and `Results | <Name>` both parse fine.
+- On 12-Nov-2026, tmtId 5774 (four days before its start, draws already
+  published) served `Draw MD U15 - <Name>`. No pipe → `name` doesn't extract →
+  the whole HTML path returns null, **even on a clean HTTP 200**, and only the
+  detail API resolves it.
 
-So **any event added before its start date resolves only via the detail API.**
-That's expected, and both the app and the seed script handle it. Observed
-12-Nov-2026 on tmtId 5774, four days before its start.
+Don't read that as "upcoming events always need the fallback". One sample, and
+`fixtures/bwf/tournament-page.html` cuts against the obvious rule: it was
+captured 2026-05-14, five days before 5726's 05-19 start, and it *does* have a
+pipe. The practical takeaway is just that the HTML path can fail on a 200 and
+the fallback must exist — not that you can predict which events need it.
 
 Do **not** "fix" the name regex by also splitting on ` - `: real event names
 contain that (see the `เทศบาลนครนครสวรรค์ - OPEN CHAMPIONSHIP 2025` line in

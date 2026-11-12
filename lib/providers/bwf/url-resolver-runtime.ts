@@ -17,10 +17,12 @@ const inFlight = new Set<string>()
 // us down the fallback:
 //   - Cloudflare: since ~mid-2026 BWF bot-challenges these pages for headless
 //     browsers, so there's often no real HTML to parse;
-//   - a not-yet-started event: with no Results tab, the page lands on a Draw tab
-//     whose <title> has no "|", so RX.name misses even on a clean 200.
-// The second means an event added before its start date resolves *only* via this
-// fallback — it is load-bearing, not a rare safety net.
+//   - a title the name regex can't read: the landing tab varies, and on
+//     12-Nov-2026 tmtId 5774 served "Draw MD U15 - <Name>" with no "|", so
+//     RX.name missed even on a clean 200.
+// The second makes this fallback load-bearing rather than a rare safety net —
+// such an event resolves *only* this way. Which events hit it isn't predictable
+// from the dates: a pre-start page can still title itself "Tournament | ...".
 export async function resolveBwfUrl(url: string): Promise<void> {
   if (lookupByUrl(url) || inFlight.has(url)) return
   inFlight.add(url)
