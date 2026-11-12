@@ -416,7 +416,7 @@ export type TKey =
 
 const dict: Record<Lang, Record<TKey, string>> = {
   en: {
-    appSubtitle: 'Check BAT official website for accuracy',
+    appSubtitle: 'Check BAT/BWF official website for accuracy',
     appLogoAlt: 'BatMatch — Unofficial Scoreboard',
     appLogoRefresh: 'Refresh the page',
     teamScheduleSave: 'Save this schedule as a picture',
@@ -798,7 +798,7 @@ const dict: Record<Lang, Record<TKey, string>> = {
     lbTournamentsEnteredHelp: 'Number of distinct tournaments entered.',
   },
   th: {
-    appSubtitle: 'กรุณาตรวจสอบความถูกต้องจากเว็บไซต์ BAT อีกครั้ง',
+    appSubtitle: 'กรุณาตรวจสอบความถูกต้องจากเว็บไซต์ BAT/BWF อีกครั้ง',
     appLogoAlt: 'BatMatch — Unofficial Scoreboard',
     appLogoRefresh: 'รีเฟรชหน้านี้',
     teamScheduleSave: 'บันทึกตารางแข่งนี้เป็นรูปภาพ',

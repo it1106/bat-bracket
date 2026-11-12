@@ -26,7 +26,7 @@ export const PRIVACY: Record<Lang, PrivacyText> = {
     sections: [
       {
         heading: 'Who we are',
-        body: 'BATMatch is an unofficial, free scoreboard for BAT tournaments. This notice explains what the site records when you use it.',
+        body: 'BATMatch is an unofficial, free scoreboard for BAT and BWF tournaments. This notice explains what the site records when you use it.',
       },
       {
         heading: 'What we collect',
@@ -68,7 +68,7 @@ export const PRIVACY: Record<Lang, PrivacyText> = {
     sections: [
       {
         heading: 'เราคือใคร',
-        body: 'BATMatch เป็นเว็บสกอร์บอร์ดอย่างไม่เป็นทางการสำหรับรายการแข่งขันของ BAT เปิดให้ใช้งานโดยไม่คิดค่าใช้จ่าย ประกาศฉบับนี้อธิบายว่าเว็บไซต์บันทึกข้อมูลอะไรบ้างเมื่อคุณเข้าใช้งาน',
+        body: 'BATMatch เป็นเว็บสกอร์บอร์ดอย่างไม่เป็นทางการสำหรับรายการแข่งขันของ BAT และ BWF เปิดให้ใช้งานโดยไม่คิดค่าใช้จ่าย ประกาศฉบับนี้อธิบายว่าเว็บไซต์บันทึกข้อมูลอะไรบ้างเมื่อคุณเข้าใช้งาน',
       },
       {
         heading: 'ข้อมูลที่เราเก็บ',

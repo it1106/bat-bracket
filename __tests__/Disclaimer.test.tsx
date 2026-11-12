@@ -5,7 +5,7 @@ import { render, screen } from '@testing-library/react'
 import DisclaimerCard from '@/components/DisclaimerCard'
 import AppFooter from '@/components/AppFooter'
 import { LanguageProvider } from '@/lib/LanguageContext'
-import { DISCLAIMER, BAT_OFFICIAL_URL } from '@/lib/disclaimer'
+import { DISCLAIMER, BAT_OFFICIAL_URL, BWF_OFFICIAL_URL } from '@/lib/disclaimer'
 
 // LanguageProvider starts on 'en' and reads the stored choice in an effect, so
 // seeding localStorage before render is what puts a test in Thai.
@@ -40,11 +40,23 @@ describe('DisclaimerCard', () => {
     expect(container.textContent).not.toContain(DISCLAIMER.en.paragraphs[0])
   })
 
-  it('links out to BAT so "verify with BAT" is actionable', () => {
+  it('links out to both bodies so "verify with BAT or BWF" is actionable', () => {
     renderIn('en', <DisclaimerCard />)
-    const link = screen.getByRole('link') as HTMLAnchorElement
-    expect(link.href).toBe(BAT_OFFICIAL_URL)
-    expect(link.rel).toContain('noopener')
+    for (const [name, href] of [
+      [/bat\.tournamentsoftware\.com/, BAT_OFFICIAL_URL],
+      [/bwfbadminton\.com/, BWF_OFFICIAL_URL],
+    ] as const) {
+      const link = screen.getByRole('link', { name }) as HTMLAnchorElement
+      expect(link.href).toBe(href)
+      expect(link.rel).toContain('noopener')
+    }
+  })
+
+  it.each(['en', 'th'] as const)('names both BAT and BWF in the %s copy', (lang) => {
+    const { container } = renderIn(lang, <DisclaimerCard />)
+    const text = container.textContent ?? ''
+    expect(text).toContain('BAT')
+    expect(text).toContain('BWF')
   })
 })
 

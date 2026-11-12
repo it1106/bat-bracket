@@ -44,7 +44,7 @@ export async function exportBracketAsJpg({
     <div style="font-size:20px;font-weight:700;margin-bottom:2px;font-family:'Segoe UI',system-ui,sans-serif;">
       <span style="color:#25316B;">BAT</span> <span style="color:#BE1D2E;">Unofficial</span> Scores
     </div>
-    <div style="font-size:11px;color:#888;margin-bottom:8px;font-family:'Segoe UI',system-ui,sans-serif;">Check BAT official website for accuracy</div>
+    <div style="font-size:11px;color:#888;margin-bottom:8px;font-family:'Segoe UI',system-ui,sans-serif;">Check BAT/BWF official website for accuracy</div>
     <div style="font-size:15px;font-weight:600;color:#333;margin-bottom:2px;font-family:'Segoe UI',system-ui,sans-serif;">${tournamentName}</div>
     <div style="font-size:13px;color:#555;margin-bottom:6px;font-family:'Segoe UI',system-ui,sans-serif;">${eventName}</div>
     <div style="font-size:11px;color:#999;font-family:'Segoe UI',system-ui,sans-serif;">Exported: ${formatDate(new Date())}</div>

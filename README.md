@@ -9,7 +9,7 @@ Bilingual (English / ไทย), dark mode, and installable as a PWA on iOS and
 Android.
 
 > Unofficial: all data is scraped from public pages and may lag or differ from
-> the source. The app says so in-product — *"Check BAT official website for
+> the source. The app says so in-product — *"Check BAT/BWF official website for
 > accuracy"* — and carries a full [disclaimer](https://batmatch.app/disclaimer) page.
 
 ## Features
