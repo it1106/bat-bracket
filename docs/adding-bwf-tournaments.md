@@ -52,9 +52,13 @@ A brand-new event can sit unresolved for a long time this way. Symptoms:
 the event is in `tournaments.txt` but never shows in the dropdown, and the URL
 is **not** a key in `public/bwf-cache.json`.
 
-Key fact: a **fresh** headless-Chromium launch gets HTTP 200 with all fields
-every time. The problem is the *reused, Cloudflare-tainted* context, not the
-page or the URL. That's what the seed script exploits.
+A **fresh** headless-Chromium launch usually fares much better than the reused,
+Cloudflare-tainted context — that's what the seed script exploits. But "every
+time" (as this doc claimed until 12-Nov-2026) is too strong: on 12-Nov-2026 two
+fresh launches minutes apart got a clean 200 on tournament pages, while two more
+a few minutes later got **403** on the same URLs. Treat a fresh launch as
+*likely* 200, not guaranteed; the seed script's detail-API fallback is what makes
+it reliable anyway (it resolved both 403 cases without a retry).
 
 ## The fix: seed the cache (`scripts/seed-bwf-tournament.cjs`)
 
@@ -72,8 +76,32 @@ pm2 reload bat-bracket   # REQUIRED: the running process caches the sidecar in
 The script launches a throwaway browser, primes via `/calendar/`, fetches the
 page, extracts the same fields the resolver would, backs up
 `public/bwf-cache.json` (to `*.bak.<ts>`), writes the genuine entry, and prints
-it. It's byte-identical to what the resolver produces, so it's a safe shortcut,
-not a hack.
+it — including a `resolved via:` line saying which path produced it. It mirrors
+the resolver's own two paths, so it's a safe shortcut, not a hack.
+
+### The two paths (and why the HTML one fails on upcoming events)
+
+Like `resolveBwfUrl`, the script tries the page HTML first and falls back to the
+`vue-tournament-detail` API (keyed by the tmtId in the URL). The fallback is
+**not** just for Cloudflare:
+
+- A finished/live event's page titles itself `Results | <Name>`, and the name
+  regex keys off that `|`.
+- An event that **hasn't started** has no Results tab, so the page lands on a
+  Draw tab titled `Draw MD U15 - <Name>`. No pipe → `name` doesn't extract →
+  the whole HTML path returns null, even on a clean HTTP 200.
+
+So **any event added before its start date resolves only via the detail API.**
+That's expected, and both the app and the seed script handle it. Observed
+12-Nov-2026 on tmtId 5774, four days before its start.
+
+Do **not** "fix" the name regex by also splitting on ` - `: real event names
+contain that (see the `เทศบาลนครนครสวรรค์ - OPEN CHAMPIONSHIP 2025` line in
+`tournaments.txt`).
+
+Before 12-Nov-2026 the script had no fallback and just died with
+`could not extract field(s): name` on upcoming events — if you hit that on an
+older checkout, that's why.
 
 Pass the **same URL** you put in `tournaments.txt` (sidecar is keyed by exact
 URL).

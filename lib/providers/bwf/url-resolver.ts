@@ -12,6 +12,11 @@ const RX = {
   tournamentCode: /\btournamentCode\s*:\s*['"]([0-9A-Fa-f-]{36})['"]/,
   slug: /\btournamentSlug\s*:\s*['"]([^'"]+)['"]/,
   // title looks like: <title>Tournament | MITH YONEX ...</title>
+  // NOTE: only events with a Results tab title this way. A tournament that has
+  // not started yet lands on a Draw tab titled "Draw MD U15 - <Name>" — no pipe,
+  // so this misses and the caller must fall back to the detail API (see
+  // sidecarFieldsFromDetail). Don't "fix" this by also splitting on " - ":
+  // real event names contain it (e.g. "เทศบาลนครนครสวรรค์ - OPEN CHAMPIONSHIP 2025").
   name: /<title>\s*[^|<]*\|\s*([^<]+?)\s*<\/title>/,
   // The token has shipped in two shapes: a JS object literal (`token: "..."`)
   // and, since the site's 2026 rework, HTML-entity-encoded JSON inside an
@@ -70,10 +75,17 @@ function isoDateOnly(raw: unknown): string {
   return m ? m[1] : ''
 }
 
-// Fallback for when the HTML page is Cloudflare-challenged: the extranet API's
+// Fallback for when the HTML page yields no usable meta: the extranet API's
 // vue-tournament-detail (keyed by tmtId, no HTML scrape) returns the same
 // identity fields. Map its `results` object into sidecar fields. Returns null
 // unless every required identity field (id, code, name, slug) is present.
+//
+// Two distinct triggers, not just one:
+//   - Cloudflare challenges the page (no HTML to parse at all);
+//   - the page parses but `name` doesn't, because a not-yet-started event has no
+//     Results tab and its Draw-tab <title> has no "|" (see RX.name above).
+// The second is a normal state for any event added before it starts, so this
+// path is routine rather than an emergency.
 export function sidecarFieldsFromDetail(results: unknown): BwfSidecarFields | null {
   if (!results || typeof results !== 'object') return null
   const r = results as Record<string, unknown>

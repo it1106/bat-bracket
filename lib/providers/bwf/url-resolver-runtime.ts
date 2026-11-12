@@ -11,10 +11,16 @@ import { saveSidecarEntry, lookupByUrl } from './sidecar'
 const inFlight = new Set<string>()
 
 // Resolve a `@bwf` tournament URL into a sidecar entry. Primary path scrapes the
-// tournament HTML page. Since ~mid-2026 BWF serves a Cloudflare bot-challenge on
-// those pages to headless browsers, so when the scrape yields no meta we fall
-// back to the extranet API's vue-tournament-detail — keyed by the tmtId parsed
-// from the URL, it returns the same identity fields without any HTML scrape.
+// tournament HTML page. When the scrape yields no meta we fall back to the
+// extranet API's vue-tournament-detail — keyed by the tmtId parsed from the URL,
+// it returns the same identity fields without any HTML scrape. Two things send
+// us down the fallback:
+//   - Cloudflare: since ~mid-2026 BWF bot-challenges these pages for headless
+//     browsers, so there's often no real HTML to parse;
+//   - a not-yet-started event: with no Results tab, the page lands on a Draw tab
+//     whose <title> has no "|", so RX.name misses even on a clean 200.
+// The second means an event added before its start date resolves *only* via this
+// fallback — it is load-bearing, not a rare safety net.
 export async function resolveBwfUrl(url: string): Promise<void> {
   if (lookupByUrl(url) || inFlight.has(url)) return
   inFlight.add(url)
