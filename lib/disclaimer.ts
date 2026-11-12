@@ -31,7 +31,7 @@ export const DISCLAIMER: Record<Lang, DisclaimerText> = {
   en: {
     title: 'Disclaimer',
     paragraphs: [
-      'This application is a third-party application developed solely for the convenience of users and is provided free of charge. It is not an official application of BAT or of the Badminton World Federation (BWF).',
+      'This application is a third-party application developed solely for the convenience of users and is provided free of charge. It is not an official application of the Badminton Association of Thailand (BAT) or the Badminton World Federation (BWF).',
       'While we make every effort to ensure that the information provided in the app is accurate and up to date, we cannot guarantee that all information is complete, error-free, or fully consistent with the information published by BAT or BWF.',
       'The developer shall not be held liable for any loss, damage, or other consequences arising from the use of, or reliance on, information provided through this application.',
       'Users are strongly advised to verify all information with the official websites or official communication channels of BAT or BWF before relying on or acting upon it.',
