@@ -60,11 +60,37 @@ export async function POST(req: Request, ctx: Ctx) {
     const series: RankingSeries[] = []
     const allEvents: RankingEvent[] = []
     const failures: string[] = []
+    // Series read whole from upstream this time.
+    let readAfresh = 0
+    // A series that upstream failed part-way through. Set when the cache
+    // already holds that series: then nothing is written this time.
+    let blocked = false
+
+    // A series that upstream failed part-way through is never written short.
+    // When the cache holds an earlier copy of it, the whole refresh stops and
+    // the cache stays as it is: writing the other series alone would leave the
+    // series at two different publications, and the projection's U15 detail
+    // (lib/ranking/u15-cohort) reads one series' ranking id under the
+    // envelope's date — it would fetch last week's detail and file it as this
+    // week's. Leaving the cache untouched also leaves its date behind, so the
+    // next poll inside the publish window asks again. A series the cache has
+    // never held is simply left out, as before.
+    const seriesFailed = (s: { id: string }, why: string) => {
+      failures.push(`${s.id}: ${why}`)
+      const held = previousCache?.events.some(e => (e.seriesId ?? cfg.series[0].id) === s.id)
+      if (held) blocked = true
+    }
 
     for (const s of cfg.series) {
-      const overviewRes = await rankingFetch(provider, 'overview', cfg.overviewUrl(s.id))
-      if (!overviewRes.ok) { failures.push(`${s.id}: upstream ${overviewRes.status}`); continue }
-      const overviewHtml = await overviewRes.text()
+      let overviewHtml: string
+      try {
+        const overviewRes = await rankingFetch(provider, 'overview', cfg.overviewUrl(s.id))
+        if (!overviewRes.ok) { seriesFailed(s, `overview upstream ${overviewRes.status}`); continue }
+        overviewHtml = await overviewRes.text()
+      } catch (err) {
+        seriesFailed(s, `overview ${err instanceof Error ? err.message : 'failed'}`)
+        continue
+      }
       const publishDate = parsePublishDate(overviewHtml)
       const categories = parseCategoryList(overviewHtml)
       const rankingId = parseRankingId(overviewHtml)
@@ -79,22 +105,33 @@ export async function POST(req: Request, ctx: Ctx) {
 
       // Upstream caps `ps` at 100 per page, so loop pages 1..maxPages until
       // we hit the target, get an empty page, or get a short page (last).
-      const scrapeEvents = async (rid: string, maxPages: number, target: number): Promise<RankingEvent[]> => {
+      //
+      // A page that cannot be read (a failed or thrown request) fails its whole
+      // category: the rows already read are the top of a list, not the list,
+      // and are not kept. Such categories are named in `failed`.
+      const scrapeEvents = async (
+        rid: string, maxPages: number, target: number,
+      ): Promise<{ events: RankingEvent[]; failed: string[] }> => {
         const evs: RankingEvent[] = []
+        const failed: string[] = []
         for (const cat of categories) {
           const entries: RankingEntry[] = []
+          let failure: string | null = null
           try {
             for (let page = 1; page <= maxPages; page++) {
               const url = cfg.categoryUrl(rid, cat.id, page)
               const res = await rankingFetch(provider, 'cat', url)
-              if (!res.ok) break
+              if (!res.ok) { failure = `page ${page} upstream ${res.status}`; break }
               const html = await res.text()
               const pageEntries = parseCategoryPage(html)
               if (pageEntries.length === 0) break
               entries.push(...pageEntries)
               if (entries.length >= target || pageEntries.length < 100) break
             }
-          } catch { /* skip failed categories */ }
+          } catch (err) {
+            failure = err instanceof Error ? err.message : 'request failed'
+          }
+          if (failure) { failed.push(`${cat.name} (${failure})`); continue }
           if (entries.length > target) entries.length = target
           if (entries.length > 0) {
             evs.push({
@@ -103,21 +140,28 @@ export async function POST(req: Request, ctx: Ctx) {
             })
           }
         }
-        return evs
+        return { events: evs, failed }
       }
 
-      const events = await scrapeEvents(rankingId, 5, 500)
+      const { events, failed } = await scrapeEvents(rankingId, 5, 500)
+      if (failed.length > 0) {
+        seriesFailed(s, `${failed.length} of ${categories.length} categories not read — ${failed.join('; ')}`)
+        continue
+      }
       if (events.length === 0) { failures.push(`${s.id}: no entries scraped`); continue }
 
       // Scrape the prior publication to get a fresh, deploy-independent source
       // for `previousRank`. Capped at 2 pages (200 rows) per event — anyone
       // currently in the rendered top-100 who fell from below rank 200 is a
       // 100+ position swing in one week and rare enough to live with "NEW".
-      // Fall back to the local cache if upstream prev fetch yields nothing.
+      // Fall back to the local cache if upstream prev fetch yields nothing, or
+      // not all of it: the cache is whole, and a category missing here would
+      // show every one of its rows as new.
       let prevForMerge: Ranking | null = null
       if (previousRankingId) {
         try {
-          const prevEvents = await scrapeEvents(previousRankingId, 2, 200)
+          const prev = await scrapeEvents(previousRankingId, 2, 200)
+          const prevEvents = prev.failed.length === 0 ? prev.events : []
           if (prevEvents.length > 0) {
             prevForMerge = {
               provider, scrapedAt: new Date().toISOString(),
@@ -140,10 +184,16 @@ export async function POST(req: Request, ctx: Ctx) {
 
       series.push({ seriesId: s.id, label: s.label, rankingId, publishDate })
       allEvents.push(...mergePreviousRanks(prevForMerge, events, publishDate))
+      readAfresh++
+    }
+
+    if (blocked) {
+      console.log(`[ranking/${provider}/refresh] a series failed part-way (${failures.join('; ')}); cache preserved`)
+      return NextResponse.json({ error: `a series could not be read whole; cache preserved (${failures.join('; ')})` }, { status: 502 })
     }
 
     // Don't overwrite a populated cache with nothing.
-    if (allEvents.length === 0) {
+    if (readAfresh === 0) {
       console.log(`[ranking/${provider}/refresh] no series yielded entries (${failures.join('; ')}); cache preserved`)
       return NextResponse.json({ error: `no entries scraped; cache preserved (${failures.join('; ')})` }, { status: 502 })
     }

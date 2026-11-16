@@ -64,41 +64,63 @@ export async function GET(request: Request) {
   await ensureBracketsLoaded(guid, drawNum)
 
   const cached = cache.get(key)
-  // Asked before each step that goes upstream. A visitor over the upstream
-  // limit (lib/rate-limit) gets the bracket on hand, plainly, or a 429.
+  // Asked before each step that goes upstream; the request is counted once
+  // (lib/rate-limit).
   const mayAskUpstream = upstreamGate(request, 'bracket')
-  const overLimit = () =>
-    cached
-      ? NextResponse.json(
-          fromRound > 0 ? reparse(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket,
-          { headers: { 'Cache-Control': 'no-store' } },
-        )
-      : tooManyRequests()
 
-  // fromRound > 0: re-parse/rebuild from a specific round without re-caching
-  if (fromRound > 0) {
+  // A bracket cut to start at `fromRound`. Only the page as BAT sent it
+  // (rawHtmlCache) can be cut: the finished bracket in `cache` is our own
+  // markup, which neither parser reads, and another provider's bracket is
+  // rebuilt upstream for each round with no page kept. Null when there is no
+  // page to cut.
+  const cut = () => {
     const rawHtml = rawHtmlCache.get(key)
-    if (rawHtml) return NextResponse.json(reparse(rawHtml, fromRound))
-    if (!mayAskUpstream()) return overLimit()
-    // Non-BAT providers rebuild bracket HTML directly
-    const nonBat = await fetchBracketFromRound(guid, drawNum, fromRound)
-    if (nonBat) return NextResponse.json(nonBat)
-    // fall through (BAT without rawHtmlCache, will fetch fresh)
+    return rawHtml ? NextResponse.json(reparse(rawHtml, fromRound)) : null
   }
-
-  if (cached && (cached.done || Date.now() - cached.ts < ttlMsFor(cached))) {
-    return NextResponse.json(fromRound > 0 ? reparse(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket)
-  }
-
-  // Past its TTL but still the bracket as BAT last gave it.
-  const held = () =>
-    cached && NextResponse.json(
-      fromRound > 0 ? parseBracket(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket,
-      { headers: staleHeaders() },
+  // The answer when a round is asked for and no cut can be made. Said
+  // plainly: the page would otherwise be handed an empty bracket, or the
+  // whole one, as though it were the round it asked for.
+  const cannotCut = () =>
+    NextResponse.json(
+      { error: 'Could not load the bracket from that round — it is unavailable right now' },
+      { status: 502, headers: { 'Cache-Control': 'no-store' } },
     )
-  if (cached && Date.now() - (batFailureAt.get(key) ?? 0) < BAT_BACKOFF_MS) return held() as NextResponse
 
-  if (!mayAskUpstream()) return overLimit()
+  const cachedIsFresh = !!cached && (!!cached.done || Date.now() - cached.ts < ttlMsFor(cached))
+
+  if (fromRound > 0) {
+    const fromHeldPage = cut()
+    if (fromHeldPage) return fromHeldPage
+    // Nothing held can be cut, so the rest of this request goes upstream.
+    if (!mayAskUpstream()) return tooManyRequests()
+    // Other providers, and BAT's legacy events, rebuild the bracket from the
+    // round asked for.
+    const rebuilt = await fetchBracketFromRound(guid, drawNum, fromRound).catch(() => null)
+    if (rebuilt) return NextResponse.json(rebuilt)
+    // Not rebuilt, and the finished bracket is all there is: fetching it
+    // again would bring no page with it either.
+    if (cachedIsFresh) return cannotCut()
+    // Otherwise a BAT bracket not fetched yet (or past its time): fetch it
+    // below, then cut the page that comes with it.
+  } else if (cached && cachedIsFresh) {
+    return NextResponse.json(cached.bracket)
+  }
+
+  // Past its TTL but still the bracket as BAT last gave it. Whole only: a
+  // round cannot be cut from it (see `cut`).
+  const held = () =>
+    fromRound > 0
+      ? cannotCut()
+      : NextResponse.json(cached!.bracket, { headers: staleHeaders() })
+  if (cached && Date.now() - (batFailureAt.get(key) ?? 0) < BAT_BACKOFF_MS) return held()
+
+  // A visitor over the upstream limit gets the bracket on hand, plainly, or a
+  // 429. (With a round asked for, the limit was already settled above.)
+  if (!mayAskUpstream()) {
+    return cached && fromRound === 0
+      ? NextResponse.json(cached.bracket, { headers: { 'Cache-Control': 'no-store' } })
+      : tooManyRequests()
+  }
 
   try {
     const bracket = await fetchAndCache(guid, drawNum)
@@ -109,13 +131,15 @@ export async function GET(request: Request) {
         { status: 502 }
       )
     }
+    // The fetch leaves BAT's page in rawHtmlCache; a round is cut from that.
+    if (fromRound > 0) return cut() ?? cannotCut()
     return NextResponse.json(bracket)
   } catch (err) {
     // BAT is down or timing out: an older bracket beats an error page.
     if (cached) {
       batFailureAt.set(key, Date.now())
       console.log(`[bracket] stale fallback tournament=${guid} draw=${drawNum}`)
-      return held() as NextResponse
+      return held()
     }
     const message = err instanceof Error
       ? err.name === 'AbortError' ? 'Request timed out — try again' : err.message
