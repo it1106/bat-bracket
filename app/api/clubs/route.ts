@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { allowUpstream } from '@/lib/rate-limit'
+import { isTournamentId, badParam } from '@/lib/api-params'
 import { getCached as getCachedDraws, fetchAndCache as fetchDrawsAndCache } from '@/lib/draws-cache'
 import {
   playerClubCache,
@@ -7,6 +9,7 @@ import {
   rawHtmlCache,
   fetchBracket,
   fetchTournamentPlayerClubs,
+  hasPlayerRoster,
   makeBracketKey,
   ensureBracketsLoaded,
 } from '@/lib/bracket-cache'
@@ -23,6 +26,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const tournamentId = searchParams.get('tournament')
   if (!tournamentId) return NextResponse.json({})
+  if (!isTournamentId(tournamentId)) return badParam('tournament must be a tournament id')
 
   const tid = tournamentId.toLowerCase()
   const prefix = `${tid}:`
@@ -31,9 +35,15 @@ export async function GET(request: Request) {
   // registered player, including those the bracket-row scan misses
   // because they haven't been slotted into a displayed match yet. The
   // bracket walk is the fallback when this endpoint is unavailable.
-  const rosterOk = await fetchTournamentPlayerClubs(tid)
+  // Until the roster has been read (or every bracket walked) this route asks
+  // BAT, for as many as one page per draw. That counts against the visitor's
+  // upstream limit (lib/rate-limit); over it, they get the clubs already
+  // held — possibly none — and BAT is left alone.
+  const mayAskBat = hasPlayerRoster(tid) || fullyWalked.has(tid) || allowUpstream(request, 'clubs')
 
-  if (!rosterOk && !fullyWalked.has(tid)) {
+  const rosterOk = mayAskBat ? await fetchTournamentPlayerClubs(tid) : false
+
+  if (mayAskBat && !rosterOk && !fullyWalked.has(tid)) {
     let draws = getCachedDraws(tid)?.draws
     if (!draws) {
       try { draws = await fetchDrawsAndCache(tid) } catch {
@@ -85,7 +95,8 @@ export async function GET(request: Request) {
   // serving from edge cache means the function never runs on hits.
   // Skip the cache header when the result is empty so transient upstream
   // failures (e.g. draws fetch fell through to {}) don't lock in 1 h of zeros.
-  const isEmpty = Object.keys(clubs).length === 0
+  // Empty or cut short by the limit: not an answer for a proxy to keep.
+  const isEmpty = Object.keys(clubs).length === 0 || !mayAskBat
   return NextResponse.json(body, {
     headers: isEmpty
       ? { 'Cache-Control': 'no-store' }

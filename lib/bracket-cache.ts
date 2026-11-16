@@ -111,6 +111,12 @@ const playerRosterFetched = new Set<string>()
 // miss because they haven't been slotted into a displayed row yet) and
 // merges their clubs into playerClubCache. One HTTP call per tournament
 // per process lifetime \u2014 much cheaper than the per-draw bracket walk.
+/** Whether the tournament's player roster has already been read from BAT, so
+ *  that fetchTournamentPlayerClubs would answer without asking again. */
+export function hasPlayerRoster(guid: string): boolean {
+  return playerRosterFetched.has(guid.toLowerCase())
+}
+
 export async function fetchTournamentPlayerClubs(guid: string): Promise<boolean> {
   const g = guid.toLowerCase()
   if (playerRosterFetched.has(g)) return true

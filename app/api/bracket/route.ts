@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { upstreamGate, tooManyRequests } from '@/lib/rate-limit'
+import { isTournamentId, isDrawNum, badParam } from '@/lib/api-params'
 import { cache, ttlMsFor, makeBracketKey, fetchAndCache, fetchBracketFromRound, rawHtmlCache, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { parseBracket } from '@/lib/scraper'
 import { isLegacySheet, legacyBracketData } from '@/lib/legacy-scraper'
@@ -49,6 +51,8 @@ export async function GET(request: Request) {
     guid = ids.guid
     drawNum = ids.drawNum
   } else if (tournamentId && eventId) {
+    if (!isTournamentId(tournamentId)) return badParam('tournament must be a tournament id')
+    if (!isDrawNum(eventId)) return badParam('event must be a draw number')
     guid = tournamentId.toLowerCase()
     drawNum = eventId
   } else {
@@ -59,17 +63,29 @@ export async function GET(request: Request) {
   // A finished tournament's brackets live on disk until someone opens one.
   await ensureBracketsLoaded(guid, drawNum)
 
+  const cached = cache.get(key)
+  // Asked before each step that goes upstream. A visitor over the upstream
+  // limit (lib/rate-limit) gets the bracket on hand, plainly, or a 429.
+  const mayAskUpstream = upstreamGate(request, 'bracket')
+  const overLimit = () =>
+    cached
+      ? NextResponse.json(
+          fromRound > 0 ? reparse(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket,
+          { headers: { 'Cache-Control': 'no-store' } },
+        )
+      : tooManyRequests()
+
   // fromRound > 0: re-parse/rebuild from a specific round without re-caching
   if (fromRound > 0) {
     const rawHtml = rawHtmlCache.get(key)
     if (rawHtml) return NextResponse.json(reparse(rawHtml, fromRound))
+    if (!mayAskUpstream()) return overLimit()
     // Non-BAT providers rebuild bracket HTML directly
     const nonBat = await fetchBracketFromRound(guid, drawNum, fromRound)
     if (nonBat) return NextResponse.json(nonBat)
     // fall through (BAT without rawHtmlCache, will fetch fresh)
   }
 
-  const cached = cache.get(key)
   if (cached && (cached.done || Date.now() - cached.ts < ttlMsFor(cached))) {
     return NextResponse.json(fromRound > 0 ? reparse(rawHtmlCache.get(key) ?? cached.bracket.html, fromRound) : cached.bracket)
   }
@@ -81,6 +97,8 @@ export async function GET(request: Request) {
       { headers: staleHeaders() },
     )
   if (cached && Date.now() - (batFailureAt.get(key) ?? 0) < BAT_BACKOFF_MS) return held() as NextResponse
+
+  if (!mayAskUpstream()) return overLimit()
 
   try {
     const bracket = await fetchAndCache(guid, drawNum)

@@ -27,22 +27,22 @@ describe('GET /api/event-bundle', () => {
 
   it('404 when bundle is null', async () => {
     ;(fetchAndCache as jest.Mock).mockResolvedValue(null)
-    const res = await GET(makeReq({ tournament: 'guid', event: 'BS U11' }))
+    const res = await GET(makeReq({ tournament: 'A97008D7-AA53-44AA-9BB7-2A6A2734EA47', event: 'BS U11' }))
     expect(res.status).toBe(404)
   })
 
   it('200 returns the bundle', async () => {
     const fake = { eventName: 'BS U11', playoff: { html: '', format: 'single-elimination' }, playoffDrawNum: '9', groups: [] }
     ;(fetchAndCache as jest.Mock).mockResolvedValue(fake)
-    const res = await GET(makeReq({ tournament: 'guid', event: 'BS U11' }))
+    const res = await GET(makeReq({ tournament: 'A97008D7-AA53-44AA-9BB7-2A6A2734EA47', event: 'BS U11' }))
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual(fake)
   })
 
   it('serves cached bundle without re-fetching', async () => {
     const fake = { eventName: 'BS U11', playoff: { html: '', format: 'single-elimination' }, playoffDrawNum: '9', groups: [] }
-    cache.set('guid::BS U11', { bundle: fake as never, ts: Date.now() })
-    const res = await GET(makeReq({ tournament: 'guid', event: 'BS U11' }))
+    cache.set('a97008d7-aa53-44aa-9bb7-2a6a2734ea47::BS U11', { bundle: fake as never, ts: Date.now() })
+    const res = await GET(makeReq({ tournament: 'A97008D7-AA53-44AA-9BB7-2A6A2734EA47', event: 'BS U11' }))
     expect(res.status).toBe(200)
     expect(fetchAndCache).not.toHaveBeenCalled()
   })

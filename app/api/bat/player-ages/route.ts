@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { allowUpstream } from '@/lib/rate-limit'
+import { isTournamentId, badParam } from '@/lib/api-params'
 import { getBatPlayerYobs } from '@/lib/bat-player-yob'
 import { BAT_YOB_LOOKUP_ENABLED } from '@/lib/bat-yob-switch'
 
@@ -16,16 +18,22 @@ export async function GET(request: Request) {
   const ids = (searchParams.get('ids') ?? '')
     .split(',')
     .map((s) => s.trim())
-    .filter(Boolean)
+    .filter((id) => PLAYER_ID.test(id))
+    .slice(0, MAX_IDS)
 
   if (!tournamentId) return NextResponse.json({ error: 'tournament param required' }, { status: 400 })
+  if (!isTournamentId(tournamentId)) return badParam('tournament must be a tournament id')
   if (ids.length === 0) return NextResponse.json({})
   // Switched off (see lib/bat-yob-switch): nobody is answered for, which also
   // ends the asking loop of a page loaded before the switch.
   if (!BAT_YOB_LOOKUP_ENABLED) return NextResponse.json({})
 
   try {
-    const yobs = await getBatPlayerYobs(tournamentId, ids)
+    // Scraping players from BAT counts against the visitor's upstream limit
+    // (lib/rate-limit). Over it, they get what is already known.
+    const yobs = allowUpstream(request, 'bat-ages')
+      ? await getBatPlayerYobs(tournamentId, ids)
+      : await getBatPlayerYobs(tournamentId, ids, { maxScrapes: 0 })
     const out: Record<string, { yob: string | null }> = {}
     for (const id of ids) {
       if (id in yobs) out[id] = { yob: yobs[id] }
@@ -55,6 +63,7 @@ export async function POST(request: Request) {
   }
   const tournamentId = typeof body?.tournament === 'string' ? body.tournament : ''
   if (!tournamentId) return NextResponse.json({ error: 'tournament required' }, { status: 400 })
+  if (!isTournamentId(tournamentId)) return badParam('tournament must be a tournament id')
   if (!Array.isArray(body.ids)) return NextResponse.json({ error: 'ids must be a list' }, { status: 400 })
   const ids = body.ids.filter((id): id is string => typeof id === 'string' && PLAYER_ID.test(id)).slice(0, MAX_IDS)
   if (ids.length === 0) return NextResponse.json({})
@@ -63,7 +72,11 @@ export async function POST(request: Request) {
   if (!BAT_YOB_LOOKUP_ENABLED) return NextResponse.json({})
 
   try {
-    const yobs = await getBatPlayerYobs(tournamentId, ids)
+    // Scraping players from BAT counts against the visitor's upstream limit
+    // (lib/rate-limit). Over it, they get what is already known.
+    const yobs = allowUpstream(request, 'bat-ages')
+      ? await getBatPlayerYobs(tournamentId, ids)
+      : await getBatPlayerYobs(tournamentId, ids, { maxScrapes: 0 })
     const out: Record<string, { yob: string | null }> = {}
     for (const id of ids) {
       if (id in yobs) out[id] = { yob: yobs[id] }

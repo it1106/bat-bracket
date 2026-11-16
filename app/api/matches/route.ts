@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server'
+import { isTournamentId, isScheduleDate, badParam } from '@/lib/api-params'
+import { isInternalRequest } from '@/lib/internal-token'
+import { publicFreshGate, allowUpstream, upstreamGate, tooManyRequests } from '@/lib/rate-limit'
 import { parseMatchesFull, parseMatchesPartial, parseBracketContext } from '@/lib/scraper'
 import { cache as bracketCache, bracketHtmlForSchedule, siblingLookupCache, feederLookupCache, nextLookupCache, resultLookupCache, resultsBracketLacks, refreshBracketForResult, makeBracketKey, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { batFetch } from '@/lib/bat-fetch'
@@ -37,6 +40,12 @@ const matchesDayCache = new Map<string, { data: Pick<MatchesData, 'groups'>; ts:
 // This must exceed the warmer's ~4-min cadence (else a cold gap reopens) and
 // also bounds how long live-mode activation can lag once a session starts.
 const TODAY_CALM_TTL_MS = 5 * 60_000
+
+// A `fresh=1` read of one day that is under way, by its memKey. Everyone else
+// who asks for that day fresh meanwhile waits for this one read instead of
+// starting their own; it resolves to null if the read fails.
+type DayData = Pick<MatchesData, 'groups'>
+const freshInFlight = new Map<string, Promise<DayData | null>>()
 function hasLiveMatches(data: Pick<MatchesData, 'groups'>): boolean {
   return data.groups.some((g) => g.matches.some((m) => m.nowPlaying))
 }
@@ -224,6 +233,9 @@ export async function GET(request: Request) {
   if (!tournamentId) {
     return NextResponse.json({ error: 'tournament param required' }, { status: 400 })
   }
+  // Both go into the address asked of BAT below.
+  if (!isTournamentId(tournamentId)) return badParam('tournament must be a tournament id')
+  if (date !== null && !isScheduleDate(date)) return badParam('date must be YYYYMMDD or YYYY-MM-DD')
 
   try {
     if (date) {
@@ -236,13 +248,33 @@ export async function GET(request: Request) {
       // fresh=1 bypasses 1 & 2. Used by the SignalR refetch on live-match
       // completion so the post-completion fetch doesn't see the pre-completion
       // snapshot.
-      const fresh = searchParams.get('fresh') === '1'
+      const wantsFresh = searchParams.get('fresh') === '1'
       const todayIso = getTodayIso()
       const dateIso = toIsoDate(date)
       // Upper-case the id so requests differing only in casing share one entry
       // and the background warmer (which seeds with canonical upper-case ids)
       // is actually hit — same normalization as the full-schedule memcache.
       const memKey = `${tournamentId.toUpperCase()}:${dateIso}`
+
+      // Anyone can send fresh=1, as often as they like, and each one used to
+      // cost BAT a request. The server's own warmer (it carries the server
+      // token) is always obeyed; a visitor's is obeyed once every few seconds
+      // per day. A visitor held back joins the fresh read already under way
+      // if there is one, and otherwise is served from the cache below — which
+      // the read that used up the allowance has just refilled.
+      //
+      // Asking BAT is also what the per-address limit counts (lib/rate-limit),
+      // so a visitor over it is not given a fresh read either — and does not
+      // use up the allowance the next visitor's fresh read would have had.
+      const mayAskBat = upstreamGate(request, 'matches')
+      const fresh = wantsFresh && (
+        isInternalRequest(request) ||
+        (publicFreshGate.ready(memKey, Date.now()) && mayAskBat() && publicFreshGate.take(memKey, Date.now()))
+      )
+      if (wantsFresh && !fresh) {
+        const shared = await freshInFlight.get(memKey)
+        if (shared) return NextResponse.json(shared, { headers: { 'Cache-Control': 'no-store' } })
+      }
 
       if (!fresh) {
         const disk = await readDayCache(tournamentId, dateIso)
@@ -260,8 +292,9 @@ export async function GET(request: Request) {
         }
         const cached = matchesDayCache.get(memKey)
         if (cached && Date.now() - cached.ts < dayCacheTtlMs(dateIso, todayIso, cached.data)) {
+          // An answer to fresh=1 is never one for a browser or proxy to keep.
           return NextResponse.json(cached.data, {
-            headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=60' },
+            headers: { 'Cache-Control': wantsFresh ? 'no-store' : 'public, s-maxage=60, stale-while-revalidate=60' },
           })
         }
       }
@@ -278,6 +311,28 @@ export async function GET(request: Request) {
       if (inBackoff(memKey) && memEntryForBackoff) {
         console.log(`[matches] backoff serve day tournament=${tournamentId} date=${dateIso}`)
         return NextResponse.json(memEntryForBackoff.data, { headers: staleHeaders() })
+      }
+
+      // Nothing in the cache answered, so BAT is next. A visitor over the
+      // limit gets the copy on hand instead, however old — plainly, with no
+      // "BAT is unreachable" flag, since BAT is not the problem — or a 429.
+      if (!mayAskBat()) {
+        return memEntryForBackoff
+          ? NextResponse.json(memEntryForBackoff.data, { headers: { 'Cache-Control': 'no-store' } })
+          : tooManyRequests()
+      }
+
+      // Let the visitors who ask for this day fresh while this read runs
+      // share its answer (see freshInFlight).
+      let settleFresh: (data: DayData | null) => void = () => undefined
+      if (fresh) {
+        const pending = new Promise<DayData | null>((resolve) => {
+          settleFresh = (d) => {
+            if (freshInFlight.get(memKey) === pending) freshInFlight.delete(memKey)
+            resolve(d)
+          }
+        })
+        freshInFlight.set(memKey, pending)
       }
 
       let data: Pick<import('@/lib/types').MatchesData, 'groups'>
@@ -327,7 +382,9 @@ export async function GET(request: Request) {
         clearBatFailure(memKey)
         // Before any cache write below, so every stored copy carries the times.
         await stampResultTimes(tournamentId, dateIso, data.groups)
+        settleFresh(data)
       } catch (err) {
+        settleFresh(null)
         // BAT (or another upstream) failed. Mark the key as failing so
         // subsequent requests within the backoff window skip BAT entirely. If we
         // have ANY previous answer in mem-cache — even one that's past TTL
@@ -378,7 +435,7 @@ export async function GET(request: Request) {
       // the memcache gate above; send it with no-store too so browser/CDN
       // don't independently pin the empty response for s-maxage seconds while
       // our memcache correctly retries.
-      const cacheable = !fresh && shouldMemcacheDayResult(data, dateIso, todayIso)
+      const cacheable = !wantsFresh && shouldMemcacheDayResult(data, dateIso, todayIso)
       return NextResponse.json(data, {
         headers: cacheable
           ? { 'Cache-Control': `public, s-maxage=${ttl}, stale-while-revalidate=${ttl}` }
@@ -413,6 +470,13 @@ export async function GET(request: Request) {
       if (inBackoff(tournamentId) && fullMemEntry) {
         console.log(`[matches] backoff serve full tournament=${tournamentId}`)
         return NextResponse.json(fullMemEntry.data, { headers: staleHeaders() })
+      }
+
+      // As in the day branch: over the limit means the copy on hand or a 429.
+      if (!allowUpstream(request, 'matches')) {
+        return fullMemEntry
+          ? NextResponse.json(fullMemEntry.data, { headers: { 'Cache-Control': 'no-store' } })
+          : tooManyRequests()
       }
 
       let data: import('@/lib/types').MatchesData

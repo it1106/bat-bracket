@@ -1,7 +1,7 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { internalHeaders, isInternalRequest } from '@/lib/internal-token'
+import { ensureInternalToken, internalHeaders, isInternalRequest } from '@/lib/internal-token'
 
 const cwd = process.cwd()
 let dir: string
@@ -55,5 +55,24 @@ describe('internal token', () => {
     internalHeaders()
     const mode = fs.statSync(path.join(dir, '.cache', 'internal-token')).mode & 0o777
     expect(mode).toBe(0o600)
+  })
+
+  // Made at boot, so the file is there for a manual call before the
+  // scheduler has ever needed it.
+  it('can be made ahead of need, and is then the token requests carry', () => {
+    expect(fs.existsSync(path.join(dir, '.cache', 'internal-token'))).toBe(false)
+    expect(ensureInternalToken()).toBe(true)
+    const onDisk = fs.readFileSync(path.join(dir, '.cache', 'internal-token'), 'utf8').trim()
+    expect(onDisk).toMatch(/^[0-9a-f]{64}$/)
+    expect(isInternalRequest(request({ 'x-internal-token': onDisk }))).toBe(true)
+    expect(Object.values(internalHeaders())).toEqual([onDisk])
+  })
+
+  it('says so when no token can be made', () => {
+    // A file where the directory should be: nothing can be written under it.
+    fs.writeFileSync(path.join(dir, '.cache'), 'not a directory')
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    expect(ensureInternalToken()).toBe(false)
+    warn.mockRestore()
   })
 })

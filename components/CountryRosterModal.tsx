@@ -6,6 +6,7 @@ import { countryDisplayName } from '@/lib/countryCodes'
 import { formatDob } from '@/lib/age'
 import RosterModal, { type RosterRow } from '@/components/RosterModal'
 import type { StatsCountryRoster } from '@/lib/types'
+import { fetchBwfAges } from '@/lib/bwfAgesClient'
 
 interface Props {
   roster: StatsCountryRoster | null
@@ -29,10 +30,13 @@ export default function CountryRosterModal({ roster, onClose }: Props) {
     const ids = roster.roster.map((m) => m.playerId).filter((id): id is string => !!id)
     if (ids.length === 0) return
     let cancelled = false
-    fetch(`/api/bwf/player-ages?ids=${encodeURIComponent(ids.join(','))}`)
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((data: Record<string, AgeInfo>) => { if (!cancelled) setAges(data) })
-      .catch(() => { /* leave ages empty — names still render */ })
+    // In batches: the server looks up only so many unknown players a request,
+    // and fetchBwfAges asks again for the rest. A failure leaves ages empty —
+    // names still render.
+    void fetchBwfAges(ids, {
+      cancelled: () => cancelled,
+      onBatch: (data) => setAges((prev) => ({ ...prev, ...data })),
+    })
     return () => { cancelled = true }
   }, [roster])
 

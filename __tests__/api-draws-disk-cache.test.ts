@@ -25,7 +25,7 @@ const DRAW = { drawNum: '1', name: 'MS', size: '32', type: 'Elimination' }
 
 let tmpRoot = ''
 let tid = 0
-const nextId = () => `tid-disk-${++tid}`
+const nextId = () => `d15c0000-0000-4000-8000-${String(++tid).padStart(12, '0')}`
 
 const req = (id: string) =>
   new Request(`http://localhost/api/draws?id=${id}`)

@@ -35,7 +35,7 @@ describe('yobYear', () => {
 describe('getBatPlayerYobs', () => {
   it('serves cache hits without any upstream scrape', async () => {
     mockRead.mockResolvedValue({ profile: { yob: '2010' }, ts: Date.now() } as never)
-    const out = await getBatPlayerYobs('T1', ['a', 'b'])
+    const out = await getBatPlayerYobs('A97008D7-AA53-44AA-9BB7-2A6A2734EA47', ['a', 'b'])
     expect(out).toEqual({ a: '2010', b: '2010' })
     expect(mockFetch).not.toHaveBeenCalled()
   })
@@ -44,7 +44,7 @@ describe('getBatPlayerYobs', () => {
     mockRead.mockResolvedValue({ profile: { yob: '2010' }, ts: 0 } as never)
     const isFreshMock = jest.requireMock('../lib/bat-player-cache').isFresh as jest.Mock
     isFreshMock.mockReturnValue(false) // stale
-    const out = await getBatPlayerYobs('T1', ['a'], { gapMs: 0 })
+    const out = await getBatPlayerYobs('A97008D7-AA53-44AA-9BB7-2A6A2734EA47', ['a'], { gapMs: 0 })
     expect(out).toEqual({ a: '2010' })
     expect(mockFetch).not.toHaveBeenCalled() // no re-scrape for an immutable YOB
     isFreshMock.mockReturnValue(true)
@@ -53,7 +53,7 @@ describe('getBatPlayerYobs', () => {
   it('scrapes only cache misses', async () => {
     mockRead.mockResolvedValue(null) // all misses
     mockFetch.mockResolvedValue(profileWithYob('2012'))
-    const out = await getBatPlayerYobs('T1', ['a', 'b'], { gapMs: 0 })
+    const out = await getBatPlayerYobs('A97008D7-AA53-44AA-9BB7-2A6A2734EA47', ['a', 'b'], { gapMs: 0 })
     expect(out).toEqual({ a: '2012', b: '2012' })
     expect(mockFetch).toHaveBeenCalledTimes(2)
   })
@@ -62,7 +62,7 @@ describe('getBatPlayerYobs', () => {
     mockRead.mockResolvedValue(null)
     mockFetch.mockResolvedValue(profileWithYob('2009'))
     const ids = Array.from({ length: 30 }, (_, i) => `p${i}`)
-    const out = await getBatPlayerYobs('T1', ids, { gapMs: 0, maxScrapes: 20 })
+    const out = await getBatPlayerYobs('A97008D7-AA53-44AA-9BB7-2A6A2734EA47', ids, { gapMs: 0, maxScrapes: 20 })
     // Only the first 20 misses are scraped; the rest are left for a later call.
     expect(mockFetch).toHaveBeenCalledTimes(20)
     expect(Object.keys(out)).toHaveLength(20)
@@ -73,7 +73,7 @@ describe('getBatPlayerYobs', () => {
     mockFetch
       .mockRejectedValueOnce(new Error('boom'))
       .mockResolvedValueOnce(profileWithYob('2013'))
-    const out = await getBatPlayerYobs('T1', ['a', 'b'], { gapMs: 0 })
+    const out = await getBatPlayerYobs('A97008D7-AA53-44AA-9BB7-2A6A2734EA47', ['a', 'b'], { gapMs: 0 })
     expect(out).toEqual({ b: '2013' }) // 'a' failed → omitted, 'b' resolved
   })
 })
@@ -86,7 +86,7 @@ describe('POST /api/bat/player-ages', () => {
 
   it('answers for a whole list of players in one request', async () => {
     mockRead.mockImplementation(async (_t, id) => ({ profile: { yob: `20${id}` }, ts: Date.now() }) as never)
-    const res = await post({ tournament: 'T1', ids: ['11', '12', '13'] })
+    const res = await post({ tournament: 'A97008D7-AA53-44AA-9BB7-2A6A2734EA47', ids: ['11', '12', '13'] })
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ '11': { yob: '2011' }, '12': { yob: '2012' }, '13': { yob: '2013' } })
     expect(mockFetch).not.toHaveBeenCalled()
@@ -94,14 +94,14 @@ describe('POST /api/bat/player-ages', () => {
 
   it('rejects a request without a tournament or with a malformed list', async () => {
     expect((await post({ ids: ['1'] })).status).toBe(400)
-    expect((await post({ tournament: 'T1', ids: 'nope' })).status).toBe(400)
-    expect(await (await post({ tournament: 'T1', ids: [] })).json()).toEqual({})
+    expect((await post({ tournament: 'A97008D7-AA53-44AA-9BB7-2A6A2734EA47', ids: 'nope' })).status).toBe(400)
+    expect(await (await post({ tournament: 'A97008D7-AA53-44AA-9BB7-2A6A2734EA47', ids: [] })).json()).toEqual({})
   })
 
   it('ignores ids that are not plain player numbers and caps the list', async () => {
     mockRead.mockImplementation(async () => ({ profile: { yob: '2010' }, ts: Date.now() }) as never)
     const ids = ['1', 'x y', 7, '../etc', ...Array.from({ length: 3000 }, (_, i) => String(100 + i))]
-    const out = await (await post({ tournament: 'T1', ids })).json()
+    const out = await (await post({ tournament: 'A97008D7-AA53-44AA-9BB7-2A6A2734EA47', ids })).json()
     expect(Object.keys(out)).toContain('1')
     expect(Object.keys(out)).not.toContain('x y')
     expect(Object.keys(out).length).toBeLessThanOrEqual(2000)

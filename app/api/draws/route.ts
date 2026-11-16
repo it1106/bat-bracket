@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { allowUpstream, tooManyRequests } from '@/lib/rate-limit'
+import { isTournamentId, badParam } from '@/lib/api-params'
 import {
   getCachedOrDisk, TTL_MS, fetchAndCache,
   inBackoff, markBatFailure, clearBatFailure,
@@ -15,6 +17,7 @@ export async function GET(request: Request) {
   if (!id) {
     return NextResponse.json({ error: 'Missing ?id= parameter' }, { status: 400 })
   }
+  if (!isTournamentId(id)) return badParam('id must be a tournament id')
 
   // Hide individual group draws (they're surfaced inside the event bundle view).
   // Non-grouped Round Robin draws (no eventName) stay hidden by historical
@@ -56,6 +59,14 @@ export async function GET(request: Request) {
     return NextResponse.json(filter(cached.draws), {
       headers: staleHeaders(),
     })
+  }
+
+  // BAT is next. A visitor over the upstream limit (lib/rate-limit) gets the
+  // older list if there is one, plainly, or a 429.
+  if (!allowUpstream(request, 'draws')) {
+    return cached
+      ? NextResponse.json(filter(cached.draws), { headers: { 'Cache-Control': 'no-store' } })
+      : tooManyRequests()
   }
 
   try {

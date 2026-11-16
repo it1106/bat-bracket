@@ -9,6 +9,14 @@ export async function register() {
     const dns = await import('dns')
     dns.setDefaultResultOrder('ipv4first')
 
+    // The token the server's own calls carry (lib/internal-token). Made now
+    // rather than on first use, so it is on disk for a manual call and a
+    // failure to make it shows at boot, not when rankings quietly stop.
+    const { ensureInternalToken } = await import('./lib/internal-token')
+    if (!ensureInternalToken()) {
+      console.warn('[internal-token] none could be made: the ranking refresh and schedule warmer will be refused')
+    }
+
     const { prewarmDrawsCache } = await import('./lib/draws-cache')
     const { prewarmBracketCache, restoreBracketStore } = await import('./lib/bracket-cache')
     const { prewarmEventBundleCache } = await import('./lib/event-bundle-cache')
@@ -107,6 +115,7 @@ export async function register() {
     // workers can't race. The 4-min cadence sits just under the 5-min memcache
     // TTLs so entries are refreshed before they can expire — no cold gap.
     const warmOrigin = `http://127.0.0.1:${process.env.PORT || '3000'}`
+    const { internalHeaders: warmHeaders } = await import('./lib/internal-token')
     const warmTick = async () => {
       try {
         const r = await warmActiveFullSchedules()
@@ -122,7 +131,12 @@ export async function register() {
         let todayFail = 0
         for (const t of r.todayTargets) {
           try {
-            const res = await fetch(`${warmOrigin}/api/matches?tournament=${encodeURIComponent(t.id)}&date=${encodeURIComponent(t.date)}&fresh=1`)
+            // With the server token: a visitor's fresh=1 is held back, the
+            // warmer's never is (see /api/matches).
+            const res = await fetch(
+              `${warmOrigin}/api/matches?tournament=${encodeURIComponent(t.id)}&date=${encodeURIComponent(t.date)}&fresh=1`,
+              { headers: warmHeaders() },
+            )
             if (res.ok) today++
             else todayFail++
           } catch {
