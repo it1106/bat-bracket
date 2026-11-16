@@ -299,6 +299,7 @@ export async function register() {
       const { parsePublishDate } = await import('./lib/ranking/scraper')
       const { readRankingCache } = await import('./lib/ranking/cache')
       const { selfHealU15Backfill } = await import('./lib/ranking/u15-backfill')
+      const { internalHeaders } = await import('./lib/internal-token')
 
       const peekAndMaybeRefresh = async (provider: 'bat' | 'bwf') => {
         const cfg = PROVIDER_CONFIG[provider]
@@ -336,7 +337,8 @@ export async function register() {
             return
           }
           console.log(`[ranking/${provider}/poll] triggering refresh: ${changes.join('; ')}`)
-          const refreshRes = await fetch(`${origin}/api/ranking/${provider}/refresh?force=true`, { method: 'POST' })
+          // The refresh route answers only the server's own token.
+          const refreshRes = await fetch(`${origin}/api/ranking/${provider}/refresh?force=true`, { method: 'POST', headers: internalHeaders() })
           const body = await refreshRes.text()
           console.log(`[ranking/${provider}/poll] refresh status=${refreshRes.status} body=${body.slice(0, 200)}`)
           // The U15 projected cohort is filled by selfHealBat() below — it runs

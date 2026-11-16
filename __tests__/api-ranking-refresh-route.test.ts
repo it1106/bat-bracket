@@ -6,14 +6,20 @@ import path from 'path'
 import { POST } from '@/app/api/ranking/[provider]/refresh/route'
 import { readRankingCache, __setRankingCacheRootForTesting } from '@/lib/ranking/cache'
 import { rankingFetch } from '@/lib/ranking/fetch'
+import { internalHeaders } from '@/lib/internal-token'
 
+const cwd = process.cwd()
 beforeEach(() => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rrf-'))
   __setRankingCacheRootForTesting(dir)
+  // The server's own token lives under the working directory's .cache.
+  process.chdir(dir)
   jest.clearAllMocks()
 })
+afterAll(() => { process.chdir(cwd) })
 
-const req = () => new Request('http://x/api/ranking/bat/refresh?force=true', { method: 'POST' })
+// The request the ranking scheduler makes: it carries the server's own token.
+const req = () => new Request('http://x/api/ranking/bat/refresh?force=true', { method: 'POST', headers: internalHeaders() })
 const ctx = { params: { provider: 'bat' } }
 
 /** Overview page: publication dropdown (current + previous) plus one category
@@ -65,8 +71,30 @@ function mockUpstream(opts: { deadSeries?: string[] } = {}) {
 
 describe('POST /api/ranking/[provider]/refresh', () => {
   it('rejects unknown provider', async () => {
-    const res = await POST(new Request('http://x/api/ranking/foo/refresh', { method: 'POST' }), { params: { provider: 'foo' } })
+    const res = await POST(new Request('http://x/api/ranking/foo/refresh', { method: 'POST', headers: internalHeaders() }), { params: { provider: 'foo' } })
     expect(res.status).toBe(400)
+  })
+
+  // A refresh is hundreds of requests to BAT. Only the server's own scheduler
+  // may start one; a visitor who finds the address may not.
+  it('refuses a request without the server token, and scrapes nothing', async () => {
+    mockUpstream()
+    internalHeaders()
+    const res = await POST(new Request('http://x/api/ranking/bat/refresh?force=true', { method: 'POST' }), ctx)
+    expect(res.status).toBe(401)
+    expect(rankingFetch).not.toHaveBeenCalled()
+    expect(await readRankingCache('bat')).toBeNull()
+  })
+
+  it('refuses a request with the wrong token', async () => {
+    mockUpstream()
+    const [name] = Object.keys(internalHeaders())
+    const res = await POST(
+      new Request('http://x/api/ranking/bat/refresh?force=true', { method: 'POST', headers: { [name]: '0'.repeat(64) } }),
+      ctx,
+    )
+    expect(res.status).toBe(401)
+    expect(rankingFetch).not.toHaveBeenCalled()
   })
 
   it('scrapes every BAT series into one snapshot, stamped per event', async () => {

@@ -2,6 +2,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { batFetch } from '@/lib/bat-fetch'
 import { hasRegulationsLink, parseOverviewNotes, parseRegulations, parseSeedEntries } from '@/lib/scraper'
+import { sanitizeHtml } from '@/lib/sanitize-html'
 import { eventRank } from '@/lib/tournamentStats'
 import type { TournamentOverview } from '@/lib/types'
 
@@ -35,7 +36,14 @@ export function snapshotPath(id: string): string {
 export async function readDiskSnapshot(id: string): Promise<TournamentOverview | null> {
   try {
     const buf = await fs.readFile(snapshotPath(id), 'utf8')
-    return JSON.parse(buf) as TournamentOverview
+    const snap = JSON.parse(buf) as TournamentOverview
+    // Cleaned again on the way out: a snapshot may have been saved by a
+    // version with looser rules than today's, and a file is only a file.
+    return {
+      ...snap,
+      ...(snap.regulations && { regulations: sanitizeHtml(snap.regulations) }),
+      ...(Array.isArray(snap.notes) && { notes: snap.notes.map((n) => sanitizeHtml(String(n))) }),
+    }
   } catch {
     return null
   }

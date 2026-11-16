@@ -113,6 +113,24 @@ describe('overview-cache stale fallback', () => {
     expect(fs.readFile).toHaveBeenCalledTimes(1)
   })
 
+  // A snapshot saved by an older version was cleaned by older, looser rules.
+  it('cleans the regulations and notes of a disk snapshot before serving it', async () => {
+    const disk = {
+      regulations: 'Rules<iframe src="https://evil.example"></iframe>',
+      notes: ['<a href="javascript:alert(1)">note</a>'],
+      seedEvents: [],
+    }
+    ;(fs.readFile as jest.Mock).mockResolvedValue(JSON.stringify(disk))
+    ;(batFetch as jest.Mock)
+      .mockResolvedValueOnce(errRes)
+      .mockResolvedValueOnce(errRes)
+
+    const { data } = await fetchAndCache(TID)
+
+    expect(data.regulations).toBe('Rules')
+    expect(data.notes).toEqual(['<a target="_blank" rel="noopener noreferrer nofollow">note</a>'])
+  })
+
   it('ignores an empty disk snapshot (treats it as no fallback)', async () => {
     const emptyDisk = { notes: [], seedEvents: [] }
     ;(fs.readFile as jest.Mock).mockResolvedValue(JSON.stringify(emptyDisk))

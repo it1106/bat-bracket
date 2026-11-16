@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio'
+import { sanitizeNodes } from './sanitize-html'
 import type { Tournament, TournamentEvent, BracketData, DrawInfo, TournamentInfo, MatchEntry, MatchScheduleGroup, MatchDay, MatchesData, H2HData, H2HRecord, H2HMatch, MatchPlayer, MatchScore, StandingsRow, SeedEvent, BracketRound, BracketSlotMatch } from './types'
 
 function extractId(url: string): string {
@@ -60,32 +61,16 @@ export function parseTournamentMeta(html: string): TournamentInfo | null {
 }
 
 // Parses tournament overview page, extracting info alert HTML blocks.
-// Returns sanitized inner HTML of each .alert--info.js-alert found.
-// Strips attributes that shouldn't survive into dangerouslySetInnerHTML
-// (event handlers, ids/classes, bootstrap toggle wiring).
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function stripUnsafeAttrs($: cheerio.CheerioAPI, root: cheerio.Cheerio<any>): void {
-  root.find('*').each((_, node) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const attrs: Record<string, string> = (node as any).attribs ?? {}
-    for (const attr of Object.keys(attrs)) {
-      if (attr.startsWith('on') || ['id', 'class', 'aria-expanded', 'aria-controls', 'data-toggle', 'data-target'].includes(attr)) {
-        $(node).removeAttr(attr)
-      }
-    }
-  })
-}
-
+// Returns the cleaned inner HTML of each .alert--info.js-alert found. The
+// text is the organiser's, and it is put on our page with
+// dangerouslySetInnerHTML, so only what lib/sanitize-html allows survives.
 export function parseOverviewNotes(html: string): string[] {
   const $ = cheerio.load(html)
   const notes: string[] = []
   $('div.alert.alert--info.js-alert').each((_, el) => {
-    const inner = $(el).find('.alert__body-inner')
+    const inner = $(el).find('.alert__body-inner').first()
     if (!inner.length) return
-    // Remove elements that shouldn't render (buttons, scripts, etc.)
-    inner.find('button, script, style').remove()
-    stripUnsafeAttrs($, inner)
-    const content = inner.html()?.trim()
+    const content = sanitizeNodes(inner.contents().toArray()).trim()
     if (content) notes.push(content)
   })
   return notes
@@ -105,9 +90,10 @@ export function parseRegulations(html: string): string {
   const $ = cheerio.load(html)
   const body = $('.modal__body form').first()
   if (!body.length) return ''
-  body.find('input, button, script, style, .btn__group').remove()
-  stripUnsafeAttrs($, body)
-  return (body.html() ?? '')
+  // The Close button's wrapper is known only by its class, which the cleaning
+  // below does not keep; the rest (inputs, scripts, …) it removes itself.
+  body.find('.btn__group').remove()
+  return sanitizeNodes(body.contents().toArray())
     .trim()
     .replace(/^(\s*<br\s*\/?>)+/i, '')
     .replace(/(<br\s*\/?>\s*)+$/i, '')
@@ -302,6 +288,14 @@ interface ExtractedMatch {
   scheduledTime?: string
 }
 
+// Everything read out of BAT's pages with .text() is plain text again —
+// cheerio undoes BAT's own escaping — and the bracket built here is put on the
+// page as HTML. So every such value is escaped on its way back in; without
+// this a name with markup in it would run as markup on our page.
+function esc(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
+}
+
 // Inline clock icon, sized to sit next to the time text.
 const BK_CLOCK_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>'
 
@@ -316,9 +310,9 @@ function buildMatchBoxHtml(ex: ExtractedMatch, roundAbbrev: string): string {
   if (!isUnplayed || !ex.scheduledTime) return teamRows
   const footer =
     `<div class="bk-footer">` +
-    `<span class="bk-round-tag">${roundAbbrev}</span>` +
+    `<span class="bk-round-tag">${esc(roundAbbrev)}</span>` +
     `<span class="bk-clock">${BK_CLOCK_SVG}</span>` +
-    `<span class="bk-time">${ex.scheduledTime}</span>` +
+    `<span class="bk-time">${esc(ex.scheduledTime)}</span>` +
     `</div>`
   return teamRows + footer
 }
@@ -338,7 +332,7 @@ function buildTeamRowHtml(
   const playerSpans = players.length === 0
     ? '<span class="bk-player"></span>'
     : players.map((p) =>
-        `<span class="bk-player"${p.playerId ? ` data-player-id="${p.playerId}"` : ''}>${p.name}</span>`
+        `<span class="bk-player"${p.playerId ? ` data-player-id="${esc(p.playerId)}"` : ''}>${esc(p.name)}</span>`
       ).join('')
 
   const dotHtml = winner === null
@@ -497,7 +491,7 @@ export function parseBracket(html: string, fromRound = 0): BracketData {
 
     const roundHtml =
       `<div class="bk-round" style="height:${totalH}px">` +
-      `<div class="bk-round-label" data-round-index="${absoluteIdx}" style="height:32px;line-height:32px;cursor:pointer">${roundName}</div>` +
+      `<div class="bk-round-label" data-round-index="${absoluteIdx}" style="height:32px;line-height:32px;cursor:pointer">${esc(roundName)}</div>` +
       slotParts.join('') +
       `</div>`
 

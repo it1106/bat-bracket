@@ -101,7 +101,8 @@ function teamRowHtml(
   const isLoser = winner !== null && winner !== teamNum
   const winCls = isWinner ? ' winner' : ''
   const players = team?.players ?? []
-  const seedHtml = seed ? `<span class="bk-seed">${seed}</span>` : ''
+  // Typed as a number, but it is whatever BWF's JSON holds.
+  const seedHtml = seed ? `<span class="bk-seed">${esc(String(seed))}</span>` : ''
 
   const playerSpans = players.length
     ? players.map((p, i) => {

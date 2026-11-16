@@ -11,13 +11,22 @@ import {
 } from '@/lib/ranking/scraper'
 import { readRankingCache, writeRankingCache } from '@/lib/ranking/cache'
 import { mergePreviousRanks } from '@/lib/ranking/previous-rank'
+import { isInternalRequest } from '@/lib/internal-token'
 import type { Ranking, RankingEntry, RankingEvent, RankingSeries, ProviderTag } from '@/lib/types'
 
 const TTL_MS = 24 * 60 * 60 * 1000
 
 interface Ctx { params: { provider: string } }
 
+// Only the server's own ranking scheduler (instrumentation.ts) may start a
+// refresh: one is hundreds of requests to the upstream, and this address is
+// reachable by anyone. To run one by hand on the server:
+//   curl -X POST -H "x-internal-token: $(cat .cache/internal-token)" \
+//     'http://127.0.0.1:3000/api/ranking/bat/refresh?force=true'
 export async function POST(req: Request, ctx: Ctx) {
+  if (!isInternalRequest(req)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
   const provider = ctx.params.provider as ProviderTag
   if (provider !== 'bat' && provider !== 'bwf') {
     return NextResponse.json({ error: 'unknown provider' }, { status: 400 })
