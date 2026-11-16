@@ -7,7 +7,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { ageFromDob, formatDob } from '@/lib/age'
 import { parsePlayerDob } from '@/lib/providers/bwf/parsers'
-import { getPlayerDobs, __setDobRootForTesting } from '@/lib/bwf-player-dob-cache'
+import { getPlayerDobs, hasUnknownDobs, __setDobRootForTesting } from '@/lib/bwf-player-dob-cache'
 import { fetchPlayerSummary } from '@/lib/providers/bwf/api-client'
 
 const mockFetch = fetchPlayerSummary as jest.MockedFunction<typeof fetchPlayerSummary>
@@ -82,5 +82,59 @@ describe('getPlayerDobs cache', () => {
     const again = await getPlayerDobs(['86870'])
     expect(again).toEqual({ '86870': '2013-06-06' })
     expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  // One request used to be good for 400 lookups, one after another, through
+  // the single browser page BWF is read with.
+  it('looks up only so many players per request and leaves the rest unanswered', async () => {
+    mockFetch.mockResolvedValue(summary('2013-06-06 00:00:00'))
+    const ids = Array.from({ length: 12 }, (_, i) => String(1000 + i))
+
+    const first = await getPlayerDobs(ids, { maxLookups: 5, gapMs: 0 })
+    expect(mockFetch).toHaveBeenCalledTimes(5)
+    expect(Object.keys(first).sort()).toEqual(['1000', '1001', '1002', '1003', '1004'])
+
+    // Asking again answers the ones now known and moves on to the next few.
+    mockFetch.mockClear()
+    const second = await getPlayerDobs(ids, { maxLookups: 5, gapMs: 0 })
+    expect(mockFetch).toHaveBeenCalledTimes(5)
+    expect(Object.keys(second)).toHaveLength(10)
+  })
+
+  it('caps the lookups of a request that names no cap of its own', async () => {
+    mockFetch.mockResolvedValue(summary(null))
+    const ids = Array.from({ length: 60 }, (_, i) => String(2000 + i))
+    const out = await getPlayerDobs(ids, { gapMs: 0 })
+    expect(mockFetch).toHaveBeenCalledTimes(25)
+    expect(Object.keys(out)).toHaveLength(25)
+  })
+
+  it('answers from what it already knows when it may look nothing up', async () => {
+    mockFetch.mockResolvedValue(summary('2013-06-06 00:00:00'))
+    await getPlayerDobs(['86870'], { gapMs: 0 })
+    mockFetch.mockClear()
+    const out = await getPlayerDobs(['86870', '999'], { maxLookups: 0 })
+    expect(out).toEqual({ '86870': '2013-06-06' })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('can say, without asking BWF, whether a list holds anyone it would have to look up', async () => {
+    mockFetch.mockImplementation(async ({ playerId }) =>
+      summary(String(playerId) === '86870' ? '2013-06-06 00:00:00' : null))
+    await getPlayerDobs(['86870', '999'], { gapMs: 0 })
+    mockFetch.mockClear()
+    expect(await hasUnknownDobs(['86870', '999'])).toBe(false)
+    expect(await hasUnknownDobs(['86870', '12345'])).toBe(true)
+    expect(await hasUnknownDobs([])).toBe(false)
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  // "No date of birth" and "could not ask" are different answers: the first
+  // is kept, the second must be asked again.
+  it('leaves a player unanswered when the lookup fails', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    mockFetch.mockRejectedValue(new Error('Failed to fetch'))
+    expect(await getPlayerDobs(['86870'], { gapMs: 0 })).toEqual({})
+    warn.mockRestore()
   })
 })

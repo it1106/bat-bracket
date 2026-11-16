@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { allowUpstream, tooManyRequests } from '@/lib/rate-limit'
 import { cache, rawHtmlCache, ttlMsFor, makeBracketKey, bracketHtmlForSchedule, ensureBracketsLoaded } from '@/lib/bracket-cache'
 import { parseBracketRounds } from '@/lib/scraper'
 import { buildBracketPath, isKnockout } from '@/lib/bracketPath'
@@ -57,6 +58,11 @@ export async function GET(request: Request) {
     // waiting on a request that is sure to fail (two 50-second attempts).
     if (!rawHtmlCache.has(makeBracketKey(guid, drawNum)) && batDownSince()) {
       return notFound('No bracket for this draw')
+    }
+    // With no bracket held at all, the next line waits on BAT for one, and
+    // that counts against the visitor's upstream limit (lib/rate-limit).
+    if (!rawHtmlCache.has(makeBracketKey(guid, drawNum)) && !allowUpstream(request, 'path')) {
+      return tooManyRequests()
     }
     html = await bracketHtmlForSchedule(guid, drawNum)
   } catch {

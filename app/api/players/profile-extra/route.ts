@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
+import { allowUpstream, tooManyRequests } from '@/lib/rate-limit'
 import { readIndexCache } from '@/lib/player-index-cache'
 import { readPlayerExtra, writePlayerExtra } from '@/lib/bat-player-extra-cache'
 import { extractProfileUrl, parseGlobalProfileDetails } from '@/lib/scraper'
 import { batFetch } from '@/lib/bat-fetch'
+import { isInternalRequest } from '@/lib/internal-token'
 import type { ProviderTag } from '@/lib/types'
 
 export const maxDuration = 30
@@ -17,7 +19,9 @@ export async function GET(req: Request) {
   const u = new URL(req.url)
   const provider = u.searchParams.get('provider') as ProviderTag | null
   const slug = u.searchParams.get('slug')
-  const force = u.searchParams.get('force') === 'true'
+  // force=true asks BAT twice more past a saved copy. No page sends it, and a
+  // visitor could send it without end, so it is the server's own to use.
+  const force = u.searchParams.get('force') === 'true' && isInternalRequest(req)
 
   // BAT global profiles only; BWF has no equivalent source.
   if (provider !== 'bat' || !slug) {
@@ -30,6 +34,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ yob: cached.yob, stats: cached.stats, cached: true })
     }
   }
+
+  // No good saved copy: BAT is next, which counts (lib/rate-limit).
+  if (!allowUpstream(req, 'profile-extra')) return tooManyRequests()
 
   const index = await readIndexCache('bat')
   const ref = index?.players[slug]?.sampleRef

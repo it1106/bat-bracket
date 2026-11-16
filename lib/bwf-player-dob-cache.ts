@@ -23,7 +23,9 @@ const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000 // re-check "no DOB" players weekly
 // time is both correct and polite — a small gap between requests keeps the
 // upstream rate gentle so we don't trip Cloudflare / IP blocks.
 const FETCH_GAP_MS = 150
-const MAX_IDS_PER_REQUEST = 400
+export const MAX_IDS_PER_REQUEST = 400
+// How many players one call will look up on BWF; the rest wait for the next.
+export const MAX_LOOKUPS_PER_REQUEST = 25
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
@@ -63,16 +65,41 @@ function isFresh(e: DobEntry): boolean {
 }
 
 
-// Resolve date-of-birth for a set of BWF playerIds. Serves cached values and
-// fetches only the misses (bounded concurrency), persisting new results. The
-// returned map has an entry for every requested id (dob string or null).
-export async function getPlayerDobs(ids: string[]): Promise<Record<string, string | null>> {
+/** Whether getPlayerDobs would have to ask BWF about anyone in `ids`. Reads
+ *  the cache only. */
+export async function hasUnknownDobs(ids: string[]): Promise<boolean> {
   await ensureLoaded()
-  const unique = Array.from(new Set(ids.filter(Boolean))).slice(0, MAX_IDS_PER_REQUEST)
-  const toFetch = unique.filter((id) => {
-    const e = mem.get(id)
-    return !e || !isFresh(e)
+  return ids.some((id) => {
+    const e = id ? mem.get(id) : undefined
+    return !!id && (!e || !isFresh(e))
   })
+}
+
+// Resolve date-of-birth for a set of BWF playerIds. Serves cached values and
+// looks up the misses one at a time, persisting what it learns.
+//
+// Only so many are looked up per call (MAX_LOOKUPS_PER_REQUEST, or
+// `maxLookups`): each lookup goes through the one browser page BWF is read
+// with, and a request that names hundreds of unknown players must not hold it
+// for a minute. The returned map has an entry (dob string or null) for every
+// id that is answered — from the cache or looked up now. An id that is NOT in
+// the map has not been answered yet: over the cap, or its lookup failed. The
+// caller asks again for those (lib/bwfAgesClient does), and null keeps its
+// one meaning: BWF has no date of birth on file.
+export async function getPlayerDobs(
+  ids: string[],
+  opts: { maxLookups?: number; gapMs?: number } = {},
+): Promise<Record<string, string | null>> {
+  await ensureLoaded()
+  const maxLookups = opts.maxLookups ?? MAX_LOOKUPS_PER_REQUEST
+  const gapMs = opts.gapMs ?? FETCH_GAP_MS
+  const unique = Array.from(new Set(ids.filter(Boolean))).slice(0, MAX_IDS_PER_REQUEST)
+  const toFetch = unique
+    .filter((id) => {
+      const e = mem.get(id)
+      return !e || !isFresh(e)
+    })
+    .slice(0, Math.max(0, maxLookups))
 
   let fetched = 0
   for (let i = 0; i < toFetch.length; i++) {
@@ -85,11 +112,14 @@ export async function getPlayerDobs(ids: string[]): Promise<Record<string, strin
       // Leave uncached on transient failure so a later request retries.
       console.warn(`[bwf-player-dob-cache] fetch failed player=${id}:`, err instanceof Error ? err.message : err)
     }
-    if (i < toFetch.length - 1) await sleep(FETCH_GAP_MS)
+    if (gapMs > 0 && i < toFetch.length - 1) await sleep(gapMs)
   }
   if (fetched > 0) await persist()
 
   const out: Record<string, string | null> = {}
-  for (const id of unique) out[id] = mem.get(id)?.dob ?? null
+  for (const id of unique) {
+    const e = mem.get(id)
+    if (e && isFresh(e)) out[id] = e.dob
+  }
   return out
 }

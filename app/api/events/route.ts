@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { allowUpstream, tooManyRequests } from '@/lib/rate-limit'
+import { isTournamentId, badParam } from '@/lib/api-params'
 import { parseEvents } from '@/lib/scraper'
 import { batFetch } from '@/lib/bat-fetch'
 
@@ -11,6 +13,9 @@ export async function GET(request: Request) {
   if (!tournamentId) {
     return NextResponse.json({ error: 'Missing tournament parameter' }, { status: 400 })
   }
+  if (!isTournamentId(tournamentId)) return badParam('tournament must be a tournament id')
+  // Every request here asks BAT, so every one counts (lib/rate-limit).
+  if (!allowUpstream(request, 'events')) return tooManyRequests()
 
   try {
     const res = await batFetch(

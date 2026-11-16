@@ -19,9 +19,9 @@ describe('/api/bat/player-ages with the birth-year lookup switched off', () => {
   it('answers for nobody and never asks BAT', async () => {
     const post = await POST(new Request('http://localhost/api/bat/player-ages', {
       method: 'POST',
-      body: JSON.stringify({ tournament: 'T1', ids: ['1', '2'] }),
+      body: JSON.stringify({ tournament: 'A97008D7-AA53-44AA-9BB7-2A6A2734EA47', ids: ['1', '2'] }),
     }))
-    const get = await GET(new Request('http://localhost/api/bat/player-ages?tournament=T1&ids=1,2'))
+    const get = await GET(new Request('http://localhost/api/bat/player-ages?tournament=A97008D7-AA53-44AA-9BB7-2A6A2734EA47&ids=1,2'))
     expect(post.status).toBe(200)
     expect(await post.json()).toEqual({})
     expect(await get.json()).toEqual({})

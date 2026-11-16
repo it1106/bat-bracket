@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { upstreamGate, tooManyRequests } from '@/lib/rate-limit'
 import { batFetch } from '@/lib/bat-fetch'
 import { readRankingCache } from '@/lib/ranking/cache'
 import {
@@ -34,10 +35,16 @@ const inflight = new Map<string, Promise<RankingPlayerDetail | { notFound: true 
 /** Discover the BAT numeric global player id via the 3-hop chain. BAT-only
  *  — the slug↔id bridge runs through per-tournament pages on
  *  bat.tournamentsoftware.com, which isn't available for BWF. */
+/** Thrown when the visitor is over their upstream limit (lib/rate-limit) at
+ *  the point BAT would be asked. Not a finding about the player: nothing is
+ *  recorded, and the route answers 429. */
+class OverLimit extends Error {}
+
 async function discoverBatGlobalPlayerId(
   slug: string,
   current: Ranking,
   expectedSeries: Set<string>,
+  mayAskBat: () => boolean,
 ): Promise<{ id: string; bySeries: Record<string, string> } | { id: null; reason: string }> {
   const seriesOf = seriesIdByRankingId(current)
   const cached = await readPlayerIdEntry(slug)
@@ -60,6 +67,7 @@ async function discoverBatGlobalPlayerId(
   const ref = index?.players[slug]?.sampleRef
   if (!ref) { await writePlayerIdFailure(slug, 'no sampleRef in index'); return { id: null, reason: 'no sampleRef in index' } }
 
+  if (!mayAskBat()) throw new OverLimit()
   const tournamentUrl = `https://bat.tournamentsoftware.com/sport/player.aspx?id=${ref.tournamentId}&player=${ref.playerId}`
   const res1 = await batFetch('ranking-player-discover-1', tournamentUrl, { headers: UA })
   if (!res1.ok) { const r = `hop 1 upstream ${res1.status}`; await writePlayerIdFailure(slug, r); return { id: null, reason: r } }
@@ -129,6 +137,8 @@ export async function GET(req: Request) {
 
   const current = await readRankingCache(providerParam)
   if (!current) return NextResponse.json({ error: 'no current ranking' }, { status: 503 })
+  // Asked at each step that goes upstream; the request counts once.
+  const mayAskUpstream = upstreamGate(req, 'ranking-detail')
 
   // BAT: one fetch target per ranking series the player appears in (Open and
   // Junior each have their own numeric id and their own detail page); BWF:
@@ -136,7 +146,13 @@ export async function GET(req: Request) {
   let targets
   if (providerParam === 'bat') {
     const expected = seriesIdsForSlug(current, [slug, rankingSlugAlias('bat', slug)])
-    const disc = await discoverBatGlobalPlayerId(slug, current, expected)
+    let disc
+    try {
+      disc = await discoverBatGlobalPlayerId(slug, current, expected, mayAskUpstream)
+    } catch (err) {
+      if (err instanceof OverLimit) return tooManyRequests()
+      throw err
+    }
     if (disc.id === null) return NextResponse.json({ error: disc.reason }, { status: 404 })
     targets = detailTargets(current, disc.id, disc.bySeries)
     if (targets.length === 0) {
@@ -157,6 +173,8 @@ export async function GET(req: Request) {
   const dedupKey = `${providerParam}:${targets.map(t => t.globalPlayerId).join('+')}`
   let p = inflight.get(dedupKey)
   if (!p) {
+    // Joining a fetch already under way costs nothing; starting one counts.
+    if (!mayAskUpstream()) return tooManyRequests()
     p = (async () => {
       try {
         const details: RankingPlayerDetail[] = []

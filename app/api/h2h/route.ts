@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { allowUpstream, tooManyRequests } from '@/lib/rate-limit'
 import { parseH2H } from '@/lib/scraper'
 import { batFetch } from '@/lib/bat-fetch'
 
@@ -63,6 +64,9 @@ export async function GET(request: Request) {
   if (!url) {
     return NextResponse.json({ error: 'path must be on bat.tournamentsoftware.com' }, { status: 400 })
   }
+  // Nothing here is cached: every request asks BAT, so every one counts
+  // against the visitor's upstream limit (lib/rate-limit).
+  if (!allowUpstream(request, 'h2h')) return tooManyRequests()
 
   try {
     const res = await fetchFromBat(url)

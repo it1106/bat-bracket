@@ -7,7 +7,15 @@ import { readIndexCache } from '@/lib/player-index-cache'
 import { readPlayerExtra, writePlayerExtra } from '@/lib/bat-player-extra-cache'
 import { batFetch } from '@/lib/bat-fetch'
 import { extractProfileUrl, parseGlobalProfileDetails } from '@/lib/scraper'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 import { GET } from '@/app/api/players/profile-extra/route'
+import { internalHeaders } from '@/lib/internal-token'
+
+const cwd = process.cwd()
+beforeAll(() => { process.chdir(fs.mkdtempSync(path.join(os.tmpdir(), 'pex-'))) })
+afterAll(() => { process.chdir(cwd) })
 
 const STATS = {
   total: { career: { wins: 10, losses: 5 }, ytd: { wins: 3, losses: 1 } },
@@ -57,14 +65,28 @@ describe('GET /api/players/profile-extra', () => {
     expect(writePlayerExtra).toHaveBeenCalledWith('foo', expect.objectContaining({ yob: '2009' }))
   })
 
-  it('force=true bypasses fresh cache', async () => {
-    ;(readPlayerExtra as jest.Mock).mockResolvedValue({ scrapedAt: new Date().toISOString(), yob: 'old', stats: STATS })
-    ;(readIndexCache as jest.Mock).mockResolvedValue({ players: { foo: { sampleRef: { tournamentId: 't1', playerId: 'p1' } } } })
-    ;(batFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => '<html></html>' })
-    ;(extractProfileUrl as jest.Mock).mockReturnValue('/player-profile/GUID')
-    ;(parseGlobalProfileDetails as jest.Mock).mockReturnValue({ club: 'C', yob: 'new', stats: STATS })
+  // force=true skips the saved copy and asks BAT twice more. No page sends
+  // it; it is for the server's own use, so it needs the server token.
+  describe('force=true', () => {
+    const arrange = () => {
+      ;(readPlayerExtra as jest.Mock).mockResolvedValue({ scrapedAt: new Date().toISOString(), yob: 'old', stats: STATS })
+      ;(readIndexCache as jest.Mock).mockResolvedValue({ players: { foo: { sampleRef: { tournamentId: 't1', playerId: 'p1' } } } })
+      ;(batFetch as jest.Mock).mockResolvedValue({ ok: true, text: async () => '<html></html>' })
+      ;(extractProfileUrl as jest.Mock).mockReturnValue('/player-profile/GUID')
+      ;(parseGlobalProfileDetails as jest.Mock).mockReturnValue({ club: 'C', yob: 'new', stats: STATS })
+    }
 
-    const res = await GET(req('provider=bat&slug=foo&force=true'))
-    expect((await res.json()).yob).toBe('new')
+    it('is ignored from a visitor: the saved copy is served and BAT is not asked', async () => {
+      arrange()
+      const res = await GET(req('provider=bat&slug=foo&force=true'))
+      expect((await res.json()).yob).toBe('old')
+      expect(batFetch).not.toHaveBeenCalled()
+    })
+
+    it('bypasses a fresh cache with the server token', async () => {
+      arrange()
+      const res = await GET(new Request('http://localhost/api/players/profile-extra?provider=bat&slug=foo&force=true', { headers: internalHeaders() }))
+      expect((await res.json()).yob).toBe('new')
+    })
   })
 })

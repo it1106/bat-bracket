@@ -1,4 +1,8 @@
 import { NextResponse } from 'next/server'
+import { allowUpstream, tooManyRequests } from '@/lib/rate-limit'
+import { readBatPlayer, isFresh } from '@/lib/bat-player-cache'
+import { isTournamentId, isPlayerId, badParam } from '@/lib/api-params'
+import { isInternalRequest } from '@/lib/internal-token'
 import { fetchBatPlayerProfile } from '@/lib/bat-player-fetch'
 import { fetchBwfPlayerProfile, ScheduleUnavailableError } from '@/lib/bwf-player-fetch'
 import { resolveRef } from '@/lib/tournaments-registry'
@@ -9,11 +13,15 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const tournamentId = searchParams.get('tournament')
   const playerId = searchParams.get('player')
-  const force = searchParams.get('force') === 'true'
+  // force=true scrapes BAT again past a saved profile. No page sends it, and
+  // a visitor could send it without end, so it is the server's own to use.
+  const force = searchParams.get('force') === 'true' && isInternalRequest(request)
 
   if (!tournamentId || !playerId) {
     return NextResponse.json({ error: 'tournament and player params required' }, { status: 400 })
   }
+  if (!isTournamentId(tournamentId)) return badParam('tournament must be a tournament id')
+  if (!isPlayerId(playerId)) return badParam('player must be a player id')
 
   // BWF publishes no per-player page; the profile is cut from the tournament
   // schedule the app already holds (lib/bwf-player-fetch).
@@ -38,6 +46,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: `Could not load player profile: ${message}` }, { status: 500 })
     }
   }
+
+  // A saved profile that is still good is served without asking BAT, and
+  // costs the visitor nothing. Anything else is two requests to BAT, and
+  // counts against their upstream limit (lib/rate-limit).
+  const saved = force ? null : await readBatPlayer(tournamentId, playerId).catch(() => null)
+  if (!(saved && isFresh(saved)) && !allowUpstream(request, 'player')) return tooManyRequests()
 
   try {
     const { profile, source } = await fetchBatPlayerProfile(tournamentId, playerId, { force })

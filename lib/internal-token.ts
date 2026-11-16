@@ -50,9 +50,18 @@ function loadOrCreateToken(): string | null {
   } catch (err) {
     console.warn('[internal-token] could not create:', err instanceof Error ? err.message : err)
   } finally {
-    fs.rmSync(tmp, { force: true })
+    // Tidying up must not be what fails: `force` forgives a missing file but
+    // not a path that cannot exist (a file where the directory should be).
+    try { fs.rmSync(tmp, { force: true }) } catch { /* nothing to remove */ }
   }
   return readToken(file)
+}
+
+/** Makes the token now if there is none. Called at boot, so the file is there
+ *  for a manual call before any background job has needed it. False when no
+ *  token could be made. */
+export function ensureInternalToken(): boolean {
+  return loadOrCreateToken() !== null
 }
 
 /** Headers for a request the server makes to itself. Empty when there is no
@@ -68,7 +77,9 @@ const sha256 = (s: string) => crypto.createHash('sha256').update(s, 'utf8').dige
  *  request arriving before any token exists cannot be the server's. */
 export function isInternalRequest(request: Request): boolean {
   const given = request.headers.get(INTERNAL_TOKEN_HEADER)
+  // Nearly every request has no such header: answer those without the read.
+  if (!given) return false
   const token = readToken(tokenFile())
-  if (!given || !token) return false
+  if (!token) return false
   return crypto.timingSafeEqual(sha256(given), sha256(token))
 }

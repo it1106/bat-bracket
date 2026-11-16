@@ -65,7 +65,7 @@ const GOOD = {
 const EMPTY = { days: [], currentDate: '', groups: [] }
 
 let tid = 0
-const nextTid = () => `tid-empty-${++tid}`
+const nextTid = () => `e0000000-0000-4000-8000-${String(++tid).padStart(12, '0')}`
 const fullReq = (id: string, fresh = false) =>
   new Request(`http://localhost/api/matches?tournament=${id}${fresh ? '&fresh=1' : ''}`)
 

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { upstreamGate, tooManyRequests } from '@/lib/rate-limit'
+import { isTournamentId, badParam } from '@/lib/api-params'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { aggregate, type RosterDraw } from '@/lib/tournamentStats'
@@ -285,6 +287,7 @@ export async function GET(request: Request) {
   if (!tournamentId) {
     return NextResponse.json({ error: 'tournament param required' }, { status: 400 })
   }
+  if (!isTournamentId(tournamentId)) return badParam('tournament must be a tournament id')
   const skipPriorChain = searchParams.get('priorChain') === '1'
 
   const memHit = memCache.get(tournamentId)
@@ -302,8 +305,16 @@ export async function GET(request: Request) {
     const fullBytes = fullDataDisk ? await readFullCacheBytes(tournamentId) : null
     const isAllPast = !!(fullDataDisk && fullBytes)
 
+    // The two steps below that can end in requests to BAT. A visitor over
+    // the upstream limit (lib/rate-limit) gets the older figures if there are
+    // any, or a 429. Stats already on disk for a finished tournament pass
+    // between them and cost nothing.
+    const mayAskUpstream = upstreamGate(request, 'stats')
+    const overLimit = () => (memHit ? buildResponse(memHit.data, memHit.live) : tooManyRequests())
+
     let fullData: MatchesData | null = fullDataDisk
     if (!fullData) {
+      if (!mayAskUpstream()) return overLimit()
       fullData = await fetchFullViaApi(origin, tournamentId)
     }
     if (!fullData) {
@@ -322,6 +333,8 @@ export async function GET(request: Request) {
         return buildResponse(cached.stats, false)
       }
     }
+
+    if (!mayAskUpstream()) return overLimit()
 
     const [dayMap, clubsResp, rosterByDraw, drawsEntry, overviewSnap] = await Promise.all([
       assembleDayMap(origin, tournamentId, fullData),

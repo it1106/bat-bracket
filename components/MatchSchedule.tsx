@@ -20,6 +20,7 @@ import { buildTeamSchedule } from '@/lib/teamSchedule'
 import { buildFilename, captureMatchImageFile, prewarmFontEmbedCSS, shareFile } from '@/lib/shareMatchAsImage'
 import JumpToNextButton from '@/components/JumpToNextButton'
 import TournamentStatsPanel from '@/components/TournamentStatsPanel'
+import { fetchBwfAges } from '@/lib/bwfAgesClient'
 
 interface Props {
   groups: MatchScheduleGroup[]
@@ -260,18 +261,20 @@ export default function MatchSchedule({ groups, days, selectedDay, onDayChange, 
   useEffect(() => {
     if (!bwfIdsKey) return
     let cancelled = false
-    fetch(`/api/bwf/player-ages?ids=${encodeURIComponent(bwfIdsKey)}`)
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((data: Record<string, { dob: string | null }>) => {
-        if (cancelled) return
+    // In batches: the server looks up only so many unknown players a request,
+    // and fetchBwfAges asks again for the rest. A failure leaves the map as it
+    // is — the tooltip falls back to country only.
+    void fetchBwfAges(bwfIdsKey.split(','), {
+      cancelled: () => cancelled,
+      onBatch: (data) => {
         const map: Record<string, string> = {}
         for (const [id, info] of Object.entries(data)) {
           const yob = info?.dob?.slice(0, 4)
           if (yob) map[id] = yob
         }
         if (Object.keys(map).length) setYobByPid((prev) => ({ ...prev, ...map }))
-      })
-      .catch(() => { /* leave empty — tooltip falls back to country only */ })
+      },
+    })
     return () => { cancelled = true }
   }, [bwfIdsKey])
 

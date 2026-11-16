@@ -54,6 +54,14 @@ jest.mock('../lib/scraper', () => ({
 
 import { batFetch } from '@/lib/bat-fetch'
 import { GET } from '@/app/api/matches/route'
+import nodeFs from 'fs'
+import nodeOs from 'os'
+import nodePath from 'path'
+import { internalHeaders } from '@/lib/internal-token'
+
+const startDir = process.cwd()
+beforeAll(() => { process.chdir(nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'stale-'))) })
+afterAll(() => { process.chdir(startDir) })
 import { readLastGoodDay, writeLastGoodDay, readLastGoodFull, writeLastGoodFull } from '@/lib/schedule-last-good'
 
 const okHtmlResponse = () => ({
@@ -63,12 +71,17 @@ const okHtmlResponse = () => ({
 } as unknown as Response)
 
 let tid = 0
-const nextTid = () => `tid-stale-${++tid}`
+const nextTid = () => `5a1e0000-0000-4000-8000-${String(++tid).padStart(12, '0')}`
 
 const dayReq = (id: string, date = '25690602') =>
   new Request(`http://localhost/api/matches?tournament=${id}&date=${date}`)
 const fullReq = (id: string) =>
   new Request(`http://localhost/api/matches?tournament=${id}`)
+// fresh=1 as the server's own warmer sends it, with the server token: always
+// obeyed, so these tests reach the upstream path every time they mean to. (A
+// visitor's fresh=1 is held back — see api-matches-fresh.test.ts.)
+const forcedDayReq = (id: string) =>
+  new Request(`http://localhost/api/matches?tournament=${id}&date=25690602&fresh=1`, { headers: internalHeaders() })
 
 describe('GET /api/matches stale-on-error fallback', () => {
   beforeEach(() => {
@@ -88,7 +101,7 @@ describe('GET /api/matches stale-on-error fallback', () => {
     // actually enter the fetch path that throws.
     ;(batFetch as jest.Mock).mockRejectedValueOnce(new Error('connect ETIMEDOUT'))
     const second = await GET(
-      new Request(`http://localhost/api/matches?tournament=${id}&date=25690602&fresh=1`),
+      forcedDayReq(id),
     )
     expect(second.status).toBe(200)
     expect(second.headers.get('X-Stale-Cache')).toBe('1')
@@ -154,7 +167,7 @@ describe('GET /api/matches stale-on-error fallback', () => {
     // First failure — should call BAT (1 more time) then fall back to stale.
     ;(batFetch as jest.Mock).mockRejectedValueOnce(new Error('connect ETIMEDOUT'))
     const failed = await GET(
-      new Request(`http://localhost/api/matches?tournament=${id}&date=25690602&fresh=1`),
+      forcedDayReq(id),
     )
     expect(failed.headers.get('X-Stale-Cache')).toBe('1')
     expect(batFetch).toHaveBeenCalledTimes(2)
@@ -164,7 +177,7 @@ describe('GET /api/matches stale-on-error fallback', () => {
     // backoff path and not just the TTL hit.
     const callsBefore = (batFetch as jest.Mock).mock.calls.length
     const fast = await GET(
-      new Request(`http://localhost/api/matches?tournament=${id}&date=25690602&fresh=1`),
+      forcedDayReq(id),
     )
     expect(fast.status).toBe(200)
     expect(fast.headers.get('X-Stale-Cache')).toBe('1')
@@ -178,14 +191,14 @@ describe('GET /api/matches stale-on-error fallback', () => {
     ;(batFetch as jest.Mock).mockResolvedValueOnce(okHtmlResponse())
     await GET(dayReq(id))
     ;(batFetch as jest.Mock).mockRejectedValueOnce(new Error('ETIMEDOUT'))
-    await GET(new Request(`http://localhost/api/matches?tournament=${id}&date=25690602&fresh=1`))
+    await GET(forcedDayReq(id))
 
     // Jump past the 30s backoff window so the next call goes through to BAT.
     jest.useFakeTimers()
     jest.setSystemTime(Date.now() + 35_000)
     ;(batFetch as jest.Mock).mockResolvedValueOnce(okHtmlResponse())
     const recovered = await GET(
-      new Request(`http://localhost/api/matches?tournament=${id}&date=25690602&fresh=1`),
+      forcedDayReq(id),
     )
     jest.useRealTimers()
     expect(recovered.status).toBe(200)

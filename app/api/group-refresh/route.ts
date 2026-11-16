@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { allowUpstream, tooManyRequests } from '@/lib/rate-limit'
+import { isTournamentId, isDrawNum, badParam } from '@/lib/api-params'
 import { providerFor } from '@/lib/providers/resolve'
 import { resolveRef } from '@/lib/tournaments-registry'
 
@@ -11,6 +13,10 @@ export async function GET(request: Request) {
   if (!tournament || !draw) {
     return NextResponse.json({ error: 'Provide ?tournament=&draw=' }, { status: 400 })
   }
+  if (!isTournamentId(tournament)) return badParam('tournament must be a tournament id')
+  if (!isDrawNum(draw)) return badParam('draw must be a draw number')
+  // A refresh always asks upstream, so every one counts (lib/rate-limit).
+  if (!allowUpstream(request, 'group-refresh')) return tooManyRequests()
 
   const ref = resolveRef(tournament) ?? { id: tournament.toUpperCase(), provider: 'bat' as const }
   try {

@@ -26,7 +26,7 @@ const loadDays = () => JSON.parse(real.readFileSync(path.join(__dirname, '..', '
 const loadClubs = () => JSON.parse(real.readFileSync(path.join(__dirname, '..', 'fixtures', 'stats-sprc-clubs.json'), 'utf8'))
 
 let testId = 0
-const nextId = () => `test-${++testId}`
+const nextId = () => `57a70000-0000-4000-8000-${String(++testId).padStart(12, '0')}`
 
 const req = (id: string, override?: string) =>
   new Request(`http://localhost/api/stats${override ?? `?tournament=${id}`}`)

@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { allowUpstream, tooManyRequests } from '@/lib/rate-limit'
+import { isTournamentId, badParam } from '@/lib/api-params'
 import { cache, TTL_MS, fetchAndCache } from '@/lib/overview-cache'
 import { staleHeaders } from '@/lib/stale-headers'
 
@@ -10,10 +12,17 @@ export async function GET(request: Request) {
   if (!id) {
     return NextResponse.json({ error: 'Missing ?tournament= parameter' }, { status: 400 })
   }
+  if (!isTournamentId(id)) return badParam('tournament must be a tournament id')
 
   const cached = cache.get(id)
   if (cached && (cached.done || Date.now() - cached.ts < TTL_MS)) {
     return NextResponse.json(cached.data)
+  }
+
+  // BAT is next. A visitor over the upstream limit (lib/rate-limit) gets the
+  // older copy if there is one, plainly, or a 429.
+  if (!allowUpstream(request, 'overview')) {
+    return cached ? NextResponse.json(cached.data, { headers: { 'Cache-Control': 'no-store' } }) : tooManyRequests()
   }
 
   try {
