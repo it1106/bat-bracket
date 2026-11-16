@@ -31,6 +31,21 @@ describe('buildBracketHtml', () => {
     expect(html).toContain('<span class="bk-seed">1</span>')
   })
 
+  // The seed is typed as a number, but it is whatever BWF's JSON holds.
+  it('escapes a seed that is not a number', () => {
+    const html = buildBracketHtml({
+      gameTypeId: 1,
+      results: { '0-0': { match: {
+        winner: 0, roundName: 'Final',
+        team1: { players: [{ id: '1', nameDisplay: 'A' }] },
+        team2: { players: [{ id: '2', nameDisplay: 'B' }] },
+        team1seed: '<img src=x onerror=alert(1)>' as unknown as number,
+      } } },
+    }, 'BS U13')
+    expect(html).not.toContain('<img')
+    expect(html).toContain('<span class="bk-seed">&lt;img src=x onerror=alert(1)&gt;</span>')
+  })
+
   it('renders country flag', () => {
     const html = buildBracketHtml(fixture('tournament-draw-data.json'), 'BS U13')
     expect(html).toContain('class="bk-flag"')
