@@ -4,7 +4,7 @@ import * as cheerio from 'cheerio'
 import { parseBracket, parsePlayersPage } from './scraper'
 import { cache as drawsCache, getCached as getCachedDraws } from './draws-cache'
 import { batFetch } from './bat-fetch'
-import { isLegacyOnlyResponse, legacyBracketData } from './legacy-scraper'
+import { isLegacyOnlyResponse, isLegacySheet, legacyBracketData } from './legacy-scraper'
 import { fetchLegacySheet, fetchLegacyBracket, markLegacyOnly, isKnownLegacyOnly } from './legacy-bat-fetch'
 import { readFullCacheMtimeMs } from './day-cache'
 import { providerFor } from '@/lib/providers/resolve'
@@ -465,11 +465,20 @@ async function migrateLegacyStore(): Promise<void> {
   console.log(`[bracket-cache] split legacy store into ${byGuid.size} tournament files`)
 }
 
+/** The bracket in a draw's raw HTML, which is one of two things: BAT's modern
+ *  bracket page, or — for an event published only on the old pages — its
+ *  drawsheet (see fetchLegacySheetCached). Each needs its own parser; read
+ *  with the wrong one a draw comes out empty and looks like no bracket at
+ *  all. */
+function parseRawBracket(html: string): BracketData {
+  return isLegacySheet(html) ? legacyBracketData(html, '') : parseBracket(html)
+}
+
 function restoreEntry(entry: PersistedEntry, opts: { indexClubs: boolean } = { indexClubs: true }): boolean {
   const guid = guidOfKey(entry.key)
   if (!guid) return false
   try {
-    const bracket = parseBracket(entry.html)
+    const bracket = parseRawBracket(entry.html)
     if (!bracket.html) return false
     const isStatic = isBracketStatic(bracket.html)
     rawHtmlCache.set(entry.key, entry.html)
@@ -527,7 +536,7 @@ function indexColdEntry(entry: PersistedEntry): boolean {
   const guid = guidOfKey(entry.key)
   if (!guid) return false
   try {
-    const count = parseBracket(entry.html).entrantCount
+    const count = parseRawBracket(entry.html).entrantCount
     if (count !== undefined) state.entrantCounts.set(entry.key.toLowerCase(), count)
     extractPlayerClubs(entry.html, guid)
     return true

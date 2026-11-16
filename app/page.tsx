@@ -115,6 +115,9 @@ function prefetchFutureDayHasMatches(
   setDays: React.Dispatch<React.SetStateAction<MatchDay[]>>,
   onSnapshot: (next: MatchDay[]) => void,
   onStaleFlag: (stale: boolean) => void,
+  // False once the reader has opened another tournament: its days would be
+  // marked with this one's answers wherever the dates coincide.
+  stillWanted: () => boolean,
 ) {
   if (typeof window === 'undefined') return
   const todayIso = getTodayIso()
@@ -123,13 +126,16 @@ function prefetchFutureDayHasMatches(
 
   const run = async () => {
     for (const d of future) {
+      if (!stillWanted()) return
       try {
         const res = await fetch(
           `/api/matches?tournament=${encodeURIComponent(tournamentId)}&date=${d.date}`,
         )
+        if (!stillWanted()) return
         const stale = readStaleFlag(res)
         if (stale !== null) onStaleFlag(stale)
         const data = await safeJson(res)
+        if (!stillWanted()) return
         if (!isApiError(data)) {
           const dayData = data as Pick<MatchesData, 'groups'>
           setDays((prev) => {
@@ -219,9 +225,22 @@ export default function Home() {
   const bracketRef = useRef<HTMLDivElement>(null)
   const playerSearchRef = useRef<HTMLInputElement>(null)
   const lastScrollY = useRef(0)
-  // Counts day switches, so an answer for a day the reader has already moved
-  // on from can be told apart from the one they are waiting for.
+  // The page asks for several things at once and lets the reader move on
+  // before they answer. Each counter below goes up whenever the reader's
+  // question changes; a request remembers the count it started with, and an
+  // answer whose count is no longer current is for a question already left
+  // behind and is dropped, not shown.
+  //
+  // Day: the day of the schedule on screen. A new tournament is a new day too.
   const dayRequestRef = useRef(0)
+  // Tournament: everything loaded when one is opened.
+  const tournamentRequestRef = useRef(0)
+  // Bracket: the draw (or event bundle) on screen, at the round it is cut to.
+  const bracketRequestRef = useRef(0)
+  // The player panel and the head-to-head panel. Closing one counts as
+  // moving on: an answer still on its way must not open it again.
+  const playerRequestRef = useRef(0)
+  const h2hRequestRef = useRef(0)
   const pendingJumpRef = useRef<{ tournamentId: string; drawNum: string; roundName: string } | null>(null)
   const autoSelectedTournamentRef = useRef(false)
   const [headerVisible, setHeaderVisible] = useState(true)
@@ -307,11 +326,15 @@ export default function Home() {
     if (!completion || !selectedTournament || !selectedDay || selectedDay === 'stats') return
     if (liveRefetchTimerRef.current) clearTimeout(liveRefetchTimerRef.current)
     liveRefetchTimerRef.current = setTimeout(async () => {
+      // The cleanup below stops a timer that has not fired; once the request
+      // is on its way only this can tell that the reader changed day.
+      const request = dayRequestRef.current
       try {
         const res = await fetch(`/api/matches?tournament=${encodeURIComponent(selectedTournament)}&date=${selectedDay}&fresh=1`)
+        const data = await safeJson(res)
+        if (request !== dayRequestRef.current) return
         const stale = readStaleFlag(res)
         if (stale !== null) setStaleCache(stale)
-        const data = await safeJson(res)
         if (!isApiError(data)) {
           const md = data as Pick<MatchesData, 'groups'>
           setMatchGroups(md.groups)
@@ -500,6 +523,15 @@ export default function Home() {
 
   // Load draws + matches when tournament changes
   const handleTournamentChange = useCallback(async (id: string) => {
+    // Everything asked for the tournament being left is now out of date: its
+    // own load, the day on screen and the open bracket. (The two panels cover
+    // the page, so the tournament cannot be changed from under them.)
+    const request = ++tournamentRequestRef.current
+    const current = () => request === tournamentRequestRef.current
+    dayRequestRef.current++
+    bracketRequestRef.current++
+    // A bracket request left behind no longer ends its own loading state.
+    setLoadingBracket(false)
     setSelectedTournament(id)
     if (typeof window !== 'undefined') {
       if (id) localStorage.setItem('selectedTournament', id)
@@ -523,6 +555,11 @@ export default function Home() {
     setStaleCache(false)
     setDiskCache(false)
     setViewMode('matches')
+    // A load left behind no longer ends its own loading state (see current()
+    // below), so it is ended here — for the case of no tournament at all,
+    // which starts no load of its own to end it.
+    setLoadingDraws(false)
+    setLoadingMatches(false)
     if (!id) return
 
     setLoadingDraws(true)
@@ -534,7 +571,7 @@ export default function Home() {
     // Background: build player→club map from all brackets (non-blocking)
     fetch(`/api/clubs?tournament=${encodeURIComponent(id)}`)
       .then(r => r.json())
-      .then((data: Record<string, string>) => { if (data && !('error' in data)) setPlayerClubMap(data) })
+      .then((data: Record<string, string>) => { if (current() && data && !('error' in data)) setPlayerClubMap(data) })
       .catch(() => {})
 
     // Fetch overview (notes + seeds) for BAT tournaments (non-BWF). When the
@@ -546,10 +583,11 @@ export default function Home() {
       fetch(`/api/overview?tournament=${encodeURIComponent(id)}`)
         .then(async r => {
           const stale = readStaleFlag(r)
-          if (stale !== null) setStaleCache(stale)
+          if (current() && stale !== null) setStaleCache(stale)
           return r.json() as Promise<TournamentOverview>
         })
         .then((data: TournamentOverview) => {
+          if (!current()) return
           if (data?.regulations) setRegulations(data.regulations)
           if (data?.notes) setOverviewNotes(data.notes)
           if (data?.seedEvents) setSeedEvents(data.seedEvents)
@@ -566,6 +604,11 @@ export default function Home() {
       fetch(`/api/matches?tournament=${encodeURIComponent(id)}`),
     ])
 
+    // The reader opened another tournament while this one was loading. Its
+    // answers are dropped whole, and the loading state is left to the load
+    // that is still wanted.
+    if (!current()) return
+
     setLoadingDraws(false)
     setLoadingMatches(false)
 
@@ -576,6 +619,7 @@ export default function Home() {
       const disk = readDiskCacheFlag(res)
       if (disk !== null) setDiskCache(disk)
       const data = await safeJson(res).catch(() => null)
+      if (!current()) return
       if (data == null) setError('Failed to load draws')
       else if (isApiError(data)) setError(data.error)
       else setDraws(data as DrawInfo[])
@@ -590,6 +634,7 @@ export default function Home() {
       const disk = readDiskCacheFlag(res)
       if (disk !== null) setDiskCache(disk)
       const matchesData = await safeJson(res).catch(() => null)
+      if (!current()) return
       if (matchesData && !isApiError(matchesData)) {
         const md = matchesData as MatchesData
         setMatchDays(md.days)
@@ -603,20 +648,25 @@ export default function Home() {
           setMatchDays,
           (next) => setAlerts(recordScheduleSnapshot(id, tname, next)),
           setStaleCache,
+          current,
         )
         // The full-schedule endpoint skips sibling enrichment for speed. Refetch
         // the current day in the background to populate siblingPlayerIds (used
         // by the next-opponent highlight). No loading flicker.
         const currentDate = md.currentDate || md.days[0]?.date || ''
         if (currentDate) {
+          // Wanted only while the reader stays on this day: choosing another
+          // (or another tournament) moves dayRequestRef on.
+          const dayRequest = dayRequestRef.current
+          const dayStillShown = () => dayRequest === dayRequestRef.current
           fetch(`/api/matches?tournament=${encodeURIComponent(id)}&date=${currentDate}`)
             .then(async (res) => {
               const stale = readStaleFlag(res)
-              if (stale !== null) setStaleCache(stale)
+              if (dayStillShown() && stale !== null) setStaleCache(stale)
               return safeJson(res)
             })
             .then((data) => {
-              if (!isApiError(data)) {
+              if (dayStillShown() && !isApiError(data)) {
                 setMatchGroups((data as Pick<MatchesData, 'groups'>).groups)
               }
             })
@@ -704,27 +754,37 @@ export default function Home() {
   }, [playerQuery, selectedTournament, selectedDraw])
 
   const fetchBracketFrom = useCallback(async (tournamentId: string, drawNum: string, round: number) => {
+    const request = ++bracketRequestRef.current
+    const current = () => request === bracketRequestRef.current
     setLoadingBracket(true)
     setError(null)
     const params = new URLSearchParams({ tournament: tournamentId, event: drawNum })
     if (round > 0) params.set('fromRound', String(round))
     try {
       const res = await fetch(`/api/bracket?${params}`)
+      const data = await safeJson(res) as BracketData | ApiError
+      // The reader has chosen another draw (or tournament) since: this
+      // bracket, and any error it ended in, belongs to the one they left.
+      if (!current()) return
       // A bracket served from cache because BAT is down raises the banner; a
       // normal answer says nothing about BAT, so it never lowers it.
       if (readStaleFlag(res)) setStaleCache(true)
-      const data = await safeJson(res) as BracketData | ApiError
       if (isApiError(data)) throw new Error(data.error)
       setBracketHtml(data.html)
       setBracketEntrants(data.entrantCount)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
+      if (current()) setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
-      setLoadingBracket(false)
+      // Only the request the reader is waiting on may end the loading state.
+      if (current()) setLoadingBracket(false)
     }
   }, [])
 
   const fetchEventBundle = useCallback(async (tournamentId: string, eventName: string) => {
+    // The same counter as fetchBracketFrom: a bundle and a bracket are two
+    // answers to the one question of what the bracket view shows.
+    const request = ++bracketRequestRef.current
+    const current = () => request === bracketRequestRef.current
     setLoadingBracket(true)
     setError(null)
     setEventBundle(null)
@@ -733,12 +793,13 @@ export default function Home() {
     try {
       const res = await fetch(`/api/event-bundle?tournament=${encodeURIComponent(tournamentId)}&event=${encodeURIComponent(eventName)}`)
       const data = await safeJson(res) as EventBundle | ApiError
+      if (!current()) return
       if (isApiError(data)) throw new Error(data.error)
       setEventBundle(data)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
+      if (current()) setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
-      setLoadingBracket(false)
+      if (current()) setLoadingBracket(false)
     }
   }, [])
 
@@ -751,7 +812,12 @@ export default function Home() {
     setFromRound(0)
     setFromRoundName('')
     setError(null)
-    if (!drawNum || !selectedTournament) return
+    if (!drawNum || !selectedTournament) {
+      // No draw chosen: whatever bracket is still on its way is not wanted.
+      bracketRequestRef.current++
+      setLoadingBracket(false)
+      return
+    }
     const d = draws.find((d) => d.drawNum === drawNum)
     setDrawName(d?.name ?? drawNum)
     if (d?.isPlayoff && d.eventName) {
@@ -835,11 +901,15 @@ export default function Home() {
 
   const handlePlayerClick = useCallback(async (playerId: string) => {
     if (!selectedTournament) return
+    const request = ++playerRequestRef.current
+    const current = () => request === playerRequestRef.current
     setModalProfile(null)
     setModalLoading(true)
     try {
       const res = await fetch(`/api/player?tournament=${encodeURIComponent(selectedTournament)}&player=${encodeURIComponent(playerId)}`)
       const data = await safeJson(res) as PlayerProfile | ApiError
+      // Another player was clicked, or the panel closed, while this loaded.
+      if (!current()) return
       if (!isApiError(data)) {
         setModalProfile(data)
         track('player_profile_viewed', {
@@ -849,11 +919,12 @@ export default function Home() {
         })
       }
     } catch {}
-    finally { setModalLoading(false) }
+    finally { if (current()) setModalLoading(false) }
   }, [selectedTournament])
 
 
   const handleModalClose = useCallback(() => {
+    playerRequestRef.current++
     setModalProfile(null)
     setModalLoading(false)
   }, [])
@@ -873,14 +944,18 @@ export default function Home() {
       draw_id: m.drawNum,
       round_name: m.round,
     })
+    const request = ++h2hRequestRef.current
+    const current = () => request === h2hRequestRef.current
     setH2hData(null)
     setH2hLoading(true)
     try {
       const res = await fetch(`/api/h2h?path=${encodeURIComponent(h2hUrl)}`)
       const data = await safeJson(res) as H2HData | ApiError
+      // Another head-to-head was asked for, or the panel closed, meanwhile.
+      if (!current()) return
       if (!isApiError(data)) setH2hData(data)
     } catch {}
-    finally { setH2hLoading(false) }
+    finally { if (current()) setH2hLoading(false) }
   }, [selectedTournament, tournaments])
 
   const handlePathClick = useCallback((drawNum: string, drawName: string) => {
@@ -893,6 +968,7 @@ export default function Home() {
   }, [modalProfile, tournaments, selectedTournament, openPath])
 
   const handleH2HClose = useCallback(() => {
+    h2hRequestRef.current++
     setH2hData(null)
     setH2hLoading(false)
   }, [])
