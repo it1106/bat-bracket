@@ -291,6 +291,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
   const publications = await import('./publications')
   const published = await import('./published-state')
   const { publicationTournaments } = await import('./tournaments')
+  const siteNews = await import('@/lib/site-news')
 
   const deps: WatcherDeps = {
     now: () => Date.now(),
@@ -331,6 +332,7 @@ export async function startPushWatcher(opts: { isLeader: () => boolean; origin: 
     removeRecord: store.removeRecord,
     record: recordPush,
     noteSend: recent.recordSend,
+    recordNews: siteNews.recordNews,
   }
 
   // Which tournaments are worth asking about, refreshed before every tick,

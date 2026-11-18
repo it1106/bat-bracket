@@ -93,7 +93,7 @@ export function digestPayload(alerts: DueAlert[], tournamentId: string, minuteKe
   }
 }
 
-const PUB_TITLES: Record<PublicationKind, { en: string; th: string }> = {
+export const PUB_TITLES: Record<PublicationKind, { en: string; th: string }> = {
   tournament: { en: 'New tournament', th: 'ทัวร์นาเมนต์ใหม่' },
   bracket: { en: 'Draws are out', th: 'สายการแข่งขันออกแล้ว' },
   schedule: { en: 'Schedule published', th: 'ตารางแข่งออกแล้ว' },
@@ -101,11 +101,12 @@ const PUB_TITLES: Record<PublicationKind, { en: string; th: string }> = {
 
 // Written out rather than formatted with Intl: this runs on the server, where
 // the available locale data is not something a notification should depend on.
+// The site's news pop-up uses the same titles and dates, so the two read alike.
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const MONTHS_TH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
 
 /** "2026-10-20" as "20 Oct" / "20 ต.ค.". Anything not a date is left alone. */
-function shortDate(dateIso: string, lang: Lang): string {
+export function shortDate(dateIso: string, lang: Lang): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateIso)
   if (!m) return dateIso
   const month = (lang === 'th' ? MONTHS_TH : MONTHS_EN)[Number(m[2]) - 1]

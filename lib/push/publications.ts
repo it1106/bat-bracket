@@ -212,6 +212,10 @@ export interface PublicationDeps {
   removeRecord: (endpoint: string) => Promise<void>
   record: (result: SendResult, dayIso: string) => void
   noteSend: (row: RecentSend) => Promise<void>
+  /** Keeps the pass's draws and schedules for the site's pop-up
+   *  (lib/site-news.ts). Called whether or not any device has site news on:
+   *  the pop-up reaches every visitor, not only push subscribers. */
+  recordNews?: (publications: Publication[], now: number) => Promise<void>
 }
 
 /** Where each tournament's bracket probing got to, so a big tournament is
@@ -368,6 +372,7 @@ export async function runPublicationPass(deps: PublicationDeps): Promise<{ publi
   }
   await deps.saveState(prunePublished(stamped, listedIds, deps.now()))
   if (decided.publications.length === 0) return tally
+  if (deps.recordNews) await deps.recordNews(decided.publications, deps.now()).catch(() => undefined)
 
   const records = (await deps.listRecords()).filter((r) => r.site === true)
   if (records.length === 0) return tally

@@ -413,4 +413,52 @@ describe('runDiscoveryCycle — the seeds gate', () => {
     )
     expect(saved[0].entries[0]).toMatchObject({ hasBracket: true, discoveredAt: '2026-05-01T00:00:00Z' })
   })
+
+  it('stamps promotedAt on a new tournament admitted this cycle', async () => {
+    const saved: DiscoveryStore[] = []
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        parseSeedEntries: () => [seedEvent],
+        saveDiscovered: async (s) => { saved.push(s) },
+      }),
+    )
+    expect(saved[0].entries[0].promotedAt).toBe('2026-05-07T03:00:00.000Z')
+  })
+
+  it('stamps promotedAt and reports the add when a known tournament is admitted later', async () => {
+    const saved: DiscoveryStore[] = []
+    const events: string[] = []
+    const existing: DiscoveredEntry = {
+      id: MOCK_ENTRY.id, name: MOCK_ENTRY.name, hasBracket: false,
+      discoveredAt: '2026-05-01T00:00:00Z', lastSeenOnUpcomingAt: '2026-05-06T00:00:00Z',
+    }
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        loadDiscovered: async () => ({ version: 1, entries: [existing] }),
+        parseSeedEntries: () => [seedEvent],
+        saveDiscovered: async (s) => { saved.push(s) },
+        captureServerEvent: async (event) => { events.push(event) },
+      }),
+    )
+    expect(saved[0].entries[0].promotedAt).toBe('2026-05-07T03:00:00.000Z')
+    expect(events).toEqual(['tournament_auto_added'])
+  })
+
+  it('leaves promotedAt alone on a tournament admitted in an earlier cycle', async () => {
+    const saved: DiscoveryStore[] = []
+    const existing: DiscoveredEntry = {
+      id: MOCK_ENTRY.id, name: MOCK_ENTRY.name, hasBracket: true,
+      discoveredAt: '2026-05-01T00:00:00Z', lastSeenOnUpcomingAt: '2026-05-06T00:00:00Z',
+    }
+    await runDiscoveryCycle(
+      makeDeps({
+        parseUpcoming: () => [MOCK_ENTRY],
+        loadDiscovered: async () => ({ version: 1, entries: [existing] }),
+        saveDiscovered: async (s) => { saved.push(s) },
+      }),
+    )
+    expect(saved[0].entries[0].promotedAt).toBeUndefined()
+  })
 })

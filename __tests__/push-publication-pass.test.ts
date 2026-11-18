@@ -413,4 +413,52 @@ describe('runPublicationPass — a draw with no name', () => {
     await runPublicationPass(w.deps)
     expect(w.pushes[0].payload.body).toBe('THE MALL 2026 · GS U15')
   })
+
+  describe('site news for the pop-up', () => {
+    const withNews = (over: Parameters<typeof world>[0] = {}) => {
+      const news: Array<{ kinds: string[]; now: number }> = []
+      const w = world({ ...over, recordNews: async (pubs, now) => { news.push({ kinds: pubs.map((p) => p.kind), now }) } })
+      return { ...w, news }
+    }
+
+    it('records the pass\'s draws and schedules even when no device has site news on', async () => {
+      const w = withNews({
+        records: [],
+        state: seeded({ [TID]: entry() }),
+        draws: { [TID]: [{ drawNum: '1', name: 'BS U15', entrantCount: 16 }] },
+        days: { [TID]: [{ dateIso: '2026-10-20', hasMatches: true }] },
+      })
+      await runPublicationPass(w.deps)
+      expect(w.news).toEqual([{ kinds: ['bracket', 'schedule'], now: NOW }])
+      expect(w.pushes).toHaveLength(0)
+    })
+
+    it('records nothing on the first, seeding pass', async () => {
+      const w = withNews({
+        state: EMPTY_PUBLISHED,
+        draws: { [TID]: [{ drawNum: '1', name: 'BS U15', entrantCount: 16 }] },
+      })
+      await runPublicationPass(w.deps)
+      expect(w.news).toEqual([])
+    })
+
+    it('records nothing once the lease has moved', async () => {
+      const w = withNews({
+        isLeader: () => false,
+        state: seeded({ [TID]: entry() }),
+        draws: { [TID]: [{ drawNum: '1', name: 'BS U15', entrantCount: 16 }] },
+      })
+      await runPublicationPass(w.deps)
+      expect(w.news).toEqual([])
+    })
+
+    it('still sends when recording the news fails', async () => {
+      const w = world({
+        recordNews: async () => { throw new Error('disk full') },
+        state: seeded({ [TID]: entry() }),
+        draws: { [TID]: [{ drawNum: '1', name: 'BS U15', entrantCount: 16 }] },
+      })
+      expect((await runPublicationPass(w.deps)).sent).toBe(1)
+    })
+  })
 })
