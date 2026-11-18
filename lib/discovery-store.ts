@@ -7,6 +7,11 @@ export interface DiscoveredEntry {
   hasBracket: boolean
   discoveredAt: string
   lastSeenOnUpcomingAt: string
+  /** When the cycle flipped `hasBracket` to true, i.e. when the tournament
+   *  appeared in the dropdown. Drives the "new tournament" pop-up. Absent on
+   *  entries promoted before it was recorded, which are never announced — so
+   *  a deploy does not announce every tournament already listed. */
+  promotedAt?: string
 }
 
 export interface DiscoveryStore {

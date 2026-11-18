@@ -46,8 +46,10 @@ async function runDiscoveryCycleInner(deps: DiscoveryDeps): Promise<void> {
   const store = await deps.loadDiscovered()
   const nowIso = deps.now().toISOString()
 
+  // Copies, so updating an entry below leaves `existingById` as it was loaded
+  // and the before/after comparison at the end sees the change.
   const existingById = new Map(store.entries.map((e) => [e.id, e]))
-  const nextById = new Map(existingById)
+  const nextById = new Map(store.entries.map((e) => [e.id, { ...e }]))
 
   for (const u of upcoming) {
     const existing = nextById.get(u.id)
@@ -56,7 +58,10 @@ async function runDiscoveryCycleInner(deps: DiscoveryDeps): Promise<void> {
       existing.name = u.name
       if (existing.hasBracket) continue
       const promoted = await runAdmissionGate(deps, u.id)
-      if (promoted) existing.hasBracket = true
+      if (promoted) {
+        existing.hasBracket = true
+        existing.promotedAt = nowIso
+      }
     } else {
       const promoted = await runAdmissionGate(deps, u.id)
       const entry: DiscoveredEntry = {
@@ -65,6 +70,7 @@ async function runDiscoveryCycleInner(deps: DiscoveryDeps): Promise<void> {
         hasBracket: promoted,
         discoveredAt: nowIso,
         lastSeenOnUpcomingAt: nowIso,
+        ...(promoted && { promotedAt: nowIso }),
       }
       nextById.set(u.id, entry)
     }
